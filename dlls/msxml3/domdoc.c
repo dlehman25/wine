@@ -2186,6 +2186,27 @@ static HRESULT domdoc_onDataAvailable(void *obj, char *ptr, DWORD len)
     xmlDocPtr xmldoc;
 
     xmldoc = doparse(This, ptr, len, XML_CHAR_ENCODING_NONE);
+    if(xmldoc && xmldoc->standalone == -1)
+    {
+        xmlNodePtr node;
+        char buff[30];
+        xmlChar *xmlbuff = (xmlChar*)buff;
+
+        node = xmlNewDocPI( xmldoc, (xmlChar*)"xml", NULL );
+
+        /* version attribute can't be omitted */
+        sprintf(buff, "version=\"%s\"", xmldoc->version ? (char*)xmldoc->version : "1.0");
+        xmlNodeAddContent( node, xmlbuff );
+
+        if (xmldoc->encoding)
+        {
+            sprintf(buff, " encoding=\"%s\"", xmldoc->encoding);
+            xmlNodeAddContent( node, xmlbuff );
+        }
+
+        xmlAddPrevSibling( xmldoc->children, node );
+    }
+
     if(xmldoc) {
         xmldoc->_private = create_priv();
         return attach_xmldoc(This, xmldoc);
