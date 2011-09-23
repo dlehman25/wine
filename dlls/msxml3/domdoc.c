@@ -866,23 +866,6 @@ static HRESULT WINAPI PersistStreamInit_Load(IPersistStreamInit *iface, IStream 
     return This->error = domdoc_load_from_stream(This, (ISequentialStream*)stream);
 }
 
-static BOOL bstr_to_utf8( BSTR bstr, char **pstr, int *plen )
-{
-    UINT len, bstrlen;
-    LPSTR str;
-
-    bstrlen = SysStringLen(bstr);
-    len = WideCharToMultiByte( CP_UTF8, 0, bstr, bstrlen, NULL, 0, NULL, NULL );
-    str = heap_alloc( len + 1 );
-    if ( !str )
-        return FALSE;
-    WideCharToMultiByte( CP_UTF8, 0, bstr, bstrlen, str, len, NULL, NULL );
-    str[len] = 0;
-    *plen = len;
-    *pstr = str;
-    return TRUE;
-}
-
 static char *strip_leading_xml_decl(const char *str, int *plen) {
   char *p  = (char *)str;
   int  len = *plen;

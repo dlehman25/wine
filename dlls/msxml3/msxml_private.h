@@ -420,6 +420,23 @@ static inline xmlChar *heap_strdupxmlChar(const xmlChar *str)
     return ret;
 }
 
+static inline BOOL bstr_to_utf8( BSTR bstr, char **pstr, int *plen )
+{
+    UINT len, bstrlen;
+    LPSTR str;
+
+    bstrlen = SysStringLen(bstr);
+    len = WideCharToMultiByte( CP_UTF8, 0, bstr, bstrlen, NULL, 0, NULL, NULL );
+    str = heap_alloc( len + 1 );
+    if ( !str )
+        return FALSE;
+    WideCharToMultiByte( CP_UTF8, 0, bstr, bstrlen, str, len, NULL, NULL );
+    str[len] = 0;
+    *plen = len;
+    *pstr = str;
+    return TRUE;
+}
+
 #endif
 
 static inline HRESULT return_bstr(const WCHAR *value, BSTR *p)
