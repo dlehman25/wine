@@ -181,6 +181,78 @@ struct stretch_params
     int dst_inc, src_inc;
 };
 
+struct edge_params
+{
+    unsigned int length; /* TODO: move to edge? */
+    int dst_x_inc;
+    int dst_minor_inc;
+    int dst_err_start;
+    int dst_err_add_1;
+    int dst_err_add_2;
+    int dst_bias;
+
+    int src_horz;
+    int src_x_inc;
+    int src_y_inc;
+    int src_x_minor_inc;
+    int src_y_minor_inc;
+    int src_err_start;
+    int src_err_add_1;
+    int src_err_add_2;
+};
+
+struct edge2
+{
+    POINT dstart, dend; /* in dst */
+    POINT sstart, send; /* in src */
+    int vlength; /* length in y */
+
+    int dst_err;
+    int src_err;
+
+    int start;
+    int end;
+    int clipped;
+};
+
+struct edge
+{
+    int dst_x;
+    int src_x;
+    int src_y;
+
+    int dst_err;
+    int src_err;
+
+    int start;
+    int end;
+    int clipped;
+};
+
+struct run_params
+{
+    /* 2 errors: how to advance src line, when to advance src line */
+    unsigned int length; /* TODO: needed? in pixels */
+    int src_err_start; /* how */
+    int src_err_add_1;
+    int src_err_add_2;
+    /* TODO: bias? */
+    int src_x_inc;
+    int src_y_inc;
+    int src_x_major;
+
+    int dst_err_start; /* when */
+    int dst_err_add_1;
+    int dst_err_add_2;
+
+    int dlx;
+    int drx;
+    int slx;
+    int sly;
+    int srx;
+    int sry;
+};
+
 typedef struct primitive_funcs
 {
     void            (* solid_rects)(const dib_info *dib, int num, const RECT *rc, DWORD and, DWORD xor);
@@ -212,6 +284,9 @@ typedef struct primitive_funcs
     void             (* shrink_row)(const dib_info *dst_dib, const POINT *dst_start,
                                     const dib_info *src_dib, const POINT *src_start,
                                     const struct stretch_params *params, int mode, BOOL keep_dst);
+    void          (* transform_row)(const dib_info *dst_dib, const dib_info *src_dib, int y,
+                                    const RECT *dst_visrect, const RECT *src_visrect,
+                                    const struct run_params *run, int mode);
 } primitive_funcs;
 
 extern const primitive_funcs funcs_8888 DECLSPEC_HIDDEN;

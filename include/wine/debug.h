@@ -344,6 +344,14 @@ static inline const char *wine_dbgstr_longlong( ULONGLONG ll )
     else return wine_dbg_sprintf( "%lx", (unsigned long)ll );
 }
 
+static inline const char *wine_dbgstr_xform( const XFORM *xform )
+{
+    if (!xform) return "(null)";
+    return wine_dbg_sprintf( "[[%f %f %f] [%f %f %f]]",
+                                xform->eM11, xform->eM12, xform->eDx,
+                                xform->eM21, xform->eM22, xform->eDy );
+}
+
 #if defined(__oaidl_h__) && defined(V_VT)
 
 static inline const char *wine_dbgstr_vt( VARTYPE vt )

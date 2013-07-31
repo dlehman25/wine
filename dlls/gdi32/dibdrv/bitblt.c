@@ -1322,6 +1322,561 @@ DWORD blend_bitmapinfo( const BITMAPINFO *src_info, void *src_bits, struct bitbl
     return blend_rect( &dst_dib, &dst->visrect, &src_dib, &src->visrect, NULL, blend );
 }
 
+#define Y_INCREASING_MASK 0x0f
+#define X_INCREASING_MASK 0xc3
+#define X_MAJOR_MASK      0x99
+#define POS_SLOPE_MASK    0x33
+
+static inline BOOL is_xmajor(DWORD octant)
+{
+    return octant & X_MAJOR_MASK;
+}
+
+static inline BOOL is_pos_slope(DWORD octant)
+{
+    return octant & POS_SLOPE_MASK;
+}
+
+static inline BOOL is_x_increasing(DWORD octant)
+{
+    return octant & X_INCREASING_MASK;
+}
+
+static inline BOOL is_y_increasing(DWORD octant)
+{
+    return octant & Y_INCREASING_MASK;
+}
+
+static inline int get_octant_number(int dx, int dy)
+{
+    if(dy > 0)
+        if(dx > 0)
+            return ( dx >  dy) ? 1 : 2;
+        else
+            return (-dx >  dy) ? 4 : 3;
+    else
+        if(dx < 0)
+            return (-dx > -dy) ? 5 : 6;
+        else
+            return ( dx > -dy) ? 8 : 7;
+}
+
+static inline DWORD get_octant_mask(int dx, int dy)
+{
+    return 1 << (get_octant_number(dx, dy) - 1);
+}
+
+static inline int get_bias( DWORD mask )
+{
+    /* Octants 3, 5, 6 and 8 take a bias */
+    return (mask & 0xb4) ? 1 : 0;
+}
+
+DWORD advance_edge( struct edge_params *edge_params, struct edge *edge )
+{
+    --edge_params->length;
+
+    /* advance dst */    
+    if (edge_params->dst_minor_inc)
+    {
+        /* x major */
+        edge->dst_x += edge_params->dst_x_inc;
+        edge->dst_err += edge_params->dst_err_add_1;
+        if (edge->dst_err > 0)
+        {
+            edge->dst_x += edge_params->dst_minor_inc;
+            edge->dst_err += edge_params->dst_err_add_2;
+        }
+    }
+    else /* y major */
+    {
+        if (edge->dst_err + edge_params->dst_bias > 0)
+        {
+            edge->dst_x += edge_params->dst_x_inc;
+            edge->dst_err += edge_params->dst_err_add_1;
+        }
+        else
+            edge->dst_err += edge_params->dst_err_add_2;
+    }
+
+    /* advance src */
+    if (edge_params->src_x_minor_inc + edge_params->src_y_minor_inc)
+    {
+        edge->src_x += edge_params->src_x_inc;
+        edge->src_y += edge_params->src_y_inc;
+        edge->src_err += edge_params->src_err_add_1;
+        if (edge->src_err > 0)
+        {
+            edge->src_x += edge_params->src_x_minor_inc;
+            edge->src_y += edge_params->src_y_minor_inc;
+            edge->src_err += edge_params->src_err_add_2;
+        }
+    }
+    else
+    {
+        if (edge->src_err > 0)
+        {
+            edge->src_x += edge_params->src_x_inc;
+            edge->src_y += edge_params->src_y_inc;
+            edge->src_err += edge_params->src_err_add_1;
+        }
+        else
+            edge->src_err += edge_params->src_err_add_2;
+    }
+    return 0;
+}
+
+/* we want to increment by 1 in the y direction
+ * which may be either the major or minor axis */
+DWORD calc_edge_params( const POINT *dst_start, const POINT *dst_end,
+                        const POINT *src_start, const POINT *src_end,
+                        struct edge_params *edge_params)
+{
+    int len;
+    int dx, dy;
+    int abs_len;
+    int abs_dx, abs_dy;
+
+    dx = dst_end->x - dst_start->x;
+    dy = dst_end->y - dst_start->y;
+    edge_params->length = dy+1; /* TODO: should this be end of this edge or start of next? */
+
+    abs_dx = abs(dx);
+    abs_dy = dy;
+
+    if (abs_dx > abs_dy)
+    {
+        /* x major - draw several in x for each 1 y */
+        edge_params->dst_x_inc = dx/dy;
+        edge_params->dst_minor_inc = dx > 0 ? 1 : -1;
+        edge_params->dst_err_add_1 = 2*(dx % dy);
+        edge_params->dst_err_add_2 = -2*dy;
+        edge_params->dst_err_start = (dx % dy) + -2*dy;
+        edge_params->dst_bias = 0;
+    }
+    else
+    {
+        /* y major - use bresenham line */
+        DWORD octant;
+
+        octant = get_octant_mask(dx, dy);
+        edge_params->dst_x_inc = is_x_increasing(octant) ? 1 : -1;
+        edge_params->dst_minor_inc = 0;
+        edge_params->dst_err_add_1 = 2 * abs_dx - 2 * abs_dy;
+        edge_params->dst_err_add_2 = 2 * abs_dx;
+        edge_params->dst_err_start = 2 * abs_dx - abs_dy;
+        edge_params->dst_bias = get_bias(octant);
+    }
+
+    if (src_start->y == src_end->y)
+    {
+        edge_params->src_horz = 1;
+        len = src_end->x - src_start->x;
+    }
+    else
+    {
+        edge_params->src_horz = 0;
+        len = src_end->y - src_start->y;
+    }
+
+    abs_len = abs(len);
+    if (abs_len > abs_dy)
+    {
+        if (edge_params->src_horz)
+        {
+            edge_params->src_x_inc = len/abs_dy;
+            edge_params->src_y_inc = 0;
+            edge_params->src_x_minor_inc = len > 0 ? 1 : -1;
+            edge_params->src_y_minor_inc = 0;
+        }
+        else
+        {
+            edge_params->src_x_inc = 0;
+            edge_params->src_y_inc = len/abs_dy;
+            edge_params->src_x_minor_inc = 0;
+            edge_params->src_y_minor_inc = len > 0 ? 1 : -1;
+        }
+        edge_params->src_err_add_1 = 2 * (len % dy);
+        edge_params->src_err_add_2 = -2 * dy;
+        edge_params->src_err_start = (len % dy) + -2 * dy;
+    }
+    else
+    {
+        DWORD octant;
+
+        octant = get_octant_mask(abs_len, abs_dy);
+
+        if (edge_params->src_horz)
+        {
+            edge_params->src_x_inc = is_x_increasing(octant) ? 1 : -1;
+            edge_params->src_y_inc = 0;
+            edge_params->src_x_minor_inc = 0;
+            edge_params->src_y_minor_inc = 0;
+        }
+        else
+        {
+            edge_params->src_x_inc = 0;
+            edge_params->src_y_inc = is_y_increasing(octant) ? 1 : -1;
+            edge_params->src_x_minor_inc = 0;
+            edge_params->src_y_minor_inc = 0;
+        }
+        edge_params->src_err_add_1 = 2 * abs_len - 2 * abs_dy;
+        edge_params->src_err_add_2 = 2 * abs_len;
+        edge_params->src_err_start = 2 * abs_len - abs_dy;
+    }
+
+    return 0;
+}
+
+DWORD calc_run_params( int dlx, int drx, int y, int slx, int sly, int srx, int sry,
+                       const RECT *dst_visrect, const RECT *src_visrect,
+                       struct run_params *run_params, BOOL *stretch )
+{
+
+//if (y == 1)
+//{printf("%s: %i: waiting\n", __FUNCTION__, __LINE__); getchar();}
+    /* TODO: is dst always left? what if RTL? */
+    /* dst left < right, but not necessarily the case in src */
+    bres_params bres_params;
+    int sdx, sdy, ddx;
+    int abs_sdx, abs_sdy;
+    int src_length;
+    int dst_length;
+    int clipped_dlx, clipped_drx;
+
+    sdx = srx - slx;
+    sdy = sry - sly;
+    abs_sdx = abs(sdx);
+    abs_sdy = abs(sdy);
+
+    run_params->dlx = dlx;
+    run_params->slx = slx;
+    run_params->sly = sly;
+    run_params->srx = srx;
+    run_params->sry = sry;
+    run_params->drx = min(drx, dst_visrect->right);
+
+    bres_params.dx = abs_sdx;
+    bres_params.dy = abs_sdy;
+    bres_params.octant = get_octant_mask(sdx, sdy);
+    bres_params.bias   = get_bias(bres_params.octant);
+
+    run_params->src_x_major = is_xmajor(bres_params.octant);
+    run_params->src_x_inc   = is_x_increasing(bres_params.octant) ? 1 : -1;
+    run_params->src_y_inc   = is_y_increasing(bres_params.octant) ? 1 : -1;
+
+    if (run_params->src_x_major)
+    {
+        run_params->src_err_start = 2 * abs_sdy;
+        run_params->src_err_add_1 = 2 * abs_sdy - 2 * abs_sdx;
+        run_params->src_err_add_2 = 2 * abs_sdy;
+        src_length = abs_sdx;
+    }
+    else
+    {
+        run_params->src_err_start = 2 * abs_sdx;
+        run_params->src_err_add_1 = 2 * abs_sdx - 2 * abs_sdy;
+        run_params->src_err_add_2 = 2 * abs_sdx;
+        src_length = abs_sdy;
+    }
+
+    dst_length = drx - dlx + 1;
+    if (src_length > dst_length)
+    {
+        run_params->dst_err_start = 2 * dst_length;
+        run_params->dst_err_add_1 = 2 * dst_length - 2 * src_length;
+        run_params->dst_err_add_2 = 2 * dst_length;
+        *stretch = FALSE;
+    }
+    else
+    {
+        run_params->dst_err_start = 2 * src_length;
+        run_params->dst_err_add_1 = 2 * src_length - 2 * dst_length;
+        run_params->dst_err_add_2 = 2 * src_length;
+        *stretch = TRUE;
+    }
+    run_params->length = dst_length;
+    
+    return 1;
+}
+
+/* 
+ * apply inv src and dst xforms, convert log -> dev pts
+ * find top leftmost corner
+ * use it to find find left and right edges
+ * calculate left and right edge increments
+ * from top corner to bottom
+ *   draw horizontal run
+ *   advance left edge
+ *   if reached end of left edge
+ *      find next left edge
+ *      calculate new left edge increments
+ *   if reached end of right edge
+ *      find next right edge
+ *      calculate new right edge increments
+ * update src as done in stretchblt
+ */
+
+static void transform( POINT *pt, UINT count, const XFORM *xform )
+{
+    while (count--)
+    {
+        double x = pt->x;
+        double y = pt->y;
+        pt->x = floor( x * xform->eM11 + y * xform->eM21 + xform->eDx + 0.5 );
+        pt->y = floor( x * xform->eM12 + y * xform->eM22 + xform->eDy + 0.5 );
+        pt++;
+    }
+}
+
+DWORD transform_bitmapinfo( const BITMAPINFO *src_info, void *src_bits,
+                            struct bitblt_coords *src, const XFORM *src_inv_xform,
+                            const BITMAPINFO *dst_info, void *dst_bits,
+                            struct bitblt_coords *dst, const XFORM *dst_xform, INT mode )
+{
+    dib_info src_dib, dst_dib;
+    int i, x, y, top, bot;
+    int inc; /* adding inc gets the next index, subtracting gets the previous */
+    int lstart, lend;
+    int rstart, rend;
+    POINT *pdst_lstart, *pdst_lend;
+    POINT *pdst_rstart, *pdst_rend;
+    POINT dst_lclip, dst_rclip;
+    POINT src_lclip, src_rclip;
+    struct edge_params ledge_params;
+    struct edge_params redge_params;
+    struct edge ledge;
+    struct edge redge;
+    DWORD ret, lret, rret;
+    BOOL lstretch, rstretch, hstretch;
+    int status[4];
+    POINT clipped[4][2] = {{{0}}};
+    POINT clipped_src[4][2] = {{{0}}};
+    struct edge2 edges[8] = {0};
+    POINT sp[4];
+    POINT dp[4];
+
+    /* TODO: bail if:
+     *  src has rotate or sheer
+     *  not 24-bit
+     */
+
+    /* there are several parameters we need to calculate:
+       - 2d parameters for each edge in the destination, uses dst xform
+       - 1d parameters for each edge in source, uses src xform
+       - 2d parameters for each scanline in dest, between edges in src
+
+       the source is always a rectangle.  it can be scaled or translated
+       but a rotation or sheer is an error.  the destination can be
+       transformed in any way
+    */
+
+    init_dib_info_from_bitmapinfo( &src_dib, src_info, src_bits );
+    init_dib_info_from_bitmapinfo( &dst_dib, dst_info, dst_bits );
+
+    for (i = 0; i < 4; i++)
+        dp[i] = dst->xformed[i];
+   
+    sp[0].x = src->visrect.left;
+    sp[0].y = src->visrect.top;
+    sp[1].x = src->visrect.left;
+    sp[1].y = src->visrect.bottom;
+    sp[2].x = src->visrect.right;
+    sp[2].y = src->visrect.bottom;
+    sp[3].x = src->visrect.right;
+    sp[3].y = src->visrect.top;
+
+    MESSAGE("%s: %i: src: %f %f %f\n", __FUNCTION__, __LINE__, src_inv_xform->eM11, src_inv_xform->eM12, src_inv_xform->eDx);
+    MESSAGE("%s: %i: src: %f %f %f\n", __FUNCTION__, __LINE__, src_inv_xform->eM21, src_inv_xform->eM22, src_inv_xform->eDy);
+
+    MESSAGE("%s: %i: dst: %f %f %f\n", __FUNCTION__, __LINE__, dst_xform->eM11, dst_xform->eM12, dst_xform->eDx);
+    MESSAGE("%s: %i: dst: %f %f %f\n", __FUNCTION__, __LINE__, dst_xform->eM21, dst_xform->eM22, dst_xform->eDy);
+
+    for (i = 0; i < 4; i++)
+        MESSAGE("%s: %i: [%i]: dp after xform <%i, %i>\n", __FUNCTION__, __LINE__, i, dp[i].x, dp[i].y);
+
+    /* find top and bottom points.  top is upper left, bottom is lower right */
+    top = bot = 0;
+    for (i = 1; i < 4; i++)
+    {
+        if (dp[i].y < dp[top].y ||
+           (dp[i].y == dp[top].y && dp[i].x < dp[top].x))
+            top = i;
+    }
+    /* the transformation applies equally to all points, so the bottom point
+       is always 2 away from the top */
+    bot = (top + 2) & 3;
+
+    /* the corners are counter-clockwise unless the sign of eM11 and eM22 is negative,
+       then we have a reflection in x or y */
+    inc = dst_xform->eM11 * dst_xform->eM22 >= 0.0 ? 1 : -1;
+
+    /* find left and right edges */
+    lstart = top;
+    lend   = (lstart + inc) & 3;
+    pdst_lstart = &dp[lstart];
+    pdst_lend   = &dp[lend];
+
+    rstart = top;
+    rend   = (rstart - inc) & 3;
+    pdst_rstart = &dp[rstart];
+    pdst_rend   = &dp[rend];
+
+    if (pdst_rstart->y == pdst_rend->y)
+    {
+        rstart = rend;
+        rend   = (rstart - inc) & 3;
+        pdst_rstart = &dp[rstart];
+        pdst_rend   = &dp[rend];
+    }
+
+    /* TODO: haven't we already got the bounding rect and intersected with visrect? */
+    RECT rect;
+    rect.left   = dp[top].x;
+    rect.top    = dp[top].y;
+    rect.right  = dp[bot].x;
+    rect.bottom = dp[bot].y;
+    for (i = 0; i < 2; i++)
+    {
+        rect.left   = min(rect.left,   dp[(top+inc)&3].x);
+        rect.top    = min(rect.top,    dp[(top+inc)&3].y);
+        rect.right  = max(rect.right,  dp[(bot+inc)&3].x); 
+        rect.bottom = max(rect.bottom, dp[(bot+inc)&3].y); 
+    }
+
+    rect.right++;
+    rect.bottom++;
+
+    MESSAGE("%s: %i: bound  rect: %i %i %i %i\n", __FUNCTION__, __LINE__, rect.left, rect.top, rect.right, rect.bottom);
+    
+MESSAGE("waiting\n"); getchar();
+
+    MESSAGE("%s: %i: src visrect: %i %i %i %i\n", __FUNCTION__, __LINE__, src->visrect.left, src->visrect.top, src->visrect.right, src->visrect.bottom);
+
+    MESSAGE("%s: %i: dst visrect: %i %i %i %i (before)\n", __FUNCTION__, __LINE__, dst->visrect.left, dst->visrect.top, dst->visrect.right, dst->visrect.bottom);
+    intersect_rect( &dst->visrect, &dst->visrect, &rect );
+    MESSAGE("%s: %i: dst visrect: %i %i %i %i (after)\n", __FUNCTION__, __LINE__, dst->visrect.left, dst->visrect.top, dst->visrect.right, dst->visrect.bottom);
+
+    for (i = 0; i < 4; i++)
+    {
+        dp[i].x -= dst->visrect.left;
+        dp[i].y -= dst->visrect.top;
+    }
+
+    lret = calc_edge_params(pdst_lstart, pdst_lend, 
+                            &sp[lstart], &sp[lend],
+                            &ledge_params);
+
+    rret = calc_edge_params(pdst_rstart, pdst_rend, 
+                            &sp[rstart], &sp[rend],
+                            &redge_params);
+
+    MESSAGE("%s: %i: left edge:  length %i\n", __FUNCTION__, __LINE__, ledge_params.length);
+    MESSAGE("%s: %i: left edge:  dst xinc %i minor %i bias %i\n", __FUNCTION__, __LINE__,
+        ledge_params.dst_x_inc, ledge_params.dst_minor_inc, ledge_params.dst_bias);
+    MESSAGE("%s: %i: left edge:  dst err %i %i %i\n", __FUNCTION__, __LINE__,
+        ledge_params.dst_err_start, ledge_params.dst_err_add_1, ledge_params.dst_err_add_2);
+    MESSAGE("%s: %i: left edge:  src horz %i \n", __FUNCTION__, __LINE__, ledge_params.src_horz);
+    MESSAGE("%s: %i: left edge:  src inc %i %i minor %i %i \n", __FUNCTION__, __LINE__, 
+        ledge_params.src_x_inc, ledge_params.src_y_inc, ledge_params.src_x_minor_inc, ledge_params.src_y_minor_inc);
+    
+    MESSAGE("%s: %i: right edge: length %i\n", __FUNCTION__, __LINE__, redge_params.length);
+    MESSAGE("%s: %i: right edge: dst xinc %i minor %i bias %i\n", __FUNCTION__, __LINE__,
+        redge_params.dst_x_inc, redge_params.dst_minor_inc, redge_params.dst_bias);
+    MESSAGE("%s: %i: right edge: dst err %i %i %i\n", __FUNCTION__, __LINE__,
+        redge_params.dst_err_start, redge_params.dst_err_add_1, redge_params.dst_err_add_2);
+    MESSAGE("%s: %i: right edge: src horz %i \n", __FUNCTION__, __LINE__, redge_params.src_horz);
+    MESSAGE("%s: %i: right edge: src inc %i %i minor %i %i \n", __FUNCTION__, __LINE__, 
+        redge_params.src_x_inc, redge_params.src_y_inc, redge_params.src_x_minor_inc, redge_params.src_y_minor_inc);
+
+    /* for each run */
+    ledge.dst_x = pdst_lstart->x;
+    ledge.dst_err = ledge_params.dst_err_start;
+    ledge.src_x = sp[lstart].x;
+    ledge.src_y = sp[lstart].y;
+    ledge.src_err = ledge_params.src_err_start;
+
+    redge.dst_x = pdst_rstart->x;
+    redge.dst_err = redge_params.dst_err_start;    
+    redge.src_x = sp[lstart].x;
+    redge.src_y = sp[lstart].y;
+    redge.src_err = redge_params.src_err_start;
+
+    for (y = pdst_lstart->y; y <= 50; y++)//dst->visrect.bottom; y++)
+    {    
+#if 0
+        if (y < dst->visrect.top)
+        {
+            advance_edge(&ledge_params, &ledge);
+            advance_edge(&redge_params, &redge);
+            continue;
+        }
+#endif
+        //MESSAGE("%s: %i: left:  dst %i %i src %i,%i\n ", __FUNCTION__, __LINE__, 
+        //    ledge.dst_x, y, ledge.src_x, ledge.src_y);
+        //MESSAGE("%s: %i: right: dst %i %i src %i,%i\n ", __FUNCTION__, __LINE__, 
+        //    redge.dst_x, y, redge.src_x, redge.src_y);
+        MESSAGE("%s: %i: %i %i => %i, src %i,%i -> %i,%i:\n ", __FUNCTION__, __LINE__, 
+            y, ledge.dst_x, redge.dst_x, ledge.src_x, ledge.src_y, redge.src_x, redge.src_y);
+
+//if (y == 50)
+//    { MESSAGE("waiting y = %i\n", y); getchar(); }
+        /* create run */
+        struct run_params run;
+        BOOL hstretch;
+        if (calc_run_params(ledge.dst_x, redge.dst_x, y, ledge.src_x, ledge.src_y, redge.src_x, redge.src_y, 
+                            &dst->visrect, &src->visrect, &run, &hstretch))
+        {
+            dst_dib.funcs->transform_row(&dst_dib, &src_dib, y, &dst->visrect, &src->visrect, &run, mode);
+        }
+
+        advance_edge(&ledge_params, &ledge);
+        advance_edge(&redge_params, &redge);
+
+        if (!ledge_params.length)
+        {
+            lstart = lend;
+            lend   = (lstart + inc) & 3;
+            pdst_lstart = &dp[lstart];
+            pdst_lend   = &dp[lend];
+
+            lret = calc_edge_params(pdst_lstart, pdst_lend, 
+                                    &sp[lstart], &sp[lend],
+                                    &ledge_params);
+
+            ledge.dst_x = pdst_lstart->x;
+            ledge.dst_err = ledge_params.dst_err_start;
+            ledge.src_x = sp[lstart].x;
+            ledge.src_y = sp[lstart].y;
+            ledge.src_err = ledge_params.src_err_start;
+        }
+
+        if (!redge_params.length)
+        {
+            rstart = rend;
+            rend   = (rstart - inc) & 3;
+            pdst_rstart = &dp[rstart];
+            pdst_rend   = &dp[rend];
+
+            rret = calc_edge_params(pdst_rstart, pdst_rend, 
+                                    &sp[rstart], &sp[rend],
+                                    &redge_params);
+
+            redge.dst_x = pdst_rstart->x;
+            redge.dst_err = redge_params.dst_err_start;    
+            redge.src_x = sp[rstart].x;
+            redge.src_y = sp[rstart].y;
+            redge.src_err = redge_params.src_err_start;
+        }
+    }
+
+    *src = *dst;
+    src->x -= src->visrect.left;
+    src->y -= src->visrect.top;
+    offset_rect( &src->visrect, -src->visrect.left, -src->visrect.top );
+    return 0;
+}
+
 DWORD gradient_bitmapinfo( const BITMAPINFO *info, void *bits, TRIVERTEX *vert_array, ULONG nvert,
                            void *grad_array, ULONG ngrad, ULONG mode, const POINT *dev_pts, HRGN rgn )
 {

@@ -245,6 +245,11 @@ extern DWORD convert_bitmapinfo( const BITMAPINFO *src_info, void *src_bits, str
 extern DWORD stretch_bitmapinfo( const BITMAPINFO *src_info, void *src_bits, struct bitblt_coords *src,
                                  const BITMAPINFO *dst_info, void *dst_bits, struct bitblt_coords *dst,
                                  INT mode ) DECLSPEC_HIDDEN;
+extern DWORD transform_bitmapinfo( const BITMAPINFO *src_info, void *src_bits,
+                                   struct bitblt_coords *src, const XFORM *src_xform,
+                                   const BITMAPINFO *dst_info, void *dst_bits,
+                                   struct bitblt_coords *dst, const XFORM *dst_xform,
+                                   INT mode ) DECLSPEC_HIDDEN;
 extern DWORD blend_bitmapinfo( const BITMAPINFO *src_info, void *src_bits, struct bitblt_coords *src,
                                const BITMAPINFO *dst_info, void *dst_bits, struct bitblt_coords *dst,
                                BLENDFUNCTION blend ) DECLSPEC_HIDDEN;

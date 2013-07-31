@@ -163,6 +163,195 @@ static BOOL get_vis_rectangles( DC *dc_dst, struct bitblt_coords *dst,
     return intersect_vis_rectangles( dst, src );
 }
 
+static BOOL get_vis_rectangles_xform( DC *dc_dst, struct bitblt_coords *dst,
+                                      DC *dc_src, struct bitblt_coords *src )
+{
+    POINT corners[4];
+    RECT rect;
+    int i;
+
+    if (!src ||
+        dc_dst->xformWorld2Vport.eM21 == 0.0 &&
+        dc_dst->xformWorld2Vport.eM12 == 0.0) /* TODO: eps */
+    {
+        return get_vis_rectangles( dc_dst, dst, dc_src, src );
+    }
+    
+    corners[0].x = src->log_x;
+    corners[0].y = src->log_y;
+    corners[1].x = src->log_x + src->log_width;
+    corners[1].y = src->log_y;
+    corners[2].x = src->log_x + src->log_width;
+    corners[2].y = src->log_y + src->log_height;
+    corners[3].x = src->log_x;
+    corners[3].y = src->log_y + src->log_height;
+
+if (1)
+{
+    for (i = 0; i < 4; i++)
+        MESSAGE("before %d: %s\n", i, wine_dbgstr_point(&corners[i]));
+    rect.left   = src->log_x;
+    rect.right  = src->log_x + src->log_width;
+    rect.top    = src->log_y;
+    rect.bottom = src->log_y + src->log_height;
+    MESSAGE("before: %s\n", wine_dbgstr_rect(&rect));
+}
+    i = 0;
+    rect.left = rect.right  = corners[i].x;
+    rect.top  = rect.bottom = corners[i].y;
+    lp_to_dp( dc_dst, corners, 4 );
+
+    for (i = 1; i < 4; i++)
+    {
+        rect.left   = min(rect.left,   corners[i].x);
+        rect.top    = min(rect.top,    corners[i].y);
+        rect.right  = max(rect.right,  corners[i].x);
+        rect.bottom = max(rect.bottom, corners[i].y);
+    }
+    for (i = 0; i < 4; i++)
+        MESSAGE("after  %d: %s\n", i, wine_dbgstr_point(&corners[i]));
+    MESSAGE("after:  %s\n", wine_dbgstr_rect(&rect));
+
+    MESSAGE("dst: %u x %u\n", dst->log_width, dst->log_height);
+    MESSAGE("src: %u x %u\n", src->log_width, src->log_height);
+    MESSAGE("dst: World2Wnd   %s\n", wine_dbgstr_xform(&dc_dst->xformWorld2Wnd));
+    MESSAGE("dst: World2Vport %s\n", wine_dbgstr_xform(&dc_dst->xformWorld2Vport));
+    MESSAGE("src: World2Wnd   %s\n", wine_dbgstr_xform(&dc_src->xformWorld2Wnd));
+    MESSAGE("src: World2Vport %s\n", wine_dbgstr_xform(&dc_src->xformWorld2Vport));
+
+    dst->x      = rect.left;
+    dst->y      = rect.top;
+    dst->width  = rect.right - rect.left;
+    dst->height = rect.bottom - rect.top;
+    if (dst->layout & LAYOUT_RTL && dst->layout & LAYOUT_BITMAPORIENTATIONPRESERVED)
+    {
+        dst->x += dst->width;
+        dst->width = -dst->width;
+    }
+    get_bounding_rect( &rect, dst->x, dst->y, dst->width, dst->height );
+
+    clip_visrect( dc_dst, &dst->visrect, &rect );
+
+    if (is_rect_empty( &dst->visrect )) return FALSE;
+
+    return TRUE;
+}
+
+/* like get_vis_rectangles but handles xform, if any */
+/* unlike get_vis_rectangles, src must != NULL */
+static BOOL get_vis_rectangles_xform_old( DC *dc_dst, struct bitblt_coords *dst,
+                                          DC *dc_src, struct bitblt_coords *src )
+{
+    int i;
+    RECT rect;
+    BOOL has_xform;
+    POINT corners[4];
+
+    /* get the source visible rectangle */
+
+    rect.left   = src->log_x;
+    rect.top    = src->log_y;
+    rect.right  = src->log_x + src->log_width;
+    rect.bottom = src->log_y + src->log_height;
+    LPtoDP( dc_src->hSelf, (POINT *)&rect, 2 );
+
+    src->x      = rect.left;
+    src->y      = rect.top;
+    src->width  = rect.right - rect.left;
+    src->height = rect.bottom - rect.top;
+
+    if (src->layout & LAYOUT_RTL && src->layout & LAYOUT_BITMAPORIENTATIONPRESERVED)
+    {
+        src->x += src->width;
+        src->width = -src->width;
+    }
+    get_bounding_rect( &rect, src->x, src->y, src->width, src->height );
+
+    /* TODO: merge with latest Wine */
+    /* source is not clipped */
+    MESSAGE("%s: %d: what to do?\n", __FUNCTION__, __LINE__);
+    //if (dc_src->header.type == OBJ_MEMDC)
+        intersect_rect( &src->visrect, &rect, &dc_src->vis_rect );
+    //else
+    //    src->visrect = rect;  /* FIXME: clip to device size */
+
+    if (is_rect_empty( &src->visrect )) return FALSE;
+
+    /* get the destination visible rectangle */
+
+    if (dc_dst->xformWorld2Vport.eM21 != 0.0 ||
+        dc_dst->xformWorld2Vport.eM12 != 0.0)
+    {
+        /* there is a rotation or sheer */
+        has_xform = TRUE;
+
+        /* counter-clockwise from top left */
+        /* use clipped src rect */
+        corners[0].x = src->visrect.left;
+        corners[0].y = src->visrect.top;
+        corners[1].x = src->visrect.left;
+        corners[1].y = src->visrect.bottom;
+        corners[2].x = src->visrect.right;
+        corners[2].y = src->visrect.bottom;
+        corners[3].x = src->visrect.right;
+        corners[3].y = src->visrect.top;
+        if (!DPtoLP( dc_src->hSelf, corners, 4 ))
+            return FALSE;
+
+        LPtoDP( dc_dst->hSelf, corners, 4 );
+        i = 0;
+        rect.left = rect.right  = corners[i].x;
+        rect.top  = rect.bottom = corners[i].y;
+        dst->xformed[i].x = corners[i].x;
+        dst->xformed[i].y = corners[i].y;
+        for (i = 1; i < 4; i++)
+        {
+            rect.left   = min(rect.left,   corners[i].x);
+            rect.top    = min(rect.top,    corners[i].y);
+            rect.right  = max(rect.right,  corners[i].x);
+            rect.bottom = max(rect.bottom, corners[i].y);
+            
+            dst->xformed[i].x = corners[i].x;
+            dst->xformed[i].y = corners[i].y;
+        }
+
+        /* avoid rounding errors */
+// TODO        rect.left--;
+//        rect.top--;
+        rect.right++;
+        rect.bottom++;
+    }
+    else
+    {
+        has_xform   = FALSE;
+        rect.left   = dst->log_x;
+        rect.top    = dst->log_y;
+        rect.right  = dst->log_x + dst->log_width;
+        rect.bottom = dst->log_y + dst->log_height;
+        LPtoDP( dc_dst->hSelf, (POINT *)&rect, 2 );
+    }
+
+    dst->x      = rect.left;
+    dst->y      = rect.top;
+    dst->width  = rect.right - rect.left;
+    dst->height = rect.bottom - rect.top;
+    if (dst->layout & LAYOUT_RTL && dst->layout & LAYOUT_BITMAPORIENTATIONPRESERVED)
+    {
+        dst->x += dst->width;
+        dst->width = -dst->width;
+    }
+    get_bounding_rect( &rect, dst->x, dst->y, dst->width, dst->height );
+
+    clip_visrect( dc_dst, &dst->visrect, &rect );
+
+    if (is_rect_empty( &dst->visrect )) return FALSE;
+
+    if (!has_xform) /* xform path uses clipped src */
+        return intersect_vis_rectangles( dst, src );
+    else
+        return TRUE;
+}
+
 void free_heap_bits( struct gdi_image_bits *bits )
 {
     HeapFree( GetProcessHeap(), 0, bits->ptr );
@@ -184,6 +373,31 @@ DWORD convert_bits( const BITMAPINFO *src_info, struct bitblt_coords *src,
         return ERROR_OUTOFMEMORY;
 
     err = convert_bitmapinfo( src_info, bits->ptr, src, dst_info, ptr );
+    if (bits->free) bits->free( bits );
+    bits->ptr = ptr;
+    bits->is_copy = TRUE;
+    bits->free = free_heap_bits;
+    return err;
+}
+
+DWORD transform_bits( const BITMAPINFO *src_info, struct bitblt_coords *src, const XFORM *src_inv_xform,
+                      BITMAPINFO *dst_info, struct bitblt_coords *dst, const XFORM *dst_xform,
+                      struct gdi_image_bits *bits, int mode )
+{
+    void *ptr;
+    DWORD err;
+
+    dst_info->bmiHeader.biWidth = dst->visrect.right - dst->visrect.left;
+    dst_info->bmiHeader.biHeight = dst->visrect.bottom - dst->visrect.top;
+    dst_info->bmiHeader.biSizeImage = get_dib_image_size( dst_info );
+
+MESSAGE("%s: %i: dst visrect: %i %i %i %i w/h %i %i\n", __FUNCTION__, __LINE__, dst->visrect.left, dst->visrect.top, dst->visrect.right, dst->visrect.bottom, dst_info->bmiHeader.biWidth, dst_info->bmiHeader.biHeight);
+    if (src_info->bmiHeader.biHeight < 0) dst_info->bmiHeader.biHeight = -dst_info->bmiHeader.biHeight;
+    if (!(ptr = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, dst_info->bmiHeader.biSizeImage )))
+        return ERROR_OUTOFMEMORY;
+
+    err = transform_bitmapinfo( src_info, bits->ptr, src, src_inv_xform,
+                                dst_info, ptr, dst, dst_xform, mode );
     if (bits->free) bits->free( bits );
     bits->ptr = ptr;
     bits->is_copy = TRUE;
@@ -317,7 +531,16 @@ BOOL CDECL nulldrv_StretchBlt( PHYSDEV dst_dev, struct bitblt_coords *dst,
         ((src->width != dst->width) || (src->height != dst->height)))
     {
         copy_bitmapinfo( src_info, dst_info );
-        err = stretch_bits( src_info, src, dst_info, dst, &bits, dc_dst->stretchBltMode );
+        if (dc_dst->xformWorld2Vport.eM21 != 0.0 ||
+            dc_dst->xformWorld2Vport.eM12 != 0.0)
+        {
+            err = stretch_bits( src_info, src, dst_info, dst, &bits, dc_dst->stretchBltMode );
+            //err = transform_bits( src_info, src, &dc_src->xformVport2World,
+            //                      dst_info, dst, &dc_dst->xformWorld2Vport,
+            //                      &bits, dc_dst->stretchBltMode );
+        }
+        else
+            err = stretch_bits( src_info, src, dst_info, dst, &bits, dc_dst->stretchBltMode );
         if (!err) err = dst_dev->funcs->pPutImage( dst_dev, 0, dst_info, &bits, src, dst, rop );
     }
 
@@ -618,7 +841,7 @@ BOOL WINAPI StretchBlt( HDC hdcDst, INT xDst, INT yDst, INT widthDst, INT height
             dst.layout |= LAYOUT_BITMAPORIENTATIONPRESERVED;
             rop &= ~NOMIRRORBITMAP;
         }
-        ret = !get_vis_rectangles( dcDst, &dst, dcSrc, &src );
+        ret = !get_vis_rectangles_xform( dcDst, &dst, dcSrc, &src );
 
         TRACE("src %p log=%d,%d %dx%d phys=%d,%d %dx%d vis=%s  dst %p log=%d,%d %dx%d phys=%d,%d %dx%d vis=%s  rop=%06x\n",
               hdcSrc, src.log_x, src.log_y, src.log_width, src.log_height,

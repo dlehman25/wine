@@ -46,6 +46,7 @@ struct bitblt_coords
     int  height;
     RECT visrect;   /* rectangle clipped to the visible part, in device coords */
     DWORD layout;   /* DC layout */
+    POINT xformed[4]; /* transformed points, if world transform*/
 };
 
 struct gdi_image_bits

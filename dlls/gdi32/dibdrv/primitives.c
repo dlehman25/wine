@@ -7367,6 +7367,118 @@ static void shrink_row_null(const dib_info *dst_dib, const POINT *dst_start,
     return;
 }
 
+static void transform_row_24(const dib_info *dst_dib, const dib_info *src_dib, int y,
+                             const RECT *dst_visrect, const RECT *src_visrect,
+                             const struct run_params *run, int mode)
+{
+    BYTE *dst_ptr;
+    BYTE *src_ptr;
+    struct rop_codes codes;
+
+    int dlx = run->dlx;
+    int drx = run->drx;
+    int sx  = run->slx;
+    int sy  = run->sly;
+    int dst_err = run->dst_err_start;
+    int src_err = run->src_err_start;
+
+    /* start at left of dst, might be left of clip */
+#if 0
+    src_ptr = get_pixel_ptr_24( src_dib, run->slx, run->sly );
+    dst_ptr = get_pixel_ptr_24( dst_dib, run->dlx, y );
+    dst_ptr[0] = src_ptr[0];
+    dst_ptr[1] = src_ptr[1];
+    dst_ptr[2] = src_ptr[2];
+
+MESSAGE("dst %i %i src %i %i width %i stride %i\n", run->drx, y, run->srx, run->sry, dst_dib->width, dst_dib->stride);
+    src_ptr = get_pixel_ptr_24( src_dib, run->srx, run->sry );
+    dst_ptr = get_pixel_ptr_24( dst_dib, run->drx+1, y );
+    dst_ptr[0] = src_ptr[0];
+    dst_ptr[1] = src_ptr[1];
+    dst_ptr[2] = src_ptr[2];
+#endif
+
+    /* until right dst point or clip */
+#if 0
+    dst_ptr = get_pixel_ptr_24( dst_dib, 135, y);
+    dst_ptr[0] = 255;
+    dst_ptr[1] = 0;
+    dst_ptr[2] = 0;
+
+    dst_ptr = get_pixel_ptr_24( dst_dib, 136, y);
+    dst_ptr[0] = 0;
+    dst_ptr[1] = 0;
+    dst_ptr[2] = 255;
+#endif
+    dst_ptr = get_pixel_ptr_24( dst_dib, dlx, y );
+    for (; dlx <= drx; dlx++)
+    {
+#if 0
+        if (dlx < dst_visrect->left)
+        {
+            /* advance */
+            dst_ptr += 3;
+            continue;
+        }
+#endif
+#if 0
+        /* get pixel from src */
+        /* TODO: adequate clipping? */
+        if (sx >= src_visrect->right || sx < src_visrect->left ||
+            sy < src_visrect->top || sy >= src_visrect->bottom)
+        {
+            /* advance */
+            dst_ptr += 3;
+            continue;
+        }
+        if (sx >= 100) continue; //sx = 99;
+        if (sx < 0) continue; //sx = 0;
+        if (sy >= 100) continue; //sy = 99;
+        if (sy < 0) continue; //sy = 0;
+#endif   
+        src_ptr = get_pixel_ptr_24( src_dib, sx, sy );
+
+//if (y == 1)
+//    printf("dlx = %i sxy <%i %i> <%i %i %i>\n", dlx, sx, sy, src_ptr[0], src_ptr[1], src_ptr[2]);
+
+        /* put pixel in dst */
+        dst_ptr[0] = src_ptr[0];
+        dst_ptr[1] = src_ptr[1];
+        dst_ptr[2] = src_ptr[2];
+        dst_ptr += 3;
+
+if (y == 1) 
+{
+    static done;
+    if (!done)
+    {
+        printf("    derr serr dx sx sy\n");
+        done = 1;
+    }
+}
+
+if (y == 1) printf("bef %4i %4i %2i %2i %2i\n", dst_err, src_err, dlx, sx, sy);
+        /* advance run */
+        if (dst_err > 0)
+        {
+            /* advance src (stretch) */
+            sx += run->src_x_inc;
+            if (src_err > 0) /* TODO: bias? */
+            {
+                sy += run->src_y_inc;
+                src_err += run->src_err_add_1;
+            }
+            else
+                src_err += run->src_err_add_2;
+
+            dst_err += run->dst_err_add_1;
+        }
+        else
+            dst_err += run->dst_err_add_2;
+if (y == 1) printf("aft %4i %4i %2i %2i %2i\n\n", dst_err, src_err, dlx, sx, sy);
+    }
+}
+
 const primitive_funcs funcs_8888 =
 {
     solid_rects_32,
@@ -7427,7 +7539,8 @@ const primitive_funcs funcs_24 =
     create_rop_masks_24,
     create_dither_masks_null,
     stretch_row_24,
-    shrink_row_24
+    shrink_row_24,
+    transform_row_24
 };
 
 const primitive_funcs funcs_555 =
