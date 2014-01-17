@@ -72,15 +72,6 @@ WINE_DECLARE_DEBUG_CHANNEL(heap);
 
 static BOOL bstr_cache_enabled;
 
-static CRITICAL_SECTION cs_bstr_cache;
-static CRITICAL_SECTION_DEBUG cs_bstr_cache_dbg =
-{
-    0, 0, &cs_bstr_cache,
-    { &cs_bstr_cache_dbg.ProcessLocksList, &cs_bstr_cache_dbg.ProcessLocksList },
-      0, 0, { (DWORD_PTR)(__FILE__ ": bstr_cache") }
-};
-static CRITICAL_SECTION cs_bstr_cache = { &cs_bstr_cache_dbg, -1, 0, 0, 0, 0 };
-
 typedef struct {
 #ifdef _WIN64
     DWORD pad;
@@ -95,8 +86,10 @@ typedef struct {
 
 #define BUCKET_SIZE 16
 #define BUCKET_BUFFER_SIZE 6
+#define NUM_BUCKETS (0x10000/BUCKET_SIZE)
 
 typedef struct {
+    CRITICAL_SECTION cs;
     unsigned short head;
     unsigned short cnt;
     bstr_t *buf[BUCKET_BUFFER_SIZE];
@@ -107,6 +100,32 @@ typedef struct {
 #define ARENA_FREE_FILLER      0xfeeefeee
 
 static bstr_cache_entry_t bstr_cache[0x10000/BUCKET_SIZE];
+static CRITICAL_SECTION_DEBUG bstr_cs_dbg[NUM_BUCKETS];
+/* 32 chars is enough room for "oleaut.c: bstr_cache[00000]" */
+static char bstr_cs_dbg_name[NUM_BUCKETS][32];
+
+static void bstr_cache_init(void)
+{
+    int i;
+
+    for (i = 0; i < NUM_BUCKETS; i++)
+    {
+        /* initialize the critical sections manually in
+           static memory to avoid wasting heap space */
+        CRITICAL_SECTION *cs = &bstr_cache[i].cs;
+        CRITICAL_SECTION_DEBUG *cs_dbg = &bstr_cs_dbg[i];
+
+        cs->LockCount = -1;
+        cs->SpinCount = 1031;
+        cs->DebugInfo = cs_dbg;
+
+        cs_dbg->CriticalSection = cs;
+        cs_dbg->ProcessLocksList.Flink = &cs_dbg->ProcessLocksList;
+        cs_dbg->ProcessLocksList.Blink = &cs_dbg->ProcessLocksList;
+        snprintf(bstr_cs_dbg_name[i], sizeof(bstr_cs_dbg_name[0]), __FILE__ ": bstr_cache[%05d]", i);
+        cs_dbg->Spare[0] = (DWORD_PTR)bstr_cs_dbg_name[i];
+    }
+}
 
 static inline size_t bstr_alloc_size(size_t size)
 {
@@ -143,21 +162,30 @@ static bstr_t *alloc_bstr(size_t size)
     bstr_t *ret;
 
     if(cache_entry) {
-        EnterCriticalSection(&cs_bstr_cache);
+        EnterCriticalSection(&cache_entry->cs);
 
         if(!cache_entry->cnt) {
+            LeaveCriticalSection(&cache_entry->cs);
+
             cache_entry = get_cache_entry(size+BUCKET_SIZE);
-            if(cache_entry && !cache_entry->cnt)
-                cache_entry = NULL;
+            if(cache_entry)
+            {
+                EnterCriticalSection(&cache_entry->cs);
+                if (!cache_entry->cnt)
+                {
+                    LeaveCriticalSection(&cache_entry->cs);
+                    cache_entry = NULL;
+                }
+            }
         }
 
         if(cache_entry) {
             ret = cache_entry->buf[cache_entry->head++];
             cache_entry->head %= BUCKET_BUFFER_SIZE;
             cache_entry->cnt--;
+            LeaveCriticalSection(&cache_entry->cs);
         }
 
-        LeaveCriticalSection(&cs_bstr_cache);
 
         if(cache_entry) {
             if(WARN_ON(heap)) {
@@ -288,14 +316,14 @@ void WINAPI DECLSPEC_HOTPATCH SysFreeString(BSTR str)
     if(cache_entry) {
         unsigned i;
 
-        EnterCriticalSection(&cs_bstr_cache);
+        EnterCriticalSection(&cache_entry->cs);
 
         /* According to tests, freeing a string that's already in cache doesn't corrupt anything.
          * For that to work we need to search the cache. */
         for(i=0; i < cache_entry->cnt; i++) {
             if(cache_entry->buf[(cache_entry->head+i) % BUCKET_BUFFER_SIZE] == bstr) {
                 WARN_(heap)("String already is in cache!\n");
-                LeaveCriticalSection(&cs_bstr_cache);
+                LeaveCriticalSection(&cache_entry->cs);
                 return;
             }
         }
@@ -310,11 +338,11 @@ void WINAPI DECLSPEC_HOTPATCH SysFreeString(BSTR str)
                     bstr->u.dwptr[i] = ARENA_FREE_FILLER;
             }
 
-            LeaveCriticalSection(&cs_bstr_cache);
+            LeaveCriticalSection(&cache_entry->cs);
             return;
         }
 
-        LeaveCriticalSection(&cs_bstr_cache);
+        LeaveCriticalSection(&cache_entry->cs);
     }
 
     CoTaskMemFree(bstr);
@@ -1086,7 +1114,19 @@ HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID iid, LPVOID *ppv)
 BOOL WINAPI DllMain(HINSTANCE hInstDll, DWORD fdwReason, LPVOID lpvReserved)
 {
     if(fdwReason == DLL_PROCESS_ATTACH)
-        bstr_cache_enabled = !GetEnvironmentVariableW(L"oanocache", NULL, 0);
+    {
+        if ((bstr_cache_enabled = !GetEnvironmentVariableW(L"oanocache", NULL, 0)))
+        {
+            ULONG info;
+
+            /* if call succeeds and optimized heap is on, then don't use cache */
+            info = 0;
+            if (HeapQueryInformation(GetProcessHeap(), HeapCompatibilityInformation, &info, sizeof(info), NULL) && (info == 2))
+                bstr_cache_enabled = FALSE;
+            else
+                bstr_cache_init();
+        }
+    }
 
     return OLEAUTPS_DllMain( hInstDll, fdwReason, lpvReserved );
 }
