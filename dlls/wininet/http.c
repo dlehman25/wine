@@ -4965,11 +4965,56 @@ static DWORD open_http_connection(http_request_t *request, BOOL *reusing)
 
 static char *build_ascii_request( const WCHAR *str, void *data, DWORD data_len, DWORD *out_len )
 {
-    int len = WideCharToMultiByte( CP_ACP, 0, str, -1, NULL, 0, NULL, NULL );
-    char *ret;
+    int len = WideCharToMultiByte( CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL );
+    char *ret, *tmp, *start, *end, *dst;
+    DWORD nenc;
 
     if (!(ret = malloc( len + data_len ))) return NULL;
-    WideCharToMultiByte( CP_ACP, 0, str, -1, ret, len, NULL, NULL );
+    WideCharToMultiByte( CP_UTF8, 0, str, -1, ret, len, NULL, NULL );
+
+    start = strchr(ret, ' ');
+    if (start)
+    {
+        ++start;
+        end = strchr(start, ' ');
+        nenc = 0;
+        for (tmp = start; tmp < end; ++tmp)
+            if ((unsigned char)*tmp >= 0x80)
+                ++nenc;
+
+        if (nenc)
+        {
+            /* multiply by 2: 0xe9 = '%' 'e' '9' */
+            nenc *= 2;
+            if (!(ret = realloc(ret, len + nenc + data_len)))
+                return NULL;
+
+            /* start from end and work forward */
+            end   = strchr(ret, ' ');
+            start = strchr(end+1, ' ');
+            dst   = start + nenc - 1;
+            memmove(dst+1, start, len - (start - ret));
+
+            for (tmp = start-1; tmp > end; --tmp, --dst)
+            {
+                if ((unsigned char)*tmp < 0x80)
+                {
+                    *dst = *tmp;
+                }
+                else
+                {
+                    static const char hex[16] = "0123456789ABCDEF";
+                    *dst = hex[*tmp & 0x0f];
+                    --dst;
+                    *dst = hex[(*tmp >> 4) & 0x0f];
+                    --dst;
+                    *dst = '%';
+                }
+            }
+            len += nenc;
+        }
+    }
+
     if (data_len) memcpy( ret + len - 1, data, data_len );
     *out_len = len + data_len - 1;
     ret[*out_len] = 0;
