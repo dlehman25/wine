@@ -743,11 +743,10 @@ HGLOBAL WINAPI GlobalFree(HGLOBAL hmem)
     PGLOBAL32_INTERN pintern;
     HGLOBAL hreturned;
 
-    RtlLockHeap(GetProcessHeap());
-    __TRY
+    hreturned = 0;
+    if(ISPOINTER(hmem)) /* POINTER */
     {
-        hreturned = 0;
-        if(ISPOINTER(hmem)) /* POINTER */
+        __TRY
         {
             if(!HeapFree(GetProcessHeap(), HEAP_NO_SERIALIZE, hmem))
             {
@@ -755,31 +754,42 @@ HGLOBAL WINAPI GlobalFree(HGLOBAL hmem)
                 hreturned = hmem;
             }
         }
-        else  /* HANDLE */
+        __EXCEPT_PAGE_FAULT
         {
-            pintern=HANDLE_TO_INTERN(hmem);
+            ERR("(%p): Page fault occurred ! Caused by bug ?\n", hmem);
+            SetLastError(ERROR_NOACCESS);
+            hreturned = hmem;
+        }
+        __ENDTRY
+        return hreturned;
+    }
 
-            if(pintern->Magic==MAGIC_GLOBAL_USED)
-            {
-                pintern->Magic = 0xdead;
+    /* HANDLE */
+    RtlLockHeap(GetProcessHeap());
+    __TRY
+    {
+        pintern=HANDLE_TO_INTERN(hmem);
 
-                /* WIN98 does not make this test. That is you can free a */
-                /* block you have not unlocked. Go figure!!              */
-                /* if(pintern->LockCount!=0)  */
-                /*    SetLastError(ERROR_INVALID_HANDLE);  */
+        if(pintern->Magic==MAGIC_GLOBAL_USED)
+        {
+            pintern->Magic = 0xdead;
 
-                if(pintern->Pointer)
-                    if(!HeapFree(GetProcessHeap(), HEAP_NO_SERIALIZE, (char *)(pintern->Pointer)-HGLOBAL_STORAGE))
-                        hreturned=hmem;
-                if(!HeapFree(GetProcessHeap(), HEAP_NO_SERIALIZE, pintern))
+            /* WIN98 does not make this test. That is you can free a */
+            /* block you have not unlocked. Go figure!!              */
+            /* if(pintern->LockCount!=0)  */
+            /*    SetLastError(ERROR_INVALID_HANDLE);  */
+
+            if(pintern->Pointer)
+                if(!HeapFree(GetProcessHeap(), HEAP_NO_SERIALIZE, (char *)(pintern->Pointer)-HGLOBAL_STORAGE))
                     hreturned=hmem;
-            }
-            else
-            {
-                WARN("invalid handle %p (Magic: 0x%04x)\n", hmem, pintern->Magic);
-                SetLastError(ERROR_INVALID_HANDLE);
-                hreturned = hmem;
-            }
+            if(!HeapFree(GetProcessHeap(), HEAP_NO_SERIALIZE, pintern))
+                hreturned=hmem;
+        }
+        else
+        {
+            WARN("invalid handle %p (Magic: 0x%04x)\n", hmem, pintern->Magic);
+            SetLastError(ERROR_INVALID_HANDLE);
+            hreturned = hmem;
         }
     }
     __EXCEPT_PAGE_FAULT
