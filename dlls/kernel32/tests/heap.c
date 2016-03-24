@@ -224,7 +224,7 @@ static void test_heap(void)
     SetLastError(MAGIC_DEAD);
     hsecond = GlobalFree(LongToHandle(0xdeadbee0)); /* bogus pointer */
     ok( (hsecond == LongToHandle(0xdeadbee0)) &&
-        ((GetLastError() == ERROR_INVALID_HANDLE) || broken(GetLastError() == ERROR_NOACCESS) /* wvista+ */),
+        ((GetLastError() == ERROR_INVALID_HANDLE) || GetLastError() == ERROR_NOACCESS) /* wvista+ */,
         "returned %p with 0x%08x (expected %p with ERROR_NOACCESS)\n",
         hsecond, GetLastError(), LongToHandle(0xdeadbee0));
 
