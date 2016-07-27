@@ -341,8 +341,6 @@ extern void msvcrt_free_args(void) DECLSPEC_HIDDEN;
 extern void msvcrt_init_signals(void) DECLSPEC_HIDDEN;
 extern void msvcrt_free_signals(void) DECLSPEC_HIDDEN;
 extern void msvcrt_free_popen_data(void) DECLSPEC_HIDDEN;
-extern BOOL msvcrt_init_heap(void) DECLSPEC_HIDDEN;
-extern void msvcrt_destroy_heap(void) DECLSPEC_HIDDEN;
 
 #if _MSVCR_VER >= 100
 extern void msvcrt_init_scheduler(void*) DECLSPEC_HIDDEN;
