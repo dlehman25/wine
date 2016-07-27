@@ -98,17 +98,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
   {
   case DLL_PROCESS_ATTACH:
     msvcrt_init_exception(hinstDLL);
-    if(!msvcrt_init_heap())
-        return FALSE;
     if(!msvcrt_init_tls()) {
-      msvcrt_destroy_heap();
       return FALSE;
     }
     msvcrt_init_mt_locks();
     if(!msvcrt_init_locale()) {
         msvcrt_free_locks();
         msvcrt_free_tls_mem();
-        msvcrt_destroy_heap();
         return FALSE;
     }
     msvcrt_init_math(hinstDLL);
@@ -145,7 +141,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     msvcrt_free_scheduler_thread();
     msvcrt_free_scheduler();
 #endif
-    msvcrt_destroy_heap();
     TRACE("finished process free\n");
     break;
   case DLL_THREAD_DETACH:
