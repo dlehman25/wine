@@ -6,6 +6,7 @@ C_SRCS = \
 	collation.c \
 	config.c \
 	debug.c \
+	kevent.c \
 	ldt.c \
 	loader.c \
 	mmap.c \

@@ -23,6 +23,8 @@ WINE_1.0
     isspaceW;
     isupperW;
     isxdigitW;
+    lw_ke_release;
+    lw_ke_wait;
     memchrW;
     memicmpW;
     memrchrW;
