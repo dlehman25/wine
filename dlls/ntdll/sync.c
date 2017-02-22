@@ -55,11 +55,13 @@
 #include "winternl.h"
 #include "wine/server.h"
 #include "wine/debug.h"
+#include "wine/kevent.h"
 #include "ntdll_misc.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
 
 HANDLE keyed_event = NULL;
+static lw_ke lwke = LW_KE_INIT;
 
 static const LARGE_INTEGER zero_timeout;
 
@@ -1706,12 +1708,12 @@ static inline void srwlock_leave_exclusive( RTL_SRWLOCK *lock, unsigned int val 
      * exclusive access threads they are processed first, followed by
      * the shared waiters. */
     if (val & SRWLOCK_MASK_EXCLUSIVE_QUEUE)
-        NtReleaseKeyedEvent( 0, srwlock_key_exclusive(lock), FALSE, NULL );
+        LW_KE_RELEASE( &lwke, 0, srwlock_key_exclusive(lock), NULL );
     else
     {
         val &= SRWLOCK_MASK_SHARED_QUEUE; /* remove SRWLOCK_MASK_IN_EXCLUSIVE */
         while (val--)
-            NtReleaseKeyedEvent( 0, srwlock_key_shared(lock), FALSE, NULL );
+            LW_KE_RELEASE( &lwke, 0, srwlock_key_shared(lock), NULL );
     }
 }
 
@@ -1720,7 +1722,7 @@ static inline void srwlock_leave_shared( RTL_SRWLOCK *lock, unsigned int val )
     /* Wake up one exclusive thread as soon as the last shared access thread
      * has left. */
     if ((val & SRWLOCK_MASK_EXCLUSIVE_QUEUE) && !(val & SRWLOCK_MASK_SHARED_QUEUE))
-        NtReleaseKeyedEvent( 0, srwlock_key_exclusive(lock), FALSE, NULL );
+        LW_KE_RELEASE( &lwke, 0, srwlock_key_exclusive(lock), NULL );
 }
 
 /***********************************************************************
@@ -1749,7 +1751,7 @@ void WINAPI RtlInitializeSRWLock( RTL_SRWLOCK *lock )
 void WINAPI RtlAcquireSRWLockExclusive( RTL_SRWLOCK *lock )
 {
     if (srwlock_lock_exclusive( (unsigned int *)&lock->Ptr, SRWLOCK_RES_EXCLUSIVE ))
-        NtWaitForKeyedEvent( 0, srwlock_key_exclusive(lock), FALSE, NULL );
+        LW_KE_WAIT( &lwke, 0, srwlock_key_exclusive(lock), NULL );
 }
 
 /***********************************************************************
@@ -1777,14 +1779,14 @@ void WINAPI RtlAcquireSRWLockShared( RTL_SRWLOCK *lock )
     /* Drop exclusive access again and instead requeue for shared access. */
     if ((val & SRWLOCK_MASK_EXCLUSIVE_QUEUE) && !(val & SRWLOCK_MASK_IN_EXCLUSIVE))
     {
-        NtWaitForKeyedEvent( 0, srwlock_key_exclusive(lock), FALSE, NULL );
+        LW_KE_WAIT( &lwke, 0, srwlock_key_exclusive(lock), NULL );
         val = srwlock_unlock_exclusive( (unsigned int *)&lock->Ptr, (SRWLOCK_RES_SHARED
                                         - SRWLOCK_RES_EXCLUSIVE) ) - SRWLOCK_RES_EXCLUSIVE;
         srwlock_leave_exclusive( lock, val );
     }
 
     if (val & SRWLOCK_MASK_EXCLUSIVE_QUEUE)
-        NtWaitForKeyedEvent( 0, srwlock_key_shared(lock), FALSE, NULL );
+        LW_KE_WAIT( &lwke, 0, srwlock_key_shared(lock), NULL );
 }
 
 /***********************************************************************
