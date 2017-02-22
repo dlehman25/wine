@@ -1870,7 +1870,7 @@ void WINAPI RtlInitializeConditionVariable( RTL_CONDITION_VARIABLE *variable )
 void WINAPI RtlWakeConditionVariable( RTL_CONDITION_VARIABLE *variable )
 {
     if (interlocked_dec_if_nonzero( (int *)&variable->Ptr ))
-        NtReleaseKeyedEvent( 0, &variable->Ptr, FALSE, NULL );
+        LW_KE_RELEASE( &lwke, 0, &variable->Ptr, NULL );
 }
 
 /***********************************************************************
@@ -1882,7 +1882,7 @@ void WINAPI RtlWakeAllConditionVariable( RTL_CONDITION_VARIABLE *variable )
 {
     int val = interlocked_xchg( (int *)&variable->Ptr, 0 );
     while (val-- > 0)
-        NtReleaseKeyedEvent( 0, &variable->Ptr, FALSE, NULL );
+        LW_KE_RELEASE( &lwke, 0, &variable->Ptr, NULL );
 }
 
 /***********************************************************************
@@ -1907,11 +1907,11 @@ NTSTATUS WINAPI RtlSleepConditionVariableCS( RTL_CONDITION_VARIABLE *variable, R
     interlocked_xchg_add( (int *)&variable->Ptr, 1 );
     RtlLeaveCriticalSection( crit );
 
-    status = NtWaitForKeyedEvent( 0, &variable->Ptr, FALSE, timeout );
+    status = LW_KE_WAIT( &lwke, 0, &variable->Ptr, timeout );
     if (status != STATUS_SUCCESS)
     {
         if (!interlocked_dec_if_nonzero( (int *)&variable->Ptr ))
-            status = NtWaitForKeyedEvent( 0, &variable->Ptr, FALSE, NULL );
+            status = LW_KE_WAIT( &lwke, 0, &variable->Ptr, NULL );
     }
 
     RtlEnterCriticalSection( crit );
@@ -1948,11 +1948,11 @@ NTSTATUS WINAPI RtlSleepConditionVariableSRW( RTL_CONDITION_VARIABLE *variable, 
     else
         RtlReleaseSRWLockExclusive( lock );
 
-    status = NtWaitForKeyedEvent( 0, &variable->Ptr, FALSE, timeout );
+    status = LW_KE_WAIT( &lwke, 0, &variable->Ptr, timeout );
     if (status != STATUS_SUCCESS)
     {
         if (!interlocked_dec_if_nonzero( (int *)&variable->Ptr ))
-            status = NtWaitForKeyedEvent( 0, &variable->Ptr, FALSE, NULL );
+            status = LW_KE_WAIT( &lwke, 0, &variable->Ptr, NULL );
     }
 
     if (flags & RTL_CONDITION_VARIABLE_LOCKMODE_SHARED)
