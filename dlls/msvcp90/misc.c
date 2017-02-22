@@ -29,6 +29,7 @@
 #include "winternl.h"
 #include "wine/debug.h"
 #include "wine/exception.h"
+#include "wine/kevent.h"
 WINE_DEFAULT_DEBUG_CHANNEL(msvcp);
 
 #if _MSVCP_VER >= 110
@@ -761,6 +762,7 @@ typedef _Cnd_t *_Cnd_arg_t;
 #endif
 
 static HANDLE keyed_event;
+static lw_ke lwke = LW_KE_INIT;
 
 void __cdecl _Cnd_init_in_situ(_Cnd_t cnd)
 {
@@ -789,7 +791,7 @@ int __cdecl _Cnd_wait(_Cnd_arg_t cnd, _Mtx_arg_t mtx)
     InterlockedExchangeAdd( (LONG *)&cv->Ptr, 1 );
     _Mtx_unlock(mtx);
 
-    NtWaitForKeyedEvent(keyed_event, &cv->Ptr, FALSE, NULL);
+    LW_KE_WAIT(&lwke, keyed_event, &cv->Ptr, NULL);
 
     _Mtx_lock(mtx);
     return 0;
@@ -805,11 +807,11 @@ int __cdecl _Cnd_timedwait(_Cnd_arg_t cnd, _Mtx_arg_t mtx, const xtime *xt)
     _Mtx_unlock(mtx);
 
     timeout.QuadPart = (ULONGLONG)(ULONG)_Xtime_diff_to_millis(xt) * -10000;
-    status = NtWaitForKeyedEvent(keyed_event, &cv->Ptr, FALSE, &timeout);
+    status = LW_KE_WAIT(&lwke, keyed_event, &cv->Ptr, &timeout);
     if (status)
     {
         if (!interlocked_dec_if_nonzero( (LONG *)&cv->Ptr ))
-            status = NtWaitForKeyedEvent( keyed_event, &cv->Ptr, FALSE, NULL );
+            status = LW_KE_WAIT(&lwke, keyed_event, &cv->Ptr, NULL);
     }
 
     _Mtx_lock(mtx);
@@ -821,7 +823,7 @@ int __cdecl _Cnd_broadcast(_Cnd_arg_t cnd)
     CONDITION_VARIABLE *cv = &CND_T_FROM_ARG(cnd)->cv;
     LONG val = InterlockedExchange( (LONG *)&cv->Ptr, 0 );
     while (val-- > 0)
-        NtReleaseKeyedEvent( keyed_event, &cv->Ptr, FALSE, NULL );
+        LW_KE_RELEASE(&lwke, keyed_event, &cv->Ptr, NULL);
     return 0;
 }
 
@@ -829,7 +831,7 @@ int __cdecl _Cnd_signal(_Cnd_arg_t cnd)
 {
     CONDITION_VARIABLE *cv = &CND_T_FROM_ARG(cnd)->cv;
     if (interlocked_dec_if_nonzero( (LONG *)&cv->Ptr ))
-        NtReleaseKeyedEvent( keyed_event, &cv->Ptr, FALSE, NULL );
+        LW_KE_RELEASE(&lwke, keyed_event, &cv->Ptr, NULL);
     return 0;
 }
 
