@@ -22,6 +22,7 @@
 #include <stdarg.h>
 
 #include "wine/debug.h"
+#include "wine/kevent.h"
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -281,6 +282,7 @@ MSVCRT_bool __thiscall SpinWait__SpinOnce(SpinWait *this)
 }
 
 static HANDLE keyed_event;
+static lw_ke lwke = LW_KE_INIT;
 
 /* keep in sync with msvcp90/msvcp90.h */
 typedef struct cs_queue
@@ -369,7 +371,7 @@ static inline void cs_lock(critical_section *cs, cs_queue *q)
     last = InterlockedExchangePointer(&cs->tail, q);
     if(last) {
         last->next = q;
-        NtWaitForKeyedEvent(keyed_event, q, 0, NULL);
+        LW_KE_WAIT(&lwke, keyed_event, q, NULL);
     }
 
     cs_set_head(cs, q);
@@ -446,7 +448,7 @@ void __thiscall critical_section_unlock(critical_section *this)
     }
 #endif
 
-    NtReleaseKeyedEvent(keyed_event, this->unk_active.next, 0, NULL);
+    LW_KE_RELEASE(&lwke, keyed_event, this->unk_active.next, NULL);
 }
 
 /* ?native_handle@critical_section@Concurrency@@QAEAAV12@XZ */
@@ -485,13 +487,13 @@ MSVCRT_bool __thiscall critical_section_try_lock_for(
         GetSystemTimeAsFileTime(&ft);
         to.QuadPart = ((LONGLONG)ft.dwHighDateTime<<32) +
             ft.dwLowDateTime + (LONGLONG)timeout*10000;
-        status = NtWaitForKeyedEvent(keyed_event, q, 0, &to);
+        status = LW_KE_WAIT(&lwke, keyed_event, q, &to);
         if(status == STATUS_TIMEOUT) {
             if(!InterlockedExchange(&q->free, TRUE))
                 return FALSE;
             /* A thread has signaled the event and is block waiting. */
             /* We need to catch the event to wake the thread.        */
-            NtWaitForKeyedEvent(keyed_event, q, 0, NULL);
+            LW_KE_WAIT(&lwke, keyed_event, q, NULL);
         }
     }
 
