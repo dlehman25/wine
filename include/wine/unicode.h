@@ -108,6 +108,7 @@ extern int memicmpW( const WCHAR *str1, const WCHAR *str2, int n );
 extern WCHAR *strstrW( const WCHAR *str, const WCHAR *sub );
 extern long int strtolW( const WCHAR *nptr, WCHAR **endptr, int base );
 extern unsigned long int strtoulW( const WCHAR *nptr, WCHAR **endptr, int base );
+extern unsigned long long strtoullW( const WCHAR *nptr, WCHAR **endptr, int base );
 extern int sprintfW( WCHAR *str, const WCHAR *format, ... );
 extern int snprintfW( WCHAR *str, size_t len, const WCHAR *format, ... );
 extern int vsprintfW( WCHAR *str, const WCHAR *format, va_list valist );

@@ -44,6 +44,7 @@ WINE_1.0
     strstrW;
     strtolW;
     strtoulW;
+    strtoullW;
     struprW;
     tolowerW;
     toupperW;
