@@ -251,4 +251,13 @@ extern HANDLE keyed_event DECLSPEC_HIDDEN;
 
 NTSTATUS WINAPI RtlHashUnicodeString(PCUNICODE_STRING,BOOLEAN,ULONG,ULONG*);
 
+extern BOOL dcache_enabled;
+void dc_init(void);
+
+int dc_add_file(const char *);
+int dc_rm_dir(const char *);
+int dc_rm_file(const char *, HANDLE);
+int dc_rm_final(HANDLE);
+int dc_mv(const char *, const char *);
+
 #endif

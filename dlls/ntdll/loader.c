@@ -3489,7 +3489,11 @@ NTSTATUS WINAPI NtUnloadDriver( const UNICODE_STRING *DriverServiceName )
  */
 BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
 {
-    if (reason == DLL_PROCESS_ATTACH) LdrDisableThreadCalloutsForDll( inst );
+    if (reason == DLL_PROCESS_ATTACH)
+    {
+        LdrDisableThreadCalloutsForDll( inst );
+        dc_init();
+    }
     return TRUE;
 }
 
