@@ -424,4 +424,9 @@ static inline int ntdll_wcsnicmp( const WCHAR *str1, const WCHAR *str2, int n )
 #define towupper(c)        ntdll_towupper(c)
 #define towlower(c)        ntdll_towlower(c)
 
+/* dfcache functions */
+extern BOOL dcache_enabled;
+void dc_init(void);
+int dc_put_name(const char *);
+
 #endif /* __NTDLL_UNIX_PRIVATE_H */
