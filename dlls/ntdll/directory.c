@@ -92,6 +92,9 @@
 #include <sys/statfs.h>
 #endif
 #include <time.h>
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -110,6 +113,9 @@
 #include "wine/library.h"
 #include "wine/debug.h"
 #include "wine/exception.h"
+#include "pshpack4.h"
+#include "wine/rbtree.h"
+#include "poppack.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(file);
 
@@ -216,6 +222,10 @@ static RTL_CRITICAL_SECTION_DEBUG critsect_debug =
 };
 static RTL_CRITICAL_SECTION dir_section = { &critsect_debug, -1, 0, 0, 0, 0 };
 
+/* dfcache forward declarations */
+BOOL dcache_enabled;
+static int dc_lookup_unix_name(const WCHAR *, int, char **, int, UINT, NTSTATUS *);
+static int dc_find_file_in_dir(char *, int, const WCHAR *, int, NTSTATUS *);
 
 /* check if a given Unicode char is OK in a DOS short name */
 static inline BOOL is_invalid_dos_char( WCHAR ch )
@@ -2075,6 +2085,14 @@ static NTSTATUS find_file_in_dir( char *unix_name, int pos, const WCHAR *name, i
 
     if (!is_name_8_dot_3 && !get_dir_case_sensitivity( unix_name )) goto not_found;
 
+    if (dcache_enabled && ret >= 0 && !used_default)
+    {
+        NTSTATUS status;
+        if (!dc_find_file_in_dir(unix_name, pos, name, length, &status))
+            return status;
+        /* not cache or cache failure */
+    }
+
     /* now look for it through the directory */
 
 #ifdef VFAT_IOCTL_READDIR_BOTH
@@ -2613,8 +2631,8 @@ done:
  *
  * Helper for nt_to_unix_file_name
  */
-static NTSTATUS lookup_unix_name( const WCHAR *name, int name_len, char **buffer, int unix_len, int pos,
-                                  UINT disposition, BOOLEAN check_case )
+static NTSTATUS lookup_unix_name( const WCHAR *with_drive, const WCHAR *name, int name_len,
+                                  char **buffer, int unix_len, int pos, UINT disposition, BOOLEAN check_case )
 {
     NTSTATUS status;
     int ret, used_default, len;
@@ -2653,6 +2671,16 @@ static NTSTATUS lookup_unix_name( const WCHAR *name, int name_len, char **buffer
         return STATUS_OBJECT_PATH_NOT_FOUND;
     if (check_case && !redirect && (disposition == FILE_OPEN || disposition == FILE_OVERWRITE))
         return STATUS_OBJECT_NAME_NOT_FOUND;
+
+    /* we only use cache where roundtrip to unicode is good and path has a drive letter */
+    if (dcache_enabled && with_drive && ret >= 0 && !used_default)
+    {
+        NTSTATUS status;
+        int with_drive_len = name_len + (name - with_drive);
+        if (!dc_lookup_unix_name(with_drive, with_drive_len, buffer, unix_len, disposition, &status))
+            return status;
+        /* not cache or cache failure */
+    }
 
     /* now do it component by component */
 
@@ -2769,7 +2797,7 @@ NTSTATUS nt_to_unix_file_name_attr( const OBJECT_ATTRIBUTES *attr, ANSI_STRING *
             RtlEnterCriticalSection( &dir_section );
             if ((old_cwd = open( ".", O_RDONLY )) != -1 && fchdir( root_fd ) != -1)
             {
-                status = lookup_unix_name( name, name_len, &unix_name, unix_len, 1,
+                status = lookup_unix_name( NULL, name, name_len, &unix_name, unix_len, 1,
                                            disposition, check_case );
                 if (fchdir( old_cwd ) == -1) chdir( "/" );
             }
@@ -2820,6 +2848,7 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
     int pos, ret, name_len, unix_len, prefix_len, used_default;
     WCHAR prefix[MAX_DIR_ENTRY_LEN];
     BOOLEAN is_unix = FALSE;
+    const WCHAR *with_drive;
 
     name     = nameW->Buffer;
     name_len = nameW->Length / sizeof(WCHAR);
@@ -2833,6 +2862,8 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
     name_len -= pos;
 
     if (!name_len) return STATUS_OBJECT_NAME_INVALID;
+
+    with_drive = name;
 
     /* check for sub-directory */
     for (pos = 0; pos < name_len; pos++)
@@ -2860,6 +2891,7 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
         for (p = name; p < name + name_len; p++)
             if (!*p) return STATUS_OBJECT_NAME_INVALID;
         check_case = TRUE;
+        with_drive = NULL;
     }
     else
     {
@@ -2902,7 +2934,8 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
         }
     }
 
-    status = lookup_unix_name( name, name_len, &unix_name, unix_len, pos, disposition, check_case );
+    status = lookup_unix_name( with_drive, name, name_len, &unix_name, unix_len,
+                               pos, disposition, check_case );
     if (status == STATUS_SUCCESS || status == STATUS_NO_SUCH_FILE)
     {
         TRACE( "%s -> %s\n", debugstr_us(nameW), debugstr_a(unix_name) );
@@ -3107,4 +3140,1728 @@ NTSTATUS DIR_get_unix_cwd( char **cwd )
 done:
     RtlReleasePebLock();
     return status;
+}
+
+/************************************************************************
+ *                    directory caching
+ *
+ * functions to reduce i/o from exhaustive search by caching known-good directories
+ * a single cache uses a tree of directories which, in turn, are themselves trees
+ * of files.  the tree of directories maps an NT path to unix.  the tree of files
+ * maps either a long or short 8.3 NT filename to unix
+ *
+ * includes 6 semi-public functions:
+ * - dc_init - one-time initialization on process start, if enabled
+ *
+ * - dc_lookup_unix_name - to be called by lookup_unix_name, after stat shortcut
+ *      to avoid updating the cache for paths that can be found directly.
+ *      normally, if the stat shortcut fails, the exhaustive search goes from the
+ *      left most path component to the right (/foo, /foo/bar, /foo/bar/dir, ...)
+ *      dc_lookup_unix_name avoids exhaustive search by checking existing fullest
+ *      known-good cached directory first (starts with /foo/bar/dir).  an existing
+ *      listing is updated if needed, but no new ones are created
+ *
+ * - dc_find_file_in_dir - to be called by find_file_in_dir, after stat shortcut
+ *      to avoid unnecessarily caching paths that can be found directly.
+ *      a normal exhaustive search iterates over directory until file is found
+ *      with a case-insensitive comparison.  dc_find_file_in_dir creates a new
+ *      listing and reads directory contents, stopping at desired file, if found
+ *      if file is not found and entire directory is read, it is stamped with the
+ *      directory's last modified time.  knowing this speeds future lookups, since
+ *      we can know whether a file exists without reading the directory.  otherwise,
+ *      if a file is not found in the cache, the disk needs to be checked
+ *
+ * - dc_add_file - to be called after successfully creating a file to update the cache
+ *      only adds a file to the cache for a directory that has already been cached
+ *      it is a no-op otherwise.  new files can be added faster than we can detect
+ *      using file timestamps. a process should be aware of its own new files, so this
+ *      updates the cache to keep it in sync.  files added by external files can be
+ *      missed, but that is true anyway; the exhaustive search loop and nfs caching
+ *      can both miss files that are added too fast
+ *
+ * - dc_rm_dir - to be called after successfully removing a directory
+ *      removes both a listing for this directory and
+ *      removes an entry in the parent, if cached.  comments above for dc_add_file
+ *      about timestamps apply here, too
+ *
+ * - dc_rm_file - to be called after successfully removing a file
+ *      Windows deletes files in 2 phases:
+ *      - calls NtOpenFile with DELETE_ON_CLOSE flag
+ *      - calls NtClose on resulting handle
+ *      dc_rm_file queue a path to be delete with the associated handle
+ *
+ * - dc_rm_final - to be called after successfully closing handle
+ *      removes queued path for the given handle.  no-op otherwise
+ *      a file is only removed from disk once the last handle is closed
+ *      so dc_rm_final only removes from cache once file is removed from disk
+ *
+ * - dc_mv - to be called after successfully calling glibc rename()
+ *      handles both directories and files.  if old path is directory, the
+ *      its listing is removed and no new listing is created; we still want
+ *      to depend on dc_find_file_in_dir to cache new directories.  if old
+ *      path is a file, it is removed from the old listing (if available) and
+ *      added to the new listing (if available). both operations are independent
+ *      of each other since we may not have both listings cached
+ *
+ * it's possible for the duplicate entries with different names because of either
+ * symlinks or short names:
+ *  C:\foobar -> $WINEPREFIX/dosdevices/c:/foobar (symlink to somewhere under z:)
+ *  C:\FOOB~1 -> $WINEPREFIX/dosdevices/c:/foobar
+ *  Z:/.../foobar -> $WINEPREFIX/dosdevices/z:/foobar
+ * this is expected to be rare.  if it does happen, the worst consequence is
+ * that extra memory is used
+ */
+
+/* these are ONLY for dfcache internal use while holding dfcache lock
+   this is to avoid a deadlock between the dfcache and the virtual memory manaager
+   one thread calls UnmapViewOfFile -> delete_view -> close_handle -> dc_rm_final while holding csVirtual
+   another thread allocates memory inside dfcache, which calls into the vmm
+   the first can't lock dfcache because second holds dfcache lock
+   the second thread can't lock the vmm because the first thread holds csVirtual
+   win32 heap calls should still be used for managing memory from callers */
+static void *dc_alloc(SIZE_T len) __WINE_ALLOC_SIZE(1);
+static inline void *dc_alloc(SIZE_T len)
+{
+    return malloc(len);
+}
+
+static void *dc_realloc(void *mem, SIZE_T len) __WINE_ALLOC_SIZE(2);
+static inline void *dc_realloc(void *mem, SIZE_T len)
+{
+    return realloc(mem, len);
+}
+
+static inline void dc_free(void *mem)
+{
+    free(mem);
+}
+
+#include "pshpack4.h"
+typedef struct
+{
+    WCHAR   *name;
+    WCHAR   *short_name;
+    int      len;
+    int      size;
+    struct wine_rb_entry entry;
+    /* only used if short_name != NULL */
+    struct wine_rb_entry entry83;
+    /* name data starts here */
+} dfile_t;
+
+typedef struct dfile_del_s
+{
+    WCHAR   *dir;
+    WCHAR   *file;
+    int      is83;
+    size_t   size;
+    HANDLE   handle;
+    struct wine_rb_entry entry;
+    /* dir and file data starts here */
+} dfile_del_t;
+
+typedef struct
+{
+    LONG64               lastmod;   /* non-zero if entire directory is cached (faster file lookups) */
+    size_t               size;      /* amount of memory entire listing with files consumes, including overhead */
+    int                  selfsize;  /* size of listing itself with name data, but no files */
+    struct list          mru_entry;
+    struct wine_rb_entry rb_entry;
+    struct wine_rb_tree  files;
+    struct wine_rb_tree  files83;
+    WCHAR               *nt_name;
+    char                *unix_name;
+    /* name data here */
+} dlisting_t;
+
+typedef struct
+{
+    RTL_CRITICAL_SECTION    lock;
+    size_t                  used;       /* current memory used, including overhead */
+    size_t                  allowed;    /* maximum amount of memory allowed, including overhead */
+    struct list             mru;        /* head is MRU.  listings in tail are purged first to reclaim mem */
+    struct wine_rb_tree     pending;    /* files to be deleted on close */
+    struct wine_rb_tree     listings;   /* rb tree of listings, maps NT directories to unix names */
+} dcache_t;
+#include "poppack.h"
+
+static inline LONG64 dc_mtime_from_stat(const struct stat *st)
+{
+    return (LONG64)st->st_mtime;
+}
+
+static int dfile_del_compare(const void *key, const struct wine_rb_entry *entry)
+{
+    const dfile_del_t *file = WINE_RB_ENTRY_VALUE(entry, dfile_del_t, entry);
+    return HandleToLong(key) - HandleToLong(file->handle);
+}
+
+static int dlisting_compare(const void *_key, const struct wine_rb_entry *entry)
+{
+    const dlisting_t *listing = WINE_RB_ENTRY_VALUE(entry, dlisting_t, rb_entry);
+    const WCHAR *key = _key;
+
+    return strcmpiW(key, listing->nt_name);
+}
+
+/* maximum size of cache, including internal structures */
+#define DC_DEF_ALLOWED        4 /* in MB */
+
+static char dc_dosdev[PATH_MAX];
+static size_t dc_dosdev_size;
+
+static dcache_t g_dcache;
+
+static inline void dcache_lock(void)
+{
+    RtlEnterCriticalSection(&g_dcache.lock);
+}
+
+static inline void dcache_unlock(void)
+{
+    RtlLeaveCriticalSection(&g_dcache.lock);
+}
+
+static inline void dfile_free(dfile_t *file)
+{
+    dc_free(file);
+}
+
+static void dfile_free_entry_rb(struct wine_rb_entry *entry, void *context)
+{
+    dfile_t *file;
+
+    file = WINE_RB_ENTRY_VALUE(entry, dfile_t, entry);
+    dfile_free(file);
+}
+
+static inline int dc_is_8dot3(const WCHAR *name, int len)
+{
+    BOOLEAN spaces;
+    UNICODE_STRING str;
+    int is_name_8_dot_3;
+
+    str.Buffer = (WCHAR*)name;
+    str.Length = len * sizeof(WCHAR);
+    str.MaximumLength = str.Length;
+
+    is_name_8_dot_3 = RtlIsNameLegalDOS8Dot3(&str, NULL, &spaces) && !spaces;
+#ifndef VFAT_IOCTL_READDIR_BOTH
+    is_name_8_dot_3 = is_name_8_dot_3 && len >= 8 && name[4] == '~';
+#endif
+    return is_name_8_dot_3;
+}
+
+static inline int dc_umbstowcs(const char *unix_path, int unix_len, WCHAR *nt_path, int *nt_len)
+{
+    int len;
+
+    if ((len = ntdll_umbstowcs(0, unix_path, unix_len, nt_path, *nt_len)) < 0)
+        return ENAMETOOLONG;
+    nt_path[len] = 0;
+    *nt_len = len;
+    return 0;
+}
+
+/* converts a path to wide-char, allocating a buffer if needed that caller must free */
+static inline int dc_convert_path(const char *unix_path, int unix_len, WCHAR **pnt_path, int *pnt_len)
+{
+    int nt_len;
+    WCHAR *nt_path;
+
+    /* in the common case, the converted path will fit in the given buffer */
+    nt_path = *pnt_path;
+    if (dc_umbstowcs(unix_path, unix_len, nt_path, pnt_len))
+    {
+        /* must be a long path - get correct size */
+        if ((nt_len = ntdll_umbstowcs(0, unix_path, unix_len, NULL, 0)) < 0)
+            return ENAMETOOLONG;
+
+        if (!(nt_path = dc_alloc((nt_len + 1) * sizeof(WCHAR))))
+            return ENOMEM;
+
+        dc_umbstowcs(unix_path, unix_len, nt_path, &nt_len);
+        *pnt_path = nt_path;
+        *pnt_len = nt_len;
+    }
+
+    return 0;
+}
+
+/* we only accept unix paths from dosdevices
+   if the path is valid, skip to the drive letter */
+static inline char *dc_drive_letter_from_unix(const char *full_unix)
+{
+    char *unix_path;
+
+    if (!(unix_path = strstr(full_unix, dc_dosdev)))
+        return NULL;
+
+    if (unix_path != full_unix)
+        return NULL;
+
+    /* skip path to dosdevices */
+    unix_path += dc_dosdev_size;
+    return unix_path;
+}
+
+/* copy path and return size */
+static inline int dc_strncpyW(WCHAR *dst, const WCHAR *src, int src_len)
+{
+    WCHAR *orig;
+
+    orig = dst;
+    while (src_len--) { *dst++ = *src++; }
+    *dst = 0;
+
+    return dst - orig;
+}
+
+/* assumes normalized path.  splits given path in-place into directory and file */
+static inline int dc_split_path(WCHAR *path, int len, int *dir_len, WCHAR **file, int *file_len)
+{
+    WCHAR *slash;
+
+    /* skip to last separator.  the unix path already has normalized slashes */
+    if (!(slash = memrchrW(path, '/', len)))
+        return EINVAL;
+
+    /* NULL terminate dir and get file */
+    *dir_len = slash - path;
+    *slash++ = 0;
+    *file = slash;
+    *file_len = len - *dir_len - 1;
+    return 0;
+}
+
+/* allocate file structure to add to listing.  creates short path if needed
+   paths are stored at the end of the structure */
+static int dfile_new(const WCHAR *name, int len, dfile_t **pfile)
+{
+    size_t size;
+    int short_len;
+    dfile_t *file;
+    UNICODE_STRING str;
+    WCHAR short_name[13];
+    const size_t size_no_short_name = sizeof(dfile_t) - sizeof(struct wine_rb_entry); /* subtract entry83 */
+
+    *pfile = NULL;
+
+    if (dc_is_8dot3(name, len))
+    {
+        /* name is already short - don't need to create one */
+        short_len = 0;
+        size = size_no_short_name;
+    }
+    else
+    {
+        str.Buffer = (WCHAR*)name;
+        str.Length = len * sizeof(WCHAR);
+        str.MaximumLength = str.Length;
+        short_len = hash_short_file_name(&str, short_name);
+        size = sizeof(dfile_t) + (short_len + 1) * sizeof(WCHAR);
+    }
+    size += (len + 1) * sizeof(WCHAR);
+
+    if (!(file = dc_alloc(size)))
+        return ENOMEM;
+
+    if (!short_len)
+    {
+        file->name       = (WCHAR*)((char*)file + size_no_short_name);
+        file->short_name = NULL;
+    }
+    else
+    {
+        file->name       = (WCHAR*)((char*)file + sizeof(dfile_t));
+        file->short_name = file->name + len + 1;
+
+        memcpy(file->short_name, short_name, short_len * sizeof(WCHAR));
+        file->short_name[short_len] = 0;
+    }
+
+    memcpy(file->name, name, len * sizeof(WCHAR));
+    file->name[len] = 0;
+
+    file->len = len;
+    file->size = size;
+    *pfile = file;
+
+    return 0;
+}
+
+/* mark a listing as out of date and free current tree of files */
+static inline void dlisting_invalidate(dlisting_t *listing)
+{
+    listing->lastmod = 0;
+    listing->size = listing->selfsize;
+    wine_rb_destroy(&listing->files83, NULL, NULL); /* memory deleted below */
+    wine_rb_destroy(&listing->files, dfile_free_entry_rb, NULL);
+}
+
+static inline void dc_remove_listing(dlisting_t *listing)
+{
+    g_dcache.used -= listing->size;
+    wine_rb_remove(&g_dcache.listings, &listing->rb_entry);
+    list_remove(&listing->mru_entry);
+    dlisting_invalidate(listing);
+    dc_free(listing);
+}
+
+static void dlisting_remove_file(dlisting_t *listing, dfile_t *file)
+{
+    listing->size -= file->size;
+    g_dcache.used -= file->size;
+    wine_rb_remove(&listing->files, &file->entry);
+    if (file->short_name)
+        wine_rb_remove(&listing->files83, &file->entry83);
+    dfile_free(file);
+}
+
+static void dc_remove_dfile_del(dfile_del_t *del)
+{
+    wine_rb_remove(&g_dcache.pending, &del->entry);
+    g_dcache.used -= del->size;
+    dc_free(del);
+}
+
+/* ensure a path is still accessible and actually a directory */
+static inline int dc_valid_dir(const char *unix_name, struct stat *st)
+{
+    if (stat(unix_name, st))
+        return errno;
+
+    if (!S_ISDIR(st->st_mode))
+        return ENOTDIR;
+
+    return 0;
+}
+
+/* copy at most dstlen chars, stopping earlier if needed (strncpy zero-fills the dst) */
+static size_t dc_strlcpy(char *dst, const char *src, size_t dstlen)
+{
+    size_t len;
+
+    len = 0;
+    while (dstlen && *src)
+    {
+        *dst++ = *src++;
+        dstlen--;
+        len++;
+    }
+    while (*src) { src++; len++; }
+    if (dstlen) *dst = 0;
+
+    return len;
+}
+
+/* safely build a unix path */
+static inline int dc_build_path(const dlisting_t *listing, const dfile_t *file, char *unix_path, int unix_len)
+{
+    int len;
+    int used_default;
+
+    if ((len = dc_strlcpy(unix_path, listing->unix_name, unix_len)) >= unix_len)
+        return ENAMETOOLONG;
+    unix_len -= len;
+    unix_path += len;
+    if ((len = dc_strlcpy(unix_path, "/", unix_len)) >= unix_len)
+        return ENAMETOOLONG;
+    unix_len -= len;
+    unix_path += len;
+    if ((len = ntdll_wcstoumbs(0, file->name, file->len, unix_path, unix_len, NULL, &used_default)) <= 0)
+        return ENAMETOOLONG;
+    unix_path[len] = 0;
+
+    return 0;
+}
+
+/* make sure timestamp for listing matches disk */
+static inline int dlisting_consistency_check(dlisting_t *listing)
+{
+    struct stat st;
+    int rc;
+
+    if (!listing->lastmod)
+        return 0; /* already considered out of date */
+
+    if ((rc = dc_valid_dir(listing->unix_name, &st)))
+        return rc;
+
+    if (listing->lastmod != dc_mtime_from_stat(&st))
+        listing->lastmod = 0; /* cache out of date */
+
+    return 0;
+}
+
+/* make sure timestamps for listing and file match dist */
+static int dlisting_consistency_check_file(dlisting_t *listing, dfile_t *file)
+{
+    char unix_path[PATH_MAX];
+    struct stat st;
+    LONG64 tdir;
+    int rc;
+
+    if (!listing->lastmod)
+        return 0;
+
+    if ((rc = dc_valid_dir(listing->unix_name, &st)))
+    {
+        /* listing suddenly doesn't exist on disk */
+        return rc;
+    }
+
+    tdir = dc_mtime_from_stat(&st);
+    if (listing->lastmod != tdir)
+    {
+        /* cache out of date */
+        listing->lastmod = 0;
+        return 0;
+    }
+
+    if ((rc = dc_build_path(listing, file, unix_path, sizeof(unix_path))))
+        return rc;
+
+    if (stat(unix_path, &st))
+        return errno; /* file suddenly doesn't exist on disk */
+
+    if (tdir != dc_mtime_from_stat(&st))
+        listing->lastmod = 0; /* file time doesn't match listing */
+
+    return 0;
+}
+
+static inline dfile_t *dlisting_find_file(dlisting_t *listing, const WCHAR *want, int is83)
+{
+    struct wine_rb_entry *entry;
+
+    if ((entry = wine_rb_get(&listing->files, want)))
+        return WINE_RB_ENTRY_VALUE(entry, dfile_t, entry);
+
+    if (is83)
+        if ((entry = wine_rb_get(&listing->files83, want)))
+            return WINE_RB_ENTRY_VALUE(entry, dfile_t, entry83);
+
+    return NULL;
+}
+
+static int dlisting_put_file(dlisting_t *listing, const WCHAR *name, int len, int is83, dfile_t **pfile)
+{
+    dfile_t *file;
+    int rc;
+
+    /* see if current file is already added */
+    if ((file = dlisting_find_file(listing, name, is83)))
+    {
+        /* it's extremely rare, but the unix name could just change case
+           and it would have the same key in the tree.  since we are
+           case-preserving, update the name just in case */
+        memcpy(file->name, name, len * sizeof(WCHAR));
+    }
+    else
+    {
+        if ((rc = dfile_new(name, len, &file)))
+            return rc;
+
+        if (file->short_name)
+        {
+            /* it's extremely rare, but we could collide on the short name
+               in this case, just keep the first one we added.  this is
+               the same as an exhaustive search which returns first found */
+            if (wine_rb_put(&listing->files83, file->short_name, &file->entry83))
+            {
+                WARN("collision %s %s\n", debugstr_w(file->name), debugstr_w(file->short_name));
+
+                /* NULL the short_name pointer so we don't try to remove it from the tree later
+                   we waste a small amount of memory but shouldn't matter much since it's so rare */
+                file->short_name = NULL;
+            }
+        }
+
+        wine_rb_put(&listing->files, file->name, &file->entry);
+        listing->size += file->size;
+    }
+
+    *pfile = file;
+    return 0;
+}
+
+static inline dlisting_t *dc_find_listing(const WCHAR *dir)
+{
+    struct wine_rb_entry *entry;
+    dlisting_t *listing;
+
+    if (!(entry = wine_rb_get(&g_dcache.listings, dir)))
+        return NULL;
+
+    listing = WINE_RB_ENTRY_VALUE(entry, dlisting_t, rb_entry);
+
+    /* move the listing up the MRU */
+    list_remove(&listing->mru_entry);
+    list_add_head(&g_dcache.mru, &listing->mru_entry);
+
+    return listing;
+}
+
+/* free up memory from cache by first removing any stale entries
+   keep freeing until we hit the threshold */
+static void dc_purge(void)
+{
+    const size_t threshold = g_dcache.allowed / 2;
+    struct wine_rb_entry *entry;
+    dlisting_t *listing;
+    dfile_del_t *del;
+    struct list *next;
+    struct list *cur;
+    struct stat st;
+
+    TRACE("purging %zu / %zu\n", g_dcache.used, g_dcache.allowed);
+
+    /* free up all invalid listings first */
+    LIST_FOR_EACH_SAFE(cur, next, &g_dcache.mru)
+    {
+        listing = LIST_ENTRY(cur, dlisting_t, mru_entry);
+        if ((dc_valid_dir(listing->unix_name, &st)))
+            dc_remove_listing(listing);
+    }
+
+    /* remove any pending files for listings that no longer exist */
+    entry = wine_rb_head(g_dcache.pending.root);
+    while (entry)
+    {
+        del = WINE_RB_ENTRY_VALUE(entry, dfile_del_t, entry);
+        entry = wine_rb_next(entry);
+
+        if (!(listing = dc_find_listing(del->dir)))
+            dc_remove_dfile_del(del);
+    }
+
+    TRACE("updated cache size %zu / %zu\n", g_dcache.used, g_dcache.allowed);
+
+    if (g_dcache.used < threshold)
+        return;
+
+    /* free listings from tail until enough is free */
+    LIST_FOR_EACH_SAFE_REV(cur, next, &g_dcache.mru)
+    {
+        if (g_dcache.used < threshold)
+            break;
+
+        listing = LIST_ENTRY(cur, dlisting_t, mru_entry);
+        dc_remove_listing(listing);
+    }
+
+    /* remove any pending files for listings that no longer exist */
+    entry = wine_rb_head(g_dcache.pending.root);
+    while (entry)
+    {
+        del = WINE_RB_ENTRY_VALUE(entry, dfile_del_t, entry);
+        entry = wine_rb_next(entry);
+
+        if (!(listing = dc_find_listing(del->dir)))
+            dc_remove_dfile_del(del);
+    }
+
+    TRACE("updated cache size %zu / %zu\n", g_dcache.used, g_dcache.allowed);
+}
+
+void dc_init(void)
+{
+    char *var;
+    size_t allowed;
+    const char *config_dir = wine_get_config_dir();
+
+    if (((var = getenv("DFCACHE_DISABLE")) && (!strcasecmp(var, "true") || atoi(var))))
+    {
+        TRACE("dfcache disabled\n");
+        return;
+    }
+
+    allowed = DC_DEF_ALLOWED;
+    if ((var = getenv("DFCACHE_MAX_SIZE"))) /* in MB */
+    {
+        long val;
+
+        if ((val = atol(var)) < 1)
+        {
+            TRACE("dfcache disabled (requested size too small %ld)\n", val);
+            return;
+        }
+
+        allowed = val;
+    }
+    allowed *= 1024 * 1024;
+
+    TRACE("dfcache enabled with %zu MB\n", allowed / 1024 / 1024);
+    RtlInitializeCriticalSection(&g_dcache.lock);
+    g_dcache.used = sizeof(g_dcache);
+    g_dcache.allowed = allowed;
+    list_init(&g_dcache.mru);
+    wine_rb_init(&g_dcache.pending, dfile_del_compare);
+    wine_rb_init(&g_dcache.listings, dlisting_compare);
+
+    strcpy(dc_dosdev, config_dir);
+    strcat(dc_dosdev, "/dosdevices/");
+    dc_dosdev_size = strlen(dc_dosdev);
+
+    dcache_enabled = TRUE;
+}
+
+static int dfile_short_compare(const void *_key, const struct wine_rb_entry *entry)
+{
+    const dfile_t *node = WINE_RB_ENTRY_VALUE(entry, dfile_t, entry83);
+    const WCHAR *key = _key;
+    return strcmpiW(key, node->short_name);
+}
+
+static int dfile_long_compare(const void *_key, const struct wine_rb_entry *entry)
+{
+    const dfile_t *node = WINE_RB_ENTRY_VALUE(entry, dfile_t, entry);
+    const WCHAR *key = _key;
+    return strcmpiW(key, node->name);
+}
+
+/* dfcache can't properly handle short names from a VFAT directory
+   if this returns true, we should fall back so exhaustive search for the given path */
+static BOOL dc_is_vfat(const char *unix_name)
+{
+    KERNEL_DIRENT *kde;
+    BOOL is_vfat;
+    int fd;
+
+    if ((fd = open(unix_name, O_RDONLY | O_DIRECTORY)) == -1)
+        return FALSE;
+
+    RtlEnterCriticalSection(&dir_section);
+    is_vfat = (kde = start_vfat_ioctl(fd)) ? TRUE : FALSE;
+    RtlLeaveCriticalSection(&dir_section);
+
+    close(fd);
+    return is_vfat;
+}
+
+/* refreshes the files in a listing by re-reading the directory
+   any files previously cached are freed, so they don't accumulate
+   stops reading early if the file we want is found */
+static int dc_read_listing(dlisting_t *listing, const WCHAR *want, dfile_t **pfile)
+{
+    int rc;
+    int is83;
+    DIR *dir;
+    int unix_len;
+    int long_len;
+    dfile_t *file;
+    struct stat st;
+    char *unix_name;
+    struct dirent *de;
+    WCHAR long_name[MAX_DIR_ENTRY_LEN+1];
+
+    *pfile = NULL;
+    dlisting_invalidate(listing);
+    if (!(dir = opendir(listing->unix_name)))
+        return errno;
+
+    /* opendir will refresh cached attributes */
+    if (stat(listing->unix_name, &st))
+    {
+        rc = errno;
+        closedir(dir);
+        return rc;
+    }
+
+    rc = 0;
+    is83 = dc_is_8dot3(want, strlenW(want));
+    while ((de = readdir(dir)))
+    {
+        if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) continue;
+
+        unix_name = de->d_name;
+        unix_len = strlen(unix_name);
+        long_len = sizeof(long_name)/sizeof(long_name[0]);
+        if ((rc = dc_umbstowcs(unix_name, unix_len, long_name, &long_len)))
+            break;
+
+        file = NULL;
+        if ((rc = dlisting_put_file(listing, long_name, long_len, FALSE, &file)))
+            break;
+
+        if ((file = dlisting_find_file(listing, want, is83)))
+        {
+            *pfile = file;
+            break;
+        }
+    }
+    closedir(dir);
+
+    /* if we read the whole directory without error, mark it as complete */
+    if (!de && !rc) listing->lastmod = dc_mtime_from_stat(&st);
+
+    return rc;
+}
+
+/* caller must add to cache */
+static int dlisting_new(const WCHAR *dir, const char *unix_path, dlisting_t **plisting)
+{
+    int rc;
+    int dir_len;
+    int selfsize;
+    struct stat st;
+    size_t unix_len;
+    dlisting_t *listing;
+    const BOOL redirect = nb_redirects && ntdll_get_thread_data()->wow64_redir;
+
+    if ((rc = dc_valid_dir(unix_path, &st)))
+        return rc;
+
+    /* don't cache if Windows path (redirected on 32-bit WoW64) */
+    if (redirect && is_same_file(&windir, &st))
+        return EINVAL;
+
+    /* don't cache vfat paths because we don't handle its short names */
+    if (dc_is_vfat(unix_path))
+        return EINVAL;
+
+    unix_len = strlen(unix_path);
+    dir_len = strlenW(dir);
+    selfsize = sizeof(*listing) + unix_len + 1 + (dir_len + 1) * sizeof(WCHAR);
+    if (!(listing = dc_alloc(selfsize)))
+        return ENOMEM;
+
+    listing->lastmod = 0;
+    listing->size = selfsize;
+    listing->selfsize = selfsize;
+
+    wine_rb_init(&listing->files, dfile_long_compare);
+    wine_rb_init(&listing->files83, dfile_short_compare);
+
+    listing->nt_name = (WCHAR*)((char*)listing + sizeof(*listing));
+    memcpy(listing->nt_name, dir, dir_len * sizeof(WCHAR));
+    listing->nt_name[dir_len] = 0;
+
+    listing->unix_name = (char*)(listing->nt_name + dir_len + 1);
+    memcpy(listing->unix_name, unix_path, unix_len);
+    listing->unix_name[unix_len] = 0;
+
+    *plisting = listing;
+    return 0;
+}
+
+/* convert any slashes to '/' and remove duplicate and trailing slashes
+   assumes src starts at drive letter */
+static int dc_normalize_slashes(WCHAR *dst, const WCHAR *src, int srclen)
+{
+    WCHAR *orig_dst;
+
+    for (orig_dst = dst; srclen > 0; srclen--, src++)
+    {
+        if (IS_SEPARATOR(*src))
+        {
+            if (dst == orig_dst || dst[-1] != '/')
+                *dst++ = '/';
+        }
+        else
+            *dst++ = *src;
+    }
+
+    /* remove trailing / */
+    if (dst[-1] == '/')
+        --dst;
+
+    *dst = '\0';
+    return dst - orig_dst;
+}
+
+static inline BOOL dc_is_drive(const WCHAR *path)
+{
+    return path[1] == ':' && IS_SEPARATOR(path[2]) &&
+           ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z'));
+}
+
+/* searches the listing for a filename.  checks for consistency and updates cache
+   by re-reading directory if needed */
+static int dc_find_file_in_cache(dlisting_t *listing, const WCHAR *want, dfile_t **pfile)
+{
+    size_t old_size;
+    struct stat st;
+    dfile_t *file;
+    LONG64 disk;
+    int is83;
+    int rc;
+
+    *pfile = NULL;
+    is83 = dc_is_8dot3(want, strlenW(want));
+    if ((file = dlisting_find_file(listing, want, is83)))
+    {
+        *pfile = file;
+        return 0;
+    }
+
+    /* file not in cache - check if dir still exists */
+    if ((rc = dc_valid_dir(listing->unix_name, &st)))
+        return rc;
+
+    /* listing path is valid */
+    disk = dc_mtime_from_stat(&st);
+    if (listing->lastmod == disk)
+    {
+        /* file not in cache that is current and complete */
+        return 0;
+    }
+
+    /* listing path is valid but cache is out of date and/or incomplete */
+    file = NULL;
+    old_size = listing->size; /* updating listing might change size */
+    if ((rc = dc_read_listing(listing, want, &file)))
+    {
+        /* when caller removes it, it should subtract the original size */
+        listing->size = old_size;
+        return rc;
+    }
+
+    /* listing path valid and now up to date.  update cache size */
+    g_dcache.used += listing->size - old_size;
+    *pfile = file; /* can be NULL if file not found */
+
+    return 0;
+}
+
+/* assumes dcache lock is held */
+static int dc_lookup_unix_name_nl(WCHAR *nt, int nt_len, char *unix_path, int unix_len,
+                                  UINT disposition, NTSTATUS *status)
+{
+    dlisting_t *listing;
+    dfile_t *dfile;
+    struct stat st;
+    WCHAR *file;
+    WCHAR *dir;
+    size_t len;
+    int used_default;
+    int file_len;
+    int dir_len;
+    int ret;
+    int rc;
+
+    /* try full path as-is */
+    if ((listing = dc_find_listing(nt)))
+    {
+        /* make sure path still exists */
+        if (!(rc = dc_valid_dir(listing->unix_name, &st)))
+        {
+            /* only build a unix path if we're not creating the file
+               so we don't have a name collision */
+            if (disposition == FILE_CREATE)
+                *status = STATUS_OBJECT_NAME_COLLISION;
+            else
+            {
+                if ((len = dc_strlcpy(unix_path, listing->unix_name, unix_len)) >= unix_len)
+                {
+                    dc_remove_listing(listing);
+                    return ENAMETOOLONG;
+                }
+                *status = STATUS_SUCCESS;
+            }
+            return 0;
+        }
+
+        /* remove listing for path that no longer exists and
+           fall-through to see if we can build path using parent dir */
+        dc_remove_listing(listing);
+    }
+
+    if ((rc = dc_split_path(nt, nt_len, &dir_len, &file, &file_len)))
+        return rc;
+    dir = nt;
+
+    /* try looking for file part in parent dir */
+    if (!(listing = dc_find_listing(dir)))
+        return ENOENT;
+
+    dfile = NULL;
+    if ((rc = dc_find_file_in_cache(listing, file, &dfile)))
+    {
+        /* failure to update listing.  remove for now and
+           fall back to exhaustive search */
+        dc_remove_listing(listing);
+        return rc;
+    }
+
+    /* dc_find_file_in_cache refreshes the listing from disk if the file
+       is not found in the cache.  so if we have a NULL dfile here, we can
+       be sure the file really doesn't exist.  if we do have a dfile, then
+       it came from the in-memory cache and may no longer exist on disk */
+
+    if (dfile)
+    {
+        if ((rc = dc_build_path(listing, dfile, unix_path, unix_len)))
+        {
+            dc_remove_listing(listing);
+            return rc;
+        }
+
+        if (stat(unix_path, &st))
+        {
+            /* file is in cache but no longer on disk */
+            rc = errno;
+
+            /* remove entire listing if no longer valid
+               if still valid, mark it incomplete */
+            if (!dc_valid_dir(listing->unix_name, &st))
+                listing->lastmod = 0;
+            else
+                dc_remove_listing(listing);
+
+            return rc;
+        }
+
+        /* unix path was valid and on-disk */
+        if (disposition == FILE_CREATE)
+            *status = STATUS_OBJECT_NAME_COLLISION;
+        else
+            *status = STATUS_SUCCESS;
+        return 0;
+    }
+
+    /* we didn't find a file, so it doesn't exist in cache or on disk */
+    if (disposition == FILE_OPEN || disposition == FILE_OVERWRITE)
+    {
+        *status = STATUS_OBJECT_NAME_NOT_FOUND; /* file MUST exist */
+        return 0;
+    }
+
+    /* not finding a file isn't fatal if we're going to create it */
+    if ((len = dc_strlcpy(unix_path, listing->unix_name, unix_len)) >= unix_len)
+        return ENAMETOOLONG;
+
+    ret = ntdll_wcstoumbs(0, file, file_len, &unix_path[len+1],
+                          MAX_DIR_ENTRY_LEN, NULL, &used_default);
+    if (ret <= 0 || used_default)
+        return ENAMETOOLONG;
+
+    unix_path[len] = '/';
+    unix_path[len + 1 + ret] = 0;
+    *status = STATUS_NO_SUCH_FILE;
+    return 0;
+}
+
+/* uses cache to find directory or file
+   returning an error means caller should fall back to exchaustive search
+   returning 0 mean *status will be set, whether given path is found or not:
+   - SUCCESS                - file/dir is found
+   - OBJECT_NAME_COLLISION  - file/dir exists, but shouldn't
+   - OBJECT_PATH_NOT_FOUND  - directory doesn't exist
+   - NO_SUCH_FILE           - file doesn't exist, but not fatal
+   - OBJECT_NAME_NOT_FOUND  - file exists, but fatal
+   a unix path is returned if status is SUCCESS or NO_SUCH_FILE
+   unix name buffer will be reallocated if needed
+*/
+int dc_lookup_unix_name(const WCHAR *nt_name, int nt_len, char **punix_name, int unix_len,
+                        UINT disposition, NTSTATUS *status)
+{
+    char unix_path[PATH_MAX];
+    WCHAR norm_stack[MAX_PATH+1]; /* original case, normalized slashes */
+    WCHAR *norm = norm_stack;
+    int norm_len;
+    size_t len;
+    char *tmp;
+    int rc;
+
+    /* omit any trailing slashes */
+    while ((nt_len > 0) && IS_SEPARATOR(nt_name[nt_len-1])) nt_len--;
+
+    /* only accept paths that start with drive letters */
+    if (nt_len < 3 || !dc_is_drive(nt_name))
+        return EINVAL;
+
+    if ((nt_len > MAX_PATH) &&
+        !(norm = dc_alloc((nt_len + 1) * sizeof(WCHAR))))
+    {
+        return ENOMEM;
+    }
+
+    /* assume path not found */
+    unix_path[0] = 0;
+
+    /* normalize separators before doing lookup */
+    if ((norm_len = dc_normalize_slashes(norm, nt_name, nt_len)))
+    {
+        dcache_lock();
+        rc = dc_lookup_unix_name_nl(norm, norm_len, unix_path, unix_len, disposition, status);
+        dcache_unlock();
+    }
+    else rc = EINVAL;
+
+    if (norm != norm_stack)
+        dc_free(norm);
+
+    if (rc)
+    {
+        TRACE("%d %s\n", rc, debugstr_wn(nt_name, nt_len));
+        return rc;
+    }
+
+    /* we have a unix path to a file that either exists and we want to open
+       or doesn't exist but we want to create it */
+    if (unix_path[0] || (*status == STATUS_SUCCESS || *status == STATUS_NO_SUCH_FILE))
+    {
+        /* for most paths, lookup_unix_name will allocate enough memory
+           for the resolved unix path.  but redirects may need more room */
+        len = strlen(unix_path);
+        if (len > unix_len)
+        {
+            /* NOTE: use Wine heap here and outside of dfcache lock */
+            if (!(tmp = RtlReAllocateHeap(GetProcessHeap(), 0, *punix_name, len+1)))
+            {
+                TRACE("%d %s\n", ENOMEM, debugstr_wn(nt_name, nt_len));
+                return ENOMEM;
+            }
+            *punix_name = tmp;
+        }
+        memcpy(*punix_name, unix_path, len);
+        (*punix_name)[len] = 0;
+    }
+
+    TRACE("%x %s -> %s\n", *status, debugstr_wn(nt_name, nt_len), debugstr_a(*punix_name));
+
+    return 0;
+}
+
+/* assumes dcache lock is held */
+static int dc_find_file_in_dir_nl(dlisting_t *listing, char *unix_name, int pos,
+                                  const WCHAR *file, int file_len, NTSTATUS *status)
+{
+    WCHAR want[MAX_DIR_ENTRY_LEN+1];
+    int used_default;
+    struct stat st;
+    dfile_t *dfile;
+    int ret;
+    int rc;
+
+    dfile = NULL;
+    dc_strncpyW(want, file, file_len);
+    if ((rc = dc_find_file_in_cache(listing, want, &dfile)))
+        return rc;
+
+    /* not finding a file isn't a fatal error */
+    if (!dfile)
+        return 0;
+
+    /* we may have fetched the filename from in-memory cache
+       make sure file still exists on disk
+       find_file_in_dir will set unix_name[pos-1] = \0 */
+    unix_name[pos - 1] = '/';
+    ret = ntdll_wcstoumbs(0, dfile->name, dfile->len, unix_name + pos,
+                          MAX_DIR_ENTRY_LEN, NULL, &used_default);
+    unix_name[pos + ret] = 0;
+
+    if (!stat(unix_name, &st))
+    {
+        *status = STATUS_SUCCESS;
+        return 0;
+    }
+
+    /* file no longer exists.  restore path for caller
+       and mark listing out of date */
+    unix_name[pos - 1] = 0;
+    listing->lastmod = 0;
+    return errno;
+}
+
+/* uses cache to find file in given unix directory
+   returning an error means caller should fall back to exhaustive search
+   returning 0 means status will be set:
+   SUCCESS               - file found and filename appended
+   OBJECT_PATH_NOT_FOUND - file not found and filename not appended
+   like find_file_in_dir, assumes MAX_DIR_ENTRY_LEN+2 bytes available at pos */
+int dc_find_file_in_dir(char *unix_name, int pos, const WCHAR *file, int file_len, NTSTATUS *status)
+{
+    WCHAR dir_stack[MAX_PATH+1];
+    WCHAR *dir = dir_stack;
+    dlisting_t *listing;
+    int dir_len;
+    char *cur;
+    int rc;
+
+    /* only accept paths from $WINEPREFIX where a filename is specified */
+    if (pos < 1 || !file_len || file_len >= MAX_DIR_ENTRY_LEN)
+        return EINVAL;
+
+    if (!(cur = dc_drive_letter_from_unix(unix_name)))
+        return EINVAL;
+
+    dir_len = sizeof(dir_stack)/sizeof(dir_stack[0]);
+    if ((rc = dc_convert_path(cur, strlen(cur), &dir, &dir_len)))
+        return rc;
+
+    /* converted unix path already has normalized slashes */
+
+    *status = STATUS_OBJECT_PATH_NOT_FOUND;
+    dcache_lock();
+    if (!(listing = dc_find_listing(dir)))
+    {
+        /* NT paths are stored starting from the drive letter
+           but the unix paths associated with the listings include $WINEPREFIX/dosdevices/ */
+        if (!(rc = dlisting_new(dir, unix_name, &listing)))
+        {
+            wine_rb_put(&g_dcache.listings, dir, &listing->rb_entry);
+            g_dcache.used += listing->size;
+            list_add_head(&g_dcache.mru, &listing->mru_entry);
+        }
+
+        /* fall-through, populate and search listing */
+    }
+
+    if (listing)
+    {
+        /* if the file is found in the listing, it is copied to unix_name at pos */
+        if ((rc = dc_find_file_in_dir_nl(listing, unix_name, pos, file, file_len, status)))
+            dc_remove_listing(listing);
+
+        if (g_dcache.used > g_dcache.allowed)
+            dc_purge();
+    }
+    else
+        rc = ENOENT;
+    dcache_unlock();
+
+    if (dir != dir_stack)
+        dc_free(dir);
+
+    TRACE("%x %s -> %s\n", *status, debugstr_wn(file, file_len),
+          *status == STATUS_SUCCESS ? unix_name : "");
+
+    return rc;
+}
+
+/* adds file to a listing.  assumes dcache lock is held */
+static int dc_add_file_w_nl(dlisting_t *listing, const WCHAR *file, int file_len, int is83)
+{
+    size_t old_size;
+    dfile_t *dfile;
+    int rc;
+
+    /* even if we support long paths, the components must be the right size */
+    if (file_len > MAX_DIR_ENTRY_LEN)
+        return ENAMETOOLONG;
+
+    dfile = NULL;
+    old_size = listing->size;
+    if ((rc = dlisting_put_file(listing, file, file_len, is83, &dfile)))
+        return rc;
+
+    /* update the size, but only if we added it */
+    g_dcache.used += listing->size - old_size;
+    if (listing->lastmod)
+    {
+        /* if we added or updated a file, the directory mtime will be newer
+           if the listing is already up to date and complete, we should update the mtime
+           so that future search benefit from it being complete.  mtime should be the
+           same as the file just added.  otherwise, something else modified it */
+        rc = dlisting_consistency_check_file(listing, dfile);
+    }
+
+    return rc;
+}
+
+/* adds wide-char path to cache */
+static int dc_add_file_w(WCHAR *nt, int nt_len)
+{
+    dlisting_t *listing;
+    WCHAR *file;
+    WCHAR *dir;
+    int file_len;
+    int dir_len;
+    int is83;
+    int rc;
+
+    dir = nt;
+    file = NULL;
+    dir_len = 0;
+    file_len = 0;
+    if ((rc = dc_split_path(dir, nt_len, &dir_len, &file, &file_len)))
+        return rc;
+
+    is83 = dc_is_8dot3(file, file_len);
+
+    /* we only want to update an existing listing */
+    dcache_lock();
+    if ((listing = dc_find_listing(dir)))
+    {
+        if ((rc = dc_add_file_w_nl(listing, file, file_len, is83)))
+        {
+            /* on any error, remove the entire listing this would be added to */
+            dc_remove_listing(listing);
+        }
+
+        if (g_dcache.used > g_dcache.allowed)
+            dc_purge();
+    }
+    else rc = ENOENT;
+    dcache_unlock();
+
+    return rc;
+}
+
+/* to be called by FILE_Create after a new file has been created
+   paths have already been checked by wine_nt_to_unix_name (possibly dfcache)
+   NT names should be \??\C:\foo\bar
+   unix names should be $WINEPREFIX/dosdevices/c:/foo/bar
+   the case of the unix path is known to be correct */
+int dc_add_file(const char *full_unix)
+{
+    WCHAR nt_stack[MAX_PATH+1];
+    WCHAR *nt = nt_stack;
+    char *unix_path;
+    size_t unix_len;
+    int nt_len;
+    int rc;
+
+    if (!(unix_path = dc_drive_letter_from_unix(full_unix)))
+        return EINVAL;
+
+    /* make sure there's a filename */
+    if (!strrchr(unix_path, '/'))
+        return EINVAL;
+
+    unix_len = strlen(unix_path);
+    nt_len = sizeof(nt_stack)/sizeof(nt_stack[0]);
+    if ((rc = dc_convert_path(unix_path, unix_len, &nt, &nt_len)))
+        return rc;
+
+    /* call the wide char version */
+    rc = dc_add_file_w(nt, nt_len);
+
+    /* free the long name path if needed */
+    if (nt != nt_stack)
+        dc_free(nt);
+
+    TRACE("%d %s\n", rc, debugstr_an(unix_path, unix_len));
+
+    return rc;
+}
+
+/* assumes caller has dcache lock
+   removes listing for the given directory name, if cached
+   also removes the entry from the listing in the parent directory, if cached */
+static inline void dc_del_dir(const WCHAR *dir)
+{
+    WCHAR child[MAX_DIR_ENTRY_LEN+1];
+    WCHAR par_stack[MAX_PATH+1];
+    WCHAR *parent = par_stack;
+    dlisting_t *listing;
+    dfile_t *dfile;
+    int parent_len;
+    int child_len;
+    int dir_len;
+    int is83;
+    WCHAR *slash;
+
+    if ((listing = dc_find_listing(dir)))
+        dc_remove_listing(listing);
+
+    /* skip to last separator.  the unix path already has normalized slashes */
+    dir_len = strlenW(dir);
+    if (!(slash = memrchrW(dir, '/', dir_len)))
+        return;
+
+    parent_len = slash - dir;
+    if ((parent_len > MAX_PATH) &&
+        !(parent = dc_alloc((parent_len + 1) * sizeof(WCHAR))))
+    {
+        return;
+    }
+
+    dc_strncpyW(parent, dir, parent_len);
+    if ((listing = dc_find_listing(parent)))
+    {
+        child_len = dir_len - parent_len - 1;
+        if (child_len > MAX_DIR_ENTRY_LEN)
+        {
+            dc_remove_listing(listing);
+        }
+        else
+        {
+            dc_strncpyW(child, slash + 1, child_len);
+            is83 = dc_is_8dot3(child, child_len);
+
+            if ((dfile = dlisting_find_file(listing, child, is83)))
+                dlisting_remove_file(listing, dfile);
+
+            if (dlisting_consistency_check(listing))
+                dc_remove_listing(listing);
+        }
+    }
+
+    if (parent != par_stack)
+        dc_free(parent);
+}
+
+/* for removing whole directories from cache
+   unix name is assumed to be valid normalized path returned from a previous call to
+   wine_nt_to_unix_name and  after a successful call to create the file */
+int dc_rm_dir(const char *full_unix)
+{
+    WCHAR nt_stack[MAX_PATH+1];
+    WCHAR *nt = nt_stack;
+    char *unix_path;
+    size_t unix_len;
+    int nt_len;
+    int rc;
+
+    if (!(unix_path = dc_drive_letter_from_unix(full_unix)))
+        return EINVAL;
+
+    unix_len = strlen(unix_path);
+    nt_len = sizeof(nt_stack)/sizeof(nt_stack[0]);
+    if ((rc = dc_convert_path(unix_path, unix_len, &nt, &nt_len)))
+        return rc;
+
+    dcache_lock();
+    dc_del_dir(nt);
+    dcache_unlock();
+
+    if (nt != nt_stack)
+        dc_free(nt);
+
+    TRACE("%d %s\n", rc, debugstr_a(full_unix));
+
+    return rc;
+}
+
+/* add dir and file to pending.  don't store direct pointers since a listing could
+   be invalidated, making the pointers invalid */
+static int dc_add_pending(HANDLE handle, const WCHAR *dir, int dir_len, const WCHAR *file, int file_len, int is83)
+{
+    struct wine_rb_entry *entry;
+    dfile_del_t *cur;
+    dfile_del_t *del;
+    size_t size;
+
+    size = sizeof(*del) + (dir_len + 1 + file_len + 1) * sizeof(WCHAR);
+    if (!(del = dc_alloc(size)))
+        return ENOMEM;
+
+    if (wine_rb_put(&g_dcache.pending, handle, &del->entry))
+    {
+        /* same handle is being added to pending multiple times
+           this shouldn't happen since there should have been an NtClose that
+           releases the handle followed by a dc_rm_final to remove from pending
+           in this case, remove the listings for both from cache and we fall
+           back to exhaustive search on next lookup */
+        entry = wine_rb_get(&g_dcache.pending, handle);
+        cur = WINE_RB_ENTRY_VALUE(entry, dfile_del_t, entry);
+        if (strcmpiW(dir, cur->dir))
+            dc_del_dir(cur->dir);
+
+        /* remove current pending file */
+        dc_remove_dfile_del(cur);
+        dc_free(del);
+
+        return EEXIST;
+    }
+
+    /* we want to avoid storing direct references to files
+       inside of listings, because invalidate may reallocate memory */
+    del->dir = (WCHAR *)((char*)del + sizeof(*del));
+    del->file = del->dir + dir_len + 1;
+
+    memcpy(del->dir, dir, dir_len * sizeof(WCHAR));
+    del->dir[dir_len] = 0;
+    memcpy(del->file, file, file_len * sizeof(WCHAR));
+    del->file[file_len] = 0;
+
+    del->is83 = is83;
+    del->size = size;
+    del->handle = handle;
+
+    g_dcache.used += size;
+    return 0;
+}
+
+/* add to pending using wide-char path */
+static int dc_rm_file_w(WCHAR *nt, int nt_len, HANDLE handle)
+{
+    dlisting_t *listing;
+    dfile_t *dfile;
+    WCHAR *file;
+    WCHAR *dir;
+    int file_len;
+    int dir_len;
+    int is83;
+    int rc;
+
+    dir = nt;
+    file = NULL;
+    dir_len = 0;
+    file_len = 0;
+    if ((rc = dc_split_path(dir, nt_len, &dir_len, &file, &file_len)))
+        return rc;
+
+    is83 = dc_is_8dot3(file, file_len);
+
+    dcache_lock();
+    /* only add to pending if a listing and file are cached
+       it's possible for the listing to not currently be cached, so the path
+       is not added to pending, and the followup call to dc_rm_final doesn't
+       remove the file from the cache.  this is ok, since once the file is
+       removed, stat() in dc_lookup_unix_name will realize it's gone, invalidate
+       the listing and re-read the directory.  the purpose of the pending is
+       to reduce the I/O from this re-read.  the common case for pending comes
+       from DeleteFile, where the time between dc_rm_file and dc_rm_final is short
+       so the issue above should be rare */
+    if ((listing = dc_find_listing(dir)) &&
+        (dfile = dlisting_find_file(listing, file, is83)))
+    {
+        if ((rc = dc_add_pending(handle, dir, dir_len, file, file_len, is83)))
+        {
+            /* if we can't add pending file to delete, remove the entire listing from cache */
+            dc_del_dir(dir);
+        }
+
+        if (g_dcache.used > g_dcache.allowed)
+            dc_purge();
+    }
+    else rc = ENOENT;
+    dcache_unlock();
+
+    return rc;
+}
+
+/* called when a file is being deleted using FILE_DELETE_ON_CLOSE (not used for directories)
+   unix name is assumed to be valid normalized path returned from a previous call to
+   wine_nt_to_unix_name and  after a successful call to create the file */
+int dc_rm_file(const char *full_unix, HANDLE handle)
+{
+    WCHAR nt_stack[MAX_PATH+1];
+    WCHAR *nt = nt_stack;
+    size_t unix_len;
+    char *unix_path;
+    struct stat st;
+    int nt_len;
+    int rc;
+
+    if (!handle || (handle == INVALID_HANDLE_VALUE))
+        return EINVAL;
+
+    /* if it already doesn't exist, don't add to pending */
+    if (stat(full_unix, &st))
+        return errno;
+
+    if (!(unix_path = dc_drive_letter_from_unix(full_unix)))
+        return EINVAL;
+
+    unix_len = strlen(unix_path);
+    nt_len = sizeof(nt_stack)/sizeof(nt_stack[0]);
+    if ((rc = dc_convert_path(unix_path, unix_len, &nt, &nt_len)))
+        return rc;
+
+    rc = dc_rm_file_w(nt, nt_len, handle);
+
+    if (nt != nt_stack)
+        dc_free(nt);
+
+    TRACE("%d %p %s\n", rc, handle, debugstr_a(full_unix));
+
+    return rc;
+}
+
+/* remove a pending file from cache.  assumes dcache lock is held */
+static int dc_rm_final_nl(const WCHAR *dir, const WCHAR *file, int is83)
+{
+    char unix_path[PATH_MAX];
+    dlisting_t *listing;
+    dfile_t *dfile;
+    struct stat st;
+    int rc;
+
+    if (!(listing = dc_find_listing(dir)))
+        return ENOENT;
+
+    /* there may be multiple handles for a given path
+       the refcount is kept on wineserver and we don't (or want, for performance)
+       access to the count.  just use the opportunity to see if we're up to date
+       and only remove the file from the cache once it's gone from the disk */
+    if ((dfile = dlisting_find_file(listing, file, is83)))
+    {
+        if ((rc = dc_build_path(listing, dfile, unix_path, sizeof(unix_path))))
+        {
+            /* remove the entire listing if the path is too long */
+            dc_remove_listing(listing);
+            return rc;
+        }
+
+        /* listing is still valid.  remove only the file from cache if no longer on disk */
+        if (stat(unix_path, &st))
+            dlisting_remove_file(listing, dfile);
+    }
+
+    /* whether or not we removed a file, take the opportunity
+       to check for cache consistency */
+    if ((rc = dlisting_consistency_check(listing)))
+        dc_remove_listing(listing);
+
+    return rc;
+}
+
+/* called after NtClose for files opened with FILE_DELETE_ON_CLOSE
+   should be called only if handle was successfully closed */
+int dc_rm_final(HANDLE handle)
+{
+    struct wine_rb_entry *entry;
+    dfile_del_t *del;
+    int rc;
+
+    if (!handle || (handle == INVALID_HANDLE_VALUE))
+        return EINVAL;
+
+    dcache_lock();
+    if ((entry = wine_rb_get(&g_dcache.pending, handle)))
+    {
+        del = WINE_RB_ENTRY_VALUE(entry, dfile_del_t, entry);
+        rc = dc_rm_final_nl(del->dir, del->file, del->is83);
+
+        /* always free this instance of pending file on finalize, even it
+           did not result in the file being removed from cache.  if there
+           are multiple references to the file holding it open, there will
+           be another call to dc_rm_final to remove it later */
+        dc_remove_dfile_del(del);
+    }
+    else rc = ENOENT;
+    dcache_unlock();
+
+    TRACE("%d %p\n", rc, handle);
+
+    return rc;
+}
+
+/* moves file in cache.  assumes dcache lock is held */
+static int dc_mv_w(WCHAR *new_nt, int new_len, WCHAR *old_nt, int old_len)
+{
+    dlisting_t *old_listing;
+    dlisting_t *new_listing;
+    int new_file_len;
+    int old_file_len;
+    int new_dir_len;
+    int old_dir_len;
+    WCHAR *new_file;
+    WCHAR *old_file;
+    WCHAR *new_dir;
+    WCHAR *old_dir;
+    int is83;
+    int rc;
+
+    /* check if the full old path was a cached listing and remove it */
+    if ((old_listing = dc_find_listing(old_nt)))
+    {
+        dc_remove_listing(old_listing);
+
+        /* fall-through and remove from parent listing, if needed */
+    }
+
+    /* we only want to update the listings that exist in cache
+       but if both exist and an update fails on either one, remove both from cache */
+    old_dir = old_nt;
+    old_file = NULL;
+    old_dir_len = 0;
+    old_file_len = 0;
+    if ((rc = dc_split_path(old_nt, old_len, &old_dir_len, &old_file, &old_file_len)))
+        return rc;
+
+    new_dir = new_nt;
+    new_file = NULL;
+    new_dir_len = 0;
+    new_file_len = 0;
+    if ((rc = dc_split_path(new_nt, new_len, &new_dir_len, &new_file, &new_file_len)))
+        return rc;
+
+    old_listing = dc_find_listing(old_dir);
+    new_listing = dc_find_listing(new_dir);
+
+    if (!old_listing && !new_listing)
+        return ENOENT;
+
+    /* at least one listing is cached */
+    if (new_listing)
+    {
+        is83 = dc_is_8dot3(new_file, new_file_len);
+        if ((rc = dc_add_file_w_nl(new_listing, new_file, new_file_len, is83)))
+        {
+            /* on any error, remove both the old and new listings from cache */
+            dc_remove_listing(new_listing);
+            if (old_listing && (new_listing != old_listing))
+                dc_remove_listing(old_listing);
+            return rc;
+        }
+    }
+
+    if (old_listing)
+    {
+        is83 = dc_is_8dot3(old_file, old_file_len);
+        if ((rc = dc_rm_final_nl(old_dir, old_file, is83))) /* removes old_listing on error */
+        {
+            if (new_listing && (new_listing != old_listing))
+                dc_remove_listing(new_listing);
+        }
+    }
+
+    return rc;
+}
+
+/* called after successful rename()
+   paths should be normalized absolute paths returned by wine_nt_to_unix_name */
+int dc_mv(const char *old, const char *new)
+{
+    WCHAR old_stack[MAX_PATH+1];
+    WCHAR new_stack[MAX_PATH+1];
+    WCHAR *old_nt = old_stack;
+    WCHAR *new_nt = new_stack;
+    char *old_unix;
+    char *new_unix;
+    int old_nt_len;
+    int new_nt_len;
+    int old_len;
+    int new_len;
+    int rc;
+
+    if (!(old_unix = dc_drive_letter_from_unix(old)) ||
+        !(new_unix = dc_drive_letter_from_unix(new)))
+    {
+        return EINVAL;
+    }
+
+    old_len = strlen(old_unix);
+    old_nt_len = sizeof(old_stack)/sizeof(old_stack[0]);
+    if ((rc = dc_convert_path(old_unix, old_len, &old_nt, &old_nt_len)))
+        return rc;
+
+    new_len = strlen(new_unix);
+    new_nt_len = sizeof(new_stack)/sizeof(new_stack[0]);
+    if ((rc = dc_convert_path(new_unix, new_len, &new_nt, &new_nt_len)))
+    {
+        if (old_nt != old_stack)
+            dc_free(old_nt);
+        return rc;
+    }
+
+    dcache_lock();
+    rc = dc_mv_w(new_nt, new_nt_len, old_nt, old_nt_len);
+    dcache_unlock();
+
+    if (old_nt != old_stack)
+        dc_free(old_nt);
+    if (new_nt != new_stack)
+        dc_free(new_nt);
+
+    TRACE("%d %s -> %s\n", rc, debugstr_a(old), debugstr_a(new));
+
+    return rc;
+}
+
+NTSYSAPI int CDECL wine_file_rename( const char *oldpath, const char *newpath )
+{
+    /* only update cache on successful rename */
+    if (rename(oldpath, newpath) == -1)
+        return -1;
+    if (dcache_enabled)
+        dc_mv(oldpath, newpath);
+    return 0;
 }

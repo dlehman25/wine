@@ -413,6 +413,9 @@ NTSTATUS close_handle( HANDLE handle )
         __ENDTRY
     }
 
+    if (dcache_enabled && SUCCEEDED(ret))
+        dc_rm_final( handle );
+
     return ret;
 }
 
