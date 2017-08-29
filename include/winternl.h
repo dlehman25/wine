@@ -2944,6 +2944,8 @@ NTSYSAPI NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, 
                                                    UINT disposition, BOOLEAN check_case );
 NTSYSAPI NTSTATUS CDECL wine_unix_to_nt_file_name( const ANSI_STRING *name, UNICODE_STRING *nt );
 
+/* rename() that is dfcache-aware */
+NTSYSAPI int CDECL wine_file_rename( const char *oldpath, const char *newpath );
 
 /***********************************************************************
  * Inline functions

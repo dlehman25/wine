@@ -248,6 +248,18 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
             *handle = wine_server_ptr_handle( reply->handle );
         }
         SERVER_END_REQ;
+        if (dcache_enabled && (io->u.Status == STATUS_SUCCESS))
+        {
+            if (access & DELETE)
+            {
+                if (options & FILE_DIRECTORY_FILE)
+                    dc_rm_dir(unix_name.Buffer);
+                else if (options & FILE_DELETE_ON_CLOSE)
+                    dc_rm_file(unix_name.Buffer, *handle);
+            }
+            else if (created)
+                dc_add_file(unix_name.Buffer);
+        }
         RtlFreeHeap( GetProcessHeap(), 0, objattr );
         RtlFreeAnsiString( &unix_name );
     }
