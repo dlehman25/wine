@@ -1449,6 +1449,7 @@ static void start_main_thread(void)
     init_cpu_info();
     init_files();
     NtCreateKeyedEvent( &keyed_event, GENERIC_READ | GENERIC_WRITE, NULL, 0 );
+    dc_init();
     p__wine_set_unix_funcs( NTDLL_UNIXLIB_VERSION, &unix_funcs );
 }
 

@@ -1645,6 +1645,8 @@ NTSTATUS WINAPI NtClose( HANDLE handle )
     SERVER_END_REQ;
     if (fd != -1) close( fd );
 
+    if (dcache_enabled && SUCCEEDED(ret))
+        dc_rm_final( handle );
     if (ret != STATUS_INVALID_HANDLE || !handle) return ret;
     if (!NtCurrentTeb()->Peb->BeingDebugged) return ret;
     if (!NtQueryInformationProcess( NtCurrentProcess(), ProcessDebugPort, &port, sizeof(port), NULL) && port)
