@@ -1857,7 +1857,7 @@ BOOL WINAPI ReplaceFileW(LPCWSTR lpReplacedFileName, LPCWSTR lpReplacementFileNa
         }
 
         /* If an existing backup exists then copy over it */
-        if (rename(unix_replaced_name.Buffer, unix_backup_name.Buffer) == -1)
+        if (wine_file_rename(unix_replaced_name.Buffer, unix_backup_name.Buffer) == -1)
         {
             error = ERROR_UNABLE_TO_REMOVE_REPLACED; /* is this correct? */
             goto fail;
@@ -1868,7 +1868,7 @@ BOOL WINAPI ReplaceFileW(LPCWSTR lpReplacedFileName, LPCWSTR lpReplacementFileNa
      * Now that the backup has been performed (if requested), copy the replacement
      * into place
      */
-    if (rename(unix_replacement_name.Buffer, unix_replaced_name.Buffer) == -1)
+    if (wine_file_rename(unix_replacement_name.Buffer, unix_replaced_name.Buffer) == -1)
     {
         if (errno == EACCES)
         {

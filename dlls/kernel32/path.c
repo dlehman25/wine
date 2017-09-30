@@ -1411,7 +1411,7 @@ BOOL WINAPI MoveFileWithProgressW( LPCWSTR source, LPCWSTR dest,
 
     /* now perform the rename */
 
-    if (rename( source_unix.Buffer, dest_unix.Buffer ) == -1)
+    if (wine_file_rename( source_unix.Buffer, dest_unix.Buffer ) == -1)
     {
         if (errno == EXDEV && (flag & MOVEFILE_COPY_ALLOWED))
         {
