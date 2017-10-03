@@ -1393,7 +1393,7 @@ static HRESULT WINAPI ShellFolder2_SetNameOf(IShellFolder2* iface, HWND hwnd,
         return E_FAIL;
 
     /* Rename the file */
-    if (rename(szSrc, szDest)) 
+    if (wine_file_rename(szSrc, szDest))
         return E_FAIL;
     
     /* Build a pidl for the path of the renamed file */
@@ -1408,7 +1408,7 @@ static HRESULT WINAPI ShellFolder2_SetNameOf(IShellFolder2* iface, HWND hwnd,
     hr = IShellFolder2_ParseDisplayName(iface, NULL, NULL, lpwszName, NULL, &pidlRelativeDest, NULL);
     SHFree(lpwszName);
     if (FAILED(hr)) {
-        rename(szDest, szSrc); /* Undo the renaming */
+        wine_file_rename(szDest, szSrc); /* Undo the renaming */
         return E_FAIL;
     }
     pidlDest = ILCombine(This->m_pidlLocation, pidlRelativeDest);

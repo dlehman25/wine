@@ -211,7 +211,7 @@ BOOL TRASH_TrashFile(LPCWSTR wszPath)
     lstrcatA(trash_path, "/");
     lstrcatA(trash_path, base_name);
 
-    res = rename(unix_path, trash_path);
+    res = wine_file_rename(unix_path, trash_path);
 
     heap_free(unix_path);
     heap_free(trash_path);
@@ -574,7 +574,7 @@ static BOOL TRASH_MoveFileToBucket(TRASH_BUCKET *pBucket, const char *unix_path)
     lstrcpyA(trash_path, pBucket->files_dir);
     lstrcatA(trash_path, trash_file_name);
     
-    if (rename(unix_path, trash_path)==0)
+    if (wine_file_rename(unix_path, trash_path)==0)
     {
         TRACE("rename succeeded\n");
         goto cleanup;
@@ -810,7 +810,7 @@ HRESULT TRASH_RestoreItem(LPCITEMIDLIST pidl){
     file_path = SHAlloc(max(strlen(home_trash->files_dir),strlen(home_trash->info_dir))+strlen(filename)+1);
     sprintf(file_path,"%s%s",home_trash->files_dir,filename);
     file_path[strlen(home_trash->files_dir)+strlen(filename)-suffix_length] = '\0';
-    if(!rename(file_path,restore_path))
+    if(!wine_file_rename(file_path,restore_path))
     {
             sprintf(file_path,"%s%s",home_trash->info_dir,filename);
             if(unlink(file_path))
