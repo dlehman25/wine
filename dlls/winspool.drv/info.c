@@ -821,7 +821,7 @@ static http_status_t cupsGetPPD3_wrapper( http_t *http, const char *name,
 
     if (!ppd) return HTTP_NOT_FOUND;
 
-    if (rename( ppd, buffer ) == -1)
+    if (wine_file_rename( ppd, buffer ) == -1)
     {
         BOOL res = copy_file( ppd, buffer );
         unlink( ppd );
