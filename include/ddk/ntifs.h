@@ -132,4 +132,59 @@ typedef struct _FS_FILTER_CALLBACKS
 BOOLEAN WINAPI FsRtlIsNameInExpression(PUNICODE_STRING, PUNICODE_STRING, BOOLEAN, PWCH);
 NTSTATUS WINAPI ObQueryNameString(PVOID,POBJECT_NAME_INFORMATION,ULONG,PULONG);
 
+typedef struct _REPARSE_DATA_BUFFER {
+    ULONG  ReparseTag;
+    USHORT ReparseDataLength;
+    USHORT Reserved;
+    union {
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            ULONG  Flags;
+            WCHAR  PathBuffer[1];
+        } SymbolicLinkReparseBuffer;
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            WCHAR  PathBuffer[1];
+        } MountPointReparseBuffer;
+        struct {
+            UCHAR DataBuffer[1];
+        } GenericReparseBuffer;
+    } DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
+typedef struct _REPARSE_GUID_DATA_BUFFER {
+    DWORD ReparseTag;
+    WORD  ReparseDataLength;
+    WORD  Reserved;
+    GUID  ReparseGuid;
+    struct {
+        BYTE DataBuffer[1];
+    } GenericReparseBuffer;
+} REPARSE_GUID_DATA_BUFFER, *PREPARSE_GUID_DATA_BUFFER;
+
+#define IO_REPARSE_TAG_RESERVED_ZERO    ((DWORD) 0x00000000)
+#define IO_REPARSE_TAG_RESERVED_ONE     ((DWORD) 0x00000001)
+#define IO_REPARSE_TAG_MOUNT_POINT      ((DWORD) 0xA0000003)
+#define IO_REPARSE_TAG_HSM              ((DWORD) 0xC0000004)
+#define IO_REPARSE_TAG_DRIVER_EXTENDER  ((DWORD) 0x80000005)
+#define IO_REPARSE_TAG_HSM2             ((DWORD) 0x80000006)
+#define IO_REPARSE_TAG_SIS              ((DWORD) 0x80000007)
+#define IO_REPARSE_TAG_DFS              ((DWORD) 0x8000000A)
+#define IO_REPARSE_TAG_FILTER_MANAGER   ((DWORD) 0x8000000B)
+#define IO_REPARSE_TAG_SYMLINK          ((DWORD) 0xA000000C)
+#define IO_REPARSE_TAG_DFSR             ((DWORD) 0x80000012)
+#define IO_REPARSE_TAG_NFS              ((DWORD) 0x80000014)
+
+#define SYMLINK_FLAG_RELATIVE 1
+
+#define REPARSE_GUID_DATA_BUFFER_HEADER_SIZE FIELD_OFFSET(REPARSE_GUID_DATA_BUFFER, GenericReparseBuffer)
+#define REPARSE_DATA_BUFFER_HEADER_SIZE      FIELD_OFFSET(REPARSE_DATA_BUFFER, u.GenericReparseBuffer)
+#define MAXIMUM_REPARSE_DATA_BUFFER_SIZE     0x4000
+
 #endif
