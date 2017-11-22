@@ -4776,7 +4776,7 @@ static void test_junction_points(void)
     buffer_len = build_reparse_buffer(nameW.Buffer, buffer);
     memset(&iosb, 0xff, sizeof(iosb));
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
-    todo_wine ok(status == STATUS_ACCESS_DENIED, "expected %x, got %x\n", STATUS_ACCESS_DENIED, status);
+    ok(status == STATUS_ACCESS_DENIED, "expected %x, got %x\n", STATUS_ACCESS_DENIED, status);
     ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
     CloseHandle(junction);
 

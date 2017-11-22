@@ -2256,6 +2256,9 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
     case FSCTL_DISMOUNT_VOLUME:
         unmount_device( fd );
         return 1;
+    case FSCTL_SET_REPARSE_POINT:
+        set_error( STATUS_ACCESS_DENIED );
+        return 1;
     default:
         set_error( STATUS_NOT_SUPPORTED );
         return 0;
