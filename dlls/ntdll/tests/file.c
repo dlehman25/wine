@@ -4791,7 +4791,7 @@ static void test_junction_points(void)
 
     /* Invalid arguments */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, NULL, 0, NULL, 0);
-    todo_wine ok(status == STATUS_INVALID_BUFFER_SIZE, "expected %x, got %x\n", STATUS_INVALID_BUFFER_SIZE, status);
+    ok(status == STATUS_INVALID_BUFFER_SIZE, "expected %x, got %x\n", STATUS_INVALID_BUFFER_SIZE, status);
     todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
     buffer_len = build_reparse_buffer(nameW.Buffer, buffer);
