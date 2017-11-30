@@ -2160,6 +2160,20 @@ static void unmount_device( struct fd *device_fd )
     release_object( device );
 }
 
+static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
+{
+    /*
+    // TODO: GetVolumeInformation should call renameat2 to test for support
+    ensure FILE_WRITE_ACCESS
+    get unix_src from fd
+    create tmp_link name from unix_src
+    create unix_dst name from MountPointReparseBuffer
+    // link src -> dst
+    create tmp_link on disk
+    renameat2(RENAME_EXCHANGE) // Linux-only
+    */
+}
+
 /* default read() routine */
 int no_fd_read( struct fd *fd, struct async *async, file_pos_t pos )
 {
@@ -2265,6 +2279,17 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
 
         iosb = async_get_iosb(async);
         buf = iosb->in_data;
+        switch(buf->ReparseTag)
+        {
+        case IO_REPARSE_TAG_MOUNT_POINT:
+            set_reparse_mount_point( fd, buf );
+            break;
+
+        default:
+            release_object( iosb );
+            set_error( STATUS_NOT_SUPPORTED );
+            return 1;
+        }
 
         release_object( iosb );
         set_error( STATUS_ACCESS_DENIED );
