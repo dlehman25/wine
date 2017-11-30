@@ -28,6 +28,10 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#ifdef HAVE_SYS_SYSCALL_H
+#include <sys/syscall.h>
+#endif
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
@@ -679,6 +683,15 @@ static DWORD VOLUME_GetAudioCDSerial( const CDROM_TOC *toc )
     return serial;
 }
 
+static BOOL renameat2_supported(void)
+{
+#ifdef HAVE_SYS_SYSCALL_H
+    syscall(316 /* __NR_renameat2 */, 0, NULL, 0, NULL, 0); /* TODO */
+    return errno != ENOSYS;
+#else
+    return FALSE;
+#endif
+}
 
 /***********************************************************************
  *           GetVolumeInformationW   (KERNEL32.@)
@@ -824,8 +837,11 @@ fill_fs_info:  /* now fill in the information that depends on the file system ty
     default:
         if (fsname) lstrcpynW( fsname, ntfsW, fsname_len );
         if (filename_len) *filename_len = 255;
-        if (flags) *flags = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS
-                            | FILE_SUPPORTS_REPARSE_POINTS;
+        if (flags)
+        {
+            *flags = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS;
+            if (renameat2_supported()) *flags |= FILE_SUPPORTS_REPARSE_POINTS;
+        }
         break;
     }
     ret = TRUE;
