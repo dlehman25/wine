@@ -104,6 +104,8 @@
 
 #include "winternl.h"
 #include "winioctl.h"
+#include "ddk/wdm.h"
+#include "ddk/ntifs.h"
 
 #if defined(HAVE_SYS_EPOLL_H) && defined(HAVE_EPOLL_CREATE)
 # include <sys/epoll.h>
@@ -2257,8 +2259,17 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
         unmount_device( fd );
         return 1;
     case FSCTL_SET_REPARSE_POINT:
+    {
+        REPARSE_DATA_BUFFER *buf;
+        struct iosb *iosb;
+
+        iosb = async_get_iosb(async);
+        buf = iosb->in_data;
+
+        release_object( iosb );
         set_error( STATUS_ACCESS_DENIED );
         return 1;
+    }
     default:
         set_error( STATUS_NOT_SUPPORTED );
         return 0;
