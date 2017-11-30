@@ -4777,7 +4777,7 @@ static void test_junction_points(void)
     memset(&iosb, 0xff, sizeof(iosb));
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
     ok(status == STATUS_ACCESS_DENIED, "expected %x, got %x\n", STATUS_ACCESS_DENIED, status);
-    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
     CloseHandle(junction);
 
     /* Create the junction point */
@@ -4792,16 +4792,16 @@ static void test_junction_points(void)
     /* Invalid arguments */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, NULL, 0, NULL, 0);
     todo_wine ok(status == STATUS_INVALID_BUFFER_SIZE, "expected %x, got %x\n", STATUS_INVALID_BUFFER_SIZE, status);
-    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
     buffer_len = build_reparse_buffer(nameW.Buffer, buffer);
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, REPARSE_DATA_BUFFER_HEADER_SIZE - 2, NULL, 0);
     todo_wine ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
-    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len / 2, NULL, 0);
     todo_wine ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
-    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
     /* Try to create junction on non-empty directory */
     lstrcpyW(invalid_path, junction_path);
@@ -4810,14 +4810,14 @@ static void test_junction_points(void)
     ok(ret, "failed to create %s\n", wine_dbgstr_w(invalid_path));
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
     todo_wine ok(status == STATUS_DIRECTORY_NOT_EMPTY, "expected %x, got %x\n", STATUS_DIRECTORY_NOT_EMPTY, status);
-    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
     ret = RemoveDirectoryW(invalid_path);
     ok(ret, "failed to remove %s\n", wine_dbgstr_w(invalid_path));
 
     /* Finally create the junction point */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
     todo_wine ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
-    todo_wine ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
+    ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
     todo_wine ok(!iosb.u.Status, "expected 0, got %x\n", iosb.u.Status);
     CloseHandle(junction);
 
