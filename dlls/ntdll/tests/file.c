@@ -4796,11 +4796,11 @@ static void test_junction_points(void)
 
     buffer_len = build_reparse_buffer(nameW.Buffer, buffer);
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, REPARSE_DATA_BUFFER_HEADER_SIZE - 2, NULL, 0);
-    todo_wine ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
+    ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
     todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len / 2, NULL, 0);
-    todo_wine ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
+    ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
     todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
     /* Try to create junction on non-empty directory */

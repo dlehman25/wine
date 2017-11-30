@@ -108,6 +108,7 @@
 #include "winioctl.h"
 #include "ddk/ntddk.h"
 #include "ddk/ntddser.h"
+#include "ddk/ntifs.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
 WINE_DECLARE_DEBUG_CHANNEL(winediag);
@@ -1731,9 +1732,17 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
         break;
     case FSCTL_SET_REPARSE_POINT:
     {
+        REPARSE_DATA_BUFFER *buffer = in_buffer;
+
         if (!in_buffer)
         {
             status = STATUS_INVALID_BUFFER_SIZE;
+            break;
+        }
+
+        if (buffer->ReparseDataLength > in_size)
+        {
+            status = STATUS_IO_REPARSE_DATA_INVALID;
             break;
         }
 
