@@ -7420,6 +7420,9 @@ static BOOL BlockChainStream_Shrink(BlockChainStream* This,
 static BOOL BlockChainStream_Enlarge(BlockChainStream* This,
                                      ULARGE_INTEGER    newSize)
 {
+  STATSTG statstg;
+  StorageImpl *parent;
+  ULARGE_INTEGER neededSize;
   ULONG blockIndex, currentBlock;
   ULONG newNumBlocks;
   ULONG oldNumBlocks = 0;
@@ -7498,6 +7501,22 @@ static BOOL BlockChainStream_Enlarge(BlockChainStream* This,
    */
   if (oldNumBlocks < newNumBlocks)
   {
+    /*
+     * If multiple blocks are needed, reserve the space in advance
+     * This improves performance by reducing the number of SetEndOfFile calls
+     */
+    if (newNumBlocks - oldNumBlocks > 1)
+    {
+      parent = This->parentStorage;
+
+      ILockBytes_Stat(parent->lockBytes, &statstg, STATFLAG_NONAME);
+
+      neededSize.QuadPart = StorageImpl_GetBigBlockOffset(parent, newNumBlocks)+parent->bigBlockSize;
+
+      if (neededSize.QuadPart > statstg.cbSize.QuadPart)
+        ILockBytes_SetSize(parent->lockBytes, neededSize);
+    }
+
     while (oldNumBlocks < newNumBlocks)
     {
       blockIndex = StorageImpl_GetNextFreeBigBlock(This->parentStorage);
