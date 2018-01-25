@@ -53,6 +53,7 @@ typedef struct FileLockBytesImpl
     DWORD flProtect;
     LPWSTR pwcsName;
     LARGE_INTEGER pos;
+    LARGE_INTEGER size;
 } FileLockBytesImpl;
 
 static const ILockBytesVtbl FileLockBytesImpl_Vtbl;
@@ -106,6 +107,7 @@ HRESULT FileLockBytesImpl_Construct(HANDLE hFile, DWORD openFlags, LPCWSTR pwcsN
   This->hfile = hFile;
   This->flProtect = GetProtectMode(openFlags);
   This->pos.QuadPart = -1;
+  This->size.QuadPart = -1;
 
   if(pwcsName) {
     if (!GetFullPathNameW(pwcsName, MAX_PATH, fullpath, NULL))
@@ -277,6 +279,8 @@ static HRESULT WINAPI FileLockBytesImpl_WriteAt(
             return STG_E_WRITEFAULT;
 
         This->pos.QuadPart += cbWritten;
+        if (This->size.QuadPart != -1 && This->pos.QuadPart > This->size.QuadPart)
+            This->size.QuadPart = This->pos.QuadPart;
 
         if (pcbWritten)
             *pcbWritten += cbWritten;
@@ -311,7 +315,10 @@ static HRESULT WINAPI FileLockBytesImpl_SetSize(ILockBytes* iface, ULARGE_INTEGE
     newpos.QuadPart = newSize.QuadPart;
     if (SetFilePointerEx(This->hfile, newpos, &This->pos, FILE_BEGIN))
     {
-        SetEndOfFile(This->hfile);
+        if (SetEndOfFile(This->hfile))
+            This->size.QuadPart = This->pos.QuadPart;
+        else
+            This->size.QuadPart = -1;
     }
 
     return hr;
@@ -344,6 +351,8 @@ static HRESULT WINAPI FileLockBytesImpl_LockRegion(ILockBytes* iface,
 
     if (dwLockType & (LOCK_EXCLUSIVE|LOCK_ONLYONCE))
         lock_flags |= LOCKFILE_EXCLUSIVE_LOCK;
+
+    This->size.QuadPart = -1;
 
     ol.hEvent = 0;
     ol.u.s.Offset = libOffset.u.LowPart;
@@ -379,6 +388,12 @@ static HRESULT WINAPI FileLockBytesImpl_Stat(ILockBytes* iface,
 {
     FileLockBytesImpl* This = impl_from_ILockBytes(iface);
 
+    if (This->size.QuadPart == -1)
+    {
+        if (!GetFileSizeEx(This->hfile, &This->size))
+            return HRESULT_FROM_WIN32(GetLastError());
+    }
+
     if (!(STATFLAG_NONAME & grfStatFlag) && This->pwcsName)
     {
         pstatstg->pwcsName =
@@ -391,7 +406,7 @@ static HRESULT WINAPI FileLockBytesImpl_Stat(ILockBytes* iface,
 
     pstatstg->type = STGTY_LOCKBYTES;
 
-    pstatstg->cbSize.u.LowPart = GetFileSize(This->hfile, &pstatstg->cbSize.u.HighPart);
+    pstatstg->cbSize.QuadPart = This->size.QuadPart;
     /* FIXME: If the implementation is exported, we'll need to set other fields. */
 
     pstatstg->grfLocksSupported = LOCK_EXCLUSIVE|LOCK_ONLYONCE|WINE_LOCK_READ;
