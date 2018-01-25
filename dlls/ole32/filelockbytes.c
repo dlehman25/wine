@@ -52,6 +52,7 @@ typedef struct FileLockBytesImpl
     HANDLE hfile;
     DWORD flProtect;
     LPWSTR pwcsName;
+    LARGE_INTEGER pos;
 } FileLockBytesImpl;
 
 static const ILockBytesVtbl FileLockBytesImpl_Vtbl;
@@ -104,6 +105,7 @@ HRESULT FileLockBytesImpl_Construct(HANDLE hFile, DWORD openFlags, LPCWSTR pwcsN
   This->ref = 1;
   This->hfile = hFile;
   This->flProtect = GetProtectMode(openFlags);
+  This->pos.QuadPart = -1;
 
   if(pwcsName) {
     if (!GetFullPathNameW(pwcsName, MAX_PATH, fullpath, NULL))
@@ -200,10 +202,11 @@ static HRESULT WINAPI FileLockBytesImpl_ReadAt(
 
     offset.QuadPart = ulOffset.QuadPart;
 
-    ret = SetFilePointerEx(This->hfile, offset, NULL, FILE_BEGIN);
-
-    if (!ret)
-        return STG_E_READFAULT;
+    if (offset.QuadPart != This->pos.QuadPart)
+    {
+        if (!SetFilePointerEx(This->hfile, offset, &This->pos, FILE_BEGIN))
+            return STG_E_READFAULT;
+    }
 
     while (bytes_left)
     {
@@ -211,6 +214,8 @@ static HRESULT WINAPI FileLockBytesImpl_ReadAt(
 
         if (!ret || cbRead == 0)
             return STG_E_READFAULT;
+
+        This->pos.QuadPart += cbRead;
 
         if (pcbRead)
             *pcbRead += cbRead;
@@ -258,10 +263,11 @@ static HRESULT WINAPI FileLockBytesImpl_WriteAt(
 
     offset.QuadPart = ulOffset.QuadPart;
 
-    ret = SetFilePointerEx(This->hfile, offset, NULL, FILE_BEGIN);
-
-    if (!ret)
-        return STG_E_WRITEFAULT;
+    if (offset.QuadPart != This->pos.QuadPart)
+    {
+        if (!SetFilePointerEx(This->hfile, offset, &This->pos, FILE_BEGIN))
+            return STG_E_WRITEFAULT;
+    }
 
     while (bytes_left)
     {
@@ -269,6 +275,8 @@ static HRESULT WINAPI FileLockBytesImpl_WriteAt(
 
         if (!ret)
             return STG_E_WRITEFAULT;
+
+        This->pos.QuadPart += cbWritten;
 
         if (pcbWritten)
             *pcbWritten += cbWritten;
@@ -301,7 +309,7 @@ static HRESULT WINAPI FileLockBytesImpl_SetSize(ILockBytes* iface, ULARGE_INTEGE
     TRACE("new size %u\n", newSize.u.LowPart);
 
     newpos.QuadPart = newSize.QuadPart;
-    if (SetFilePointerEx(This->hfile, newpos, NULL, FILE_BEGIN))
+    if (SetFilePointerEx(This->hfile, newpos, &This->pos, FILE_BEGIN))
     {
         SetEndOfFile(This->hfile);
     }
