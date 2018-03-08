@@ -2225,14 +2225,34 @@ static ULONG WINAPI customfontfallback_AddRef(IDWriteFontFallback *iface)
     return ref;
 }
 
+static void destroy_mapping(struct fallback_mapping *mapping)
+{
+    UINT32 i;
+
+    heap_free(mapping->ranges);
+    for (i = 0; i < mapping->families_count; i++)
+        heap_free(mapping->families[i]);
+    heap_free(mapping->families);
+    if (mapping->collection)
+        IDWriteFontCollection_Release(mapping->collection);
+    heap_free(mapping->locale);
+}
+
 static ULONG WINAPI customfontfallback_Release(IDWriteFontFallback *iface)
 {
     struct dwrite_fontfallback *fallback = impl_from_IDWriteFontFallback(iface);
     ULONG ref = InterlockedDecrement(&fallback->ref);
+    UINT32 i;
 
     TRACE("(%p)->(%d)\n", fallback, ref);
 
     if (!ref) {
+        if (fallback->mappings_count) {
+            for (i = 0; i < fallback->mappings_count; i++)
+                destroy_mapping(&fallback->mappings[i]);
+        }
+        if (fallback->systemcollection)
+            IDWriteFontCollection1_Release(fallback->systemcollection);
         IDWriteFactory5_Release(fallback->factory);
         heap_free(fallback);
     }
@@ -2386,8 +2406,12 @@ static HRESULT WINAPI fontfallbackbuilder_CreateFontFallback(IDWriteFontFallback
 {
     struct dwrite_fontfallback_builder *fallbackbuilder = impl_from_IDWriteFontFallbackBuilder(iface);
     struct dwrite_fontfallback *fallback;
+    struct fallback_mapping *dst;
+    struct fallback_mapping *src;
+    HRESULT hr;
+    UINT32 i, j;
 
-    FIXME("(%p)->(%p): stub\n", fallbackbuilder, ret);
+    TRACE("(%p)->(%p): stub\n", fallbackbuilder, ret);
 
     *ret = NULL;
 
@@ -2398,10 +2422,66 @@ static HRESULT WINAPI fontfallbackbuilder_CreateFontFallback(IDWriteFontFallback
     fallback->IDWriteFontFallback_iface.lpVtbl = &customfontfallbackvtbl;
     fallback->ref = 1;
     fallback->factory = fallbackbuilder->factory;
-    IDWriteFactory5_AddRef(fallback->factory);
+    fallback->systemcollection = NULL;
+    fallback->mappings = NULL;
+    fallback->mappings_count = fallbackbuilder->mappings_count;
+    if (!fallback->mappings_count) {
+        IDWriteFactory5_AddRef(fallback->factory);
+        *ret = &fallback->IDWriteFontFallback_iface;
+        return S_OK;
+    }
 
+    hr = IDWriteFactory5_GetSystemFontCollection(fallback->factory, FALSE, &fallback->systemcollection, FALSE);
+    if (FAILED(hr)) {
+        heap_free(fallback);
+        return hr;
+    }
+
+    fallback->mappings = heap_alloc_zero(sizeof(*fallback->mappings) * fallback->mappings_count);
+    if (!fallback->mappings) {
+        IDWriteFontCollection1_Release(fallback->systemcollection);
+        heap_free(fallback);
+        return E_OUTOFMEMORY;
+    }
+
+    hr = E_OUTOFMEMORY;
+    for (i = 0; i < fallback->mappings_count; i++) {
+        dst = &fallback->mappings[i];
+        src = &fallbackbuilder->mappings[i];
+
+        dst->ranges = heap_alloc(sizeof(DWRITE_UNICODE_RANGE) * src->ranges_count);
+        dst->families = heap_alloc(sizeof(WCHAR*) * src->families_count);
+        if (!dst->ranges || !dst->families)
+            goto error;
+
+        dst->ranges_count = src->ranges_count;
+        dst->families_count = src->families_count;
+        if (src->locale && !(dst->locale = heap_strdupW(src->locale)))
+            goto error;
+
+        for (j = 0; j < dst->families_count; j++) {
+            dst->families[j] = heap_strdupW(src->families[j]);
+            if (!dst->families[j])
+                goto error;
+        }
+
+        dst->collection = src->collection ? src->collection : (IDWriteFontCollection *)fallback->systemcollection;
+        IDWriteFontCollection_AddRef(dst->collection);
+
+        memcpy(dst->ranges, src->ranges, sizeof(DWRITE_UNICODE_RANGE) * src->ranges_count);
+        dst->scale = src->scale;
+    }
+
+    IDWriteFactory5_AddRef(fallback->factory);
     *ret = &fallback->IDWriteFontFallback_iface;
     return S_OK;
+
+error:
+    for (j = 0; j <= i; j++)
+        destroy_mapping(&fallback->mappings[j]);
+    IDWriteFontCollection1_Release(fallback->systemcollection);
+    heap_free(fallback);
+    return hr;
 }
 
 static const IDWriteFontFallbackBuilderVtbl fontfallbackbuildervtbl =

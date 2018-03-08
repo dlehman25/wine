@@ -4745,6 +4745,7 @@ static void test_FontFallbackBuilder(void)
     static const WCHAR strW[] = {'A',0};
     IDWriteFontFallback *fallback, *fallback2;
     IDWriteFontFallbackBuilder *builder;
+    IDWriteFontCollection *syscoll;
     DWRITE_UNICODE_RANGE range;
     IDWriteFactory2 *factory2;
     IDWriteFactory *factory;
@@ -4789,6 +4790,11 @@ static void test_FontFallbackBuilder(void)
     ok(hr == S_OK, "Failed to create fallback object, hr %#x.\n", hr);
     ok(fallback != fallback2, "Unexpected fallback instance.\n");
     IDWriteFontFallback_Release(fallback2);
+
+    hr = IDWriteFactory_GetSystemFontCollection(factory, &syscoll, FALSE);
+    ok(hr == S_OK, "Failed to get system font collection, hr %#x.\n", hr);
+    EXPECT_REF(syscoll, 1);
+    IDWriteFontCollection_Release(syscoll);
 
     hr = IDWriteFontFallbackBuilder_AddMapping(builder, NULL, 0, NULL, 0, NULL, NULL, NULL, 0.0f);
     ok(hr == E_INVALIDARG, "got 0x%08x\n", hr);
@@ -4842,6 +4848,11 @@ static void test_FontFallbackBuilder(void)
 
     hr = IDWriteFontFallbackBuilder_CreateFontFallback(builder, &fallback);
     ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hr = IDWriteFactory_GetSystemFontCollection(factory, &syscoll, FALSE);
+    ok(hr == S_OK, "Failed to get system font collection, hr %#x.\n", hr);
+    todo_wine EXPECT_REF(syscoll, 2);
+    IDWriteFontCollection_Release(syscoll);
 
     /* fallback font missing from system collection */
     g_source = strW;
