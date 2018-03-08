@@ -4630,14 +4630,12 @@ if (font) {
     font = NULL;
     hr = IDWriteFontFallback_MapCharacters(fallback, &analysissource, 1, 2, NULL, NULL, DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, &mappedlength, &font, &scale);
-todo_wine {
     ok(hr == S_OK, "got 0x%08x\n", hr);
-    ok(mappedlength == 1, "got %u\n", mappedlength);
-}
-    ok(scale == 1.0f, "got %f\n", scale);
 todo_wine
+    ok(mappedlength == 1, "got %u\n", mappedlength);
+    ok(scale == 1.0f, "got %f\n", scale);
     ok(font != NULL, "got %p\n", font);
-if (font) {
+
     /* font returned for Hiragana character, check if it supports Latin too */
     exists = FALSE;
     hr = IDWriteFont_HasCharacter(font, 'b', &exists);
@@ -4645,7 +4643,7 @@ if (font) {
     ok(exists, "got %d\n", exists);
 
     IDWriteFont_Release(font);
-}
+
     /* Try with explicit collection, Tahoma will be forced. */
     /* 1. Latin part */
     g_source = str2W;
@@ -4685,7 +4683,7 @@ if (font) {
     ok(hr == S_OK && exists, "got 0x%08x, exists %d\n", hr, exists);
     hr = IDWriteLocalizedStrings_GetString(strings, 0, buffW, ARRAY_SIZE(buffW));
     ok(hr == S_OK, "got 0x%08x\n", hr);
-todo_wine
+
     ok(lstrcmpW(buffW, tahomaW), "%s\n", wine_dbgstr_w(buffW));
     IDWriteLocalizedStrings_Release(strings);
     IDWriteFont_Release(font);
@@ -4819,9 +4817,9 @@ static void test_FontFallbackBuilder(void)
 todo_wine {
     ok(hr == S_OK, "got 0x%08x\n", hr);
     ok(mappedlength == 1, "got %u\n", mappedlength);
+}
     ok(scale == 1.0f, "got %f\n", scale);
     ok(font == NULL, "got %p\n", font);
-}
     IDWriteFontFallback_Release(fallback);
 
     /* remap with custom collection */
