@@ -4625,16 +4625,12 @@ static void test_MapCharacters(void)
     font = NULL;
     hr = IDWriteFontFallback_MapCharacters(fallback, &analysissource, 0, 1, NULL, NULL, DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, &mappedlength, &font, &scale);
-todo_wine {
     ok(hr == S_OK, "got 0x%08x\n", hr);
     ok(mappedlength == 1, "got %u\n", mappedlength);
-}
     ok(scale == 1.0f, "got %f\n", scale);
-todo_wine
     ok(font != NULL, "got %p\n", font);
-if (font) {
     IDWriteFont_Release(font);
-}
+
     /* same latin text, full length */
     g_source = strW;
     mappedlength = 0;
@@ -4642,16 +4638,12 @@ if (font) {
     font = NULL;
     hr = IDWriteFontFallback_MapCharacters(fallback, &analysissource, 0, 3, NULL, NULL, DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, &mappedlength, &font, &scale);
-todo_wine {
     ok(hr == S_OK, "got 0x%08x\n", hr);
     ok(mappedlength == 3, "got %u\n", mappedlength);
-}
     ok(scale == 1.0f, "got %f\n", scale);
-todo_wine
     ok(font != NULL, "got %p\n", font);
-if (font) {
     IDWriteFont_Release(font);
-}
+
     /* string 'a\x3058b' */
     g_source = str2W;
     mappedlength = 0;
@@ -4659,16 +4651,12 @@ if (font) {
     font = NULL;
     hr = IDWriteFontFallback_MapCharacters(fallback, &analysissource, 0, 3, NULL, NULL, DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, &mappedlength, &font, &scale);
-todo_wine {
     ok(hr == S_OK, "got 0x%08x\n", hr);
     ok(mappedlength == 1, "got %u\n", mappedlength);
-}
     ok(scale == 1.0f, "got %f\n", scale);
-todo_wine
     ok(font != NULL, "got %p\n", font);
-if (font) {
     IDWriteFont_Release(font);
-}
+
     g_source = str2W;
     mappedlength = 0;
     scale = 0.0f;
@@ -5161,7 +5149,7 @@ static void test_SetUnderline(void)
     IDWriteTextLayout *layout;
     DWRITE_TEXT_RANGE range;
     IDWriteFactory *factory;
-    UINT32 count, i;
+    UINT32 count, i, j;
     HRESULT hr;
 
     factory = create_factory();
@@ -5315,11 +5303,19 @@ todo_wine
             IDWriteFontFile_Release(file);
         }
 
-        IDWriteLocalizedStrings_Release(names);
-        IDWriteFont_Release(font);
-
         if (!exists)
             goto cleanup;
+
+        for (j = 0; j < 2; j++) {
+            hr = IDWriteFont_HasCharacter(font, strW[j], &exists);
+            if (FAILED(hr))
+                goto cleanup;
+
+            if (!exists) {
+                skip("%s does not contain character '%c'\n", wine_dbgstr_w(nameW), strW[j]);
+                goto cleanup;
+            }
+        }
 
         IDWriteFontFace_GetMetrics(fontface, &fontmetrics);
         hr = IDWriteFactory_CreateTextFormat(factory, nameW, NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
@@ -5341,6 +5337,9 @@ todo_wine
         ok(hr == S_OK, "got 0x%08x\n", hr);
 
     cleanup:
+        IDWriteLocalizedStrings_Release(names);
+        IDWriteFont_Release(font);
+
         if (layout)
             IDWriteTextLayout_Release(layout);
         if (format)

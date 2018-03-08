@@ -2190,21 +2190,335 @@ static const IDWriteFontFallbackVtbl fontfallbackvtbl = {
     fontfallback_MapCharacters
 };
 
+static const DWRITE_UNICODE_RANGE usb_ranges[128][8] = {
+    /* Bit          Unicode subrange         Description */
+    /*   0 */ { {   0x0000,   0x007f } }, /* Basic Latin */
+    /*   1 */ { {   0x0080,   0x00ff } }, /* Latin-1 Supplement */
+    /*   2 */ { {   0x0100,   0x017f } }, /* Latin Extended-A */
+    /*   3 */ { {   0x0180,   0x024f } }, /* Latin Extended-B */
+    /*   4 */ { {   0x0250,   0x02af },   /* IPA Extensions */
+                {   0x1d00,   0x1d7f },   /* Phonetic Extensions */
+                {   0x1d80,   0x1dbf } }, /* Phonetic Extensions Supplement */
+    /*   5 */ { {   0x02b0,   0x02ff },   /* Spacing Modifier Letters */
+                {   0xa700,   0xa71f } }, /* Modifier Tone Letters */
+    /*   6 */ { {   0x0300,   0x036f },   /* Combining Diacritical Marks */
+                {   0x1dc0,   0x1dff } }, /* Combining Diacritical Marks Supplement */
+    /*   7 */ { {   0x0370,   0x03ff } }, /* Greek and Coptic */
+    /*   8 */ { {   0x2c80,   0x2cff } }, /* Coptic */
+    /*   9 */ { {   0x0400,   0x04ff },   /* Cyrillic */
+                {   0x0500,   0x052f },   /* Cyrillic Supplement */
+                {   0x2de0,   0x2dff },   /* Cyrillic Extended-A */
+                {   0xa640,   0xa69f } }, /* Cyrillic Extended-B */
+    /*  10 */ { {   0x0530,   0x058f } }, /* Armenian */
+    /*  11 */ { {   0x0590,   0x05ff } }, /* Hebrew */
+    /*  12 */ { {   0xa500,   0xa63f } }, /* Vai */
+    /*  13 */ { {   0x0600,   0x06ff },   /* Arabic */
+                {   0x0750,   0x077f } }, /* Arabic Supplement */
+    /*  14 */ { {   0x07c0,   0x07ff } }, /* NKo */
+    /*  15 */ { {   0x0900,   0x097f } }, /* Devanagari */
+    /*  16 */ { {   0x0980,   0x09ff } }, /* Bangla */
+    /*  17 */ { {   0x0a00,   0x0a7f } }, /* Gurmukhi */
+    /*  18 */ { {   0x0a80,   0x0aff } }, /* Gujarati */
+    /*  19 */ { {   0x0b00,   0x0b7f } }, /* Odia */
+    /*  20 */ { {   0x0b80,   0x0bff } }, /* Tamil */
+    /*  21 */ { {   0x0c00,   0x0c7f } }, /* Telugu */
+    /*  22 */ { {   0x0c80,   0x0cff } }, /* Kannada */
+    /*  23 */ { {   0x0d00,   0x0d7f } }, /* Malayalam */
+    /*  24 */ { {   0x0e00,   0x0e7f } }, /* Thai */
+    /*  25 */ { {   0x0e80,   0x0eff } }, /* Lao */
+    /*  26 */ { {   0x10a0,   0x10ff },   /* Georgian */
+                {   0x2d00,   0x2d2f } }, /* Georgian Supplement */
+    /*  27 */ { {   0x1b00,   0x1b7f } }, /* Balinese */
+    /*  28 */ { {   0x1100,   0x11ff } }, /* Hangul Jamo */
+    /*  29 */ { {   0x1e00,   0x1eff },   /* Latin Extended Additional */
+                {   0x2c60,   0x2c7f },   /* Latin Extended-C */
+                {   0xa720,   0xa7ff } }, /* Latin Extended-D */
+    /*  30 */ { {   0x1f00,   0x1fff } }, /* Greek Extended */
+    /*  31 */ { {   0x2000,   0x206f },   /* General Punctuation */
+                {   0x2e00,   0x2e7f } }, /* Supplemental Punctuation */
+    /*  32 */ { {   0x2070,   0x209f } }, /* Superscripts and Subscripts */
+    /*  33 */ { {   0x20a0,   0x20cf } }, /* Currency Symbols */
+    /*  34 */ { {   0x20d0,   0x20ff } }, /* Combining Diacritical Marks for Symbols */
+    /*  35 */ { {   0x2100,   0x214f } }, /* Letterlike Symbols */
+    /*  36 */ { {   0x2150,   0x218f } }, /* Number Forms */
+    /*  37 */ { {   0x2190,   0x21ff },   /* Arrows */
+                {   0x27f0,   0x27ff },   /* Supplemental Arrows-A */
+                {   0x2900,   0x297f },   /* Supplemental Arrows-B */
+                {   0x2b00,   0x2bff } }, /* Miscellaneous Symbols and Arrows */
+    /*  38 */ { {   0x2200,   0x22ff },   /* Mathematical Operators */
+                {   0x27c0,   0x27ef },   /* Miscellaneous Mathematical Symbols-A */
+                {   0x2980,   0x29ff },   /* Miscellaneous Mathematical Symbols-B */
+                {   0x2a00,   0x2aff } }, /* Supplemental Mathematical Operators */
+    /*  39 */ { {   0x2300,   0x23ff } }, /* Miscallaneous Technical */
+    /*  40 */ { {   0x2400,   0x243f } }, /* Control Pictures */
+    /*  41 */ { {   0x2440,   0x245f } }, /* Optical Character Recognition */
+    /*  42 */ { {   0x2460,   0x24ff } }, /* Enclosed Alphanumerics */
+    /*  43 */ { {   0x2500,   0x257f } }, /* Box Drawing */
+    /*  44 */ { {   0x2580,   0x259f } }, /* Block Elements */
+    /*  45 */ { {   0x25a0,   0x25ff } }, /* Geometric Shapes */
+    /*  46 */ { {   0x2600,   0x26ff } }, /* Miscellaneous Symbols */
+    /*  47 */ { {   0x2700,   0x27bf } }, /* Dingbats */
+    /*  48 */ { {   0x3000,   0x303f } }, /* CJK Symbols and Punctuation */
+    /*  49 */ { {   0x3040,   0x309f } }, /* Hiragana */
+    /*  50 */ { {   0x30a0,   0x30ff },   /* Katakana */
+                {   0x31f0,   0x31ff } }, /* Katakana Phonetic Extensions */
+    /*  51 */ { {   0x3100,   0x312f },   /* Bopomofo */
+                {   0x31a0,   0x31bf } }, /* Bopomofo Extended */
+    /*  52 */ { {   0x3130,   0x318f } }, /* Hangul Compatibility Jamo */
+    /*  53 */ { {   0xa840,   0xa87f } }, /* Phags-pa */
+    /*  54 */ { {   0x3200,   0x32ff } }, /* Enclosed CJK Letters and Months */
+    /*  55 */ { {   0x3300,   0x33ff } }, /* CJK Compatibility */
+    /*  56 */ { {   0xac00,   0xd7af } }, /* Hangul Syllables */
+    /*  57 */ { {   0xd800,   0xdfff } }, /* Non-plane 0 */
+    /*  58 */ { {  0x10900,  0x1091f } }, /* Phoenician */
+    /*  59 */ { {   0x2e80,   0x2eff },   /* CJK Radicals Supplement */
+                {   0x2f00,   0x2fdf },   /* Kangxi Radicals */
+                {   0x2ff0,   0x2fff },   /* Ideographic Description Characters */
+                {   0x3190,   0x319f },   /* Kanbun */
+                {   0x3400,   0x4dbf },   /* CJK Unified Ideographs Extension A */
+                {   0x4e00,   0x9fff },   /* CJK Unified Ideographs */
+                {  0x20000,  0x2a6df } }, /* CJK Unified Ideographs Extension B */
+    /*  60 */ { {   0xe000,   0xf8ff } }, /* Private Use Area */
+    /*  61 */ { {   0x31c0,   0x31ef },   /* CJK Strokes */
+                {   0xf900,   0xfaff },   /* CJK Compatibility Ideographs */
+                {  0x2f800,  0x2fa1f } }, /* CJK Compatibiltiy Ideographs Supplement */
+    /*  62 */ { {   0xfb00,   0xfb4f } }, /* Alphabetic Presentation Forms */
+    /*  63 */ { {   0xfb50,   0xfdff } }, /* Arabic Presentation Forms-A */
+    /*  64 */ { {   0xfe20,   0xfe2f } }, /* Combining Half Marks */
+    /*  65 */ { {   0xfe10,   0xfe1f },   /* Vertical Forms */
+                {   0xfe30,   0xfe4f } }, /* CJK Compatibility Forms */
+    /*  66 */ { {   0xfe50,   0xfe6f } }, /* Small Form Variants */
+    /*  67 */ { {   0xfe70,   0xfeff } }, /* Arabic Presentation Forms-B */
+    /*  68 */ { {   0xff00,   0xffef } }, /* Halfwidth and Fullwidth Forms */
+    /*  69 */ { {   0xfff0,   0xffff } }, /* Specials */
+    /*  70 */ { {   0x0f00,   0x0fff } }, /* Tibetan */
+    /*  71 */ { {   0x0700,   0x074f } }, /* Syriac */
+    /*  72 */ { {   0x0780,   0x07bf } }, /* Thaana */
+    /*  73 */ { {   0x0d80,   0x0dff } }, /* Sinhala */
+    /*  74 */ { {   0x1000,   0x109f } }, /* Myanmar */
+    /*  75 */ { {   0x1200,   0x137f },   /* Ethiopic */
+                {   0x1380,   0x139f },   /* Ethiopic Supplement */
+                {   0x2d80,   0x2ddf } }, /* Ethiopic Extended */
+    /*  76 */ { {   0x13a0,   0x13ff } }, /* Cherokee */
+    /*  77 */ { {   0x1400,   0x167f } }, /* Unified Canadian Aboriginal Syllabics */
+    /*  78 */ { {   0x1680,   0x169f } }, /* Ogham */
+    /*  79 */ { {   0x16a0,   0x16ff } }, /* Runic */
+    /*  80 */ { {   0x1780,   0x17ff },   /* Khmer */
+                {   0x19e0,   0x19ff } }, /* Khmer Symbols */
+    /*  81 */ { {   0x1800,   0x18af } }, /* Mongolian */
+    /*  82 */ { {   0x2800,   0x28ff } }, /* Braille Patterns */
+    /*  83 */ { {   0xa000,   0xa48f },   /* Yi Syllables */
+                {   0xa490,   0xa4cf } }, /* Yi Radicals */
+    /*  84 */ { {   0x1700,   0x171f },   /* Tagalog */
+                {   0x1720,   0x173f },   /* Hanunoo */
+                {   0x1740,   0x175f },   /* Buhid */
+                {   0x1760,   0x177f } }, /* Tagbanwa */
+    /*  85 */ { {  0x10300,  0x1032f } }, /* Old Italic */
+    /*  86 */ { {  0x10330,  0x1034f } }, /* Gothic */
+    /*  87 */ { {  0x10400,  0x1044f } }, /* Deseret */
+    /*  88 */ { {  0x1d000,  0x1d0ff },   /* Byzantine Musical Symbols */
+                {  0x1d100,  0x1d1ff },   /* Musical Symbols */
+                {  0x1d200,  0x1d24f } }, /* Ancient Greek Musical Notation */
+    /*  89 */ { {  0x1d400,  0x1d7ff } }, /* Mathematical Alphanumeric Symbols */
+    /*  90 */ { {  0xff000,  0xffffd },   /* Private Use (plane 15) */
+                { 0x100000, 0x10fffd } }, /* Private Use (plane 16) */
+    /*  91 */ { {   0xfe00,   0xfe0f },   /* Variation Selectors */
+                {  0xe0100,  0xe01ef } }, /* Variation Selectors Supplement */
+    /*  92 */ { {  0xe0000,  0xe007f } }, /* Tags */
+    /*  93 */ { {   0x1900,   0x194f } }, /* Limbu */
+    /*  94 */ { {   0x1950,   0x197f } }, /* Tai Le */
+    /*  95 */ { {   0x1980,   0x19df } }, /* New Tai Lue */
+    /*  96 */ { {   0x1a00,   0x1a1f } }, /* Buginese */
+    /*  97 */ { {   0x2c00,   0x2c5f } }, /* Glagolithic */
+    /*  98 */ { {   0x2d30,   0x2d7f } }, /* Tifinagh */
+    /*  99 */ { {   0x4dc0,   0x4dff } }, /* Yijing Hexagram Symbols */
+    /* 100 */ { {   0xa800,   0xa82f } }, /* Syloti Nagri */
+    /* 101 */ { {  0x10000,  0x1007f },   /* Linear B Syllabary */
+                {  0x10080,  0x100ff },   /* Linear B Ideograms */
+                {  0x10100,  0x1013f } }, /* Aegean Numbers */
+    /* 102 */ { {  0x10140,  0x1018f } }, /* Ancient Greek Numbers */
+    /* 103 */ { {  0x10380,  0x1039f } }, /* Ugaritic */
+    /* 104 */ { {  0x103a0,  0x103df } }, /* Old Persian */
+    /* 105 */ { {  0x10450,  0x1047f } }, /* Shavian */
+    /* 106 */ { {  0x10480,  0x104af } }, /* Osmanya */
+    /* 107 */ { {  0x10800,  0x1083f } }, /* Cypriot Syllabary */
+    /* 108 */ { {  0x10a00,  0x10a5f } }, /* Kharoshthi */
+    /* 109 */ { {  0x1d300,  0x1d35f } }, /* Tai Xuan Jing Symbols */
+    /* 110 */ { {  0x12000,  0x123ff },   /* Cuneiform */
+                {  0x12400,  0x1247f } }, /* Cuneiform Numbers and Punctuation */
+    /* 111 */ { {  0x1d360,  0x1d37f } }, /* Counting Rod Numerals */
+    /* 112 */ { {   0x1b80,   0x1bbf } }, /* Sundanese */
+    /* 113 */ { {   0x1c00,   0x1c4f } }, /* Lepcha */
+    /* 114 */ { {   0x1c50,   0x1c7f } }, /* Ol Chiki */
+    /* 115 */ { {   0xa880,   0xa8df } }, /* Saurashtra */
+    /* 116 */ { {   0xa900,   0xa92f } }, /* Kayah Li */
+    /* 117 */ { {   0xa930,   0xa95f } }, /* Rejang */
+    /* 118 */ { {   0xaa00,   0xaa5f } }, /* Cham */
+    /* 119 */ { {  0x10190,  0x101cf } }, /* Ancient Symbols */
+    /* 120 */ { {  0x101d0,  0x101ff } }, /* Phaistos Disc */
+    /* 121 */ { {  0x10280,  0x1029f },   /* Lycian */
+                {  0x102a0,  0x102df },   /* Carian */
+                {  0x10920,  0x1093f } }, /* Lydian */
+    /* 122 */ { {  0x1f000,  0x1f02f },   /* Mahjong Tiles */
+                {  0x1f030,  0x1f09f } }, /* Domino Tiles */
+    /* 123 */ /* Win2k+ Layout progress, horizontal right to left */
+    /* 124 */ /* Win2k+ Layout progress, vertical before horizontal */
+    /* 125 */ /* Win2k+ Layout progress, vertical bottom to top */
+    /* 126 */ /* Reserved for process-internal usage */
+    /* 127 */ /* Reserved for process-internal usage */
+};
+
+static HRESULT add_font_to_mapping(IDWriteFontFallbackBuilder *builder,
+                    IDWriteFontCollection1 *collection, IDWriteFont *font, LPCWSTR name, LPCWSTR locale)
+{
+    HRESULT hr;
+    UINT32 i, j, n;
+    FONTSIGNATURE fontsig;
+    const WCHAR *names[1] = { name };
+
+    get_fontsig_from_font(font, &fontsig);
+
+    for (i = 0; i < ARRAY_SIZE(fontsig.fsUsb); i++) {
+        for (j = 0; j < 32; j++) {
+            if (!(fontsig.fsUsb[i] & (1<<j)))
+                continue;
+
+            for (n = 0; n < ARRAY_SIZE(usb_ranges[0]); n++) {
+                if (!usb_ranges[i * 32 + j][n].first && !usb_ranges[i * 32 + j][n].last)
+                    break;
+            }
+
+            if (!n)
+                continue;
+
+            hr = IDWriteFontFallbackBuilder_AddMapping(builder, usb_ranges[i * 32 + j], n, names,
+                        ARRAY_SIZE(names), (IDWriteFontCollection*)collection, locale, NULL, 1.0f);
+            if (FAILED(hr))
+                return hr;
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT create_dynamic_system_fallback(IDWriteFactory5 *factory,
+                    IDWriteFontCollection1 *collection, IDWriteFontFallback **ret)
+{
+    HRESULT hr;
+    UINT32 i;
+    UINT32 len;
+    UINT32 family_count;
+    IDWriteFont *font;
+    IDWriteFontFamily1 *family;
+    IDWriteFontFallbackBuilder *builder;
+    IDWriteLocalizedStrings *strings;
+    WCHAR *locale;
+    WCHAR *name;
+
+    hr = create_fontfallback_builder(factory, &builder);
+    if (FAILED(hr))
+        return hr;
+
+    family_count = IDWriteFontCollection1_GetFontFamilyCount(collection);
+    for (i = 0; i < family_count; i++) {
+        family = NULL;
+        strings = NULL;
+        locale = NULL;
+        name = NULL;
+        hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
+        if (FAILED(hr))
+            goto error;
+
+        hr = IDWriteFontFamily1_GetFamilyNames(family, &strings);
+        if (FAILED(hr))
+            goto error;
+
+        hr = IDWriteLocalizedStrings_GetStringLength(strings, 0, &len);
+        if (FAILED(hr))
+            goto error;
+
+        ++len;
+        name = heap_alloc(len*sizeof(WCHAR));
+        if (!name) {
+            hr = E_OUTOFMEMORY;
+            goto error;
+        }
+
+        hr = IDWriteLocalizedStrings_GetString(strings, 0, name, len);
+        if (FAILED(hr))
+            goto error;
+
+        hr = IDWriteLocalizedStrings_GetLocaleNameLength(strings, 0, &len);
+        if (FAILED(hr))
+            goto error;
+
+        ++len;
+        locale = heap_alloc(len*sizeof(WCHAR));
+        if (!locale) {
+            hr = E_OUTOFMEMORY;
+            goto error;
+        }
+
+        hr = IDWriteLocalizedStrings_GetLocaleName(strings, 0, locale, len);
+        if (FAILED(hr))
+            goto error;
+
+        hr = IDWriteFontFamily_GetFirstMatchingFont((IDWriteFontFamily *)family, DWRITE_FONT_WEIGHT_NORMAL,
+                                                    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, &font);
+        if (FAILED(hr))
+            goto error;
+
+        hr = add_font_to_mapping(builder, collection, font, name, locale);
+        if (FAILED(hr))
+            goto error;
+
+        heap_free(locale);
+        heap_free(name);
+        IDWriteLocalizedStrings_Release(strings);
+        IDWriteFontFamily1_Release(family);
+    }
+
+    hr = IDWriteFontFallbackBuilder_CreateFontFallback(builder, ret);
+    IDWriteFontFallbackBuilder_Release(builder);
+
+    return hr;
+
+error:
+    heap_free(locale);
+    heap_free(name);
+    if (strings) IDWriteLocalizedStrings_Release(strings);
+    if (family) IDWriteFontFamily1_Release(family);
+    IDWriteFontFallbackBuilder_Release(builder);
+    return hr;
+}
+
 HRESULT create_system_fontfallback(IDWriteFactory5 *factory, IDWriteFontFallback **ret)
 {
     struct dwrite_fontfallback *fallback;
+    IDWriteFontCollection1 *collection;
+    HRESULT hr;
 
     *ret = NULL;
 
+    hr = IDWriteFactory5_GetSystemFontCollection(factory, FALSE, &collection, FALSE);
+    if (FAILED(hr))
+        return hr;
+
+    hr = create_dynamic_system_fallback(factory, collection, ret);
+    if (SUCCEEDED(hr))
+        return S_OK;
+
     fallback = heap_alloc(sizeof(*fallback));
-    if (!fallback)
+    if (!fallback) {
+        IDWriteFontCollection1_Release(collection);
         return E_OUTOFMEMORY;
+    }
 
     fallback->IDWriteFontFallback_iface.lpVtbl = &fontfallbackvtbl;
     fallback->factory = factory;
+    fallback->systemcollection = collection;
     fallback->mappings = (struct fallback_mapping *)fontfallback_neutral_data;
     fallback->mappings_count = ARRAY_SIZE(fontfallback_neutral_data);
-    IDWriteFactory5_GetSystemFontCollection(fallback->factory, FALSE, &fallback->systemcollection, FALSE);
 
     *ret = &fallback->IDWriteFontFallback_iface;
     return S_OK;
