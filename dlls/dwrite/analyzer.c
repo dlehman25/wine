@@ -2260,25 +2260,12 @@ static ULONG WINAPI customfontfallback_Release(IDWriteFontFallback *iface)
     return ref;
 }
 
-static HRESULT WINAPI customfontfallback_MapCharacters(IDWriteFontFallback *iface, IDWriteTextAnalysisSource *source,
-    UINT32 position, UINT32 length, IDWriteFontCollection *basecollection, const WCHAR *basefamily,
-    DWRITE_FONT_WEIGHT weight, DWRITE_FONT_STYLE style, DWRITE_FONT_STRETCH stretch, UINT32 *mapped_length,
-    IDWriteFont **ret_font, FLOAT *scale)
-{
-    struct dwrite_fontfallback *fallback = impl_from_IDWriteFontFallback(iface);
-
-    FIXME("(%p)->(%p %u %u %p, %s, %u, %u, %u, %p, %p, %p)\n", fallback, source, position, length,
-        basecollection, debugstr_w(basefamily), weight, style, stretch, mapped_length, ret_font, scale);
-
-    return E_NOTIMPL;
-}
-
 static const IDWriteFontFallbackVtbl customfontfallbackvtbl =
 {
     fontfallback_QueryInterface,
     customfontfallback_AddRef,
     customfontfallback_Release,
-    customfontfallback_MapCharacters,
+    fontfallback_MapCharacters,
 };
 
 static HRESULT WINAPI fontfallbackbuilder_QueryInterface(IDWriteFontFallbackBuilder *iface, REFIID riid, void **obj)
