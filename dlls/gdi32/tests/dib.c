@@ -30,6 +30,7 @@
 #include "mmsystem.h" /* DIBINDEX */
 
 #include "wine/test.h"
+#include "wine/heap.h"
 
 static HCRYPTPROV crypt_prov;
 
@@ -1354,10 +1355,10 @@ static void reset_bits( HDC hdc, const BITMAPINFO *bmi, BYTE *bits )
     if (bits) memset( bits, 0xcc, size );
     else
     {
-        void *ddb_bits = HeapAlloc( GetProcessHeap(), 0, size );
+        void *ddb_bits = heap_alloc( size );
         memset( ddb_bits, 0xcc, size );
         SetBitmapBits( GetCurrentObject(hdc, OBJ_BITMAP), size, ddb_bits );
-        HeapFree( GetProcessHeap(), 0, ddb_bits );
+        heap_free( ddb_bits );
     }
 }
 
@@ -1377,10 +1378,10 @@ static char *hash_dib(HDC hdc, const BITMAPINFO *bmi, const void *bits)
 
     if (!bits)
     {
-        void *ddb_bits = HeapAlloc( GetProcessHeap(), 0, dib_size );
+        void *ddb_bits = heap_alloc( dib_size );
         GetBitmapBits( GetCurrentObject(hdc, OBJ_BITMAP), dib_size, ddb_bits );
         CryptHashData(hash, ddb_bits, dib_size, 0);
-        HeapFree( GetProcessHeap(), 0, ddb_bits );
+        heap_free( ddb_bits );
     }
     else CryptHashData(hash, bits, dib_size, 0);
 
@@ -1390,7 +1391,7 @@ static char *hash_dib(HDC hdc, const BITMAPINFO *bmi, const void *bits)
     CryptGetHashParam(hash, HP_HASHVAL, hash_buf, &hash_size, 0);
     CryptDestroyHash(hash);
 
-    buf = HeapAlloc(GetProcessHeap(), 0, hash_size * 2 + 1);
+    buf = heap_alloc(hash_size * 2 + 1);
 
     for(i = 0; i < hash_size; i++)
     {
@@ -1448,7 +1449,7 @@ static void compare_hash_broken_todo(HDC hdc, const BITMAPINFO *bmi, BYTE *bits,
         if(current_sha1[i] == NULL)
         {
             ok(current_sha1[i] != NULL, "missing hash, got \"%s\",\n", hash);
-            HeapFree(GetProcessHeap(), 0, hash);
+            heap_free(hash);
             return;
         }
     }
@@ -1464,7 +1465,7 @@ static void compare_hash_broken_todo(HDC hdc, const BITMAPINFO *bmi, BYTE *bits,
 
     current_sha1 += num_broken + 1;
 
-    HeapFree(GetProcessHeap(), 0, hash);
+    heap_free(hash);
 
     compare_bounds( hdc, info );
 }
@@ -3116,8 +3117,8 @@ static void draw_text_2( HDC hdc, const BITMAPINFO *bmi, BYTE *bits, BOOL aa )
     diy_hash = hash_dib( hdc, bmi, bits );
     ok( !strcmp( eto_hash, diy_hash ), "hash mismatch - aa %d\n", aa );
 
-    HeapFree( GetProcessHeap(), 0, diy_hash );
-    HeapFree( GetProcessHeap(), 0, eto_hash );
+    heap_free( diy_hash );
+    heap_free( eto_hash );
 
     font = SelectObject( hdc, font );
     DeleteObject( font );

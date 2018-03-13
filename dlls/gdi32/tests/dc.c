@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include "wine/test.h"
+#include "wine/heap.h"
 #include "winbase.h"
 #include "wingdi.h"
 #include "winuser.h"
@@ -52,13 +53,13 @@ static void dump_region(HRGN hrgn)
         return;
     }
     if (!(size = GetRegionData( hrgn, 0, NULL ))) return;
-    if (!(data = HeapAlloc( GetProcessHeap(), 0, size ))) return;
+    if (!(data = heap_alloc( size ))) return;
     GetRegionData( hrgn, size, data );
     printf( "%d rects:", data->rdh.nCount );
     for (i = 0, rect = (RECT *)data->Buffer; i < data->rdh.nCount; i++, rect++)
         printf( " (%d,%d)-(%d,%d)", rect->left, rect->top, rect->right, rect->bottom );
     printf( "\n" );
-    HeapFree( GetProcessHeap(), 0, data );
+    heap_free( data );
 }
 
 static void test_dc_values(void)
@@ -272,13 +273,13 @@ static void test_GdiConvertToDevmodeW(void)
     dmW = pGdiConvertToDevmodeW(&dmA);
     ok(dmW->dmSize >= FIELD_OFFSET(DEVMODEW, dmICMMethod), "dmSize is too small: %04x\n", dmW->dmSize);
     ok(dmW->dmSize <= sizeof(DEVMODEW), "dmSize is too large: %04x\n", dmW->dmSize);
-    HeapFree(GetProcessHeap(), 0, dmW);
+    heap_free(dmW);
 
     dmA.dmSize = FIELD_OFFSET(DEVMODEA, dmFields) + sizeof(dmA.dmFields);
     dmW = pGdiConvertToDevmodeW(&dmA);
     ok(dmW->dmSize == FIELD_OFFSET(DEVMODEW, dmFields) + sizeof(dmW->dmFields),
        "wrong size %u\n", dmW->dmSize);
-    HeapFree(GetProcessHeap(), 0, dmW);
+    heap_free(dmW);
 
     dmA.dmICMMethod = DMICMMETHOD_NONE;
     dmA.dmSize = FIELD_OFFSET(DEVMODEA, dmICMMethod) + sizeof(dmA.dmICMMethod);
@@ -287,13 +288,13 @@ static void test_GdiConvertToDevmodeW(void)
        "wrong size %u\n", dmW->dmSize);
     ok(dmW->dmICMMethod == DMICMMETHOD_NONE,
        "expected DMICMMETHOD_NONE, got %u\n", dmW->dmICMMethod);
-    HeapFree(GetProcessHeap(), 0, dmW);
+    heap_free(dmW);
 
     dmA.dmSize = 1024;
     dmW = pGdiConvertToDevmodeW(&dmA);
     ok(dmW->dmSize == FIELD_OFFSET(DEVMODEW, dmPanningHeight) + sizeof(dmW->dmPanningHeight),
        "wrong size %u\n", dmW->dmSize);
-    HeapFree(GetProcessHeap(), 0, dmW);
+    heap_free(dmW);
 
     SetLastError(0xdeadbeef);
     dmA.dmSize = 0;
@@ -306,7 +307,7 @@ static void test_GdiConvertToDevmodeW(void)
     dmW = pGdiConvertToDevmodeW(&dmA);
     ok(dmW->dmSize == FIELD_OFFSET(DEVMODEW, dmFields),
        "expected %04x, got %04x\n", FIELD_OFFSET(DEVMODEW, dmFields), dmW->dmSize);
-    HeapFree(GetProcessHeap(), 0, dmW);
+    heap_free(dmW);
 }
 
 static void test_device_caps( HDC hdc, HDC ref_dc, const char *descr, int scale )
@@ -1272,11 +1273,11 @@ static HDC create_printer_dc(int scale, BOOL reset)
     if (!pOpenPrinterA( buffer, &hprn, NULL )) goto done;
 
     pGetPrinterA( hprn, 2, NULL, 0, &len );
-    pbuf = HeapAlloc( GetProcessHeap(), 0, len );
+    pbuf = heap_alloc( len );
     if (!pGetPrinterA( hprn, 2, (LPBYTE)pbuf, len, &len )) goto done;
 
     pGetPrinterDriverA( hprn, NULL, 3, NULL, 0, &len );
-    dbuf = HeapAlloc( GetProcessHeap(), 0, len );
+    dbuf = heap_alloc( len );
     if (!pGetPrinterDriverA( hprn, NULL, 3, (LPBYTE)dbuf, len, &len )) goto done;
 
     pbuf->pDevMode->u1.s1.dmScale = scale;
@@ -1289,8 +1290,8 @@ static HDC create_printer_dc(int scale, BOOL reset)
 
     if (reset) ResetDCA( hdc, pbuf->pDevMode );
 done:
-    HeapFree( GetProcessHeap(), 0, dbuf );
-    HeapFree( GetProcessHeap(), 0, pbuf );
+    heap_free( dbuf );
+    heap_free( pbuf );
     if (hprn) pClosePrinter( hprn );
     if (winspool) FreeLibrary( winspool );
     if (!hdc) skip( "could not create a DC for the default printer\n" );

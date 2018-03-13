@@ -1510,7 +1510,7 @@ static void test_text_extents(void)
     ok(sz.cx == 0 && sz.cy == 0, "cx %d, cy %d\n", sz.cx, sz.cy);
 
     len = lstrlenW(wt);
-    extents = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len * sizeof extents[0]);
+    extents = heap_alloc_zero(len * sizeof extents[0]);
     extents[0] = 1;         /* So that the increasing sequence test will fail
                                if the extents array is untouched.  */
     GetTextExtentExPointW(hdc, wt, len, 32767, &fit1, extents, &sz1);
@@ -1604,7 +1604,7 @@ static void test_text_extents(void)
 
     hfont = SelectObject(hdc, hfont);
     DeleteObject(hfont);
-    HeapFree(GetProcessHeap(), 0, extents);
+    heap_free(extents);
     ReleaseDC(NULL, hdc);
 }
 
@@ -1833,7 +1833,7 @@ todo_wine
 
         total_kern_pairs = GetKerningPairsW(hdc, 0, NULL);
         trace("total_kern_pairs %u\n", total_kern_pairs);
-        kern_pair = HeapAlloc(GetProcessHeap(), 0, total_kern_pairs * sizeof(*kern_pair));
+        kern_pair = heap_alloc(total_kern_pairs * sizeof(*kern_pair));
 
         /* Win98 (GetKerningPairsA) and XP behave differently here, the test
          * passes on XP.
@@ -1879,7 +1879,7 @@ todo_wine
         ok(matches == kd[i].total_kern_pairs, "got matches %u, expected %u\n",
            matches, kd[i].total_kern_pairs);
 
-        HeapFree(GetProcessHeap(), 0, kern_pair);
+        heap_free(kern_pair);
 
         SelectObject(hdc, hfont_old);
         DeleteObject(hfont);
@@ -2099,7 +2099,7 @@ static void test_height_selection_vdmx( HDC hdc )
     {
         res = get_res_data( "wine_vdmx.ttf", &size );
 
-        copy = HeapAlloc( GetProcessHeap(), 0, size );
+        copy = heap_alloc( size );
         memcpy( copy, res, size );
         vdmx_header = find_ttf_table( copy, size, MS_MAKE_TAG('V','D','M','X') );
         vdmx_header[0] = GET_BE_WORD( data[i].version );
@@ -2109,7 +2109,7 @@ static void test_height_selection_vdmx( HDC hdc )
         ratio_rec[0] = data[i].bCharSet;
 
         write_tmp_file( copy, &size, ttf_name );
-        HeapFree( GetProcessHeap(), 0, copy );
+        heap_free( copy );
 
         ok( !is_truetype_font_installed("wine_vdmx"), "Already installed\n" );
         num = pAddFontResourceExA( ttf_name, FR_PRIVATE, 0 );
@@ -2166,12 +2166,12 @@ static UINT get_font_fsselection(LOGFONTA *lf)
     hfont_old = SelectObject(hdc, hfont);
 
     otm_size = GetOutlineTextMetricsA(hdc, 0, NULL);
-    otm = HeapAlloc(GetProcessHeap(), 0, otm_size);
+    otm = heap_alloc(otm_size);
     otm->otmSize = sizeof(*otm);
     ret = GetOutlineTextMetricsA(hdc, otm->otmSize, otm);
     ok(ret == otm->otmSize, "expected %u, got %u, error %d\n", otm->otmSize, ret, GetLastError());
     fsSelection = otm->otmfsSelection;
-    HeapFree(GetProcessHeap(), 0, otm);
+    heap_free(otm);
     SelectObject(hdc, hfont_old);
     DeleteObject(hfont);
     ReleaseDC(0, hdc);
@@ -2241,7 +2241,7 @@ static void test_GetOutlineTextMetrics(void)
     otm_size = GetOutlineTextMetricsA(hdc, 0, NULL);
     trace("otm buffer size %u (0x%x)\n", otm_size, otm_size);
 
-    otm = HeapAlloc(GetProcessHeap(), 0, otm_size);
+    otm = heap_alloc(otm_size);
 
     memset(otm, 0xAA, otm_size);
     SetLastError(0xdeadbeef);
@@ -2295,7 +2295,7 @@ static void test_GetOutlineTextMetrics(void)
     ret = GetOutlineTextMetricsA(hdc, otm_size, NULL);
     ok(ret == otm_size, "expected %u, got %u, error %d\n", otm_size, ret, GetLastError());
 
-    HeapFree(GetProcessHeap(), 0, otm);
+    heap_free(otm);
 
     SelectObject(hdc, hfont_old);
     DeleteObject(hfont);
@@ -2766,7 +2766,7 @@ static void test_GetFontUnicodeRanges(void)
     size = pGetFontUnicodeRanges(hdc, NULL);
     ok(size, "GetFontUnicodeRanges failed unexpectedly\n");
 
-    gs = HeapAlloc(GetProcessHeap(), 0, size);
+    gs = heap_alloc(size);
 
     size = pGetFontUnicodeRanges(hdc, gs);
     ok(size, "GetFontUnicodeRanges failed\n");
@@ -2776,7 +2776,7 @@ static void test_GetFontUnicodeRanges(void)
             trace("%03d wcLow %04x cGlyphs %u\n", i, gs->ranges[i].wcLow, gs->ranges[i].cGlyphs);
     trace("found %u ranges\n", gs->cRanges);
 
-    HeapFree(GetProcessHeap(), 0, gs);
+    heap_free(gs);
 
     SelectObject(hdc, hfont_old);
     DeleteObject(hfont);
@@ -3486,7 +3486,7 @@ static BOOL get_first_last_from_cmap(HDC hdc, DWORD *first, DWORD *last, cmap_ty
     ok(size != GDI_ERROR, "no cmap table found\n");
     if(size == GDI_ERROR) return FALSE;
 
-    header = HeapAlloc(GetProcessHeap(), 0, size);
+    header = heap_alloc(size);
     ret = GetFontData(hdc, MS_CMAP_TAG, 0, header, size);
     ok(ret == size, "GetFontData should return %u not %u\n", size, ret);
     ok(GET_BE_WORD(header->version) == 0, "got cmap version %d\n", GET_BE_WORD(header->version));
@@ -3520,7 +3520,7 @@ static BOOL get_first_last_from_cmap(HDC hdc, DWORD *first, DWORD *last, cmap_ty
     }
 
 end:
-    HeapFree(GetProcessHeap(), 0, header);
+    heap_free(header);
     return r;
 }
 
@@ -3747,7 +3747,7 @@ static BOOL get_ttf_nametable_entry(HDC hdc, WORD name_id, WCHAR *out_buf, SIZE_
     ok(size != GDI_ERROR, "no name table found\n");
     if(size == GDI_ERROR) return FALSE;
 
-    data = HeapAlloc(GetProcessHeap(), 0, size);
+    data = heap_alloc(size);
     ret = GetFontData(hdc, MS_NAME_TAG, 0, data, size);
     ok(ret == size, "GetFontData should return %u not %u\n", size, ret);
 
@@ -3804,7 +3804,7 @@ static BOOL get_ttf_nametable_entry(HDC hdc, WORD name_id, WCHAR *out_buf, SIZE_
     r = TRUE;
 
 out:
-    HeapFree(GetProcessHeap(), 0, data);
+    heap_free(data);
     return r;
 }
 
@@ -5494,11 +5494,11 @@ static void test_fullname2_helper(const char *Family)
         ok(buf_size != GDI_ERROR, "no name table found\n");
         if (buf_size == GDI_ERROR) continue;
 
-        bufW = HeapAlloc(GetProcessHeap(), 0, buf_size);
-        bufA = HeapAlloc(GetProcessHeap(), 0, buf_size);
+        bufW = heap_alloc(buf_size);
+        bufA = heap_alloc(buf_size);
 
         otm_size = GetOutlineTextMetricsA(hdc, 0, NULL);
-        otm = HeapAlloc(GetProcessHeap(), 0, otm_size);
+        otm = heap_alloc(otm_size);
         memset(otm, 0, otm_size);
         ret = GetOutlineTextMetricsA(hdc, otm_size, otm);
         ok(ret != 0, "GetOutlineTextMetrics fails!\n");
@@ -5548,9 +5548,9 @@ static void test_fullname2_helper(const char *Family)
         SelectObject(hdc, of);
         DeleteObject(hfont);
 
-        HeapFree(GetProcessHeap(), 0, otm);
-        HeapFree(GetProcessHeap(), 0, bufW);
-        HeapFree(GetProcessHeap(), 0, bufA);
+        heap_free(otm);
+        heap_free(bufW);
+        heap_free(bufA);
     }
     heap_free(efnd.elf);
     DeleteDC(hdc);
@@ -5706,7 +5706,7 @@ static void test_fstype_fixup(void)
     ok(hfont_prev != NULL, "SelectObject failed\n");
 
     otm_size = GetOutlineTextMetricsA(hdc, 0, NULL);
-    otm = HeapAlloc(GetProcessHeap(), 0, otm_size);
+    otm = heap_alloc(otm_size);
     otm->otmSize = sizeof(*otm);
     ret = GetOutlineTextMetricsA(hdc, otm->otmSize, otm);
     ok(ret == otm->otmSize, "expected %u, got %u, error %d\n", otm->otmSize, ret, GetLastError());
@@ -5715,7 +5715,7 @@ static void test_fstype_fixup(void)
        valid bits are 1, 2, 3, 8, 9. */
     ok((otm->otmfsType & ~0x30e) == 0, "fsType %#x\n", otm->otmfsType);
 
-    HeapFree(GetProcessHeap(), 0, otm);
+    heap_free(otm);
 
     SelectObject(hdc, hfont_prev);
     DeleteObject(hfont);
@@ -6670,13 +6670,13 @@ static void test_bitmap_font_glyph_index(void)
             case 1:
             {
                 int len = lstrlenW(text);
-                LPWORD indices = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WORD));
+                LPWORD indices = heap_alloc(len * sizeof(WORD));
                 ret = pGetGlyphIndicesW(hdc, text, len, indices, 0);
                 ok(ret, "GetGlyphIndices failed\n");
                 ok(memcmp(indices, text, sizeof(WORD) * len) == 0,
                    "Glyph indices and text are different for %s:%d\n", lf.lfFaceName, tm.tmCharSet);
                 ret = ExtTextOutW(hdc, 0, 0, ETO_GLYPH_INDEX, NULL, indices, len, NULL);
-                HeapFree(GetProcessHeap(), 0, indices);
+                heap_free(indices);
                 break;
             }
             }
