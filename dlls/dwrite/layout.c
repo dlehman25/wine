@@ -1831,10 +1831,12 @@ static void layout_add_line(struct dwrite_textlayout *layout, UINT32 first_clust
     BOOL append_trimming_run = FALSE;
     const struct layout_run *run;
     FLOAT width, origin_x;
+    UINT32 count;
     HRESULT hr;
 
     /* Take a look at clusters we got for this line in reverse order to set trailing properties for current line */
-    for (index = last_cluster, trailingspacewidth = 0.0f; index >= first_cluster; index--) {
+    count = last_cluster - first_cluster + 1;
+    for (index = last_cluster, trailingspacewidth = 0.0f; count; count--, index--) {
         DWRITE_CLUSTER_METRICS *cluster = &layout->clustermetrics[index];
         struct layout_cluster *lc = &layout->clusters[index];
         WCHAR ch;
