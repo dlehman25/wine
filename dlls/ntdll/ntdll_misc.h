@@ -261,4 +261,6 @@ int dc_rm_file(const char *, HANDLE);
 int dc_rm_final(HANDLE);
 int dc_mv(const char *, const char *);
 
+extern void lfh_notify_thread_term(void) DECLSPEC_HIDDEN;
+
 #endif
