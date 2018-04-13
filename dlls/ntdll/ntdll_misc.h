@@ -251,4 +251,6 @@ extern HANDLE keyed_event DECLSPEC_HIDDEN;
 
 NTSTATUS WINAPI RtlHashUnicodeString(PCUNICODE_STRING,BOOLEAN,ULONG,ULONG*);
 
+extern void lfh_notify_thread_term(void) DECLSPEC_HIDDEN;
+
 #endif

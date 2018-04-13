@@ -451,6 +451,7 @@ void exit_thread( int status )
     close( ntdll_get_thread_data()->wait_fd[1] );
     close( ntdll_get_thread_data()->reply_fd );
     close( ntdll_get_thread_data()->request_fd );
+    lfh_notify_thread_term();
     pthread_exit( UIntToPtr(status) );
 }
 
