@@ -126,6 +126,7 @@ typedef union
 } FREE_LIST_ENTRY;
 
 struct tagHEAP;
+struct tagLFHHEAP;
 
 typedef struct tagSUBHEAP
 {
@@ -163,6 +164,7 @@ typedef struct tagHEAP
     ARENA_INUSE    **pending_free;  /* Ring buffer for pending free requests */
     RTL_CRITICAL_SECTION critSection; /* Critical section for serialization */
     FREE_LIST_ENTRY *freeList;      /* Free lists */
+    struct tagLFHHEAP *lfh_heap;    /* LFH Heap, if enabled */
 } HEAP;
 
 #define HEAP_MAGIC       ((DWORD)('H' | ('E'<<8) | ('A'<<16) | ('P'<<24)))
@@ -924,6 +926,7 @@ static SUBHEAP *HEAP_CreateSubHeap( HEAP *heap, LPVOID address, DWORD flags,
         heap->flags         = flags;
         heap->magic         = HEAP_MAGIC;
         heap->grow_size     = max( HEAP_DEF_SIZE, totalSize );
+        heap->lfh_heap      = NULL;
         list_init( &heap->subheap_list );
         list_init( &heap->large_list );
 
@@ -2229,8 +2232,8 @@ ULONG WINAPI RtlGetProcessHeaps( ULONG count, HANDLE *heaps )
 /***********************************************************************
  *           RtlQueryHeapInformation    (NTDLL.@)
  */
-NTSTATUS WINAPI RtlQueryHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_class,
-                                         PVOID info, SIZE_T size_in, PSIZE_T size_out)
+NTSTATUS WINAPI RtlQueryHeapInformationOrig( HANDLE heap, HEAP_INFORMATION_CLASS info_class,
+                                             PVOID info, SIZE_T size_in, PSIZE_T size_out)
 {
     switch (info_class)
     {
@@ -2256,4 +2259,43 @@ NTSTATUS WINAPI RtlSetHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_
 {
     FIXME("%p %d %p %ld stub\n", heap, info_class, info, size);
     return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           LFHHEAP
+ */
+
+/***********************************************************************
+ *           RtlQueryHeapInformation    (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlQueryHeapInformation( HANDLE handle, HEAP_INFORMATION_CLASS info_class,
+                                         PVOID info, SIZE_T size_in, PSIZE_T size_out )
+{
+    HEAP *heap;
+
+    switch (info_class)
+    {
+    case HeapCompatibilityInformation:
+        heap = HEAP_GetPtr( handle );
+        if (!heap)
+            return STATUS_INVALID_HANDLE;
+
+        if (!info && size_in >= sizeof(ULONG))
+            return STATUS_ACCESS_VIOLATION;
+
+        if (size_out) *size_out = sizeof(ULONG);
+
+        if (size_in < sizeof(ULONG))
+            return STATUS_BUFFER_TOO_SMALL;
+
+        if (heap->lfh_heap)
+            *(ULONG *)info = 2; /* lfh heap */
+        else
+            *(ULONG *)info = 0; /* standard heap */
+        return STATUS_SUCCESS;
+
+    default:
+        FIXME("Unknown heap information class %u\n", info_class);
+        return STATUS_INVALID_INFO_CLASS;
+    }
 }

@@ -872,7 +872,17 @@ static void test_HeapQueryInformation(void)
        "expected ERROR_INSUFFICIENT_BUFFER got %u\n", GetLastError());
     ok(size == sizeof(ULONG), "expected 4, got %lu\n", size);
 
+    size = 0;
     SetLastError(0xdeadbeef);
+    ret = pHeapQueryInformation(GetProcessHeap(),
+                                HeapCompatibilityInformation,
+                                NULL, sizeof(info), &size);
+    ok(!ret, "HeapQueryInformation should fail\n");
+    ok(GetLastError() == ERROR_NOACCESS,
+       "expected ERROR_NOACCESS got %u\n", GetLastError());
+    ok(size == 0, "expected 0, got %lu\n", size);
+    SetLastError(0xdeadbeef);
+
     ret = pHeapQueryInformation(GetProcessHeap(),
                                 HeapCompatibilityInformation,
                                 NULL, 0, NULL);
