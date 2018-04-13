@@ -3654,6 +3654,8 @@ static void load_global_options(void)
                                        L"GlobalFlag", REG_DWORD, &NtCurrentTeb()->Peb->NtGlobalFlag,
                                        sizeof(DWORD), NULL );
     heap_set_debug_flags( GetProcessHeap() );
+    value = 2;
+    RtlSetHeapInformation( GetProcessHeap(), HeapCompatibilityInformation, &value, sizeof(value) );
 }
 
 

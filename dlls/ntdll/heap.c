@@ -35,7 +35,10 @@
 #include "winternl.h"
 #include "ntdll_misc.h"
 #include "wine/list.h"
+#include "wine/rbtree.h"
 #include "wine/debug.h"
+#include "wine/server.h"
+#include "wine/exception.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(heap);
 
@@ -126,6 +129,7 @@ typedef union
 } FREE_LIST_ENTRY;
 
 struct tagHEAP;
+struct tagLFHHEAP;
 
 typedef struct tagSUBHEAP
 {
@@ -163,6 +167,7 @@ typedef struct tagHEAP
     ARENA_INUSE    **pending_free;  /* Ring buffer for pending free requests */
     RTL_CRITICAL_SECTION critSection; /* Critical section for serialization */
     FREE_LIST_ENTRY *freeList;      /* Free lists */
+    struct tagLFHHEAP *lfh_heap;    /* LFH Heap, if enabled */
 } HEAP;
 
 #define HEAP_MAGIC       ((DWORD)('H' | ('E'<<8) | ('A'<<16) | ('P'<<24)))
@@ -924,6 +929,7 @@ static SUBHEAP *HEAP_CreateSubHeap( HEAP *heap, LPVOID address, DWORD flags,
         heap->flags         = flags;
         heap->magic         = HEAP_MAGIC;
         heap->grow_size     = max( HEAP_DEF_SIZE, totalSize );
+        heap->lfh_heap      = NULL;
         list_init( &heap->subheap_list );
         list_init( &heap->large_list );
 
@@ -1532,8 +1538,8 @@ void heap_set_debug_flags( HANDLE handle )
  *  Success: A HANDLE to the newly created heap.
  *  Failure: a NULL HANDLE.
  */
-HANDLE WINAPI RtlCreateHeap( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T commitSize,
-                             PVOID unknown, PRTL_HEAP_DEFINITION definition )
+HANDLE WINAPI RtlCreateHeapOrig( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T commitSize,
+                                 PVOID unknown, PRTL_HEAP_DEFINITION definition )
 {
     SUBHEAP *subheap;
 
@@ -1579,7 +1585,7 @@ HANDLE WINAPI RtlCreateHeap( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T c
  *  Success: A NULL HANDLE, if heap is NULL or it was destroyed
  *  Failure: The Heap handle, if heap is the process heap.
  */
-HANDLE WINAPI RtlDestroyHeap( HANDLE heap )
+HANDLE WINAPI RtlDestroyHeapOrig( HANDLE heap )
 {
     HEAP *heapPtr = HEAP_GetPtr( heap );
     SUBHEAP *subheap, *next;
@@ -1648,7 +1654,7 @@ HANDLE WINAPI RtlDestroyHeap( HANDLE heap )
  * NOTES
  *  This call does not SetLastError().
  */
-void * WINAPI DECLSPEC_HOTPATCH RtlAllocateHeap( HANDLE heap, ULONG flags, SIZE_T size )
+void * WINAPI DECLSPEC_HOTPATCH RtlAllocateHeapOrig( HANDLE heap, ULONG flags, SIZE_T size )
 {
     ARENA_FREE *pArena;
     ARENA_INUSE *pInUse;
@@ -1733,7 +1739,7 @@ void * WINAPI DECLSPEC_HOTPATCH RtlAllocateHeap( HANDLE heap, ULONG flags, SIZE_
  *  Success: TRUE, if ptr is NULL or was freed successfully.
  *  Failure: FALSE.
  */
-BOOLEAN WINAPI DECLSPEC_HOTPATCH RtlFreeHeap( HANDLE heap, ULONG flags, void *ptr )
+BOOLEAN WINAPI DECLSPEC_HOTPATCH RtlFreeHeapOrig( HANDLE heap, ULONG flags, void *ptr )
 {
     ARENA_INUSE *pInUse;
     SUBHEAP *subheap;
@@ -1793,7 +1799,7 @@ error:
  *  Success: A pointer to the resized block (which may be different).
  *  Failure: NULL.
  */
-PVOID WINAPI RtlReAllocateHeap( HANDLE heap, ULONG flags, PVOID ptr, SIZE_T size )
+PVOID WINAPI RtlReAllocateHeapOrig( HANDLE heap, ULONG flags, PVOID ptr, SIZE_T size )
 {
     ARENA_INUSE *pArena;
     HEAP *heapPtr;
@@ -2008,7 +2014,7 @@ BOOLEAN WINAPI RtlUnlockHeap( HANDLE heap )
  * NOTES
  *  The size may be bigger than what was passed to RtlAllocateHeap().
  */
-SIZE_T WINAPI RtlSizeHeap( HANDLE heap, ULONG flags, const void *ptr )
+SIZE_T WINAPI RtlSizeHeapOrig( HANDLE heap, ULONG flags, const void *ptr )
 {
     SIZE_T ret;
     const ARENA_INUSE *pArena;
@@ -2060,7 +2066,7 @@ SIZE_T WINAPI RtlSizeHeap( HANDLE heap, ULONG flags, const void *ptr )
  *  Success: TRUE. The block was allocated from heap.
  *  Failure: FALSE, if heap is invalid or ptr was not allocated from it.
  */
-BOOLEAN WINAPI RtlValidateHeap( HANDLE heap, ULONG flags, LPCVOID ptr )
+BOOLEAN WINAPI RtlValidateHeapOrig( HANDLE heap, ULONG flags, LPCVOID ptr )
 {
     HEAP *heapPtr = HEAP_GetPtr( heap );
     if (!heapPtr) return FALSE;
@@ -2229,8 +2235,8 @@ ULONG WINAPI RtlGetProcessHeaps( ULONG count, HANDLE *heaps )
 /***********************************************************************
  *           RtlQueryHeapInformation    (NTDLL.@)
  */
-NTSTATUS WINAPI RtlQueryHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_class,
-                                         PVOID info, SIZE_T size_in, PSIZE_T size_out)
+NTSTATUS WINAPI RtlQueryHeapInformationOrig( HANDLE heap, HEAP_INFORMATION_CLASS info_class,
+                                             PVOID info, SIZE_T size_in, PSIZE_T size_out)
 {
     switch (info_class)
     {
@@ -2252,8 +2258,1057 @@ NTSTATUS WINAPI RtlQueryHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS inf
 /***********************************************************************
  *           RtlSetHeapInformation    (NTDLL.@)
  */
-NTSTATUS WINAPI RtlSetHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_class, PVOID info, SIZE_T size)
+NTSTATUS WINAPI RtlSetHeapInformationOrig( HANDLE heap, HEAP_INFORMATION_CLASS info_class, PVOID info, SIZE_T size)
 {
     FIXME("%p %d %p %ld stub\n", heap, info_class, info, size);
     return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           LFHHEAP
+ *
+ * The LFH borrows from Windows' name "Low Fragmentation Heap" but is an original implementation
+ * It shares the same limitations and has similar performance.  Like Windows, it is layered on
+ * top of the original heap.  It works by pre-allocating memory for each thread to reduce lock
+ * contention
+ */
+
+#if __SIZEOF_POINTER__ == 8
+/* Win64 aligns on 16B boundaries */
+#define LFH_SHIFT       4
+#elif __SIZEOF_POINTER__ == 4
+/* Win32 aligns on 8B boundaries */
+#define LFH_SHIFT       3
+#else
+#error __SIZEOF_POINTER__ is undefined
+#endif
+
+#define LFH_ALIGNMENT   (1 << LFH_SHIFT)
+#define LFH_MASK        (LFH_ALIGNMENT-1)
+
+/* offset/size are 16-bit and cannot be scaled more than LFH_SHIFT */
+#define TBUFFER_SIZE    ((1 << 16) << LFH_SHIFT)
+C_ASSERT( TBUFFER_SIZE % (COMMIT_MASK+1) == 0 );
+
+/* threshold MUST be <=16k since size/offset are WORD-sized */
+#define LFH_THRESHOLD   (16*1024)
+
+#define LFH_BLOCK_MAGIC    0x464C    /* LF */
+
+#define LFH_FLAG_FREE        0x01
+#define LFH_FLAG_PREV_FREE   0x02
+
+#define LLROUND(size)       (((size) + LFH_MASK) & ~LFH_MASK)
+
+/* size of entire block if free, with footer */
+#define LFH_MIN_BLOCK_SIZE      (LLROUND(sizeof(TBLOCK) + sizeof(TBLOCK*)))
+
+#define LFH_BLOCK_HEADER_SIZE   (FIELD_OFFSET(TBLOCK, s))
+#define LFH_BUFFER_HEADER_SIZE  (LLROUND(sizeof(TBUFFER)) + ARENA_OFFSET)
+
+#ifdef __GNUC__
+#define LFH_NOINLINE __attribute__((noinline))
+#else
+#define LFH_NOINLINE
+#endif
+
+static const SIZE_T lfh_thread_list_sizes[] =
+{
+    0x200, 0x400, 0x800, 0x1000, 0x2000, ~0ul
+};
+
+#define LFH_MAX_SMALL_FREE_LIST 0x100
+C_ASSERT( LFH_MAX_SMALL_FREE_LIST % LFH_ALIGNMENT == 0 );
+#define LFH_NB_SMALL_FREE_LISTS (((LFH_MAX_SMALL_FREE_LIST - LFH_MIN_BLOCK_SIZE) / LFH_ALIGNMENT) + 1)
+
+#define LFHHEAP_NB_FREE_LISTS (sizeof(lfh_thread_list_sizes) / sizeof(lfh_thread_list_sizes[0]) \
+                               + LFH_NB_SMALL_FREE_LISTS)
+
+/* 'magic' is used by existing heap to identify block type
+   keep it in the same spot to make mixing block types easier */
+typedef struct tagTBLOCK
+{
+    WORD offset;
+    WORD size;
+    WORD magic; /* MUST line up with ARENA_INUSE/FREE */
+    BYTE flags;
+    BYTE unused;
+
+    /* only used when free */
+    union
+    {
+        struct tagTBLOCK *next;
+        struct list entry;
+    } s;
+} TBLOCK;
+C_ASSERT(FIELD_OFFSET(ARENA_FREE, magic) == FIELD_OFFSET(TBLOCK, magic));
+
+typedef union
+{
+    TBLOCK  block;
+    BYTE    align[LLROUND(sizeof(TBLOCK))];
+} TFREE_LIST_ENTRY;
+
+#define LFH_CACHE_LINE_SIZE 64
+typedef union tagTCACHE
+{
+    BYTE pad[LFH_CACHE_LINE_SIZE];
+    struct
+    {
+        int lock;
+        TBLOCK *head;
+    } s;
+} TCACHE;
+
+typedef struct tagLFHSUBHEAP
+{
+    DECLSPEC_ALIGN(16) TCACHE cache[LFH_NB_SMALL_FREE_LISTS];
+    int lock;
+    HEAP *heap;
+    struct list buffers;
+    TFREE_LIST_ENTRY freelists[LFHHEAP_NB_FREE_LISTS];
+} LFHSUBHEAP;
+
+typedef struct tagLFHHEAP
+{
+    DWORD nsubheaps;
+    SIZE_T freed_size;
+    struct wine_rb_tree buffers;
+    LFHSUBHEAP subheaps[1];
+} LFHHEAP;
+
+typedef struct tagTBUFFER
+{
+    LFHSUBHEAP *subheap;
+    struct list entry;
+    struct wine_rb_entry rb_entry;
+} TBUFFER;
+
+static inline BOOL lfh_enabled(void)
+{
+    static BOOL disabled = -1;
+    if (disabled == -1)
+    {
+        SIZE_T len;
+        WCHAR buf[16] = {0};
+
+        disabled = !RtlQueryEnvironmentVariable( NULL, L"LLHEAP_DISABLE", 14,
+                                                buf, sizeof(buf), &len ) &&
+                   (wcstol( buf, NULL, 10 ) || !wcsicmp( L"true", buf ));
+MESSAGE("enabled %d %ls\n", !disabled, buf);
+    }
+    return !disabled;
+}
+
+static ULONG lfh_tls_idx;
+
+/* cannot link against kernel32.  based on kernel32/process.c
+   only handles low, static TLS indices */
+static NTSTATUS tls_alloc( DWORD *ret )
+{
+    DWORD index;
+    NTSTATUS status;
+    PEB * const peb = NtCurrentTeb()->Peb;
+
+    status = STATUS_SUCCESS;
+    RtlAcquirePebLock();
+    index = RtlFindClearBitsAndSet( peb->TlsBitmap, 1, 1 );
+    if (index != ~0U) NtCurrentTeb()->TlsSlots[index] = 0; /* clear the value */
+    else status = STATUS_NO_MORE_ENTRIES;
+    RtlReleasePebLock();
+
+    if (status == STATUS_SUCCESS)
+        *ret = index;
+
+    return status;
+}
+
+static inline void tls_set( DWORD index, LPVOID value )
+{
+    NtCurrentTeb()->TlsSlots[index] = value;
+}
+
+static inline LPVOID tls_get( DWORD index )
+{
+    return NtCurrentTeb()->TlsSlots[index];
+}
+
+static inline ULONG get_thread_list_index( SIZE_T blk_size )
+{
+    ULONG i;
+
+    if (blk_size <= LFH_MAX_SMALL_FREE_LIST)
+        return (blk_size - LFH_MIN_BLOCK_SIZE) >> LFH_SHIFT;
+
+    for (i = LFH_NB_SMALL_FREE_LISTS; i < LFHHEAP_NB_FREE_LISTS-1; i++)
+        if (blk_size <= lfh_thread_list_sizes[i - LFH_NB_SMALL_FREE_LISTS])
+            break;
+
+    return i;
+}
+
+static inline void set_block_offset( TBLOCK *block, SIZE_T offset )
+{
+    block->offset = (offset + ARENA_OFFSET) >> LFH_SHIFT;
+}
+
+static inline SIZE_T get_block_offset( const TBLOCK *block )
+{
+    return (block->offset << LFH_SHIFT) - ARENA_OFFSET;
+}
+
+static inline void set_block_size( TBLOCK *block, SIZE_T size )
+{
+    block->size = size >> LFH_SHIFT;
+}
+
+static inline SIZE_T get_block_size( const TBLOCK *block )
+{
+    return block->size << LFH_SHIFT;
+}
+
+static inline TBLOCK *get_next_block( TBLOCK *block, SIZE_T blk_size )
+{
+    return (TBLOCK *)((char *)block + blk_size);
+}
+
+static inline TBLOCK *ptr_to_block( void *ptr )
+{
+    return (TBLOCK *)((char *)ptr - LFH_BLOCK_HEADER_SIZE);
+}
+
+static inline void *block_to_ptr( TBLOCK *block )
+{
+    return ((char *)block + LFH_BLOCK_HEADER_SIZE);
+}
+
+static inline const TBLOCK *const_ptr_to_block( const void *ptr )
+{
+    return (const TBLOCK *)((const char *)ptr - LFH_BLOCK_HEADER_SIZE);
+}
+
+static inline TBUFFER *block_to_buffer( TBLOCK *block )
+{
+    return (TBUFFER *)((char *)block - get_block_offset( block ));
+}
+
+static inline SIZE_T get_actual_size( const TBLOCK *block )
+{
+    return get_block_size( block ) - block->unused - LFH_BLOCK_HEADER_SIZE;
+}
+
+static inline BYTE calc_unused_size( const TBLOCK *block, SIZE_T size )
+{
+    return get_block_size( block ) - size - LFH_BLOCK_HEADER_SIZE;
+}
+
+static inline const TBLOCK *get_buffer_limit( const TBUFFER *buffer )
+{
+    return (const TBLOCK *)((const char *)buffer + TBUFFER_SIZE - ARENA_OFFSET);
+}
+
+static inline TBLOCK *get_first_block( TBUFFER *buffer )
+{
+    return (TBLOCK *)((char *)buffer + LFH_BUFFER_HEADER_SIZE);
+}
+
+static inline int is_buffer_empty( const TBUFFER *buffer )
+{
+    TBLOCK *first = get_first_block( (TBUFFER *)buffer );
+    return get_block_offset( first ) == LFH_BUFFER_HEADER_SIZE &&
+           get_next_block( first, get_block_size( first ) ) >=
+                get_buffer_limit( buffer );
+}
+
+static inline HEAP *get_heap( HANDLE handle )
+{
+    HEAP *heap = handle;
+    return heap && heap->magic == HEAP_MAGIC ? heap : NULL;
+}
+
+/* gcc saves and restores xmm registers on ms_abi functions on 64-bit in the pro/epilog
+   this registers a small but measurable performance hit under heavy load under perf
+   matching the higher level calling convention trims the pro/epilog for Allocate/Free */
+static void WINAPI LFH_NOINLINE zero_memory( void *ptr, size_t size )
+{
+    memset( ptr, 0, size );
+}
+
+static void WINAPI LFH_NOINLINE copy_memory( void *dst, const void *src, size_t size )
+{
+    memcpy( dst, src, size );
+}
+
+static inline void insert_block_into_freelists( TBUFFER *buffer, TBLOCK *block )
+{
+    ULONG idx;
+    TBLOCK *next;
+    TBLOCK **prev;
+    LFHSUBHEAP *sh;
+    SIZE_T blk_size;
+
+    sh = buffer->subheap;
+    block->flags |= LFH_FLAG_FREE;
+    blk_size = get_block_size( block );
+    idx = get_thread_list_index( blk_size );
+    list_add_after( &sh->freelists[idx].block.s.entry, &block->s.entry );
+
+    next = get_next_block( block, blk_size );
+    if (next < get_buffer_limit( buffer ))
+    {
+        next->flags |= LFH_FLAG_PREV_FREE;
+        prev = (TBLOCK **)next - 1;
+        *prev = block;
+    }
+}
+
+static inline int ch_trylock( int *lock )
+{
+    return InterlockedCompareExchange( lock, 1, 0 ) == 0;
+}
+
+static inline void ch_unlock( int *lock )
+{
+    *(volatile int *)lock = 0;
+}
+
+static inline int lfh_trylock( int *lock )
+{
+    return InterlockedCompareExchange( lock, 1, 0 ) == 0;
+}
+
+static inline void lfh_lock( int *lock )
+{
+    int c;
+    if ((c = InterlockedCompareExchange( lock, 1, 0 )) != 0)
+    {
+        if (c != 2)
+            c = InterlockedExchange( lock, 2 );
+        while (c != 0)
+        {
+            c = 2;
+            RtlWaitOnAddress( lock, &c, sizeof(c), NULL );
+            c = InterlockedExchange( lock, 2 );
+        }
+    }
+}
+
+static inline void lfh_unlock( int *lock )
+{
+    if (InterlockedExchangeAdd( lock, -1 ) != 1)
+    {
+        *lock = 0;
+        RtlWakeAddressSingle( lock );
+    }
+}
+
+static inline LFHSUBHEAP *sh_get( LFHHEAP *lfh )
+{
+    DWORD_PTR idx;
+    static int times;
+
+    /* 0 means not set, use 1-based index */
+    if (!(idx = (DWORD_PTR)tls_get( lfh_tls_idx )))
+    {
+        idx = (InterlockedExchangeAdd(&times, 1) % lfh->nsubheaps) + 1;
+        tls_set( lfh_tls_idx, (void*)idx );
+    }
+    return &lfh->subheaps[idx-1];
+}
+
+static inline LFHSUBHEAP *sh_get_and_lock( LFHHEAP *lfh )
+{
+    LFHSUBHEAP *sh;
+
+    sh = sh_get( lfh );
+    if (lfh_trylock( &sh->lock ))
+        return sh;
+
+    sh = sh_get( lfh );
+    lfh_lock( &sh->lock );
+    return sh;
+}
+
+static inline int push_cache( LFHSUBHEAP *sh, ULONG idx, TBLOCK *block )
+{
+    TCACHE *cache;
+
+    cache = &sh->cache[idx];
+    if (!ch_trylock( &cache->s.lock ))
+        return 0;
+
+    block->s.next = cache->s.head;
+    cache->s.head = block;
+    ch_unlock( &cache->s.lock );
+    return 1;
+}
+
+static inline TBLOCK *pop_cache( LFHSUBHEAP *sh, ULONG idx )
+{
+    TBLOCK *block;
+    TCACHE *cache;
+
+    cache = &sh->cache[idx];
+    if (!cache->s.head)
+        return NULL;
+
+    if (ch_trylock( &cache->s.lock ))
+    {
+        if ((block = cache->s.head))
+            cache->s.head = block->s.next;
+        ch_unlock( &cache->s.lock );
+        return block;
+    }
+    return NULL;
+}
+
+
+/* assumes buffer has already been removed from whatever list it was on */
+static void WINAPI free_buffer( HEAP *heap, TBUFFER *buffer )
+{
+    SIZE_T size;
+    LFHHEAP *lfh;
+    void *address;
+    TBLOCK *block;
+
+    lfh = heap->lfh_heap;
+
+    /* remove buffer-spanning block from free list */
+    block = get_first_block( buffer );
+    list_remove( &block->s.entry );
+
+    list_remove( &buffer->entry );
+    RtlEnterCriticalSection( &heap->critSection );
+    wine_rb_remove( &lfh->buffers, &buffer->rb_entry );
+    RtlLeaveCriticalSection( &heap->critSection );
+
+    size = 0;
+    address = buffer;
+    NtFreeVirtualMemory( NtCurrentProcess(), &address, &size, MEM_RELEASE );
+}
+
+static inline TBLOCK *merge_block( TBUFFER *buffer, TBLOCK *block )
+{
+    TBLOCK *adj;
+    SIZE_T blk_size;
+
+    blk_size = get_block_size( block );
+    adj = get_next_block( block, blk_size );
+    if (adj < get_buffer_limit( buffer ) && (adj->flags & LFH_FLAG_FREE))
+    {
+        list_remove( &adj->s.entry );
+        blk_size += get_block_size( adj );
+    }
+
+    if (block->flags & LFH_FLAG_PREV_FREE)
+    {
+        adj = *((TBLOCK **)block - 1);
+        list_remove( &adj->s.entry );
+        blk_size += get_block_size( adj );
+        block = adj;
+    }
+
+    set_block_size( block, blk_size );
+    return block;
+}
+
+static void WINAPI free_block( void *ptr )
+{
+    ULONG idx;
+    LFHSUBHEAP *sh;
+    TBLOCK *block;
+    SIZE_T blk_size;
+    TBUFFER *buffer;
+
+    block = ptr_to_block( ptr );
+    buffer = block_to_buffer( block );
+    sh = buffer->subheap;
+
+    blk_size = get_block_size( block );
+    if (blk_size <= LFH_MAX_SMALL_FREE_LIST)
+    {
+        /* not marked free until merged and inserted into free list */
+        idx = get_thread_list_index(blk_size);
+        if (push_cache( sh, idx, block ))
+            return;
+    }
+
+    lfh_lock( &sh->lock );
+    block = merge_block( buffer, block );
+    insert_block_into_freelists( buffer, block );
+    if (is_buffer_empty(buffer))
+        free_buffer( sh->heap, buffer );
+    lfh_unlock( &sh->lock );
+}
+
+static inline void create_block( TBUFFER *buffer, void *ptr, SIZE_T blk_size )
+{
+    TBLOCK *block;
+
+    block = ptr;
+    set_block_offset( block, (BYTE*)ptr - (BYTE*)buffer );
+    set_block_size( block, blk_size );
+    block->magic = LFH_BLOCK_MAGIC;
+    block->flags = 0;
+    block->unused = 0;
+
+    insert_block_into_freelists( buffer, block );
+}
+
+static void buffer_rb_clear(struct wine_rb_entry *entry, void *context)
+{
+    SIZE_T size;
+    void *address;
+    TBUFFER *buffer;
+
+    buffer = WINE_RB_ENTRY_VALUE( entry, TBUFFER, rb_entry );
+    size = 0;
+    address = buffer;
+    NtFreeVirtualMemory( NtCurrentProcess(), &address, &size, MEM_RELEASE );
+}
+
+static int buffer_rb_compare(const void *key, const struct wine_rb_entry *entry)
+{
+    const void *buffer;
+
+    buffer = WINE_RB_ENTRY_VALUE( entry, TBUFFER, rb_entry );
+    if (key < buffer)
+        return -1;
+    if (key >= (const void *)get_buffer_limit( buffer ))
+        return 1;
+    return 0;
+}
+
+static TBUFFER *WINAPI LFH_NOINLINE allocate_buffer( HEAP *heap )
+{
+    TBUFFER *buffer;
+    void *address;
+    SIZE_T size;
+
+    address = NULL;
+    size = TBUFFER_SIZE;
+    if (NtAllocateVirtualMemory( NtCurrentProcess(), &address, 0,
+                                 &size, MEM_COMMIT, PAGE_READWRITE ))
+        return NULL;
+
+    buffer = address;
+
+    RtlEnterCriticalSection( &heap->critSection );
+    wine_rb_put( &heap->lfh_heap->buffers, buffer, &buffer->rb_entry );
+    RtlLeaveCriticalSection( &heap->critSection );
+    return buffer;
+}
+
+/* split given block to new size
+   but only if the remainder is large enough to create a new free block */
+static inline void split_block( TBUFFER *buffer, TBLOCK *block, SIZE_T new_blk_size )
+{
+    TBLOCK *next;
+    SIZE_T old_blk_size;
+
+    old_blk_size = get_block_size( block );
+    if (old_blk_size >= new_blk_size + LFH_MIN_BLOCK_SIZE)
+    {
+        set_block_size( block, new_blk_size );
+        next = get_next_block( block, new_blk_size );
+        create_block( buffer, next, old_blk_size - new_blk_size );
+    }
+    else
+    {
+        next = get_next_block( block, old_blk_size );
+        if (next < get_buffer_limit( buffer ))
+            next->flags &= ~LFH_FLAG_PREV_FREE;
+    }
+}
+
+static void *WINAPI find_block( LFHSUBHEAP *sh, SIZE_T blk_size )
+{
+    ULONG idx;
+    TBLOCK *block;
+    TBUFFER *buffer;
+    struct list *cur;
+
+    idx = get_thread_list_index( blk_size );
+    cur = &sh->freelists[idx].block.s.entry;
+    while ((cur = list_next( &sh->freelists[0].block.s.entry, cur )))
+    {
+        block = LIST_ENTRY( cur, TBLOCK, s.entry );
+        if (get_block_size( block ) >= blk_size)
+        {
+            list_remove( &block->s.entry );
+            buffer = block_to_buffer( block );
+            split_block( buffer, block, blk_size );
+            return block;
+        }
+    }
+
+    if (!(buffer = allocate_buffer( sh->heap )))
+        return NULL;
+
+    buffer->subheap = sh;
+    list_add_head( &sh->buffers, &buffer->entry );
+
+    block = get_first_block( buffer );
+    create_block( buffer, block, TBUFFER_SIZE - LFH_BUFFER_HEADER_SIZE );
+    list_remove( &block->s.entry );
+    split_block( buffer, block, blk_size );
+    return block;
+}
+
+static inline void *allocate_block( LFHSUBHEAP *sh, DWORD flags, SIZE_T size, SIZE_T blk_size )
+{
+    TBLOCK *block;
+    void *ret;
+
+    block = find_block( sh, blk_size );
+    if (!block) return NULL;
+
+    block->unused = calc_unused_size( block, size );
+    block->flags &= ~LFH_FLAG_FREE;
+
+    ret = block_to_ptr( block );
+    if (flags & HEAP_ZERO_MEMORY)
+        zero_memory( ret, size );
+
+    return ret;
+}
+
+static PVOID WINAPI reallocate_block( LFHSUBHEAP *sh, TBLOCK *block, DWORD flags,
+                                      SIZE_T size, SIZE_T blk_size )
+{
+    TBLOCK *next;
+    TBUFFER *buffer;
+    SIZE_T old_blk_size;
+
+    if (blk_size > LFH_THRESHOLD)
+    {
+        /* resizing to size too big for lfh - can't do in-place */
+        if (flags & HEAP_REALLOC_IN_PLACE_ONLY)
+            return NULL;
+
+        /* don't propogate flags - we'll zero memory in caller if needed */
+        return RtlAllocateHeapOrig( sh->heap, 0, size );
+    }
+
+    buffer = block_to_buffer( block );
+    old_blk_size = get_block_size( block );
+    if (old_blk_size > blk_size)
+    {
+        /* shrink to new size */
+        split_block( buffer, block, blk_size );
+        block->unused = calc_unused_size( block, size );
+        return block_to_ptr( block );
+    }
+
+    next = get_next_block( block, old_blk_size );
+    if (next < get_buffer_limit( buffer ) && (next->flags & LFH_FLAG_FREE) &&
+        (old_blk_size + get_block_size( next ) >= blk_size + LFH_MIN_BLOCK_SIZE))
+    {
+        /* merging with next if big enough */
+        list_remove( &next->s.entry );
+        block->size += next->size; /* both are shifted */
+        split_block( buffer, block, blk_size );
+        block->unused = calc_unused_size( block, size );
+        return block_to_ptr( block );
+    }
+
+    if (flags & HEAP_REALLOC_IN_PLACE_ONLY)
+        return NULL;
+
+    /* don't propogate flags - we'll zero memory in caller if needed */
+    return allocate_block( sh, 0, size, blk_size );
+}
+
+/***********************************************************************
+ *           RtlSetHeapInformation    (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlSetHeapInformation( HANDLE handle, HEAP_INFORMATION_CLASS info_class,
+                                       PVOID info, SIZE_T size )
+{
+    DWORD i, j;
+    HEAP *heap;
+    LFHHEAP *lfh;
+    LFHSUBHEAP *sh;
+    NTSTATUS status;
+    TFREE_LIST_ENTRY *entry;
+    const DWORD debug_flags = HEAP_VALIDATE | HEAP_VALIDATE_PARAMS | HEAP_VALIDATE_ALL |
+                              HEAP_TAIL_CHECKING_ENABLED | HEAP_FREE_CHECKING_ENABLED;
+
+    if (size < sizeof(ULONG))
+        return STATUS_BUFFER_TOO_SMALL;
+
+    if (info_class != HeapCompatibilityInformation)
+        return STATUS_SUCCESS;
+
+    if (!handle || !info)
+        return STATUS_UNSUCCESSFUL;
+
+    if (*(ULONG *)info != 2)
+        return STATUS_UNSUCCESSFUL;
+
+    if (!lfh_enabled())
+        return STATUS_UNSUCCESSFUL;
+
+    if (RUNNING_ON_VALGRIND)
+        return STATUS_UNSUCCESSFUL;
+
+    heap = get_heap( handle );
+    if (!heap)
+        return STATUS_INVALID_HANDLE;
+
+    if (heap->flags & debug_flags)
+        return STATUS_UNSUCCESSFUL;
+
+    if (heap->lfh_heap)
+        return STATUS_SUCCESS;
+
+    if (heap->flags & HEAP_NO_SERIALIZE)
+        return STATUS_INVALID_PARAMETER;
+
+    if (!(heap->flags & HEAP_GROWABLE))
+        return STATUS_INVALID_PARAMETER;
+
+    i = NtCurrentTeb()->Peb->NumberOfProcessors;
+    lfh = RtlAllocateHeapOrig( handle, 0, FIELD_OFFSET(LFHHEAP, subheaps[i]) );
+    if (!lfh)
+        return STATUS_NO_MEMORY;
+
+    /* this will happen early in process initialization for the main process
+       heap so we should get a low number */
+    status = tls_alloc( &lfh_tls_idx );
+    if (status != STATUS_SUCCESS)
+    {
+        RtlFreeHeapOrig( handle, 0, lfh );
+        return status;
+    }
+
+    lfh->nsubheaps = i;
+    wine_rb_init( &lfh->buffers, buffer_rb_compare );
+    for (i = 0; i < lfh->nsubheaps; i++)
+    {
+        sh = &lfh->subheaps[i];
+        for (j = 0; j < LFH_NB_SMALL_FREE_LISTS; j++)
+        {
+            sh->cache[j].s.lock = 0;
+            sh->cache[j].s.head = NULL;
+        }
+        sh->lock = 0;
+        sh->heap = heap;
+        list_init( &sh->buffers );
+
+        list_init( &sh->freelists[0].block.s.entry );
+        for (j = 0, entry = sh->freelists; j < LFHHEAP_NB_FREE_LISTS; j++, entry++)
+        {
+            entry->block.offset = 0;
+            entry->block.size = 0;
+            entry->block.magic = LFH_BLOCK_MAGIC;
+            entry->block.flags = LFH_FLAG_FREE;
+            entry->block.unused = 0;
+            if (j) list_add_after( &entry[-1].block.s.entry, &entry->block.s.entry );
+        }
+    }
+
+    heap->lfh_heap = lfh;
+
+    return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           RtlCreateHeap   (NTDLL.@)
+ */
+HANDLE WINAPI RtlCreateHeap( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T commitSize,
+                             PVOID unknown, PRTL_HEAP_DEFINITION definition )
+{
+    HANDLE handle;
+    ULONG info;
+
+    handle = RtlCreateHeapOrig( flags, addr, totalSize, commitSize, unknown, definition );
+    if (!handle)
+        return NULL;
+
+    /* defer enabling LFH for main process heap until after debug flags are set */
+    if (handle == (HANDLE)processHeap)
+        return handle;
+
+    /* always try to set LFH - if unsupported, it'll fall back to back-end */
+    info = 2;
+    RtlSetHeapInformation( handle, HeapCompatibilityInformation, &info, sizeof(info) );
+    return handle;
+}
+
+/***********************************************************************
+ *           RtlDestroyHeap   (NTDLL.@)
+ */
+HANDLE WINAPI RtlDestroyHeap( HANDLE handle )
+{
+    HEAP *heap;
+
+    heap = get_heap( handle );
+    if (heap && heap->lfh_heap)
+        wine_rb_clear( &heap->lfh_heap->buffers, buffer_rb_clear, NULL );
+
+    return RtlDestroyHeapOrig( handle );
+}
+
+/***********************************************************************
+ *           RtlQueryHeapInformation    (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlQueryHeapInformation( HANDLE handle, HEAP_INFORMATION_CLASS info_class,
+                                         PVOID info, SIZE_T size_in, PSIZE_T size_out )
+{
+    HEAP *heap;
+
+    switch (info_class)
+    {
+    case HeapCompatibilityInformation:
+        heap = get_heap( handle );
+        if (!heap)
+            return STATUS_INVALID_HANDLE;
+
+        if (!info && size_in >= sizeof(ULONG))
+            return STATUS_ACCESS_VIOLATION;
+
+        if (size_out) *size_out = sizeof(ULONG);
+
+        if (size_in < sizeof(ULONG))
+            return STATUS_BUFFER_TOO_SMALL;
+
+        if (heap->lfh_heap)
+            *(ULONG *)info = 2; /* lfh heap */
+        else
+            *(ULONG *)info = 0; /* standard heap */
+        return STATUS_SUCCESS;
+
+    default:
+        FIXME("Unknown heap information class %u\n", info_class);
+        return STATUS_INVALID_INFO_CLASS;
+    }
+}
+
+/***********************************************************************
+ *           RtlAllocateHeap   (NTDLL.@)
+ */
+PVOID WINAPI RtlAllocateHeap( HANDLE handle, ULONG flags, SIZE_T size )
+{
+    ULONG idx;
+    HEAP *heap;
+    LPVOID ret;
+    LFHHEAP *lfh;
+    TBLOCK *block;
+    LFHSUBHEAP *sh;
+    SIZE_T blk_size;
+
+    heap = get_heap( handle );
+    if (!heap) return NULL;
+
+    blk_size = LLROUND(size + LFH_BLOCK_HEADER_SIZE);
+    if (blk_size < size)
+        goto oom;
+
+    lfh = heap->lfh_heap;
+    if (!lfh || blk_size > LFH_THRESHOLD)
+        return RtlAllocateHeapOrig( handle, flags, size );
+
+    if (blk_size < LFH_MIN_BLOCK_SIZE)
+        blk_size = LFH_MIN_BLOCK_SIZE;
+
+    flags &= HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE | HEAP_ZERO_MEMORY;
+    flags |= heap->flags;
+
+    if (blk_size <= LFH_MAX_SMALL_FREE_LIST)
+    {
+        sh = sh_get( lfh );
+        idx = get_thread_list_index(blk_size);
+        if ((block = pop_cache( sh, idx )))
+        {
+            block->unused = calc_unused_size( block, size );
+            block->flags &= ~LFH_FLAG_FREE;
+
+            ret = block_to_ptr( block );
+            if (flags & HEAP_ZERO_MEMORY)
+                zero_memory( ret, size );
+
+            return ret;
+        }
+    }
+
+    sh = sh_get_and_lock( lfh );
+    ret = allocate_block( sh, flags, size, blk_size );
+    lfh_unlock( &sh->lock );
+
+    if (ret) return ret;
+
+    /* fall-through */
+oom:
+    if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_NO_MEMORY );
+    return NULL;
+}
+
+/***********************************************************************
+ *           RtlFreeHeap   (NTDLL.@)
+ */
+BOOLEAN WINAPI RtlFreeHeap( HANDLE handle, ULONG flags, PVOID ptr )
+{
+    TBLOCK *block;
+    HEAP *heap;
+
+    if (!ptr) return TRUE;
+
+    block = ptr_to_block( ptr );
+    if (block->magic != LFH_BLOCK_MAGIC)
+        return RtlFreeHeapOrig( handle, flags, ptr );
+
+    heap = get_heap( handle );
+    if (!heap || !heap->lfh_heap)
+    {
+        RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_INVALID_HANDLE );
+        return FALSE;
+    }
+
+    if (!heap || !heap->lfh_heap)
+    {
+        RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_INVALID_HANDLE );
+        return FALSE;
+    }
+
+    free_block( ptr );
+    return TRUE;
+}
+
+/***********************************************************************
+ *           RtlReAllocateHeap   (NTDLL.@)
+ */
+PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T size )
+{
+    HEAP *heap;
+    TBLOCK *block;
+    LFHSUBHEAP *sh;
+    PVOID *new_ptr;
+    SIZE_T blk_size;
+    SIZE_T old_actual;
+
+    if (!ptr) return NULL;
+
+    block = ptr_to_block( ptr );
+    if (block->magic != LFH_BLOCK_MAGIC)
+        return RtlReAllocateHeapOrig( handle, flags, ptr, size );
+
+    heap = get_heap( handle );
+    if (!heap || !heap->lfh_heap)
+    {
+        RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_INVALID_HANDLE );
+        return NULL;
+    }
+
+    blk_size = LLROUND(size + LFH_BLOCK_HEADER_SIZE);
+    if (blk_size < size)
+        goto oom;
+
+    if (blk_size < LFH_MIN_BLOCK_SIZE)
+        blk_size = LFH_MIN_BLOCK_SIZE;
+
+    flags &= HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE | HEAP_ZERO_MEMORY |
+             HEAP_REALLOC_IN_PLACE_ONLY;
+    flags |= heap->flags;
+
+    old_actual = get_actual_size( block );
+    sh = sh_get_and_lock( heap->lfh_heap );
+    new_ptr = reallocate_block( sh, block, flags, size, blk_size );
+    lfh_unlock( &sh->lock );
+
+    if (!new_ptr)
+        goto oom;
+
+    if ((flags & HEAP_ZERO_MEMORY) && (size > old_actual))
+        zero_memory( (char *)new_ptr + old_actual, size - old_actual );
+
+    if (new_ptr != ptr)
+    {
+        copy_memory( new_ptr, ptr, min( size, old_actual ) );
+        free_block( ptr );
+    }
+
+    return new_ptr;
+
+oom:
+    if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_NO_MEMORY );
+    return NULL;
+}
+
+/***********************************************************************
+ *           RtlSizeHeap   (NTDLL.@)
+ */
+SIZE_T WINAPI RtlSizeHeap( HANDLE handle, ULONG flags, const void *ptr )
+{
+    const TBLOCK *block;
+    SIZE_T size;
+
+    size = ~0UL;
+    __TRY
+    {
+        block = const_ptr_to_block( ptr );
+        if (block->magic == LFH_BLOCK_MAGIC)
+            size = get_actual_size( block );
+        else
+            size = RtlSizeHeapOrig( handle, flags, ptr );
+    }
+    __EXCEPT_PAGE_FAULT
+    {
+    }
+    __ENDTRY
+
+    return size;
+}
+
+/***********************************************************************
+ *           RtlValidateHeap   (NTDLL.@)
+ */
+BOOLEAN WINAPI RtlValidateHeap( HANDLE handle, ULONG flags, LPCVOID ptr )
+{
+    ARENA_LARGE *arena;
+    const TBLOCK *block;
+    BOOLEAN ret;
+    HEAP *heap;
+
+    if (!ptr)
+        return RtlValidateHeapOrig( handle, flags, ptr );
+
+    heap = get_heap( handle );
+    if (!heap)
+    {
+        RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_INVALID_HANDLE );
+        return FALSE;
+    }
+
+    if (!heap->lfh_heap)
+        return RtlValidateHeapOrig( handle, flags, ptr );
+
+    /* there's a chicken 'n' egg problem with validation.  the per-thread block header
+       cannot be validated by the back-end.  but we can't check the magic to determine
+       the block type until we check the pointer itself is in a valid range */
+    RtlEnterCriticalSection( &heap->critSection );
+    if (!(ret = !!wine_rb_get( &heap->lfh_heap->buffers, ptr )) &&
+        !(ret = !!HEAP_FindSubHeap( heap, ptr )))
+    {
+        LIST_FOR_EACH_ENTRY( arena, &heap->large_list, ARENA_LARGE, entry )
+        {
+            if (ptr >= (void*)arena && ptr < (void*)((char*)(arena + 1) + arena->data_size))
+            {
+                ret = TRUE;
+                break;
+            }
+        }
+    }
+    RtlLeaveCriticalSection( &heap->critSection );
+
+    if (ret)
+    {
+        block = const_ptr_to_block( ptr );
+        if (block->magic != LFH_BLOCK_MAGIC)
+            return RtlValidateHeapOrig( handle, flags, ptr );
+    }
+
+    return ret;
 }
