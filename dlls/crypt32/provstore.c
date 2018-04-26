@@ -31,6 +31,7 @@ typedef struct _WINE_PROVIDERSTORE
 {
     WINECRYPT_CERTSTORE             hdr;
     DWORD                           dwStoreProvFlags;
+    BOOL                            autoResync;
     WINECRYPT_CERTSTORE            *memStore;
     HCERTSTOREPROV                  hStoreProv;
     PFN_CERT_STORE_PROV_CLOSE       provCloseStore;
@@ -110,6 +111,9 @@ static context_t *ProvStore_enumCert(WINECRYPT_CERTSTORE *store, context_t *prev
 {
     WINE_PROVIDERSTORE *ps = (WINE_PROVIDERSTORE*)store;
     cert_t *ret;
+
+    if (!prev && ps->autoResync)
+        ps->provControl(ps->hStoreProv, 0, CERT_STORE_CTRL_RESYNC, NULL);
 
     ret = (cert_t*)ps->memStore->vtbl->certs.enumContext(ps->memStore, prev);
     if (!ret)
@@ -279,8 +283,12 @@ static BOOL ProvStore_control(WINECRYPT_CERTSTORE *cert_store, DWORD dwFlags, DW
      pvCtrlPara);
 
     if (store->provControl)
+    {
         ret = store->provControl(store->hStoreProv, dwFlags, dwCtrlType,
          pvCtrlPara);
+        if (ret && store->memStore && dwCtrlType == CERT_STORE_CTRL_AUTO_RESYNC)
+            store->autoResync = TRUE;
+    }
     return ret;
 }
 
@@ -313,6 +321,7 @@ WINECRYPT_CERTSTORE *CRYPT_ProvCreateStore(DWORD dwFlags,
     {
         CRYPT_InitStore(&ret->hdr, dwFlags, StoreTypeProvider, &ProvStoreVtbl);
         ret->dwStoreProvFlags = pProvInfo->dwStoreProvFlags;
+        ret->autoResync = FALSE;
         if (ret->dwStoreProvFlags & CERT_STORE_PROV_EXTERNAL_FLAG)
         {
             CertCloseStore(memStore, 0);
