@@ -172,6 +172,7 @@ static CertificateChainEngine *get_chain_engine(HCERTCHAINENGINE handle, BOOL al
             InterlockedCompareExchangePointer((void**)&default_cu_engine, handle, NULL);
             if(default_cu_engine != handle)
                 CertFreeCertificateChainEngine(handle);
+            CertControlStore(default_cu_engine->hRoot, 0, CERT_STORE_CTRL_AUTO_RESYNC, NULL);
         }
 
         return default_cu_engine;
@@ -186,6 +187,7 @@ static CertificateChainEngine *get_chain_engine(HCERTCHAINENGINE handle, BOOL al
             InterlockedCompareExchangePointer((void**)&default_lm_engine, handle, NULL);
             if(default_lm_engine != handle)
                 CertFreeCertificateChainEngine(handle);
+            CertControlStore(default_lm_engine->hRoot, 0, CERT_STORE_CTRL_AUTO_RESYNC, NULL);
         }
 
         return default_lm_engine;
