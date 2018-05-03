@@ -3322,6 +3322,112 @@ static void test_CryptQueryObject(void)
     ok( ctx == NULL, "got %p\n", ctx );
 }
 
+static void test_RegStoreNotify(void)
+{
+    static const char tempKey[] = "Software\\Wine\\CryptTemp";
+    PCCERT_CONTEXT context;
+    HCERTSTORE store;
+    HANDLE bogus;
+    HANDLE event;
+    HKEY subkey;
+    HKEY key;
+    DWORD err;
+    BOOL ret;
+    LONG rc;
+
+    rc = RegCreateKeyA(HKEY_CURRENT_USER, tempKey, &key);
+    ok(!rc, "failed gle %u\n", GetLastError());
+
+    store = CertOpenStore(CERT_STORE_PROV_REG, 0, 0, 0, key);
+    ok(!!store, "failed gle %u\n", GetLastError());
+
+    event = CreateEventW(NULL, FALSE, FALSE, NULL);
+    ok(!!event, "failed gle %u\n", GetLastError());
+
+    /* error conditions, some of which are silently ignored */
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, NULL);
+    ok(ret, "got %d\n", ret);
+
+    SetLastError(0xdeadbeef);
+    bogus = (HANDLE)0xdeadbeef;
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, &bogus);
+    ok(GetLastError() == ERROR_INVALID_HANDLE, "got gle %u\n", GetLastError());
+    ok(!ret, "got %d\n", ret);
+
+    bogus = NULL;
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, &bogus);
+    ok(ret, "got %d\n", ret);
+    if (0) /* crashes on Windows */
+        CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, (void*)0xdeadbeef);
+
+    /* show that notify change handles subkeys */
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, &event);
+    ok(ret, "got %d\n", ret);
+
+    rc = RegCreateKeyA(key, "subkey", &subkey);
+    ok(!rc, "failed gle %u\n", GetLastError());
+
+    err = WaitForSingleObject(event, 500);
+    ok(err == WAIT_OBJECT_0, "got %u\n", err);
+
+    /* show that notify change handles values */
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, &event);
+    ok(ret, "got %d\n", ret);
+
+    rc = RegSetValueA(subkey, NULL, REG_SZ, "foobar", 0);
+    ok(!rc, "failed gle %u\n", GetLastError());
+
+    err = WaitForSingleObject(event, 500);
+    ok(err == WAIT_OBJECT_0, "got %u\n", err);
+
+    /* a notification is only good once */
+    RegDeleteKeyA(subkey, "");
+
+    err = WaitForSingleObject(event, 500);
+    ok(err == WAIT_TIMEOUT, "got %u\n", err);
+
+    CertCloseStore(store, 0);
+    RegCloseKey(subkey);
+    RegCloseKey(key);
+
+    /* test with a certificate in-process */
+    rc = RegOpenKeyA(HKEY_CURRENT_USER, tempKey, &key);
+    ok(!rc, "failed gle %u\n", GetLastError());
+
+    store = CertOpenStore(CERT_STORE_PROV_REG, 0, 0, 0, key);
+    ok(!!store, "failed gle %u\n", GetLastError());
+
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, &event);
+    ok(ret, "got %d\n", ret);
+    err = WaitForSingleObject(event, 0);
+    ok(err == WAIT_TIMEOUT, "got %u\n", err);
+    ret = CertAddEncodedCertificateToStore(store, X509_ASN_ENCODING, bigCert,
+     sizeof(bigCert), CERT_STORE_ADD_ALWAYS, &context);
+    ok(ret, "got %d\n", ret);
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_COMMIT, NULL);
+    ok(ret, "got %d\n", ret);
+    err = WaitForSingleObject(event, 500);
+    ok(err == WAIT_OBJECT_0, "got %u\n", err);
+
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_NOTIFY_CHANGE, &event);
+    ok(ret, "got %d\n", ret);
+    err = WaitForSingleObject(event, 0);
+    ok(err == WAIT_TIMEOUT, "got %u\n", err);
+    ret = CertDeleteCertificateFromStore(context);
+    ok(ret, "failed gle %u\n", GetLastError());
+    ret = CertControlStore(store, 0, CERT_STORE_CTRL_COMMIT, NULL);
+    ok(ret, "got %d\n", ret);
+    err = WaitForSingleObject(event, 500);
+    ok(err == WAIT_OBJECT_0, "got %u\n", err);
+
+    CertFreeCertificateContext(context);
+    CertCloseStore(store, 0);
+
+    CloseHandle(event);
+    RegDeleteKeyA(key, "");
+    RegCloseKey(key);
+}
+
 START_TEST(store)
 {
     /* various combinations of CertOpenStore */
@@ -3354,4 +3460,6 @@ START_TEST(store)
     test_I_UpdateStore();
     test_PFXImportCertStore();
     test_CryptQueryObject();
+
+    test_RegStoreNotify();
 }

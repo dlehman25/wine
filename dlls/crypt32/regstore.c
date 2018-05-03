@@ -43,6 +43,7 @@ typedef struct _WINE_REGSTOREINFO
     struct list      certsToDelete;
     struct list      crlsToDelete;
     struct list      ctlsToDelete;
+    HANDLE           resync;
 } WINE_REGSTOREINFO;
 
 static void CRYPT_HashToStr(const BYTE *hash, LPWSTR asciiHash)
@@ -323,6 +324,8 @@ static void WINAPI CRYPT_RegCloseStore(HCERTSTORE hCertStore, DWORD dwFlags)
     RegCloseKey(store->key);
     store->cs.DebugInfo->Spare[0] = 0;
     DeleteCriticalSection(&store->cs);
+    if (store->resync)
+        CloseHandle(store->resync);
     CryptMemFree(store);
 }
 
@@ -475,8 +478,36 @@ static BOOL WINAPI CRYPT_RegControl(HCERTSTORE hCertStore, DWORD dwFlags,
         FIXME("CERT_STORE_CTRL_AUTO_RESYNC: stub\n");
         break;
     case CERT_STORE_CTRL_NOTIFY_CHANGE:
-        FIXME("CERT_STORE_CTRL_NOTIFY_CHANGE: stub\n");
+    {
+        HANDLE event;
+
+        if (dwFlags)
+            FIXME("Unimplemented flags: %08x\n", dwFlags);
+
+        event = pvCtrlPara ? *(HANDLE *)pvCtrlPara : NULL;
+        if (event)
+        {
+            EnterCriticalSection(&store->cs);
+            if (!store->resync)
+            {
+                ret = DuplicateHandle(GetCurrentProcess(), *(HANDLE *)pvCtrlPara, GetCurrentProcess(),
+                        (HANDLE *)&store->resync, 0, TRUE, DUPLICATE_SAME_ACCESS);
+            }
+
+            if (store->resync)
+            {
+                if (!(ret = RegNotifyChangeKeyValue(store->key, TRUE,
+                                REG_NOTIFY_CHANGE_LAST_SET|REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_THREAD_AGNOSTIC,
+                                store->resync, TRUE) == ERROR_SUCCESS))
+                {
+                    CloseHandle(store->resync);
+                    store->resync = NULL;
+                }
+            }
+            LeaveCriticalSection(&store->cs);
+        }
         break;
+    }
     default:
         FIXME("%lu: stub\n", dwCtrlType);
         ret = FALSE;
@@ -550,6 +581,7 @@ WINECRYPT_CERTSTORE *CRYPT_RegOpenStore(HCRYPTPROV hCryptProv, DWORD dwFlags,
                     list_init(&regInfo->certsToDelete);
                     list_init(&regInfo->crlsToDelete);
                     list_init(&regInfo->ctlsToDelete);
+                    regInfo->resync = NULL;
                     CRYPT_RegReadFromReg(regInfo->key, regInfo->memStore, CERT_STORE_ADD_ALWAYS);
                     regInfo->dirty = FALSE;
                     provInfo.cbSize = sizeof(provInfo);
