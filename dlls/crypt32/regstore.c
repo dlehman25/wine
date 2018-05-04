@@ -38,11 +38,13 @@ typedef struct _WINE_REGSTOREINFO
     DWORD            dwOpenFlags;
     HCERTSTORE       memStore;
     HKEY             key;
+    BOOL             storeDirty;
     BOOL             dirty;
     CRITICAL_SECTION cs;
     struct list      certsToDelete;
     struct list      crlsToDelete;
     struct list      ctlsToDelete;
+    TP_WAIT         *wait;
     HANDLE           resync;
 } WINE_REGSTOREINFO;
 
@@ -324,6 +326,11 @@ static void WINAPI CRYPT_RegCloseStore(HCERTSTORE hCertStore, DWORD dwFlags)
     RegCloseKey(store->key);
     store->cs.DebugInfo->Spare[0] = 0;
     DeleteCriticalSection(&store->cs);
+    if (store->wait)
+    {
+        WaitForThreadpoolWaitCallbacks(store->wait, TRUE);
+        CloseThreadpoolWait(store->wait);
+    }
     if (store->resync)
         CloseHandle(store->resync);
     CryptMemFree(store);
@@ -448,6 +455,63 @@ static BOOL WINAPI CRYPT_RegDeleteCTL(HCERTSTORE hCertStore,
      pCTLInterface);
 }
 
+void CALLBACK CRYPT_AutoResyncCallback(PTP_CALLBACK_INSTANCE inst, void *context,
+ PTP_WAIT wait, TP_WAIT_RESULT result)
+{
+    WINE_REGSTOREINFO *store = context;
+    LSTATUS status;
+
+    store->storeDirty = TRUE;
+
+    status = RegNotifyChangeKeyValue(store->key, TRUE,
+     REG_NOTIFY_CHANGE_LAST_SET|REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_THREAD_AGNOSTIC,
+     store->resync, TRUE);
+
+    if (status == ERROR_SUCCESS)
+        SetThreadpoolWait(wait, store->resync, NULL);
+}
+
+static BOOL WINAPI CRYPT_RegAutoResync(HCERTSTORE hCertStore)
+{
+    WINE_REGSTOREINFO *store = hCertStore;
+    LSTATUS status;
+    PTP_WAIT wait;
+    HANDLE resync;
+
+    wait = NULL;
+    resync = NULL;
+    EnterCriticalSection(&store->cs);
+    if (!store->wait && !store->resync)
+    {
+        wait = CreateThreadpoolWait(CRYPT_AutoResyncCallback, store, NULL);
+        if (!wait)
+            goto error;
+
+        resync = CreateEventA(NULL, FALSE, FALSE, NULL);
+        if (!resync)
+            goto error;
+
+        status = RegNotifyChangeKeyValue(store->key, TRUE,
+                 REG_NOTIFY_CHANGE_LAST_SET|REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_THREAD_AGNOSTIC,
+                 resync, TRUE);
+        if (status != ERROR_SUCCESS)
+            goto error;
+
+        store->wait = wait;
+        store->resync = resync;
+    }
+    LeaveCriticalSection(&store->cs);
+
+    SetThreadpoolWait(wait, resync, NULL);
+    return TRUE;
+
+error:
+    LeaveCriticalSection(&store->cs);
+    if (resync) CloseHandle(resync);
+    if (wait) CloseThreadpoolWait(wait);
+    return FALSE;
+}
+
 static BOOL WINAPI CRYPT_RegControl(HCERTSTORE hCertStore, DWORD dwFlags,
  DWORD dwCtrlType, void const *pvCtrlPara)
 {
@@ -461,13 +525,19 @@ static BOOL WINAPI CRYPT_RegControl(HCERTSTORE hCertStore, DWORD dwFlags,
     {
     case CERT_STORE_CTRL_RESYNC:
     {
-        HCERTSTORE memStore = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, 0,
-         CERT_STORE_CREATE_NEW_FLAG, NULL);
+        if (store->dirty || store->storeDirty)
+        {
+            HCERTSTORE memStore = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, 0,
+             CERT_STORE_CREATE_NEW_FLAG, NULL);
 
-        CRYPT_RegFlushStore(store, FALSE);
-        CRYPT_RegReadFromReg(store->key, memStore, CERT_STORE_ADD_REPLACE_EXISTING);
-        I_CertUpdateStore(store->memStore, memStore, 0, 0);
-        CertCloseStore(memStore, 0);
+            CRYPT_RegFlushStore(store, FALSE);
+            CRYPT_RegReadFromReg(store->key, memStore, CERT_STORE_ADD_REPLACE_EXISTING);
+            I_CertUpdateStore(store->memStore, memStore, 0, 0);
+            CertCloseStore(memStore, 0);
+
+            store->storeDirty = FALSE;
+            store->dirty = FALSE;
+        }
         break;
     }
     case CERT_STORE_CTRL_COMMIT:
@@ -475,7 +545,7 @@ static BOOL WINAPI CRYPT_RegControl(HCERTSTORE hCertStore, DWORD dwFlags,
          dwFlags & CERT_STORE_CTRL_COMMIT_FORCE_FLAG);
         break;
     case CERT_STORE_CTRL_AUTO_RESYNC:
-        FIXME("CERT_STORE_CTRL_AUTO_RESYNC: stub\n");
+        ret = CRYPT_RegAutoResync(store);
         break;
     case CERT_STORE_CTRL_NOTIFY_CHANGE:
     {
@@ -581,8 +651,10 @@ WINECRYPT_CERTSTORE *CRYPT_RegOpenStore(HCRYPTPROV hCryptProv, DWORD dwFlags,
                     list_init(&regInfo->certsToDelete);
                     list_init(&regInfo->crlsToDelete);
                     list_init(&regInfo->ctlsToDelete);
+                    regInfo->wait = NULL;
                     regInfo->resync = NULL;
                     CRYPT_RegReadFromReg(regInfo->key, regInfo->memStore, CERT_STORE_ADD_ALWAYS);
+                    regInfo->storeDirty = FALSE;
                     regInfo->dirty = FALSE;
                     provInfo.cbSize = sizeof(provInfo);
                     provInfo.cStoreProvFunc = ARRAY_SIZE(regProvFuncs);
