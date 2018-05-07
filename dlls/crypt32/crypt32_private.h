@@ -189,7 +189,7 @@ struct _context_t {
     struct _context_t *linked;
     CONTEXT_PROPERTY_LIST *properties;
     union {
-        struct list entry;
+        struct { struct list entry; int gen; } s;
         void *ptr;
     } u;
 };

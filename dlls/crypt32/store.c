@@ -83,6 +83,7 @@ typedef struct _WINE_MEMSTORE
     struct list certs;
     struct list crls;
     struct list ctls;
+    int gen;
 } WINE_MEMSTORE;
 
 void CRYPT_InitStore(WINECRYPT_CERTSTORE *store, DWORD dwFlags, CertStoreType type, const store_vtbl_t *vtbl)
@@ -156,15 +157,17 @@ static BOOL MemStore_addContext(WINE_MEMSTORE *store, struct list *list, context
     TRACE("adding %p\n", context);
     EnterCriticalSection(&store->cs);
     if (existing) {
-        context->u.entry.prev = existing->u.entry.prev;
-        context->u.entry.next = existing->u.entry.next;
-        context->u.entry.prev->next = &context->u.entry;
-        context->u.entry.next->prev = &context->u.entry;
-        list_init(&existing->u.entry);
+        context->u.s.entry.prev = existing->u.s.entry.prev;
+        context->u.s.entry.next = existing->u.s.entry.next;
+        context->u.s.entry.prev->next = &context->u.s.entry;
+        context->u.s.entry.next->prev = &context->u.s.entry;
+        context->u.s.gen = existing->u.s.gen;
+        list_init(&existing->u.s.entry);
         if(!existing->ref)
             Context_Release(existing);
     }else {
-        list_add_head(list, &context->u.entry);
+        context->u.s.gen = store->gen;
+        list_add_head(list, &context->u.s.entry);
     }
     LeaveCriticalSection(&store->cs);
 
@@ -182,10 +185,18 @@ static context_t *MemStore_enumContext(WINE_MEMSTORE *store, struct list *list, 
 
     EnterCriticalSection(&store->cs);
     if (prev) {
-        next = list_next(list, &prev->u.entry);
+        if (store->gen == prev->u.s.gen)
+            next = list_next(list, &prev->u.s.entry);
+        else /* restart from head if list changed */
+            next = list_next(list, list);
         Context_Release(prev);
     }else {
         next = list_next(list, list);
+    }
+    if (next) {
+        ret = LIST_ENTRY(next, context_t, u.s);
+        ret->u.s.gen = store->gen;
+        Context_AddRef(ret);
     }
     LeaveCriticalSection(&store->cs);
 
@@ -194,8 +205,6 @@ static context_t *MemStore_enumContext(WINE_MEMSTORE *store, struct list *list, 
         return NULL;
     }
 
-    ret = LIST_ENTRY(next, context_t, u.entry);
-    Context_AddRef(ret);
     return ret;
 }
 
@@ -204,9 +213,9 @@ static BOOL MemStore_deleteContext(WINE_MEMSTORE *store, context_t *context)
     BOOL in_list = FALSE;
 
     EnterCriticalSection(&store->cs);
-    if (!list_empty(&context->u.entry)) {
-        list_remove(&context->u.entry);
-        list_init(&context->u.entry);
+    if (!list_empty(&context->u.s.entry)) {
+        list_remove(&context->u.s.entry);
+        list_init(&context->u.s.entry);
         in_list = TRUE;
     }
     LeaveCriticalSection(&store->cs);
@@ -220,10 +229,10 @@ static void free_contexts(struct list *list)
 {
     context_t *context, *next;
 
-    LIST_FOR_EACH_ENTRY_SAFE(context, next, list, context_t, u.entry)
+    LIST_FOR_EACH_ENTRY_SAFE(context, next, list, context_t, u.s.entry)
     {
         TRACE("freeing %p\n", context);
-        list_remove(&context->u.entry);
+        list_remove(&context->u.s.entry);
         Context_Free(context);
     }
 }
@@ -231,7 +240,7 @@ static void free_contexts(struct list *list)
 static void MemStore_releaseContext(WINECRYPT_CERTSTORE *store, context_t *context)
 {
     /* Free the context only if it's not in a list. Otherwise it may be reused later. */
-    if(list_empty(&context->u.entry))
+    if(list_empty(&context->u.s.entry))
         Context_Free(context);
 }
 
@@ -353,12 +362,45 @@ static BOOL MemStore_control(WINECRYPT_CERTSTORE *store, DWORD dwFlags,
     return FALSE;
 }
 
+static BOOL MemStore_update(WINECRYPT_CERTSTORE *store, WINECRYPT_CERTSTORE *src)
+{
+    const WINE_CONTEXT_INTERFACE * const interfaces[] = { pCertInterface,
+     pCRLInterface, pCTLInterface };
+    WINE_MEMSTORE *dst = (WINE_MEMSTORE*)store;
+    DWORD i;
+
+    /* Poor-man's resync:  empty first store, then add everything from second
+     * store to it.  Unlike the fallback implementation, store is locked until
+     * entire store is updated
+     */
+    EnterCriticalSection(&dst->cs);
+    for (i = 0; i < sizeof(interfaces) / sizeof(interfaces[0]); i++)
+    {
+        const void *context;
+
+        do {
+            context = interfaces[i]->enumContextsInStore(dst, NULL);
+            if (context)
+                interfaces[i]->deleteFromStore(context);
+        } while (context);
+        do {
+            context = interfaces[i]->enumContextsInStore(src, context);
+            if (context)
+                interfaces[i]->addContextToStore(dst, context,
+                 CERT_STORE_ADD_ALWAYS, NULL);
+        } while (context);
+    }
+    dst->gen++;
+    LeaveCriticalSection(&dst->cs);
+    return TRUE;
+}
+
 static const store_vtbl_t MemStoreVtbl = {
     MemStore_addref,
     MemStore_release,
     MemStore_releaseContext,
     MemStore_control,
-    NULL,
+    MemStore_update,
     {
         MemStore_addCert,
         MemStore_enumCert,
@@ -398,6 +440,7 @@ static WINECRYPT_CERTSTORE *CRYPT_MemOpenStore(HCRYPTPROV hCryptProv,
             list_init(&store->certs);
             list_init(&store->crls);
             list_init(&store->ctls);
+            store->gen = 0;
             /* Mem store doesn't need crypto provider, so close it */
             if (hCryptProv && !(dwFlags & CERT_STORE_NO_CRYPT_RELEASE_FLAG))
                 CryptReleaseContext(hCryptProv, 0);
