@@ -446,6 +446,7 @@ static const store_vtbl_t CollectionStoreVtbl = {
     Collection_release,
     Collection_releaseContext,
     Collection_control,
+    NULL,
     {
         Collection_addCert,
         Collection_enumCert,

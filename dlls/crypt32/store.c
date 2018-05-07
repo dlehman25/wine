@@ -107,6 +107,7 @@ BOOL WINAPI I_CertUpdateStore(HCERTSTORE store1, HCERTSTORE store2, DWORD unk0,
  DWORD unk1)
 {
     static BOOL warned = FALSE;
+    WINECRYPT_CERTSTORE *dst = store1;
     const WINE_CONTEXT_INTERFACE * const interfaces[] = { pCertInterface,
      pCRLInterface, pCTLInterface };
     DWORD i;
@@ -117,6 +118,9 @@ BOOL WINAPI I_CertUpdateStore(HCERTSTORE store1, HCERTSTORE store2, DWORD unk0,
         FIXME("semi-stub\n");
         warned = TRUE;
     }
+
+    if (dst->vtbl->update)
+        return dst->vtbl->update(store1, store2);
 
     /* Poor-man's resync:  empty first store, then add everything from second
      * store to it.
@@ -354,6 +358,7 @@ static const store_vtbl_t MemStoreVtbl = {
     MemStore_release,
     MemStore_releaseContext,
     MemStore_control,
+    NULL,
     {
         MemStore_addCert,
         MemStore_enumCert,
@@ -1485,6 +1490,7 @@ static const store_vtbl_t EmptyStoreVtbl = {
     EmptyStore_release,
     EmptyStore_releaseContext,
     EmptyStore_control,
+    NULL,
     {
         EmptyStore_add,
         EmptyStore_enum,

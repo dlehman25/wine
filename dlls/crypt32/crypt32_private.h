@@ -311,6 +311,7 @@ typedef struct {
     DWORD (*release)(struct WINE_CRYPTCERTSTORE*,DWORD);
     void (*releaseContext)(struct WINE_CRYPTCERTSTORE*,context_t*);
     BOOL (*control)(struct WINE_CRYPTCERTSTORE*,DWORD,DWORD,void const*);
+    BOOL (*update)(struct WINE_CRYPTCERTSTORE*,struct WINE_CRYPTCERTSTORE*);
     CONTEXT_FUNCS certs;
     CONTEXT_FUNCS crls;
     CONTEXT_FUNCS ctls;

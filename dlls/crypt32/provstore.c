@@ -297,6 +297,7 @@ static const store_vtbl_t ProvStoreVtbl = {
     ProvStore_release,
     ProvStore_releaseContext,
     ProvStore_control,
+    NULL,
     {
         ProvStore_addCert,
         ProvStore_enumCert,
