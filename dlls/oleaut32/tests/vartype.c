@@ -31,6 +31,8 @@
 
 DEFINE_GUID(UUID_test_struct, 0x4029f190, 0xca4a, 0x4611, 0xae,0xb9,0x67,0x39,0x83,0xcb,0x96,0xdd);
 
+#define ARRAY_SIZE(array) (sizeof(array)/sizeof((array)[0]))
+
 /* Some Visual C++ versions choke on __uint64 to float conversions.
  * To fix this you need either VC++ 6.0 plus the processor pack
  * or Visual C++ >=7.0.
@@ -4916,6 +4918,9 @@ static void test_SysAllocString(void)
 static void test_SysAllocStringLen(void)
 {
   const OLECHAR szTest[5] = { 'T','e','s','t','\0' };
+  const OLECHAR aW[] = { 'a','\0',0xabcd,0xabcd,0xabcd };
+  UINT i, num;
+  BSTR old;
   BSTR str;
 
   /* Very early native dlls do not limit the size of strings, so skip this test */
@@ -4946,6 +4951,35 @@ static void test_SysAllocStringLen(void)
     ok (!lstrcmpW(bstr->szString, szTest), "String different\n");
     SysFreeString(str);
   }
+
+  num = ARRAY_SIZE(aW);
+  str = SysAllocStringLen(NULL, num);
+  memset(str, 0xde, num * sizeof(WCHAR));
+  SysFreeString(str);
+
+  old = str;
+  str = SysAllocStringLen(NULL, num);
+  ok (old == str, "Expected %p, got %p\n", old, str);
+  for (i = 0; i < num; i++)
+    ok (str[i] == 0xdede, "Expected abab, got %x\n", str[i]);
+  SysFreeString(str);
+
+  str = SysAllocString(aW);
+  ok (old == str, "Expected %p, got %p\n", old, str);
+  ok (str[0] == 'a', "Expected 'a', got %x\n", str[0]);
+  ok (!str[1], "Expected NULL, got %x\n", str[1]);
+  for (i = 2; i < num; i++)
+    ok (str[i] == 0xdede, "Expected dede, got %x\n", str[i]);
+  memset(str, 0xde, num * sizeof(WCHAR));
+  SysFreeString(str);
+
+  str = SysAllocStringLen(aW, num);
+  ok (old == str, "Expected %p, got %p\n", old, str);
+  ok (str[0] == 'a', "Expected 'a', got %x\n", str[0]);
+  ok (!str[1], "Expected NULL, got %x\n", str[1]);
+  for (i = 2; i < num; i++)
+    ok (str[i] == 0xabcd, "Expected abcd, got %x\n", str[i]);
+  SysFreeString(str);
 }
 
 static void test_SysAllocStringByteLen(void)
