@@ -3382,6 +3382,7 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
     static const WCHAR globalflagW[] = {'G','l','o','b','a','l','F','l','a','g',0};
     NTSTATUS status;
     WINE_MODREF *wm;
+    ULONG info;
     PEB *peb = NtCurrentTeb()->Peb;
 
     kernel32_start_process = kernel_start;
@@ -3405,6 +3406,8 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
     LdrQueryImageFileExecutionOptions( &peb->ProcessParameters->ImagePathName, globalflagW,
                                        REG_DWORD, &peb->NtGlobalFlag, sizeof(peb->NtGlobalFlag), NULL );
     heap_set_debug_flags( GetProcessHeap() );
+    info = 2;
+    RtlSetHeapInformation( GetProcessHeap(), HeapCompatibilityInformation, &info, sizeof(info) );
 
     /* the main exe needs to be the first in the load order list */
     RemoveEntryList( &wm->ldr.InLoadOrderModuleList );
