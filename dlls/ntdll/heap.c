@@ -1535,8 +1535,8 @@ static void heap_set_debug_flags( HANDLE handle )
  *  Success: A HANDLE to the newly created heap.
  *  Failure: a NULL HANDLE.
  */
-HANDLE WINAPI RtlCreateHeap( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T commitSize,
-                             PVOID unknown, PRTL_HEAP_DEFINITION definition )
+HANDLE WINAPI RtlCreateHeapOrig( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T commitSize,
+                                 PVOID unknown, PRTL_HEAP_DEFINITION definition )
 {
     SUBHEAP *subheap;
 
@@ -2264,6 +2264,29 @@ NTSTATUS WINAPI RtlSetHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_
 /***********************************************************************
  *           LFHHEAP
  */
+
+/***********************************************************************
+ *           RtlCreateHeap   (NTDLL.@)
+ */
+HANDLE WINAPI RtlCreateHeap( ULONG flags, PVOID addr, SIZE_T totalSize, SIZE_T commitSize,
+                             PVOID unknown, PRTL_HEAP_DEFINITION definition )
+{
+    HANDLE handle;
+    ULONG info;
+
+    handle = RtlCreateHeapOrig( flags, addr, totalSize, commitSize, unknown, definition );
+    if (!handle)
+        return NULL;
+
+    /* defer enabling LFH for main process heap until after debug flags are set */
+    if (handle == (HANDLE)processHeap)
+        return handle;
+
+    /* always try to set LFH - if unsupported, it'll fall back to back-end */
+    info = 2;
+    RtlSetHeapInformation( handle, HeapCompatibilityInformation, &info, sizeof(info) );
+    return handle;
+}
 
 /***********************************************************************
  *           RtlQueryHeapInformation    (NTDLL.@)
