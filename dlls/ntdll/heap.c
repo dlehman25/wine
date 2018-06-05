@@ -2307,6 +2307,23 @@ typedef struct tagTBLOCK
 } TBLOCK;
 C_ASSERT(FIELD_OFFSET(ARENA_FREE, magic) == FIELD_OFFSET(TBLOCK, magic));
 
+/* most memory allocations are very small (< 256B) and the minimum block size adds extra overhead
+   with most of those being under 100B.  these 'fast' blocks are pre-allocated in clusters
+   since they are the same size, they are not merged with nearby blocks and don't use flags
+   because they are not merged, the overhead for each block is smaller than other blocks */
+typedef struct tagFBLOCK
+{
+    WORD offset;    /* offset from beginning of cluster */
+    WORD next;
+    WORD magic;     /* MUST line up with ARENA_INUSE/FREE */
+    BYTE flags;     /* MUST line up with TBLOCK */
+    BYTE unused;
+
+    void *entry; /* only used when free */
+} FBLOCK;
+C_ASSERT(FIELD_OFFSET(ARENA_FREE, magic) == FIELD_OFFSET(FBLOCK, magic));
+C_ASSERT(FIELD_OFFSET(TBLOCK, flags) == FIELD_OFFSET(FBLOCK, flags));
+
 #if __SIZEOF_POINTER__ == 8
 /* Win64 aligns on 16B boundaries */
 #define LFH_SHIFT       4
@@ -2337,10 +2354,17 @@ C_ASSERT(FIELD_OFFSET(ARENA_FREE, magic) == FIELD_OFFSET(TBLOCK, magic));
 /* threshold MUST be <=16k since size/offset are WORD-sized */
 #define LFH_THRESHOLD   (16*1024)
 
+#define LFH_MIN_FBLOCK_SIZE     LFH_ALIGNMENT
+#define LFH_MAX_FBLOCK_SIZE     96      /* MUST be multiple of LFH_ALIGNMENT */
+C_ASSERT(LFH_MAX_FBLOCK_SIZE % LFH_ALIGNMENT == 0);
+#define LFH_NUM_CLUSTER_BLOCKS  32
+#define LFH_NUM_GROUPS          (((LFH_MAX_FBLOCK_SIZE - LFH_MIN_FBLOCK_SIZE) >> LFH_SHIFT) + 1)
+
 #define LFH_BLOCK_MAGIC    0x464C    /* LF */
 
 #define LFH_FLAG_FREE        0x01
 #define LFH_FLAG_PREV_FREE   0x02
+#define LFH_FLAG_FAST        0x04
 
 #define LLROUND(size)       (((size) + LFH_MASK) & ~LFH_MASK)
 
@@ -2349,6 +2373,7 @@ C_ASSERT(FIELD_OFFSET(ARENA_FREE, magic) == FIELD_OFFSET(TBLOCK, magic));
 
 #define LFH_BLOCK_HEADER_SIZE   (FIELD_OFFSET(TBLOCK, entry))
 #define LFH_BUFFER_HEADER_SIZE  (LLROUND(sizeof(TBUFFER)) + ARENA_OFFSET)
+#define LFH_CLUSTER_HEADER_SIZE (LLROUND(sizeof(CLUSTER)) + ARENA_OFFSET)
 
 #ifdef __GNUC__
 #define LFH_NOINLINE __attribute__((noinline))
@@ -2386,9 +2411,31 @@ typedef struct tagTBUFFER
     TFREE_LIST_ENTRY freelists[LFHHEAP_NB_FREE_LISTS];
 } TBUFFER;
 
+typedef struct tagGROUP
+{
+    DWORD                blk_size;  /* size of all blocks in this group */
+    struct tagCLUSTER   *curclr;    /* current cluster */
+    struct list          clusters;  /* used clusters */
+    struct list          full;      /* list of full clusters */
+} GROUP;
+
+typedef struct tagCLUSTER
+{
+    void       *other;      /* depends on being aligned on LFH_ALIGNMENT */
+    GROUP      *group;      /* group that owns this cluster */
+    struct tagPERTHREAD *perthread; /* per-thread group belongs to */
+    WORD        blk_size;   /* block size of all blocks in cluster */
+    WORD        last;       /* last freed block (top of recently used stack) */
+    WORD        nfree;      /* # of blocks freed */
+    WORD        top;        /* top block, before saturation */
+    WORD        limit;      /* real limit, saturated when reached */
+    struct list entry;      /* entry in group's cluster list */
+} CLUSTER;
+
 typedef struct tagPERTHREAD
 {
     HEAP *heap;
+    GROUP       groups[LFH_NUM_GROUPS];
     struct list entry;
     struct list buffers;
 } PERTHREAD;
@@ -2548,12 +2595,12 @@ static inline TBLOCK *get_next_block( TBLOCK *block, SIZE_T blk_size )
     return (TBLOCK *)((char *)block + blk_size);
 }
 
-static inline TBLOCK *ptr_to_block( void *ptr )
+static inline void *ptr_to_block( void *ptr )
 {
-    return (TBLOCK *)((char *)ptr - LFH_BLOCK_HEADER_SIZE);
+    return ((char *)ptr - LFH_BLOCK_HEADER_SIZE);
 }
 
-static inline void *block_to_ptr( TBLOCK *block )
+static inline void *block_to_ptr( void *block )
 {
     return ((char *)block + LFH_BLOCK_HEADER_SIZE);
 }
@@ -2568,14 +2615,40 @@ static inline TBUFFER *block_to_buffer( TBLOCK *block )
     return (TBUFFER *)((char *)block - get_block_offset( block ));
 }
 
+static inline GROUP *get_group( PERTHREAD *pt, SIZE_T blk_size )
+{
+    return &pt->groups[(blk_size - LFH_MIN_FBLOCK_SIZE) >> LFH_SHIFT];
+}
+
+static inline FBLOCK *get_cluster_block( CLUSTER *cluster, int idx )
+{
+    return (FBLOCK *)((char *)cluster + idx);
+}
+
+static inline CLUSTER *block_to_cluster( const void *block )
+{
+    return (CLUSTER *)((char *)block - ((FBLOCK *)block)->offset);
+}
+
 static inline SIZE_T get_actual_size( const TBLOCK *block )
 {
-    return get_block_size( block ) - block->unused - LFH_BLOCK_HEADER_SIZE;
+    SIZE_T blk_size;
+
+    if (block->flags & LFH_FLAG_FAST)
+        blk_size = block_to_cluster( block )->blk_size;
+    else
+        blk_size = get_block_size( block );
+    return blk_size - block->unused - LFH_BLOCK_HEADER_SIZE;
+}
+
+static inline BYTE calc_unused_from_blk_size( SIZE_T blk_size, SIZE_T size )
+{
+    return blk_size - size - LFH_BLOCK_HEADER_SIZE;
 }
 
 static inline BYTE calc_unused_size( const TBLOCK *block, SIZE_T size )
 {
-    return get_block_size( block ) - size - LFH_BLOCK_HEADER_SIZE;
+    return calc_unused_from_blk_size( get_block_size( block ), size );
 }
 
 static inline const TBLOCK *get_buffer_limit( const TBUFFER *buffer )
@@ -2634,21 +2707,31 @@ static inline void push_block_to_buffer( TBUFFER *buffer, TBLOCK *block )
 static inline PERTHREAD *allocate_perthread( HEAP *heap )
 {
     PERTHREAD *pt;
+    GROUP *group;
+    int i;
 
     if (!(pt = RtlAllocateHeapOrig( heap, 0, sizeof(*pt) )))
         return NULL;
 
     pt->heap = heap;
+    for (i = 0; i < LFH_NUM_GROUPS; i++)
+    {
+        group = &pt->groups[i];
+        group->blk_size = (i + 1) << LFH_SHIFT;
+        group->curclr = NULL;
+        list_init( &group->clusters );
+        list_init( &group->full );
+    }
     list_init( &pt->buffers );
     list_add_tail( &heap->lfh_heap->perthreads, &pt->entry );
 
     return pt;
 }
 
-static inline BOOL have_others( TBUFFER *buffer )
+static inline BOOL have_others( void **other )
 {
     /* check without LOCK */
-    return !!*(volatile void **)&buffer->other;
+    return !!*(volatile void **)other;
 }
 
 static inline void reclaim_others( TBUFFER *buffer )
@@ -2738,6 +2821,78 @@ static void WINAPI free_block( PERTHREAD *pt, void *ptr )
     }
 }
 
+static void WINAPI push_fast_block( CLUSTER *cluster, FBLOCK *block )
+{
+    GROUP *group;
+
+    block->next = cluster->last;
+    cluster->last = block->offset;
+
+    if (!cluster->nfree++)
+    {
+        /* remove from full list */
+        group = cluster->group;
+        list_remove( &cluster->entry );
+        list_add_head( &group->clusters, &cluster->entry );
+    }
+
+    if (cluster->nfree == LFH_NUM_CLUSTER_BLOCKS)
+    {
+        /* all blocks are free, remove from list */
+        list_remove( &cluster->entry );
+
+        group = cluster->group;
+        if (group->curclr == cluster)
+            group->curclr = NULL;
+
+        free_block( cluster->perthread, cluster );
+    }
+}
+
+static inline void purge_fast_blocks( CLUSTER *cluster, void *head )
+{
+    FBLOCK *block;
+    while (head)
+    {
+        block = ptr_to_block( head );
+        head = *(void **)head;
+        push_fast_block( cluster, block );
+    }
+}
+
+static void WINAPI free_fast_block( PERTHREAD *pt, void *ptr )
+{
+    FBLOCK *block;
+    CLUSTER *cluster;
+
+    block = ptr_to_block( ptr );
+    cluster = block_to_cluster( block );
+
+    if ( cluster->perthread != pt )
+        push_block( &cluster->other, (void **)&block->entry );
+    else
+        push_fast_block( cluster, block );
+}
+
+/* purge any free clusters so we can push as much memory
+   to the back-end as possible */
+static void purge_group( PERTHREAD *pt, GROUP *group )
+{
+    void *entry;
+    CLUSTER *cluster;
+    CLUSTER *cluster2;
+
+    /* cluster can be freed while purging blocks from other threads */
+    LIST_FOR_EACH_ENTRY_SAFE( cluster, cluster2, &group->clusters, CLUSTER, entry )
+    {
+        if (have_others( &cluster->other ))
+        {
+            entry = interlocked_xchg_ptr( &cluster->other, NULL );
+            purge_fast_blocks( cluster, entry );
+        }
+    }
+}
+
 /* free thread-specific struct before exiting.  but it's possible for a thread to allocate memory
    that must still be accesible by other threads, so pass any non-empty buffers to the heap */
 static void WINAPI free_perthread( HEAP *heap )
@@ -2746,17 +2901,23 @@ static void WINAPI free_perthread( HEAP *heap )
     TBUFFER *buffer;
     PERTHREAD *pt;
     LFHHEAP *lfh;
+    int i;
 
     lfh = heap->lfh_heap;
     if (!(pt = tls_get( lfh->tls_idx )))
         return;
+
+    /* purge clusters first to increase chance
+       we can free more buffers */
+    for (i = 0; i < LFH_NUM_GROUPS; i++)
+        purge_group( pt, &pt->groups[i] );
 
     while ((head = list_head( &pt->buffers )))
     {
         buffer = LIST_ENTRY( head, TBUFFER, entry );
         list_remove( &buffer->entry );
 
-        if (have_others( buffer ))
+        if (have_others( &buffer->other ))
             reclaim_others( buffer );
 
         if (buffer->nfree == buffer->nblocks)
@@ -2961,7 +3122,7 @@ static void *WINAPI find_block( PERTHREAD *pt, SIZE_T blk_size )
         }
 
         /* if we reclaim blocks from other threads, try again */
-        if (have_others( buffer ))
+        if (have_others( &buffer->other ))
         {
             reclaim_others( buffer );
             block = find_block_in_buffer( buffer, blk_size );
@@ -2985,6 +3146,9 @@ static inline void *allocate_block( PERTHREAD *pt, DWORD flags, SIZE_T size, SIZ
     TBLOCK *block;
     void *ret;
 
+    if (blk_size < LFH_MIN_BLOCK_SIZE)
+        blk_size = LFH_MIN_BLOCK_SIZE;
+
     block = find_block( pt, blk_size );
     if (!block) return NULL;
 
@@ -2998,13 +3162,136 @@ static inline void *allocate_block( PERTHREAD *pt, DWORD flags, SIZE_T size, SIZ
     return ret;
 }
 
+static FBLOCK *WINAPI find_fblock_in_cluster( CLUSTER *cluster )
+{
+    FBLOCK *block;
+    void *entry;
+
+    if (have_others( &cluster->other ))
+    {
+        /* pushing the last fast block can free the cluster we're using
+           so hold on to the first block */
+        entry = interlocked_xchg_ptr( &cluster->other, NULL );
+        block = ptr_to_block( entry );
+        purge_fast_blocks( cluster, *(void **)entry );
+        return block;
+    }
+
+    if (cluster->last)
+    {
+        block = get_cluster_block( cluster, cluster->last );
+        cluster->last = block->next;
+        --cluster->nfree;
+        return block;
+    }
+    else if (cluster->top < cluster->limit)
+    {
+        block = get_cluster_block( cluster, cluster->top );
+
+        block->offset = cluster->top;
+        block->next = 0;
+        block->magic = LFH_BLOCK_MAGIC;
+        block->flags = LFH_FLAG_FAST;
+
+        --cluster->nfree;
+        cluster->top += cluster->blk_size;
+
+        return block;
+    }
+
+    return NULL;
+}
+
+static CLUSTER *WINAPI allocate_cluster( PERTHREAD *perthread, GROUP *group )
+{
+    CLUSTER *cluster;
+    SIZE_T blk_size;
+    SIZE_T size;
+
+    size = LFH_CLUSTER_HEADER_SIZE + LFH_NUM_CLUSTER_BLOCKS * group->blk_size;
+    blk_size = LLROUND(size + LFH_BLOCK_HEADER_SIZE);
+    if (!(cluster = allocate_block( perthread, 0, size, blk_size )))
+        return NULL;
+
+    cluster->other     = NULL;
+    cluster->group     = group;
+    cluster->perthread = perthread;
+    cluster->blk_size  = group->blk_size;
+    cluster->last      = 0;
+    cluster->nfree     = LFH_NUM_CLUSTER_BLOCKS;
+    cluster->top       = LFH_CLUSTER_HEADER_SIZE;
+    cluster->limit     = size;
+
+    group->curclr = cluster;
+    list_add_head( &group->clusters, &cluster->entry );
+
+    return group->curclr;
+}
+
+static FBLOCK *WINAPI find_fblock_in_group( PERTHREAD *perthread, GROUP *group )
+{
+    FBLOCK *block;
+    CLUSTER *cluster;
+
+    if ((cluster = group->curclr))
+    {
+        if ((block = find_fblock_in_cluster( cluster )))
+            return block;
+
+        /* cluster is full - move to full list */
+        list_remove( &cluster->entry );
+        list_add_head( &group->full, &cluster->entry );
+    }
+
+    LIST_FOR_EACH_ENTRY( cluster, &group->clusters, CLUSTER, entry )
+    {
+        if ((block = find_fblock_in_cluster( cluster )))
+        {
+            group->curclr = cluster;
+            list_remove( &cluster->entry );
+            list_add_head( &group->clusters, &cluster->entry );
+            return block;
+        }
+    }
+
+    if (!(cluster = allocate_cluster( perthread, group )))
+        return NULL;
+
+    return find_fblock_in_cluster( cluster );
+}
+
+static void *WINAPI allocate_fast_block( PERTHREAD *perthread, DWORD flags,
+                                         SIZE_T size, SIZE_T blk_size )
+{
+    FBLOCK *block;
+    GROUP *group;
+    void *ret;
+
+    if (blk_size < LFH_MIN_FBLOCK_SIZE)
+        blk_size = LFH_MIN_FBLOCK_SIZE;
+
+    group = get_group( perthread, blk_size );
+    if (!(block = find_fblock_in_group( perthread, group )))
+        return NULL;
+
+    block->unused = calc_unused_from_blk_size( blk_size, size );
+    ret = block_to_ptr( block );
+    if (flags & HEAP_ZERO_MEMORY)
+        zero_memory( ret, size );
+
+    return ret;
+}
+
 static PVOID WINAPI reallocate_block( PERTHREAD *pt, TBLOCK *block, DWORD flags,
-                                      SIZE_T size, SIZE_T blk_size )
+                                      SIZE_T size )
 {
     TBLOCK *next;
     TBUFFER *buffer;
+    CLUSTER *cluster;
+    SIZE_T blk_size;
     SIZE_T old_blk_size;
 
+    blk_size = LLROUND(size + LFH_BLOCK_HEADER_SIZE);
     if (blk_size > LFH_THRESHOLD)
     {
         /* resizing to size too big for lfh - can't do in-place */
@@ -3013,6 +3300,33 @@ static PVOID WINAPI reallocate_block( PERTHREAD *pt, TBLOCK *block, DWORD flags,
 
         /* don't propogate flags - we'll zero memory in caller if needed */
         return RtlAllocateHeapOrig( pt->heap, 0, size );
+    }
+
+    if (block->flags & LFH_FLAG_FAST)
+    {
+        cluster = block_to_cluster( block );
+        if (blk_size == cluster->blk_size)
+        {
+            block->unused = calc_unused_from_blk_size( blk_size, size );
+            return block_to_ptr( block );
+        }
+
+        /* fast blocks cannot be resized in-place */
+        if (flags & HEAP_REALLOC_IN_PLACE_ONLY)
+            return NULL;
+
+        /* don't propogate flags - we'll zero memory in caller if needed */
+        if (blk_size <= LFH_MAX_FBLOCK_SIZE)
+            return allocate_fast_block( pt, 0, size, blk_size );
+        else
+            return allocate_block( pt, 0, size, blk_size );
+    }
+
+    /* only allocate fast blocks if caller doesn't want in-place */
+    if (!(flags & HEAP_REALLOC_IN_PLACE_ONLY) &&
+        (blk_size <= LFH_MAX_FBLOCK_SIZE))
+    {
+        return allocate_fast_block( pt, 0, size, blk_size );
     }
 
     buffer = block_to_buffer( block );
@@ -3225,14 +3539,19 @@ PVOID WINAPI RtlAllocateHeap( HANDLE handle, ULONG flags, SIZE_T size )
         tls_set( lfh->tls_idx, pt );
     }
 
-    if (blk_size < LFH_MIN_BLOCK_SIZE)
-        blk_size = LFH_MIN_BLOCK_SIZE;
-
     flags &= HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE | HEAP_ZERO_MEMORY;
     flags |= heap->flags;
 
-    if ((ret = allocate_block( pt, flags, size, blk_size )))
-        return ret;
+    if (blk_size <= LFH_MAX_FBLOCK_SIZE)
+    {
+        if ((ret = allocate_fast_block( pt, flags, size, blk_size )))
+            return ret;
+    }
+    else
+    {
+        if ((ret = allocate_block( pt, flags, size, blk_size )))
+            return ret;
+    }
     /* fall-through */
 oom:
     if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
@@ -3269,7 +3588,10 @@ BOOLEAN WINAPI RtlFreeHeap( HANDLE handle, ULONG flags, PVOID ptr )
         return FALSE;
     }
 
-    free_block( pt, ptr );
+    if (block->flags & LFH_FLAG_FAST)
+        free_fast_block( pt, ptr );
+    else
+        free_block( pt, ptr );
     return TRUE;
 }
 
@@ -3311,15 +3633,12 @@ PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T si
         return NULL;
     }
 
-    if (blk_size < LFH_MIN_BLOCK_SIZE)
-        blk_size = LFH_MIN_BLOCK_SIZE;
-
     flags &= HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE | HEAP_ZERO_MEMORY |
              HEAP_REALLOC_IN_PLACE_ONLY;
     flags |= heap->flags;
 
     old_actual = get_actual_size( block );
-    if (!(new_ptr = reallocate_block( pt, block, flags, size, blk_size )))
+    if (!(new_ptr = reallocate_block( pt, block, flags, size )))
     {
         if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
         RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_NO_MEMORY );
@@ -3332,7 +3651,10 @@ PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T si
     if (new_ptr != ptr)
     {
         copy_memory( new_ptr, ptr, min( size, old_actual ) );
-        free_block( pt, ptr );
+        if (block->flags & LFH_FLAG_FAST)
+            free_fast_block( pt, ptr );
+        else
+            free_block( pt, ptr );
     }
 
     return new_ptr;
