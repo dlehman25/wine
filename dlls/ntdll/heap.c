@@ -2255,7 +2255,7 @@ NTSTATUS WINAPI RtlQueryHeapInformationOrig( HANDLE heap, HEAP_INFORMATION_CLASS
 /***********************************************************************
  *           RtlSetHeapInformation    (NTDLL.@)
  */
-NTSTATUS WINAPI RtlSetHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_class, PVOID info, SIZE_T size)
+NTSTATUS WINAPI RtlSetHeapInformationOrig( HANDLE heap, HEAP_INFORMATION_CLASS info_class, PVOID info, SIZE_T size)
 {
     FIXME("%p %d %p %ld stub\n", heap, info_class, info, size);
     return STATUS_SUCCESS;
@@ -2264,6 +2264,88 @@ NTSTATUS WINAPI RtlSetHeapInformation( HANDLE heap, HEAP_INFORMATION_CLASS info_
 /***********************************************************************
  *           LFHHEAP
  */
+typedef struct tagLFHHEAP
+{
+} LFHHEAP;
+
+static BOOL lfh_enabled(void)
+{
+    static BOOL enabled = -1;
+    UNICODE_STRING name, value;
+    WCHAR buffer[16];
+
+    if (enabled == -1)
+    {
+        RtlInitUnicodeString(&name, L"LLHEAP_DISABLE");
+        value.Length = 0;
+        value.MaximumLength = sizeof(buffer);
+        value.Buffer = buffer;
+
+        buffer[0] = 0;
+        if (RtlQueryEnvironmentVariable_U(NULL, &name, &value))
+            enabled = TRUE;
+        else
+        {
+            buffer[value.Length / sizeof(WCHAR)] = 0;
+            enabled = !((iswdigit(buffer[0]) && wcstoul(buffer, NULL, 10)) ||
+                       !_wcsicmp(buffer, L"true"));
+        }
+    }
+    return enabled;
+}
+
+/***********************************************************************
+ *           RtlSetHeapInformation    (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlSetHeapInformation( HANDLE handle, HEAP_INFORMATION_CLASS info_class,
+                                       PVOID info, SIZE_T size )
+{
+    HEAP *heap;
+    LFHHEAP *lfh;
+    const DWORD debug_flags = HEAP_VALIDATE | HEAP_VALIDATE_PARAMS | HEAP_VALIDATE_ALL |
+                              HEAP_TAIL_CHECKING_ENABLED | HEAP_FREE_CHECKING_ENABLED;
+
+    if (size < sizeof(ULONG))
+        return STATUS_BUFFER_TOO_SMALL;
+
+    if (info_class != HeapCompatibilityInformation)
+        return STATUS_SUCCESS;
+
+    if (!handle || !info)
+        return STATUS_UNSUCCESSFUL;
+
+    if (*(ULONG *)info != 2)
+        return STATUS_UNSUCCESSFUL;
+
+    if (!lfh_enabled())
+        return STATUS_UNSUCCESSFUL;
+
+    if (RUNNING_ON_VALGRIND)
+        return STATUS_UNSUCCESSFUL;
+
+    heap = HEAP_GetPtr( handle );
+    if (!heap)
+        return STATUS_INVALID_HANDLE;
+
+    if (heap->flags & debug_flags)
+        return STATUS_UNSUCCESSFUL;
+
+    if (heap->lfh_heap)
+        return STATUS_SUCCESS;
+
+    if (heap->flags & HEAP_NO_SERIALIZE)
+        return STATUS_INVALID_PARAMETER;
+
+    if (!(heap->flags & HEAP_GROWABLE))
+        return STATUS_INVALID_PARAMETER;
+
+    lfh = RtlAllocateHeap( handle, 0, sizeof(*lfh) );
+    if (!lfh)
+        return STATUS_NO_MEMORY;
+
+    heap->lfh_heap = lfh;
+    return STATUS_SUCCESS;
+}
 
 /***********************************************************************
  *           RtlCreateHeap   (NTDLL.@)
