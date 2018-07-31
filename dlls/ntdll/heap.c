@@ -2518,25 +2518,30 @@ static NTSTATUS tls_free( DWORD index )
     return status;
 }
 
-static NTSTATUS tls_set( DWORD index, LPVOID value )
+/* it may look odd to separate tls_set this way, but it works around a gcc optimizer bug */
+static NTSTATUS WINAPI LFH_NOINLINE tls_set_slow( DWORD index, LPVOID value )
+{
+    index -= TLS_MINIMUM_AVAILABLE;
+    if (index >= 8 * sizeof(NtCurrentTeb()->Peb->TlsExpansionBitmapBits))
+        return STATUS_INVALID_PARAMETER;
+
+    if (!NtCurrentTeb()->TlsExpansionSlots &&
+        !(NtCurrentTeb()->TlsExpansionSlots = RtlAllocateHeapOrig( GetProcessHeap(), HEAP_ZERO_MEMORY,
+                8 * sizeof(NtCurrentTeb()->Peb->TlsExpansionBitmapBits) * sizeof(void*) )))
+        return STATUS_NO_MEMORY;
+    NtCurrentTeb()->TlsExpansionSlots[index] = value;
+    return STATUS_SUCCESS;
+}
+
+static inline NTSTATUS tls_set( DWORD index, LPVOID value )
 {
     if (index < TLS_MINIMUM_AVAILABLE)
     {
         NtCurrentTeb()->TlsSlots[index] = value;
+        return STATUS_SUCCESS;
     }
-    else
-    {
-        index -= TLS_MINIMUM_AVAILABLE;
-        if (index >= 8 * sizeof(NtCurrentTeb()->Peb->TlsExpansionBitmapBits))
-            return STATUS_INVALID_PARAMETER;
 
-        if (!NtCurrentTeb()->TlsExpansionSlots &&
-            !(NtCurrentTeb()->TlsExpansionSlots = RtlAllocateHeapOrig( GetProcessHeap(), HEAP_ZERO_MEMORY,
-                    8 * sizeof(NtCurrentTeb()->Peb->TlsExpansionBitmapBits) * sizeof(void*) )))
-            return STATUS_NO_MEMORY;
-        NtCurrentTeb()->TlsExpansionSlots[index] = value;
-    }
-    return STATUS_SUCCESS;
+    return tls_set_slow(index, value);
 }
 
 static inline LPVOID tls_get( DWORD index )
