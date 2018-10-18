@@ -282,6 +282,12 @@ void WINAPI DECLSPEC_HOTPATCH SysFreeString(BSTR str)
         return;
 
     bstr = bstr_from_str(str);
+    if(!bstr_cache_enabled) {
+        /* the caching logic will figure this out but shortcut it here anyway
+           to save the effort of IMalloc_GetSize -> HeapSize -> HeapValidate */
+        CoTaskMemFree(bstr);
+        return;
+    }
 
     alloc_size = IMalloc_GetSize(malloc, bstr);
     if (alloc_size == ~0UL)
