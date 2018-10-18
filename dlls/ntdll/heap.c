@@ -41,6 +41,7 @@
 #include "winternl.h"
 #include "ntdll_misc.h"
 #include "wine/list.h"
+#include "wine/rbtree.h"
 #include "wine/debug.h"
 #include "wine/server.h"
 #include "wine/exception.h"
@@ -2292,6 +2293,7 @@ typedef struct tagLFHHEAP
     struct list perthreads;
     struct list freed_bufs;
     struct list orphan_bufs;
+    struct wine_rb_tree buffers;
 } LFHHEAP;
 
 /* 'magic' is used by existing heap to identify block type
@@ -2349,7 +2351,8 @@ C_ASSERT(FIELD_OFFSET(TBLOCK, flags) == FIELD_OFFSET(FBLOCK, flags));
 #if TBUFFER_SIZE_FULL < HEAP_MIN_LARGE_BLOCK_SIZE
 #define TBUFFER_SIZE    ((TBUFFER_SIZE_FULL - ARENA_OFFSET) & ~(ALIGNMENT-1))
 #else
-#define TBUFFER_SIZE    ((TBUFFER_SIZE_FULL - sizeof(ARENA_LARGE) - ARENA_OFFSET) & ~(ALIGNMENT-1))
+C_ASSERT( TBUFFER_SIZE_FULL % (COMMIT_MASK+1) == 0 );
+#define TBUFFER_SIZE    TBUFFER_SIZE_FULL
 #endif
 
 /* threshold MUST be <=16k since size/offset are WORD-sized */
@@ -2407,6 +2410,7 @@ typedef struct tagTBUFFER
     struct tagPERTHREAD *perthread;
     struct list recent;
     struct list entry;
+    struct wine_rb_entry rb_entry;
     int nfree;
     int nblocks;
     TFREE_LIST_ENTRY freelists[LFHHEAP_NB_FREE_LISTS];
@@ -2757,7 +2761,9 @@ static inline void reclaim_others( TBUFFER *buffer )
 /* assumes buffer has already been removed from whatever list it was on */
 static void WINAPI free_buffer( HEAP *heap, TBUFFER *buffer )
 {
+    SIZE_T size;
     LFHHEAP *lfh;
+    void *address;
     struct list *head;
 
     lfh = heap->lfh_heap;
@@ -2771,7 +2777,11 @@ static void WINAPI free_buffer( HEAP *heap, TBUFFER *buffer )
         {
             list_remove( head );
             buffer = LIST_ENTRY( head, TBUFFER, entry );
-            RtlFreeHeapOrig( heap, HEAP_NO_SERIALIZE, buffer );
+            wine_rb_remove( &lfh->buffers, &buffer->rb_entry );
+
+            size = 0;
+            address = buffer;
+            NtFreeVirtualMemory( NtCurrentProcess(), &address, &size, MEM_RELEASE );
         }
         lfh->freed_size = 0;
     }
@@ -2977,14 +2987,41 @@ static inline void create_block( TBUFFER *buffer, void *ptr, SIZE_T blk_size )
     insert_block_into_freelists( buffer, block );
 }
 
+static void buffer_rb_clear(struct wine_rb_entry *entry, void *context)
+{
+    SIZE_T size;
+    void *address;
+    TBUFFER *buffer;
+
+    buffer = WINE_RB_ENTRY_VALUE( entry, TBUFFER, rb_entry );
+    size = 0;
+    address = buffer;
+    NtFreeVirtualMemory( NtCurrentProcess(), &address, &size, MEM_RELEASE );
+}
+
+static int buffer_rb_compare(const void *key, const struct wine_rb_entry *entry)
+{
+    const void *buffer;
+
+    buffer = WINE_RB_ENTRY_VALUE( entry, TBUFFER, rb_entry );
+    if (key < buffer)
+        return -1;
+    if (key >= (const void *)get_buffer_limit( buffer ))
+        return 1;
+    return 0;
+}
+
 static TBUFFER *WINAPI allocate_buffer( PERTHREAD *pt )
 {
     TFREE_LIST_ENTRY *entry;
     struct list *head;
     TBUFFER *buffer;
+    void *address;
+    SIZE_T size;
     HEAP *heap;
     int i;
 
+    buffer = NULL;
     heap = pt->heap;
     RtlEnterCriticalSection( &heap->critSection );
     /* use the opportunity to reclaim orphaned buffers */
@@ -2996,7 +3033,19 @@ static TBUFFER *WINAPI allocate_buffer( PERTHREAD *pt )
         buffer = LIST_ENTRY( head, TBUFFER, entry );
     }
     else
-        buffer = RtlAllocateHeapOrig( heap, HEAP_NO_SERIALIZE, TBUFFER_SIZE );
+    {
+        address = NULL;
+        size = TBUFFER_SIZE;
+        if (!NtAllocateVirtualMemory( NtCurrentProcess(), &address, 0,
+                                      &size, MEM_COMMIT, PAGE_READWRITE ))
+        {
+            /* we can put on the tree before finishing the remaining fields
+               because this thread owns the buffer and other threads using it
+               for pointer validation only need the buffer address and size */
+            buffer = address;
+            wine_rb_put( &heap->lfh_heap->buffers, buffer, &buffer->rb_entry );
+        }
+    }
     RtlLeaveCriticalSection( &heap->critSection );
     if (!buffer) return NULL;
 
@@ -3438,6 +3487,7 @@ NTSTATUS WINAPI RtlSetHeapInformation( HANDLE handle, HEAP_INFORMATION_CLASS inf
     list_init( &lfh->perthreads );
     list_init( &lfh->freed_bufs );
     list_init( &lfh->orphan_bufs );
+    wine_rb_init( &lfh->buffers, buffer_rb_compare );
 
     heap->lfh_heap = lfh;
 
@@ -3476,7 +3526,10 @@ HANDLE WINAPI RtlDestroyHeap( HANDLE handle )
 
     heap = get_heap( handle );
     if (heap && heap->lfh_heap)
+    {
+        wine_rb_clear( &heap->lfh_heap->buffers, buffer_rb_clear, NULL );
         tls_free( heap->lfh_heap->tls_idx );
+    }
 
     return RtlDestroyHeapOrig( handle );
 }
@@ -3718,7 +3771,8 @@ BOOLEAN WINAPI RtlValidateHeap( HANDLE handle, ULONG flags, LPCVOID ptr )
        cannot be validated by the back-end.  but we can't check the magic to determine
        the block type until we check the pointer itself is in a valid range */
     RtlEnterCriticalSection( &heap->critSection );
-    if (!(ret = !!HEAP_FindSubHeap( heap, ptr )))
+    if (!(ret = !!wine_rb_get( &heap->lfh_heap->buffers, ptr )) &&
+        !(ret = !!HEAP_FindSubHeap( heap, ptr )))
     {
         LIST_FOR_EACH_ENTRY( arena, &heap->large_list, ARENA_LARGE, entry )
         {
