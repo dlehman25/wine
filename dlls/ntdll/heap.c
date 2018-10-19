@@ -43,6 +43,7 @@
 #include "wine/list.h"
 #include "wine/debug.h"
 #include "wine/server.h"
+#include "wine/exception.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(heap);
 
@@ -3671,15 +3672,23 @@ PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T si
 SIZE_T WINAPI RtlSizeHeap( HANDLE handle, ULONG flags, const void *ptr )
 {
     const TBLOCK *block;
+    SIZE_T size;
 
-    if (!RtlValidateHeap( handle, flags, ptr ))
-        return ~0UL;
+    size = ~0UL;
+    __TRY
+    {
+        block = const_ptr_to_block( ptr );
+        if (block->magic == LFH_BLOCK_MAGIC)
+            size = get_actual_size( block );
+        else
+            size = RtlSizeHeapOrig( handle, flags, ptr );
+    }
+    __EXCEPT_PAGE_FAULT
+    {
+    }
+    __ENDTRY
 
-    block = const_ptr_to_block( ptr );
-    if (block->magic != LFH_BLOCK_MAGIC)
-        return RtlSizeHeapOrig( handle, flags, ptr );
-
-    return get_actual_size( block );
+    return size;
 }
 
 /***********************************************************************
