@@ -3682,15 +3682,15 @@ PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T si
 
     lfh = heap->lfh_heap;
     if (!(pt = tls_get( lfh->tls_idx )))
-        return RtlReAllocateHeapOrig( handle, flags, ptr, size );
+    {
+        if (!(pt = allocate_perthread( heap )))
+            goto oom;
+        tls_set( lfh->tls_idx, pt );
+    }
 
     blk_size = LLROUND(size + LFH_BLOCK_HEADER_SIZE);
     if (blk_size < size)
-    {
-        if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
-        RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_NO_MEMORY );
-        return NULL;
-    }
+        goto oom;
 
     flags &= HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE | HEAP_ZERO_MEMORY |
              HEAP_REALLOC_IN_PLACE_ONLY;
@@ -3698,11 +3698,7 @@ PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T si
 
     old_actual = get_actual_size( block );
     if (!(new_ptr = reallocate_block( pt, block, flags, size )))
-    {
-        if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
-        RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_NO_MEMORY );
-        return NULL;
-    }
+        goto oom;
 
     if ((flags & HEAP_ZERO_MEMORY) && (size > old_actual))
         zero_memory( (char *)new_ptr + old_actual, size - old_actual );
@@ -3717,6 +3713,11 @@ PVOID WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, PVOID ptr, SIZE_T si
     }
 
     return new_ptr;
+
+oom:
+    if (flags & HEAP_GENERATE_EXCEPTIONS) RtlRaiseStatus( STATUS_NO_MEMORY );
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus( STATUS_NO_MEMORY );
+    return NULL;
 }
 
 /***********************************************************************
