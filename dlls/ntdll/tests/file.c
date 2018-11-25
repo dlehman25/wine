@@ -4745,6 +4745,7 @@ static void test_junction_points(void)
     }
 
     GetTempFileNameW(path, fooW, 0, path);
+    DeleteFileW(path);
     ret = CreateDirectoryW(path, NULL);
     ok(ret, "failed to create temp %s\n", wine_dbgstr_w(path));
 
