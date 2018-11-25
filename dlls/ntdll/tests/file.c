@@ -5141,6 +5141,8 @@ START_TEST(file)
     pNtQueryFullAttributesFile = (void *)GetProcAddress(hntdll, "NtQueryFullAttributesFile");
     pNtFlushBuffersFile = (void *)GetProcAddress(hntdll, "NtFlushBuffersFile");
 
+if (0)
+{
     test_read_write();
     test_NtCreateFile();
     create_file_test();
@@ -5168,5 +5170,6 @@ START_TEST(file)
     test_query_attribute_information_file();
     test_ioctl();
     test_flush_buffers_file();
+}
     test_junction_points();
 }
