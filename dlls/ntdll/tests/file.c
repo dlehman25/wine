@@ -3356,7 +3356,7 @@ static void _test_completion_flags(unsigned line, HANDLE handle, DWORD expected_
     status = pNtQueryInformationFile(handle, &io, &info, sizeof(info),
                                      FileIoCompletionNotificationInformation);
     ok_(__FILE__,line)(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %08x\n", status);
-    ok_(__FILE__,line)(io.Status == STATUS_SUCCESS, "Status = %x\n", io.Status);
+    ok_(__FILE__,line)(io.u.Status == STATUS_SUCCESS, "Status = %x\n", io.u.Status);
     ok_(__FILE__,line)(io.Information == sizeof(info), "Information = %lu\n", io.Information);
     /* FILE_SKIP_SET_USER_EVENT_ON_FAST_IO is not supported on win2k3 */
     ok_(__FILE__,line)((info.Flags & ~FILE_SKIP_SET_USER_EVENT_ON_FAST_IO) == expected_flags,
