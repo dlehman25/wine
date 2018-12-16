@@ -2162,6 +2162,18 @@ static void unmount_device( struct fd *device_fd )
 
 static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
+    /* fd->unix_name = 'junction path'
+       fd->unix_fd = 'junction fd' */
+
+    // buf->MountPointReparseBuffer.PathBuffer
+/*
+    MountPointReparseBuffer = {
+      SubstituteNameOffset = 0,
+      SubstituteNameLength = 100,
+      PrintNameOffset = 102,
+      PrintNameLength = 0,
+      PathBuffer = {92}
+*/
     /*
     // TODO: GetVolumeInformation should call renameat2 to test for support
     ensure FILE_WRITE_ACCESS
