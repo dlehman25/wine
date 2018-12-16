@@ -1762,9 +1762,9 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
         status = wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN_IF, FALSE );
         RtlFreeUnicodeString( &nt_name );
 
-        DPRINTF("%s: path %s -> %s\n", __FUNCTION__,
+        DPRINTF("%s: path %s -> %u %u %s\n", __FUNCTION__,
             debugstr_w(buffer->u.MountPointReparseBuffer.PathBuffer),
-            unix_name.Buffer);
+            unix_name.Length, strlen(unix_name.Buffer), unix_name.Buffer);
 
 
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
