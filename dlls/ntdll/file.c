@@ -1733,6 +1733,8 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
     case FSCTL_SET_REPARSE_POINT:
     {
         REPARSE_DATA_BUFFER *buffer = in_buffer;
+        UNICODE_STRING nt_name;
+        ANSI_STRING unix_name;
 
         if (!in_buffer)
         {
@@ -1746,8 +1748,29 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
             break;
         }
 
+        /* TODO: or Open target and get handle and use that?? */
+
+        /* TODO: Index of SubstituteOffset?? */
+        if (!RtlDosPathNameToNtPathName_U( buffer->u.MountPointReparseBuffer.PathBuffer, &nt_name,
+            NULL, NULL ))
+        {
+            status = STATUS_IO_REPARSE_DATA_INVALID; /* TODO??? */
+            break;
+        }
+
+        /* TODO: overwrite status? */
+        status = wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN_IF, FALSE );
+        RtlFreeUnicodeString( &nt_name );
+
+        DPRINTF("%s: path %s -> %s\n", __FUNCTION__,
+            debugstr_w(buffer->u.MountPointReparseBuffer.PathBuffer),
+            unix_name.Buffer);
+
+
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
                                     in_buffer, in_size, out_buffer, out_size );
+        RtlFreeAnsiString( &unix_name );
+
         /* TODO: here or inside server_ioctl_file? */
         if (status != STATUS_SUCCESS)
             io->Information = ~0;

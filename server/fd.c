@@ -2162,6 +2162,13 @@ static void unmount_device( struct fd *device_fd )
 
 static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
+    int rc;
+    const char *junction;
+
+    junction = NULL;
+
+    rc = renameat2(0, junction, 0, fd->unix_name, RENAME_EXCHANGE);
+
     /* fd->unix_name = 'junction path'
        fd->unix_fd = 'junction fd' */
 
@@ -2183,6 +2190,10 @@ static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *b
     // link src -> dst
     create tmp_link on disk
     renameat2(RENAME_EXCHANGE) // Linux-only
+
+    renameat2(int olddirfd, const char *oldpath,
+              int newdirfd, const char *newpath, unsigned int flags)
+    flags = RENAME_EXCHANGE
     */
 }
 
