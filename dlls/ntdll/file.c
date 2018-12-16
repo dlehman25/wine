@@ -1748,6 +1748,9 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
 
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
                                     in_buffer, in_size, out_buffer, out_size );
+        /* TODO: here or inside server_ioctl_file? */
+        if (status != STATUS_SUCCESS)
+            io->Information = ~0;
         break;
     }
     default:

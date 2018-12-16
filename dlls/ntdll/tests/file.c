@@ -4777,7 +4777,7 @@ static void test_junction_points(void)
     memset(&iosb, 0xff, sizeof(iosb));
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
     ok(status == STATUS_ACCESS_DENIED, "expected %x, got %x\n", STATUS_ACCESS_DENIED, status);
-    todo_wine ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
     CloseHandle(junction);
 
     /* Create the junction point */
