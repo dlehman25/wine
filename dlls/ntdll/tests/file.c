@@ -4738,6 +4738,9 @@ static void test_junction_points(void)
 
 /* NOTE: no other handle is used for junction */
 
+/* TODO: only local volume */
+/* TODO: only absolute path */
+
     /* Create a temporary folder for the junction point tests */
     GetTempFileNameW(dotW, fooW, 0, path);
     DeleteFileW(path);
