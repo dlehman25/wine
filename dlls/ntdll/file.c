@@ -1748,6 +1748,8 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
             break;
         }
 
+        /* TODO: don't allow c:\windows, ... */
+
         /* TODO: Index of SubstituteOffset?? */
         if (!RtlDosPathNameToNtPathName_U( buffer->u.MountPointReparseBuffer.PathBuffer, &nt_name,
             NULL, NULL ))
