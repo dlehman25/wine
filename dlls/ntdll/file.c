@@ -1756,30 +1756,6 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
             break;
         }
 
-        /* TODO: or Open target and get handle and use that?? */
-        {
-            HANDLE target = NULL;
-            ACCESS_MASK access = GENERIC_READ|GENERIC_WRITE; /* TODO? */
-            OBJECT_ATTRIBUTES attr;
-            IO_STATUS_BLOCK io; /* TODO: re-use from caller? */
-            ULONG attributes = 0;
-            ULONG sharing = 0;
-            ULONG disposition = FILE_OPEN;
-            ULONG options = 0;
-
-            attr.Length = sizeof(attr);
-            attr.RootDirectory = 0;
-            attr.Attributes = OBJ_CASE_INSENSITIVE;
-            attr.ObjectName = &nt_name;
-            attr.SecurityDescriptor = NULL;
-            attr.SecurityQualityOfService = NULL;
-            status = FILE_CreateFile( &target, access, &attr, &io, NULL, attributes,
-                        sharing, disposition, options, NULL, 0 );
-
-        DPRINTF("%s: %p path %d %s\n", __FUNCTION__, target,
-            nt_name.Length, debugstr_w(nt_name.Buffer));
-        }
-
         /* TODO: overwrite status? */
         status = wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN_IF, FALSE );
         RtlFreeUnicodeString( &nt_name );
