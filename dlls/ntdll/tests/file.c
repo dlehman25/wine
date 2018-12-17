@@ -4886,8 +4886,8 @@ static void test_junction_points(void)
     /* TODO: remove when reparse supported */
     lstrcpyW(child_path, junction_path);
     lstrcatW(child_path, childW);
-    ret = RemoveDirectoryW(child_path);
-    ok(ret, "failed to remove %s\n", wine_dbgstr_w(child_path));
+    //ret = RemoveDirectoryW(child_path);
+    //ok(ret, "failed to remove %s\n", wine_dbgstr_w(child_path));
 
     /* Create file in junction point */
     lstrcpyW(child_path, junction_path);
