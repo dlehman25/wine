@@ -4705,6 +4705,7 @@ static void test_junction_points(void)
 {
     static BYTE buf[MAXIMUM_REPARSE_DATA_BUFFER_SIZE*2];
     REPARSE_DATA_BUFFER *buffer = (REPARSE_DATA_BUFFER *)buf;
+    static const WCHAR junction2W[] = {'\\','j','u','n','c','t','i','o','n','2',0};
     static const WCHAR junctionW[] = {'\\','j','u','n','c','t','i','o','n',0};
     static const WCHAR invalidW[] = {'\\','i','n','v','a','l','i','d',0};
     static const WCHAR targetW[] = {'\\','t','a','r','g','e','t',0};
@@ -4713,6 +4714,7 @@ static void test_junction_points(void)
     static const WCHAR fooW[] = {'f','o','o',0};
     static WCHAR volW[] = {'c',':','\\',0};
     static const WCHAR dotW[] = {'.',0};
+    WCHAR junction2_path[MAX_PATH];
     WCHAR junction_path[MAX_PATH];
     WCHAR invalid_path[MAX_PATH];
     WCHAR target_path[MAX_PATH];
@@ -4723,6 +4725,7 @@ static void test_junction_points(void)
     IO_STATUS_BLOCK iosb;
     NTSTATUS status;
     INT buffer_len;
+    HANDLE junction2;
     HANDLE junction;
     DWORD soff, slen;
     DWORD poff, plen;
@@ -4732,6 +4735,8 @@ static void test_junction_points(void)
     DWORD len;
     WCHAR *dest;
     BOOL ret;
+
+/* NOTE: no other handle is used for junction */
 
     /* Create a temporary folder for the junction point tests */
     GetTempFileNameW(dotW, fooW, 0, path);
@@ -4820,6 +4825,21 @@ static void test_junction_points(void)
     ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
     todo_wine ok(!iosb.u.Status, "expected 0, got %x\n", iosb.u.Status);
     CloseHandle(junction);
+
+    /* See if we can create another junction to the same target */
+    lstrcpyW(junction2_path, path);
+    lstrcatW(junction2_path, junction2W);
+    ret = CreateDirectoryW(junction2_path, NULL);
+    ok(ret, "failed to create another junction %s\n", wine_dbgstr_w(junction2_path));
+
+    junction2 = CreateFileW(junction2_path, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING,
+                            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+    status = pNtFsControlFile(junction2, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
+    ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
+    CloseHandle(junction2);
+
+    ret = RemoveDirectoryW(junction2_path);
+    ok(ret, "failed to remove %s\n", wine_dbgstr_w(junction2_path));
 
     /* Read back the junction point */
     junction = CreateFileW(junction_path, GENERIC_READ, 0, 0, OPEN_EXISTING,
