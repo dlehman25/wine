@@ -1766,17 +1766,16 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
         if (status != STATUS_SUCCESS)
             break;
 
-        buf2size = in_size + unix_name.Length+1;
-/*
-        buffer2 = heap_alloc(buf2size);
+        buf2size = in_size + unix_name.Length + 1;
+        buffer2 = RtlAllocateHeap( GetProcessHeap(), 0, buf2size );
         if (!buffer2)
         {
             status = STATUS_NO_MEMORY;
             break;
         }
-*/      
+
         DPRINTF("%s: ReparseTag 0x%08x\n", __FUNCTION__, buffer->ReparseTag);
-        DPRINTF("%s: ReparseDataLength %u\n", __FUNCTION__, buffer->ReparseDataLength);
+        DPRINTF("%s: ReparseDataLength %u in_size %u\n", __FUNCTION__, buffer->ReparseDataLength, in_size);
         DPRINTF("%s: Reserved %u\n", __FUNCTION__, buffer->Reserved);
         DPRINTF("%s: SubstituteNameOffset %u\n", __FUNCTION__, buffer->u.MountPointReparseBuffer.SubstituteNameOffset);
         DPRINTF("%s: SubstituteNameLength %u\n", __FUNCTION__, buffer->u.MountPointReparseBuffer.SubstituteNameLength);
@@ -1788,19 +1787,21 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
             debugstr_w(buffer->u.MountPointReparseBuffer.PathBuffer),
             unix_name.Length, strlen(unix_name.Buffer), unix_name.Buffer);
 
-
-        //memcpy(buffer2, buffer, in_size);
-
+        /* TODO: in_size vs ReparseDataLength */
+        memcpy( buffer2, buffer, in_size);
+        memcpy( (BYTE *)buffer2 + buffer->ReparseDataLength, unix_name.Buffer, unix_name.Length);
+        ((char*)buffer2)[buffer->ReparseDataLength + unix_name.Length] = 0;
 
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
-                                    in_buffer, in_size, out_buffer, out_size );
+                                    buffer2, buf2size, out_buffer, out_size );
+
         RtlFreeAnsiString( &unix_name );
 
         /* TODO: here or inside server_ioctl_file? */
         if (status != STATUS_SUCCESS)
             io->Information = ~0;
 
-//        heap_free(buffer2);
+        RtlFreeHeap( GetProcessHeap(), 0, buffer2 );
         break;
     }
     default:
