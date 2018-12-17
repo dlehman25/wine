@@ -2159,20 +2159,30 @@ static void unmount_device( struct fd *device_fd )
     list_init( &device->entry );
     release_object( device );
 }
+    
+/* TODO: if (renameat2 supported) */
+/* TODO: or some other generic name? */
+/* /usr/include/linux/fs.h:#define RENAME_EXCHANGE		(1 << 1)	*/
+static int ws_renameat2(int oldfd, const char *oldpath,
+                        int newfd, const char *newpath, unsigned int flags)
+{
+    return syscall(316 /* __NR_renameat2 */, oldfd, oldpath, newfd, newpath, flags);
+}
 
 static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
     int rc;
-    const char *junction;
     const char *target;
 
-    junction = NULL;
     target = (char *)buf + buf->ReparseDataLength;
     printf("%s: junction %s\n", __FUNCTION__, fd->unix_name);
     printf("%s: target %s\n", __FUNCTION__, target);
 
-    //rc = renameat2(0, junction, 0, fd->unix_name, RENAME_EXCHANGE);
+    /* TODO: does the junction point need to become a symlink? */
+    rc = ws_renameat2(0, target, 0, fd->unix_name, (1<<1));
+    printf("rc = %d\n", rc);
 
+    /* TODO: fd->target = target */
     /* fd->unix_name = 'junction path'
        fd->unix_fd = 'junction fd' */
 
