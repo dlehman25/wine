@@ -2166,6 +2166,7 @@ static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *b
     const char *junction;
 
     junction = NULL;
+    printf("%s: %s\n", __FUNCTION__, fd->unix_name);
 
     //rc = renameat2(0, junction, 0, fd->unix_name, RENAME_EXCHANGE);
 

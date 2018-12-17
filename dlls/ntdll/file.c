@@ -1733,8 +1733,10 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
     case FSCTL_SET_REPARSE_POINT:
     {
         REPARSE_DATA_BUFFER *buffer = in_buffer;
+        REPARSE_DATA_BUFFER *buffer2;        
         UNICODE_STRING nt_name;
         ANSI_STRING unix_name;
+        ULONG buf2size;
 
         if (!in_buffer)
         {
@@ -1758,13 +1760,36 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
             break;
         }
 
-        /* TODO: overwrite status? */
+        /* TODO: overwrite status? different status? */
         status = wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN_IF, FALSE );
         RtlFreeUnicodeString( &nt_name );
+        if (status != STATUS_SUCCESS)
+            break;
+
+        buf2size = in_size + unix_name.Length+1;
+/*
+        buffer2 = heap_alloc(buf2size);
+        if (!buffer2)
+        {
+            status = STATUS_NO_MEMORY;
+            break;
+        }
+*/      
+        DPRINTF("%s: ReparseTag 0x%08x\n", __FUNCTION__, buffer->ReparseTag);
+        DPRINTF("%s: ReparseDataLength %u\n", __FUNCTION__, buffer->ReparseDataLength);
+        DPRINTF("%s: Reserved %u\n", __FUNCTION__, buffer->Reserved);
+        DPRINTF("%s: SubstituteNameOffset %u\n", __FUNCTION__, buffer->u.MountPointReparseBuffer.SubstituteNameOffset);
+        DPRINTF("%s: SubstituteNameLength %u\n", __FUNCTION__, buffer->u.MountPointReparseBuffer.SubstituteNameLength);
+        DPRINTF("%s: PrintNameOffset %u\n", __FUNCTION__, buffer->u.MountPointReparseBuffer.PrintNameOffset);
+        DPRINTF("%s: PrintNameLength %u\n", __FUNCTION__, buffer->u.MountPointReparseBuffer.PrintNameLength);
+        DPRINTF("%s: PathBuffer %s\n", __FUNCTION__, debugstr_w(buffer->u.MountPointReparseBuffer.PathBuffer));
 
         DPRINTF("%s: path %s -> %u %u %s\n", __FUNCTION__,
             debugstr_w(buffer->u.MountPointReparseBuffer.PathBuffer),
             unix_name.Length, strlen(unix_name.Buffer), unix_name.Buffer);
+
+
+        //memcpy(buffer2, buffer, in_size);
 
 
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
@@ -1774,6 +1799,8 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
         /* TODO: here or inside server_ioctl_file? */
         if (status != STATUS_SUCCESS)
             io->Information = ~0;
+
+//        heap_free(buffer2);
         break;
     }
     default:
