@@ -4889,7 +4889,7 @@ static void test_junction_points(void)
     todo_wine ok(buffer->ReparseDataLength == buffer_len, "expected %d, got %d\n", buffer_len, buffer->ReparseDataLength);
 
     attr = GetFileAttributesW(junction_path);
-    todo_wine ok(attr == 0x410 || broken(attr == 0x430) /* win2k */ || broken(attr == 0xc10) /* vista */,
+    ok(attr == 0x410 || broken(attr == 0x430) /* win2k */ || broken(attr == 0xc10) /* vista */,
         "expected 0x410, got %x\n", attr);
 
     /* Create directory in junction point */
@@ -4901,10 +4901,10 @@ static void test_junction_points(void)
     lstrcpyW(child_path, target_path);
     lstrcatW(child_path, childW);
     attr = GetFileAttributesW(child_path);
-    todo_wine ok(attr != INVALID_FILE_ATTRIBUTES, "failed to get %s\n", wine_dbgstr_w(child_path));
+    ok(attr != INVALID_FILE_ATTRIBUTES, "failed to get %s\n", wine_dbgstr_w(child_path));
 
     ret = RemoveDirectoryW(child_path);
-    todo_wine ok(ret, "failed to remove %s\n", wine_dbgstr_w(child_path));
+    ok(ret, "failed to remove %s\n", wine_dbgstr_w(child_path));
 
     /* TODO: remove when reparse supported */
     lstrcpyW(child_path, junction_path);
@@ -4922,10 +4922,10 @@ static void test_junction_points(void)
     lstrcpyW(child_path, target_path);
     lstrcatW(child_path, childW);
     attr = GetFileAttributesW(child_path);
-    todo_wine ok(attr != INVALID_FILE_ATTRIBUTES, "failed to get %s\n", wine_dbgstr_w(child_path));
+    ok(attr != INVALID_FILE_ATTRIBUTES, "failed to get %s\n", wine_dbgstr_w(child_path));
 
     ret = DeleteFileW(child_path);
-    todo_wine ok(ret, "failed to delete %s\n", wine_dbgstr_w(child_path));
+    ok(ret, "failed to delete %s\n", wine_dbgstr_w(child_path));
 
     lstrcpyW(child_path, path);
     lstrcatW(child_path, filterW);
@@ -4937,7 +4937,7 @@ static void test_junction_points(void)
     {
         if (!lstrcmpW(find.cFileName, &junctionW[1]))
         {
-            todo_wine ok(find.dwFileAttributes == 0x410 || broken(find.dwFileAttributes == 0xc10) /* vista */,
+            ok(find.dwFileAttributes == 0x410 || broken(find.dwFileAttributes == 0xc10) /* vista */,
                 "expected 0x410, got %x\n", attr);
             todo_wine ok(find.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT, "expected %x, got %x\n",
                IO_REPARSE_TAG_MOUNT_POINT, find.dwReserved0);
