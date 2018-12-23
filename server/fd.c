@@ -2169,7 +2169,7 @@ static int ws_renameat2(int oldfd, const char *oldpath,
     return syscall(316 /* __NR_renameat2 */, oldfd, oldpath, newfd, newpath, flags);
 }
 
-static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
+static int set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
     static const char temp[] = ".XXXXXX";
     int rc;
@@ -2178,6 +2178,9 @@ static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *b
     const char *target;
     char *link;
     int fd_link;
+
+    if (!(fd->access & FILE_WRITE_EA))
+        return 0;
 
     target = (char *)buf + buf->ReparseDataLength;
     printf("%s: junction %s\n", __FUNCTION__, fd->unix_name);
@@ -2228,6 +2231,7 @@ static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *b
               int newdirfd, const char *newpath, unsigned int flags)
     flags = RENAME_EXCHANGE
     */
+    return 1;
 }
 
 /* default read() routine */
@@ -2338,7 +2342,14 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
         switch(buf->ReparseTag)
         {
         case IO_REPARSE_TAG_MOUNT_POINT:
-            set_reparse_mount_point( fd, buf );
+            if (!set_reparse_mount_point( fd, buf ))
+            {
+                release_object( iosb );
+                set_error( STATUS_ACCESS_DENIED );
+                return 1;
+            }
+            release_object( iosb );
+            return 1;
             break;
 
         default:
@@ -2346,10 +2357,7 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
             set_error( STATUS_NOT_SUPPORTED );
             return 1;
         }
-
-        release_object( iosb );
-        set_error( STATUS_ACCESS_DENIED );
-        return 1;
+        /* TODO: ?? */
     }
     default:
         set_error( STATUS_NOT_SUPPORTED );

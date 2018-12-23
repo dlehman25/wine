@@ -4824,9 +4824,9 @@ static void test_junction_points(void)
 
     /* Finally create the junction point */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
-    todo_wine ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
+    ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
     ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
-    todo_wine ok(!iosb.u.Status, "expected 0, got %x\n", iosb.u.Status);
+    ok(!iosb.u.Status, "expected 0, got %x\n", iosb.u.Status);
     CloseHandle(junction);
 
     /* See if we can create another junction to the same target */
