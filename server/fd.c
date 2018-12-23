@@ -2171,15 +2171,34 @@ static int ws_renameat2(int oldfd, const char *oldpath,
 
 static void set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
+    static const char temp[] = ".XXXXXX";
     int rc;
+    size_t link_len;
+    size_t unix_name_len;
     const char *target;
+    char *link;
+    int fd_link;
 
     target = (char *)buf + buf->ReparseDataLength;
     printf("%s: junction %s\n", __FUNCTION__, fd->unix_name);
     printf("%s: target %s\n", __FUNCTION__, target);
 
+    unix_name_len = strlen(fd->unix_name);
+    link_len = unix_name_len + sizeof(temp);
+    link = malloc(link_len);
+    // TODO: if (!link)
+    memcpy(link, fd->unix_name, unix_name_len);
+    memcpy(link + unix_name_len, temp, sizeof(temp));
+    fd_link = mkstemps(link, 0);
+    // TODO: if (fd_link == -1)
+    printf("%s: fd %d link %s\n", __FUNCTION__, fd_link, link);
+    rc = close(fd_link);
+    rc = unlink(link);
+    rc = symlink(target, link);
+    printf("%s: rc %d %s -> %s\n", __FUNCTION__, rc, link, target);
+
     /* TODO: does the junction point need to become a symlink? */
-    rc = ws_renameat2(0, target, 0, fd->unix_name, (1<<1));
+    rc = ws_renameat2(0, fd->unix_name, 0, link, (1<<1));
     printf("rc = %d\n", rc);
 
     /* TODO: fd->target = target */
