@@ -1774,6 +1774,8 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
             break;
         }
 
+if (0)
+{
         DPRINTF("%s: ReparseTag 0x%08x\n", __FUNCTION__, buffer->ReparseTag);
         DPRINTF("%s: ReparseDataLength %u in_size %u\n", __FUNCTION__, buffer->ReparseDataLength, in_size);
         DPRINTF("%s: Reserved %u\n", __FUNCTION__, buffer->Reserved);
@@ -1786,7 +1788,7 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
         DPRINTF("%s: path %s -> %u %u %s\n", __FUNCTION__,
             debugstr_w(buffer->u.MountPointReparseBuffer.PathBuffer),
             unix_name.Length, strlen(unix_name.Buffer), unix_name.Buffer);
-
+}
         /* TODO: in_size vs ReparseDataLength */
         memcpy( buffer2, buffer, in_size);
         memcpy( (BYTE *)buffer2 + buffer->ReparseDataLength, unix_name.Buffer, unix_name.Length);
