@@ -4817,7 +4817,7 @@ static void test_junction_points(void)
     ret = CreateDirectoryW(invalid_path, NULL);
     ok(ret, "failed to create %s\n", wine_dbgstr_w(invalid_path));
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
-    todo_wine ok(status == STATUS_DIRECTORY_NOT_EMPTY, "expected %x, got %x\n", STATUS_DIRECTORY_NOT_EMPTY, status);
+    ok(status == STATUS_DIRECTORY_NOT_EMPTY, "expected %x, got %x\n", STATUS_DIRECTORY_NOT_EMPTY, status);
     ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
     ret = RemoveDirectoryW(invalid_path);
     ok(ret, "failed to remove %s\n", wine_dbgstr_w(invalid_path));

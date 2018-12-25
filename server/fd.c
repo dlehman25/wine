@@ -2169,6 +2169,30 @@ static int ws_renameat2(int oldfd, const char *oldpath,
     return syscall(316 /* __NR_renameat2 */, oldfd, oldpath, newfd, newpath, flags);
 }
 
+/* TODO: more efficient way? moot if renameat2 works */
+#include <sys/types.h>
+#include <dirent.h>
+static int is_empty_dir( const char *dirname )
+{
+    DIR *dir;
+    int nfiles;
+    struct dirent *ent;
+    
+    if (!(dir = opendir( dirname )))
+        return 0;
+
+    nfiles = 0;
+    while ((ent = readdir(dir)))
+    {
+        /* TODO: can we assume first are '.' and '..' ? */
+        if (nfiles++ > 2)
+            break;
+    }
+
+    closedir(dir);
+    return nfiles <= 2;
+}
+
 static int set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
     static const char temp[] = ".XXXXXX";
@@ -2180,11 +2204,22 @@ static int set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *bu
     int fd_link;
 
     if (!(fd->access & FILE_WRITE_EA))
+    {
+        set_error( STATUS_ACCESS_DENIED );
         return 0;
+    }
 
     target = (char *)buf + buf->ReparseDataLength;
     printf("%s: junction %s\n", __FUNCTION__, fd->unix_name);
     printf("%s: target %s\n", __FUNCTION__, target);
+
+    rc = is_empty_dir( fd->unix_name );
+    printf("%s: empty %d %s\n", __FUNCTION__, rc, fd->unix_name );
+    if (!rc)
+    {
+        set_error(STATUS_DIRECTORY_NOT_EMPTY);
+        return 0;
+    }
 
     unix_name_len = strlen(fd->unix_name);
     link_len = unix_name_len + sizeof(temp);
@@ -2345,7 +2380,6 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
             if (!set_reparse_mount_point( fd, buf ))
             {
                 release_object( iosb );
-                set_error( STATUS_ACCESS_DENIED );
                 return 1;
             }
             release_object( iosb );
