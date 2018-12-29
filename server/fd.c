@@ -2195,18 +2195,41 @@ static int is_empty_dir( const char *dirname )
 
 static int del_reparse_mount_point( struct fd *fd )
 {
-    printf("%s: unix_name %s\n", __FUNCTION__, fd->unix_name); fflush(stdout);
+    static const char temp[] = ".XXXXXX";
+    size_t unix_name_len;
+    size_t path_len;
+    char *path;
+    int rc;
+
     if (!(fd->access & FILE_WRITE_EA))
     {
         set_error( STATUS_ACCESS_DENIED );
         return 0;
     }
+
+    /* TODO: fail if link?? */
+
     /* create random dir */
+    /* TODO: ./configure check for mkdtemp? */
+
+    unix_name_len = strlen(fd->unix_name);
+    path_len = unix_name_len + sizeof(temp);
+    path = malloc(path_len);
+    // TODO: if (!path)
+    memcpy(path, fd->unix_name, unix_name_len);
+    memcpy(path + unix_name_len, temp, sizeof(temp));
+    mkdtemp(path); /* TODO: error? */
+
+    printf("%s: %s <-> %s\n", __FUNCTION__, fd->unix_name, path); fflush(stdout);
 
     /* swap with link */
+    rc = ws_renameat2(0, fd->unix_name, 0, path, (1<<1));
+    printf("rc = %d\n", rc);
 
     /* remove link */
+    unlink(path); /* TODO: pulling rug out from under fd? */
 
+    free(path);
     return 1;
 }
 
