@@ -4856,7 +4856,13 @@ static void test_junction_points(void)
     ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
     ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
+    guid_buffer.ReparseTag = IO_REPARSE_TAG_NFS;
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, &guid_buffer, 2, NULL, 0);
+    ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+
     /* Successfully delete reparse point */
+    guid_buffer.ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, &guid_buffer, REPARSE_GUID_DATA_BUFFER_HEADER_SIZE, NULL, 0);
     ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
     ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
