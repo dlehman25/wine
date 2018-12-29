@@ -1815,7 +1815,6 @@ if (0)
             status = STATUS_INVALID_BUFFER_SIZE;
             break;
         }
-        DPRINTF("%s: DELETE ReparseTag 0x%08x\n", __FUNCTION__, buffer->ReparseTag);
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
                                     in_buffer, in_size, out_buffer, out_size );
         if (status != STATUS_SUCCESS)
