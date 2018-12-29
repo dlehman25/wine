@@ -4705,6 +4705,7 @@ static void test_junction_points(void)
 {
     static BYTE buf[MAXIMUM_REPARSE_DATA_BUFFER_SIZE*2];
     REPARSE_DATA_BUFFER *buffer = (REPARSE_DATA_BUFFER *)buf;
+    REPARSE_GUID_DATA_BUFFER guid_buffer;
     static const WCHAR junction2W[] = {'\\','j','u','n','c','t','i','o','n','2',0};
     static const WCHAR junctionW[] = {'\\','j','u','n','c','t','i','o','n',0};
     static const WCHAR invalidW[] = {'\\','i','n','v','a','l','i','d',0};
@@ -4796,6 +4797,7 @@ static void test_junction_points(void)
 
     junction = CreateFileW(junction_path, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING,
                            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+    ok(junction != INVALID_HANDLE_VALUE, "got %x\n", GetLastError());
 
     /* Invalid arguments */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, NULL, 0, NULL, 0);
@@ -4823,6 +4825,45 @@ static void test_junction_points(void)
     ok(ret, "failed to remove %s\n", wine_dbgstr_w(invalid_path));
 
     /* Finally create the junction point */
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
+    ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
+    ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
+    ok(!iosb.u.Status, "expected 0, got %x\n", iosb.u.Status);
+    CloseHandle(junction);
+
+    /* TODO: ERROR_REPARSE_TAG_MISMATCH, ERROR_REPARSE_ATTRIBUTE_CONFLICT */
+
+    /* Test deleting junction point */
+    junction = CreateFileW(junction_path, GENERIC_READ, 0, 0, OPEN_EXISTING,
+                           FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+    memset(&guid_buffer, 0x00, sizeof(guid_buffer));
+    guid_buffer.ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
+    memset(&iosb, 0xff, sizeof(iosb));
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT,
+                              &guid_buffer, REPARSE_GUID_DATA_BUFFER_HEADER_SIZE, NULL, 0);
+    ok(status == STATUS_ACCESS_DENIED, "expected %x, got %x\n", STATUS_ACCESS_DENIED, status);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+    CloseHandle(junction);
+
+    junction = CreateFileW(junction_path, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING,
+                           FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, NULL, 0, NULL, 0);
+    ok(status == STATUS_INVALID_BUFFER_SIZE, "expected %x, got %x\n", STATUS_INVALID_BUFFER_SIZE, status);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, &guid_buffer, 2, NULL, 0);
+    ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, &guid_buffer, REPARSE_GUID_DATA_BUFFER_HEADER_SIZE, NULL, 0);
+    ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
+    ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
+    CloseHandle(junction);
+
+    /* Recreate junction point for following tests */
+    junction = CreateFileW(junction_path, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING,
+                           FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+    ok(junction != INVALID_HANDLE_VALUE, "got %x\n", GetLastError());
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
     ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
     ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
