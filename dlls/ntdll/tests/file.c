@@ -4824,7 +4824,13 @@ static void test_junction_points(void)
     ret = RemoveDirectoryW(invalid_path);
     ok(ret, "failed to remove %s\n", wine_dbgstr_w(invalid_path));
 
+    buffer->ReparseTag = IO_REPARSE_TAG_SYMLINK;
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, REPARSE_DATA_BUFFER_HEADER_SIZE - 2, NULL, 0);
+    ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
+
     /* Finally create the junction point */
+    buffer->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_SET_REPARSE_POINT, buffer, buffer_len, NULL, 0);
     ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
     ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
