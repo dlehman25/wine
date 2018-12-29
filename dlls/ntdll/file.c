@@ -1806,6 +1806,22 @@ if (0)
         RtlFreeHeap( GetProcessHeap(), 0, buffer2 );
         break;
     }
+    case FSCTL_DELETE_REPARSE_POINT:
+    {
+        REPARSE_DATA_BUFFER *buffer = in_buffer;
+
+        if (!in_buffer)
+        {
+            status = STATUS_INVALID_BUFFER_SIZE;
+            break;
+        }
+        DPRINTF("%s: DELETE ReparseTag 0x%08x\n", __FUNCTION__, buffer->ReparseTag);
+        status = server_ioctl_file( handle, event, apc, apc_context, io, code,
+                                    in_buffer, in_size, out_buffer, out_size );
+        if (status != STATUS_SUCCESS)
+            io->Information = ~0; /* TODO: set to ~0 or restore to original? */
+        break;
+    }
     default:
         return server_ioctl_file( handle, event, apc, apc_context, io, code,
                                   in_buffer, in_size, out_buffer, out_size );

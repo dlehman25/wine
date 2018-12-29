@@ -2193,6 +2193,23 @@ static int is_empty_dir( const char *dirname )
     return nfiles <= 2;
 }
 
+static int del_reparse_mount_point( struct fd *fd )
+{
+    printf("%s: unix_name %s\n", __FUNCTION__, fd->unix_name); fflush(stdout);
+    if (!(fd->access & FILE_WRITE_EA))
+    {
+        set_error( STATUS_ACCESS_DENIED );
+        return 0;
+    }
+    /* create random dir */
+
+    /* swap with link */
+
+    /* remove link */
+
+    return 1;
+}
+
 static int set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *buf )
 {
     static const char temp[] = ".XXXXXX";
@@ -2367,6 +2384,32 @@ int default_fd_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
     case FSCTL_DISMOUNT_VOLUME:
         unmount_device( fd );
         return 1;
+    case FSCTL_DELETE_REPARSE_POINT:
+    {
+        REPARSE_DATA_BUFFER *buf;
+        struct iosb *iosb;
+
+        iosb = async_get_iosb(async);
+        buf = iosb->in_data;
+        switch(buf->ReparseTag)
+        {
+        case IO_REPARSE_TAG_MOUNT_POINT:
+            if (!del_reparse_mount_point( fd ))
+            {
+                release_object( iosb );
+                return 1;
+            }
+            release_object( iosb );
+            return 1;
+            break;
+
+        default:
+            release_object( iosb );
+            set_error( STATUS_NOT_SUPPORTED );
+            return 1;
+        }
+        /* TODO: ?? */
+    }
     case FSCTL_SET_REPARSE_POINT:
     {
         REPARSE_DATA_BUFFER *buf;
