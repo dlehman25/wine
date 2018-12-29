@@ -4847,6 +4847,7 @@ static void test_junction_points(void)
 
     junction = CreateFileW(junction_path, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING,
                            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+    /* Try invalid arguments to delete control */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, NULL, 0, NULL, 0);
     ok(status == STATUS_INVALID_BUFFER_SIZE, "expected %x, got %x\n", STATUS_INVALID_BUFFER_SIZE, status);
     ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
@@ -4855,9 +4856,16 @@ static void test_junction_points(void)
     ok(status == STATUS_IO_REPARSE_DATA_INVALID, "expected %x, got %x\n", STATUS_IO_REPARSE_DATA_INVALID, status);
     ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
 
+    /* Successfully delete reparse point */
     status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, &guid_buffer, REPARSE_GUID_DATA_BUFFER_HEADER_SIZE, NULL, 0);
     ok(status == STATUS_SUCCESS, "expected 0, got %x\n", status);
     ok(!iosb.Information, "expected 0, got %lx\n", iosb.Information);
+
+    /* Try deleting non-existing reparse point */
+    memset(&iosb, 0xff, sizeof(iosb));
+    status = pNtFsControlFile(junction, NULL, NULL, NULL, &iosb, FSCTL_DELETE_REPARSE_POINT, &guid_buffer, REPARSE_GUID_DATA_BUFFER_HEADER_SIZE, NULL, 0);
+    ok(status == STATUS_NOT_A_REPARSE_POINT, "expected %x, got %x\n", STATUS_NOT_A_REPARSE_POINT, status);
+    ok(iosb.Information == ~0, "expected ~0, got %lx\n", iosb.Information);
     CloseHandle(junction);
 
     /* Recreate junction point for following tests */
