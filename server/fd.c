@@ -2277,7 +2277,7 @@ static int set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *bu
 
     /* TODO: does the junction point need to become a symlink? */
     rc = ws_renameat2(0, fd->unix_name, 0, link, (1<<1));
-    printf("rc = %d\n", rc);
+    printf("%s: %d: rc = %d\n", __FUNCTION__, __LINE__, rc);
 
     /* TODO: fd->target = target */
     /* fd->unix_name = 'junction path'
@@ -2306,6 +2306,9 @@ static int set_reparse_mount_point( struct fd *fd, const REPARSE_DATA_BUFFER *bu
               int newdirfd, const char *newpath, unsigned int flags)
     flags = RENAME_EXCHANGE
     */
+    rc = rmdir(link);
+    printf("%s: %d: rc = %d\n", __FUNCTION__, __LINE__, rc);
+    free(link);
     return 1;
 }
 
