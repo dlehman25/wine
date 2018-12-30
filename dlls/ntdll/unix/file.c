@@ -5487,6 +5487,11 @@ NTSTATUS WINAPI NtReadFile( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc, vo
         if (needs_close) close( unix_handle );
         return status;
     }
+    else if (type == FD_TYPE_DIR)
+    {
+        status = STATUS_INVALID_DEVICE_REQUEST;
+        goto done;
+    }
 
     if (type == FD_TYPE_SERIAL && async_read && length)
     {

@@ -184,7 +184,6 @@ static void create_file_test(void)
     io.Status = 0xdeadbeef;
     offset.QuadPart = 0;
     status = pNtWriteFile( dir, NULL, NULL, NULL, &io, testdata, sizeof(testdata), &offset, NULL);
-    todo_wine
     ok( status == STATUS_INVALID_DEVICE_REQUEST || status == STATUS_PENDING, "NtWriteFile error %08lx\n", status );
     if (status == STATUS_PENDING)
     {
