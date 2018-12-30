@@ -52,6 +52,7 @@ static NTSTATUS  (WINAPI *pNtTerminateProcess)(HANDLE handle, LONG exit_code);
 static NTSTATUS  (WINAPI *pNtQueryInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
 static NTSTATUS  (WINAPI *pNtSetInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG);
 static BOOL      (WINAPI *pIsWow64Process)(HANDLE, PBOOL);
+static HRESULT   (WINAPI *pIsWow64GuestMachineSupported)(USHORT, BOOL*);
 static NTSTATUS  (WINAPI *pNtClose)(HANDLE);
 
 #if defined(__x86_64__)
@@ -2582,7 +2583,17 @@ static void test_wow64_context(void)
     PROCESS_INFORMATION pi;
     STARTUPINFOA si = {0};
     WOW64_CONTEXT ctx;
+    BOOL supported;
     NTSTATUS ret;
+
+    /* TODO: use other means? */
+    supported = FALSE;
+    if (!pIsWow64GuestMachineSupported ||
+        pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_I386, &supported) || !supported)
+    {
+        win_skip("Wow64 not supported\n");
+        return;
+    }
 
     memset(&ctx, 0x55, sizeof(ctx));
     ctx.ContextFlags = WOW64_CONTEXT_ALL;
@@ -3116,6 +3127,7 @@ static void test_vectored_continue_handler(void)
 START_TEST(exception)
 {
     HMODULE hntdll = GetModuleHandleA("ntdll.dll");
+    HMODULE hkernel = GetModuleHandleA("kernel32.dll");
 #if defined(__x86_64__)
     HMODULE hmsvcrt = LoadLibraryA("msvcrt.dll");
 #endif
@@ -3146,8 +3158,8 @@ START_TEST(exception)
                                                                  "NtQueryInformationProcess" );
     pNtSetInformationProcess           = (void*)GetProcAddress( hntdll,
                                                                  "NtSetInformationProcess" );
-    pIsWow64Process = (void *)GetProcAddress(GetModuleHandleA("kernel32.dll"), "IsWow64Process");
-
+    pIsWow64Process                    = (void*)GetProcAddress( hkernel,
+                                                                 "IsWow64Process" );
 #ifdef __i386__
     if (!pIsWow64Process || !pIsWow64Process( GetCurrentProcess(), &is_wow64 )) is_wow64 = FALSE;
 
@@ -3258,6 +3270,8 @@ START_TEST(exception)
                                                                  "RtlWow64SetThreadContext" );
     p_setjmp                           = (void *)GetProcAddress( hmsvcrt,
                                                                  "_setjmp" );
+    pIsWow64GuestMachineSupported      = (void *)GetProcAddress( hkernel,
+                                                                 "IsWow64GuestMachineSupported" );
 
     test_debug_registers();
     test_outputdebugstring(1, FALSE);
