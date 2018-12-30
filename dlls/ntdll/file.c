@@ -889,6 +889,11 @@ NTSTATUS WINAPI NtReadFile(HANDLE hFile, HANDLE hEvent,
             goto done;
         }
     }
+    else if (type == FD_TYPE_DIR)
+    {
+        status = STATUS_INVALID_DEVICE_REQUEST;
+        goto done;
+    }
 
     if (type == FD_TYPE_SERIAL && async_read && length)
     {
@@ -1296,6 +1301,11 @@ NTSTATUS WINAPI NtWriteFile(HANDLE hFile, HANDLE hEvent,
             status = STATUS_INVALID_PARAMETER;
             goto done;
         }
+    }
+    else if (type == FD_TYPE_DIR)
+    {
+        status = STATUS_INVALID_DEVICE_REQUEST;
+        goto done;
     }
 
     for (;;)
