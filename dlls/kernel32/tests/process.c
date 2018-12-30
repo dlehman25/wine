@@ -64,6 +64,7 @@
 static HINSTANCE hkernel32, hntdll;
 static void   (WINAPI *pGetNativeSystemInfo)(LPSYSTEM_INFO);
 static BOOL   (WINAPI *pGetSystemRegistryQuota)(PDWORD, PDWORD);
+static HRESULT(WINAPI *pIsWow64GuestMachineSupported)(USHORT,BOOL*);
 static BOOL   (WINAPI *pIsWow64Process)(HANDLE,PBOOL);
 static LPVOID (WINAPI *pVirtualAllocEx)(HANDLE, LPVOID, SIZE_T, DWORD, DWORD);
 static BOOL   (WINAPI *pVirtualFreeEx)(HANDLE, LPVOID, SIZE_T, DWORD);
@@ -232,6 +233,7 @@ static BOOL init(void)
 
     pGetNativeSystemInfo = (void *) GetProcAddress(hkernel32, "GetNativeSystemInfo");
     pGetSystemRegistryQuota = (void *) GetProcAddress(hkernel32, "GetSystemRegistryQuota");
+    pIsWow64GuestMachineSupported = (void *) GetProcAddress(hkernel32, "IsWow64GuestMachineSupported");
     pIsWow64Process = (void *) GetProcAddress(hkernel32, "IsWow64Process");
     pVirtualAllocEx = (void *) GetProcAddress(hkernel32, "VirtualAllocEx");
     pVirtualFreeEx = (void *) GetProcAddress(hkernel32, "VirtualFreeEx");
@@ -3784,6 +3786,45 @@ static void test_ProcThreadAttributeList(void)
     pDeleteProcThreadAttributeList(&list);
 }
 
+static void test_IsWow64GuestMachineSupported(void)
+{
+    BOOL supported;
+    HRESULT hres;
+    if (!pIsWow64GuestMachineSupported)
+    {
+        win_skip("IsWow64GuestMachineSupported not supported\n");
+        return;
+    }
+
+    if (0) /* crashes */
+        hres = pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_I386, NULL);
+
+    supported = 42;
+    hres = pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_I386, &supported);
+    ok(hres == STATUS_SUCCESS, "got %x\n", hres);
+    ok(supported == TRUE, "got %x\n", supported);
+
+    supported = 42;
+    hres = pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_UNKNOWN, &supported);
+    ok(hres == STATUS_SUCCESS, "got %x\n", hres);
+    ok(supported == FALSE, "got %x\n", supported);
+
+    supported = 42;
+    hres = pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_TARGET_HOST, &supported);
+    ok(hres == STATUS_SUCCESS, "got %x\n", hres);
+    ok(supported == FALSE, "got %x\n", supported);
+
+    supported = 42;
+    hres = pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_R3000, &supported);
+    ok(hres == STATUS_SUCCESS, "got %x\n", hres);
+    ok(supported == FALSE, "got %x\n", supported);
+
+    supported = 42;
+    hres = pIsWow64GuestMachineSupported(IMAGE_FILE_MACHINE_AMD64, &supported);
+    ok(hres == STATUS_SUCCESS, "got %x\n", hres);
+    ok(supported == FALSE, "got %x\n", supported);
+}
+
 START_TEST(process)
 {
     HANDLE job;
@@ -3859,6 +3900,7 @@ START_TEST(process)
     test_QueryFullProcessImageNameW();
     test_Handles();
     test_IsWow64Process();
+    test_IsWow64GuestMachineSupported();
     test_SystemInfo();
     test_RegistryQuota();
     test_DuplicateHandle();

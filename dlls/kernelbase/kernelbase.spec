@@ -883,6 +883,7 @@
 @ stdcall IsValidSecurityDescriptor(ptr) advapi32.IsValidSecurityDescriptor
 @ stdcall IsValidSid(ptr) advapi32.IsValidSid
 @ stdcall IsWellKnownSid(ptr long) advapi32.IsWellKnownSid
+@ stdcall IsWow64GuestMachineSupported(long ptr) kernel32.IsWow64GuestMachineSupported
 @ stdcall IsWow64Process(ptr ptr) kernel32.IsWow64Process
 # @ stub IsWow64Process2
 @ stdcall K32EmptyWorkingSet(long) kernel32.K32EmptyWorkingSet

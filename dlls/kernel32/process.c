@@ -4211,6 +4211,20 @@ DWORD WINAPI RegisterServiceProcess(DWORD dwProcessId, DWORD dwType)
     return 1; /* success */
 }
 
+/**********************************************************************
+ *           IsWow64GuestMachineSupported (KERNEL32.@)
+ */
+HRESULT WINAPI IsWow64GuestMachineSupported(USHORT machine, BOOL *supported)
+{
+    FIXME("semi-stub\n");
+
+#if defined(__i386__) || defined(__x86_64__)
+    *supported = machine == IMAGE_FILE_MACHINE_I386;
+#else
+    *supported = FALSE;
+#endif
+    return STATUS_SUCCESS;
+}
 
 /**********************************************************************
  *           IsWow64Process         (KERNEL32.@)

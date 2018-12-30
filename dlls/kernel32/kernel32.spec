@@ -994,6 +994,7 @@
 @ stdcall IsValidLocale(long long)
 @ stdcall IsValidLocaleName(wstr)
 # @ stub IsValidUILanguage
+@ stdcall IsWow64GuestMachineSupported(long ptr)
 @ stdcall IsWow64Process(ptr ptr)
 @ stdcall K32EmptyWorkingSet(long)
 @ stdcall K32EnumDeviceDrivers(ptr long ptr)
