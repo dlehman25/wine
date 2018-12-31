@@ -243,4 +243,6 @@ static inline int async_queued( struct async_queue *queue )
 #define FILE_MAPPING_WRITE  0x40000000  /* set for writable shared mappings */
 #define FILE_MAPPING_ACCESS 0x20000000  /* set for all mappings */
 
+int is_file_object( const struct object * );
+
 #endif  /* __WINE_SERVER_FILE_H */

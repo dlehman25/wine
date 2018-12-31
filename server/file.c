@@ -777,3 +777,8 @@ DECL_HANDLER(unlock_file)
         release_object( file );
     }
 }
+
+int is_file_object( const struct object *obj )
+{
+    return obj->ops == &file_ops;
+}

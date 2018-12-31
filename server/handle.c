@@ -38,6 +38,7 @@
 #include "thread.h"
 #include "security.h"
 #include "request.h"
+#include "file.h"
 
 struct handle_entry
 {
@@ -556,6 +557,13 @@ obj_handle_t duplicate_handle( struct process *src, obj_handle_t src_handle, str
     /* asking for the more access rights than src_access? */
     if (access & ~src_access)
     {
+        if (is_file_object( obj ))
+        {
+            set_error( STATUS_ACCESS_DENIED );
+            release_object( obj );
+            return 0;
+        }
+
         if (options & DUP_HANDLE_MAKE_GLOBAL)
             res = alloc_global_handle( obj, access );
         else
