@@ -1872,6 +1872,7 @@ struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_nam
     int root_fd = -1;
     int rw_mode;
     char *path;
+    const int create_only = (flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL);
 
     if (((options & FILE_DELETE_ON_CLOSE) && !(access & DELETE)) ||
         ((options & FILE_DIRECTORY_FILE) && (flags & O_TRUNC)))
@@ -1921,10 +1922,20 @@ struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_nam
     }
     else rw_mode = O_RDONLY;
 
+    if (!create_only)
+        flags |= O_EXCL;
+
     if ((fd->unix_fd = open( name, rw_mode | (flags & ~O_TRUNC), *mode )) == -1)
     {
+        if (!create_only && errno == EEXIST)
+        {
+            flags &= ~O_EXCL;
+            fd->unix_fd = open( name, rw_mode | (flags & ~O_TRUNC), *mode );
+            /* fall-through */
+        }
+
         /* if we tried to open a directory for write access, retry read-only */
-        if (errno == EISDIR)
+        if (fd->unix_fd == -1 && errno == EISDIR)
         {
             if ((access & FILE_UNIX_WRITE_ACCESS) || (flags & O_CREAT))
                 fd->unix_fd = open( name, O_RDONLY | (flags & ~(O_TRUNC | O_CREAT | O_EXCL)), *mode );
@@ -1992,7 +2003,8 @@ struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_nam
         }
 
         /* can't unlink files if we don't have permission to access */
-        if ((options & FILE_DELETE_ON_CLOSE) && !(flags & O_CREAT) &&
+        if ((options & FILE_DELETE_ON_CLOSE) &&
+            ((flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) &&
             !(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)))
         {
             set_error( STATUS_CANNOT_DELETE );
