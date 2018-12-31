@@ -203,6 +203,7 @@ static void fd_destroy( struct object *obj );
 static const struct object_ops fd_ops =
 {
     sizeof(struct fd),        /* size */
+    TRUE,                     /* can_elevate */
     fd_dump,                  /* dump */
     no_get_type,              /* get_type */
     no_add_queue,             /* add_queue */
@@ -242,6 +243,7 @@ static void device_destroy( struct object *obj );
 static const struct object_ops device_ops =
 {
     sizeof(struct device),    /* size */
+    TRUE,                     /* can_elevate */
     device_dump,              /* dump */
     no_get_type,              /* get_type */
     no_add_queue,             /* add_queue */
@@ -280,6 +282,7 @@ static void inode_destroy( struct object *obj );
 static const struct object_ops inode_ops =
 {
     sizeof(struct inode),     /* size */
+    TRUE,                     /* can_elevate */
     inode_dump,               /* dump */
     no_get_type,              /* get_type */
     no_add_queue,             /* add_queue */
@@ -320,6 +323,7 @@ static int file_lock_signaled( struct object *obj, struct wait_queue_entry *entr
 static const struct object_ops file_lock_ops =
 {
     sizeof(struct file_lock),   /* size */
+    TRUE,                       /* can_elevate */
     file_lock_dump,             /* dump */
     no_get_type,                /* get_type */
     add_queue,                  /* add_queue */

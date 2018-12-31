@@ -141,6 +141,7 @@ static void token_destroy( struct object *obj );
 static const struct object_ops token_ops =
 {
     sizeof(struct token),      /* size */
+    TRUE,                      /* can_elevate */
     token_dump,                /* dump */
     token_get_type,            /* get_type */
     no_add_queue,              /* add_queue */

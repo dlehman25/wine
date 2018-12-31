@@ -166,6 +166,7 @@ static void timer_callback( void *private );
 static const struct object_ops msg_queue_ops =
 {
     sizeof(struct msg_queue),  /* size */
+    TRUE,                      /* can_elevate */
     msg_queue_dump,            /* dump */
     no_get_type,               /* get_type */
     msg_queue_add_queue,       /* add_queue */
@@ -201,6 +202,7 @@ static const struct fd_ops msg_queue_fd_ops =
 static const struct object_ops thread_input_ops =
 {
     sizeof(struct thread_input),  /* size */
+    TRUE,                         /* can_elevate */
     thread_input_dump,            /* dump */
     no_get_type,                  /* get_type */
     no_add_queue,                 /* add_queue */

@@ -53,6 +53,7 @@ static int event_signal( struct object *obj, unsigned int access);
 static const struct object_ops event_ops =
 {
     sizeof(struct event),      /* size */
+    TRUE,                      /* can_elevate */
     event_dump,                /* dump */
     event_get_type,            /* get_type */
     add_queue,                 /* add_queue */
@@ -86,6 +87,7 @@ static unsigned int keyed_event_map_access( struct object *obj, unsigned int acc
 static const struct object_ops keyed_event_ops =
 {
     sizeof(struct keyed_event),  /* size */
+    TRUE,                        /* can_elevate */
     keyed_event_dump,            /* dump */
     keyed_event_get_type,        /* get_type */
     add_queue,                   /* add_queue */

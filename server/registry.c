@@ -155,6 +155,7 @@ static void key_destroy( struct object *obj );
 static const struct object_ops key_ops =
 {
     sizeof(struct key),      /* size */
+    TRUE,                    /* can_elevate */
     key_dump,                /* dump */
     key_get_type,            /* get_type */
     no_add_queue,            /* add_queue */

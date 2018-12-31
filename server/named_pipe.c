@@ -113,6 +113,7 @@ static void named_pipe_destroy( struct object *obj );
 static const struct object_ops named_pipe_ops =
 {
     sizeof(struct named_pipe),    /* size */
+    TRUE,                         /* can_elevate */
     named_pipe_dump,              /* dump */
     no_get_type,                  /* get_type */
     no_add_queue,                 /* add_queue */
@@ -154,6 +155,7 @@ static int pipe_server_ioctl( struct fd *fd, ioctl_code_t code, struct async *as
 static const struct object_ops pipe_server_ops =
 {
     sizeof(struct pipe_server),   /* size */
+    TRUE,                         /* can_elevate */
     pipe_server_dump,             /* dump */
     file_get_type,                /* get_type */
     add_queue,                    /* add_queue */
@@ -195,6 +197,7 @@ static int pipe_client_ioctl( struct fd *fd, ioctl_code_t code, struct async *as
 static const struct object_ops pipe_client_ops =
 {
     sizeof(struct pipe_end),      /* size */
+    TRUE,                         /* can_elevate */
     pipe_client_dump,             /* dump */
     file_get_type,                /* get_type */
     add_queue,                    /* add_queue */
@@ -240,6 +243,7 @@ static void named_pipe_device_destroy( struct object *obj );
 static const struct object_ops named_pipe_device_ops =
 {
     sizeof(struct named_pipe_device), /* size */
+    TRUE,                             /* can_elevate */
     named_pipe_device_dump,           /* dump */
     named_pipe_device_get_type,       /* get_type */
     no_add_queue,                     /* add_queue */
@@ -268,6 +272,7 @@ static void named_pipe_device_file_destroy( struct object *obj );
 static const struct object_ops named_pipe_device_file_ops =
 {
     sizeof(struct named_pipe_device_file),   /* size */
+    TRUE,                                    /* can_elevate */
     named_pipe_device_file_dump,             /* dump */
     no_get_type,                             /* get_type */
     add_queue,                               /* add_queue */

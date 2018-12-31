@@ -52,6 +52,7 @@ static struct object_type *object_type_get_type( struct object *obj );
 static const struct object_ops object_type_ops =
 {
     sizeof(struct object_type),   /* size */
+    TRUE,                         /* can_elevate */
     object_type_dump,             /* dump */
     object_type_get_type,         /* get_type */
     no_add_queue,                 /* add_queue */
@@ -87,6 +88,7 @@ static void directory_destroy( struct object *obj );
 static const struct object_ops directory_ops =
 {
     sizeof(struct directory),     /* size */
+    TRUE,                         /* can_elevate */
     directory_dump,               /* dump */
     directory_get_type,           /* get_type */
     no_add_queue,                 /* add_queue */

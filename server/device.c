@@ -60,6 +60,7 @@ static void irp_call_destroy( struct object *obj );
 static const struct object_ops irp_call_ops =
 {
     sizeof(struct irp_call),          /* size */
+    TRUE,                             /* can_elevate */
     irp_call_dump,                    /* dump */
     no_get_type,                      /* get_type */
     add_queue,                        /* add_queue */
@@ -96,6 +97,7 @@ static void device_manager_destroy( struct object *obj );
 static const struct object_ops device_manager_ops =
 {
     sizeof(struct device_manager),    /* size */
+    TRUE,                             /* can_elevate */
     device_manager_dump,              /* dump */
     no_get_type,                      /* get_type */
     add_queue,                        /* add_queue */
@@ -137,6 +139,7 @@ static struct object *device_open_file( struct object *obj, unsigned int access,
 static const struct object_ops device_ops =
 {
     sizeof(struct device),            /* size */
+    TRUE,                             /* can_elevate */
     device_dump,                      /* dump */
     device_get_type,                  /* get_type */
     no_add_queue,                     /* add_queue */
@@ -182,6 +185,7 @@ static int device_file_ioctl( struct fd *fd, ioctl_code_t code, struct async *as
 static const struct object_ops device_file_ops =
 {
     sizeof(struct device_file),       /* size */
+    TRUE,                             /* can_elevate */
     device_file_dump,                 /* dump */
     file_get_type,                    /* get_type */
     add_queue,                        /* add_queue */

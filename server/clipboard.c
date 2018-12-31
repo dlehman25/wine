@@ -72,6 +72,7 @@ static void clipboard_destroy( struct object *obj );
 static const struct object_ops clipboard_ops =
 {
     sizeof(struct clipboard),     /* size */
+    TRUE,                         /* can_elevate */
     clipboard_dump,               /* dump */
     no_get_type,                  /* get_type */
     no_add_queue,                 /* add_queue */

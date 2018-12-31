@@ -60,6 +60,7 @@ static void timer_destroy( struct object *obj );
 static const struct object_ops timer_ops =
 {
     sizeof(struct timer),      /* size */
+    TRUE,                      /* can_elevate */
     timer_dump,                /* dump */
     timer_get_type,            /* get_type */
     add_queue,                 /* add_queue */

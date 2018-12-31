@@ -105,6 +105,7 @@ static void clear_apc_queue( struct list *queue );
 static const struct object_ops thread_apc_ops =
 {
     sizeof(struct thread_apc),  /* size */
+    TRUE,                       /* can_elevate */
     dump_thread_apc,            /* dump */
     no_get_type,                /* get_type */
     add_queue,                  /* add_queue */
@@ -137,6 +138,7 @@ static void destroy_thread( struct object *obj );
 static const struct object_ops thread_ops =
 {
     sizeof(struct thread),      /* size */
+    TRUE,                       /* can_elevate */
     dump_thread,                /* dump */
     thread_get_type,            /* get_type */
     add_queue,                  /* add_queue */

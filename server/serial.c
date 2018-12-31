@@ -87,6 +87,7 @@ struct serial
 static const struct object_ops serial_ops =
 {
     sizeof(struct serial),        /* size */
+    TRUE,                         /* can_elevate */
     serial_dump,                  /* dump */
     no_get_type,                  /* get_type */
     add_queue,                    /* add_queue */

@@ -53,6 +53,7 @@ static int semaphore_signal( struct object *obj, unsigned int access );
 static const struct object_ops semaphore_ops =
 {
     sizeof(struct semaphore),      /* size */
+    TRUE,                          /* can_elevate */
     semaphore_dump,                /* dump */
     semaphore_get_type,            /* get_type */
     add_queue,                     /* add_queue */

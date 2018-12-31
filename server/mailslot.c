@@ -74,6 +74,7 @@ static void mailslot_destroy( struct object * );
 static const struct object_ops mailslot_ops =
 {
     sizeof(struct mailslot),   /* size */
+    TRUE,                      /* can_elevate */
     mailslot_dump,             /* dump */
     file_get_type,             /* get_type */
     add_queue,                 /* add_queue */
@@ -130,6 +131,7 @@ static void mail_writer_destroy( struct object *obj);
 static const struct object_ops mail_writer_ops =
 {
     sizeof(struct mail_writer), /* size */
+    TRUE,                       /* can_elevate */
     mail_writer_dump,           /* dump */
     file_get_type,              /* get_type */
     no_add_queue,               /* add_queue */
@@ -187,6 +189,7 @@ static enum server_fd_type mailslot_device_get_fd_type( struct fd *fd );
 static const struct object_ops mailslot_device_ops =
 {
     sizeof(struct mailslot_device), /* size */
+    TRUE,                           /* can_elevate */
     mailslot_device_dump,           /* dump */
     mailslot_device_get_type,       /* get_type */
     no_add_queue,                   /* add_queue */

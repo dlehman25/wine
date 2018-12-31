@@ -62,6 +62,7 @@ static void ranges_destroy( struct object *obj );
 static const struct object_ops ranges_ops =
 {
     sizeof(struct ranges),     /* size */
+    TRUE,                      /* can_elevate */
     ranges_dump,               /* dump */
     no_get_type,               /* get_type */
     no_add_queue,              /* add_queue */
@@ -96,6 +97,7 @@ static void shared_map_destroy( struct object *obj );
 static const struct object_ops shared_map_ops =
 {
     sizeof(struct shared_map), /* size */
+    TRUE,                      /* can_elevate */
     shared_map_dump,           /* dump */
     no_get_type,               /* get_type */
     no_add_queue,              /* add_queue */
@@ -151,6 +153,7 @@ static enum server_fd_type mapping_get_fd_type( struct fd *fd );
 static const struct object_ops mapping_ops =
 {
     sizeof(struct mapping),      /* size */
+    TRUE,                        /* can_elevate */
     mapping_dump,                /* dump */
     mapping_get_type,            /* get_type */
     no_add_queue,                /* add_queue */

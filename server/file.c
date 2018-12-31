@@ -79,6 +79,7 @@ static enum server_fd_type file_get_fd_type( struct fd *fd );
 static const struct object_ops file_ops =
 {
     sizeof(struct file),          /* size */
+    FALSE,                        /* can_elevate */
     file_dump,                    /* dump */
     file_get_type,                /* get_type */
     add_queue,                    /* add_queue */

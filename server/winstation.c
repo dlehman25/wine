@@ -60,6 +60,7 @@ static unsigned int desktop_map_access( struct object *obj, unsigned int access 
 static const struct object_ops winstation_ops =
 {
     sizeof(struct winstation),    /* size */
+    TRUE,                         /* can_elevate */
     winstation_dump,              /* dump */
     winstation_get_type,          /* get_type */
     no_add_queue,                 /* add_queue */
@@ -83,6 +84,7 @@ static const struct object_ops winstation_ops =
 static const struct object_ops desktop_ops =
 {
     sizeof(struct desktop),       /* size */
+    TRUE,                         /* can_elevate */
     desktop_dump,                 /* dump */
     desktop_get_type,             /* get_type */
     no_add_queue,                 /* add_queue */

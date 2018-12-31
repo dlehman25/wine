@@ -56,6 +56,7 @@ static int mutex_signal( struct object *obj, unsigned int access );
 static const struct object_ops mutex_ops =
 {
     sizeof(struct mutex),      /* size */
+    TRUE,                      /* can_elevate */
     mutex_dump,                /* dump */
     mutex_get_type,            /* get_type */
     add_queue,                 /* add_queue */

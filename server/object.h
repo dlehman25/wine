@@ -58,6 +58,8 @@ struct object_ops
 {
     /* size of this object type */
     size_t size;
+    /* duplicate handle can elevate */
+    int can_elevate;
     /* dump the object (for debugging) */
     void (*dump)(struct object *,int);
     /* return the object type */

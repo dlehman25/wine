@@ -157,6 +157,7 @@ static void dir_destroy( struct object *obj );
 static const struct object_ops dir_ops =
 {
     sizeof(struct dir),       /* size */
+    TRUE,                     /* can_elevate */
     dir_dump,                 /* dump */
     dir_get_type,             /* get_type */
     add_queue,                /* add_queue */

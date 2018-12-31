@@ -139,6 +139,7 @@ static unsigned int sock_get_error( int err );
 static const struct object_ops sock_ops =
 {
     sizeof(struct sock),          /* size */
+    TRUE,                         /* can_elevate */
     sock_dump,                    /* dump */
     no_get_type,                  /* get_type */
     add_queue,                    /* add_queue */
@@ -953,6 +954,7 @@ struct ifchange
 static const struct object_ops ifchange_ops =
 {
     sizeof(struct ifchange), /* size */
+    TRUE,                    /* can_elevate */
     ifchange_dump,           /* dump */
     no_get_type,             /* get_type */
     add_queue,               /* add_queue */

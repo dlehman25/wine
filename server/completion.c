@@ -60,6 +60,7 @@ static void completion_destroy( struct object * );
 static const struct object_ops completion_ops =
 {
     sizeof(struct completion), /* size */
+    TRUE,                      /* can_elevate */
     completion_dump,           /* dump */
     completion_get_type,       /* get_type */
     add_queue,                 /* add_queue */

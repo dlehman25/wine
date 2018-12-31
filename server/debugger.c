@@ -69,6 +69,7 @@ static void debug_event_destroy( struct object *obj );
 static const struct object_ops debug_event_ops =
 {
     sizeof(struct debug_event),    /* size */
+    TRUE,                          /* can_elevate */
     debug_event_dump,              /* dump */
     no_get_type,                   /* get_type */
     add_queue,                     /* add_queue */
@@ -95,6 +96,7 @@ static void debug_ctx_destroy( struct object *obj );
 static const struct object_ops debug_ctx_ops =
 {
     sizeof(struct debug_ctx),      /* size */
+    TRUE,                          /* can_elevate */
     debug_ctx_dump,                /* dump */
     no_get_type,                   /* get_type */
     add_queue,                     /* add_queue */

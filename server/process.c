@@ -70,6 +70,7 @@ static void terminate_process( struct process *process, struct thread *skip, int
 static const struct object_ops process_ops =
 {
     sizeof(struct process),      /* size */
+    TRUE,                        /* can_elevate */
     process_dump,                /* dump */
     process_get_type,            /* get_type */
     add_queue,                   /* add_queue */
@@ -119,6 +120,7 @@ static void startup_info_destroy( struct object *obj );
 static const struct object_ops startup_info_ops =
 {
     sizeof(struct startup_info),   /* size */
+    TRUE,                          /* can_elevate */
     startup_info_dump,             /* dump */
     no_get_type,                   /* get_type */
     add_queue,                     /* add_queue */
@@ -162,6 +164,7 @@ struct job
 static const struct object_ops job_ops =
 {
     sizeof(struct job),            /* size */
+    TRUE,                          /* can_elevate */
     job_dump,                      /* dump */
     job_get_type,                  /* get_type */
     add_queue,                     /* add_queue */

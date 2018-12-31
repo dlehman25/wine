@@ -72,6 +72,7 @@ static struct fd *console_input_get_fd( struct object *obj );
 static const struct object_ops console_input_ops =
 {
     sizeof(struct console_input),     /* size */
+    TRUE,                             /* can_elevate */
     console_input_dump,               /* dump */
     no_get_type,                      /* get_type */
     no_add_queue,                     /* add_queue */
@@ -106,6 +107,7 @@ struct console_input_events
 static const struct object_ops console_input_events_ops =
 {
     sizeof(struct console_input_events), /* size */
+    TRUE,                             /* can_elevate */
     console_input_events_dump,        /* dump */
     no_get_type,                      /* get_type */
     add_queue,                        /* add_queue */
@@ -162,6 +164,7 @@ static struct fd *screen_buffer_get_fd( struct object *obj );
 static const struct object_ops screen_buffer_ops =
 {
     sizeof(struct screen_buffer),     /* size */
+    TRUE,                             /* can_elevate */
     screen_buffer_dump,               /* dump */
     no_get_type,                      /* get_type */
     no_add_queue,                     /* add_queue */

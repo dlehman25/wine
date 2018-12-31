@@ -118,6 +118,7 @@ static void handle_table_destroy( struct object *obj );
 static const struct object_ops handle_table_ops =
 {
     sizeof(struct handle_table),     /* size */
+    TRUE,                            /* can_elevate */
     handle_table_dump,               /* dump */
     no_get_type,                     /* get_type */
     no_add_queue,                    /* add_queue */
@@ -555,6 +556,13 @@ obj_handle_t duplicate_handle( struct process *src, obj_handle_t src_handle, str
     /* asking for the more access rights than src_access? */
     if (access & ~src_access)
     {
+        if (!obj->ops->can_elevate)
+        {
+            set_error( STATUS_ACCESS_DENIED );
+            release_object( obj );
+            return 0;
+        }
+
         if (options & DUP_HANDLE_MAKE_GLOBAL)
             res = alloc_global_handle( obj, access );
         else

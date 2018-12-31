@@ -55,6 +55,7 @@ static void symlink_destroy( struct object *obj );
 static const struct object_ops symlink_ops =
 {
     sizeof(struct symlink),       /* size */
+    TRUE,                         /* can_elevate */
     symlink_dump,                 /* dump */
     symlink_get_type,             /* get_type */
     no_add_queue,                 /* add_queue */
