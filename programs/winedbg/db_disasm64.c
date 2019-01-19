@@ -1000,7 +1000,43 @@ static const struct inst db_inst_table[256] = {
 /*ff*/	{ "",	   TRUE,  NONE,  0,	     db_Grp5 },
 };
 
-static const struct inst * const db_inst_c4[16] = {
+static const struct inst db_inst_c4ex[] = {
+/*e0*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e1*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e2*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e3*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e4*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e5*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e6*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e7*/	{ "",       FALSE,  NONE,   0,  0 },
+
+/*e8*/	{ "",       FALSE,  NONE,   0,  0 },
+/*e9*/	{ "",       FALSE,  NONE,   0,  0 },
+/*ea*/	{ "",       FALSE,  NONE,   0,  0 },
+/*eb*/	{ "",       FALSE,  NONE,   0,  0 },
+/*ec*/	{ "",       FALSE,  NONE,   0,  0 },
+/*ed*/	{ "",       FALSE,  NONE,   0,  0 },
+/*ee*/	{ "",       FALSE,  NONE,   0,  0 },
+/*ef*/	{ "",       FALSE,  NONE,   0,  0 },
+};
+
+static const struct inst * const db_inst_c4[] = {
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    db_inst_c4ex,
+    0
 };
 
 static const struct inst db_bad_inst =
