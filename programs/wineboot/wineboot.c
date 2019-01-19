@@ -61,6 +61,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #ifdef HAVE_GETOPT_H
 # include <getopt.h>
 #endif
@@ -76,6 +77,8 @@
 #include <wine/unicode.h>
 #include <wine/library.h>
 #include <wine/debug.h>
+#include <wine/list.h>
+#include <wine/heap.h>
 
 #include <shlobj.h>
 #include <shobjidl.h>
@@ -1121,6 +1124,446 @@ done:
     return ret;
 }
 
+/* copied from dlls/ntdll/time.c, with the following changes
+    - cache is removed
+    - can pass specific year
+*/
+static time_t find_dst_change(unsigned long min, unsigned long max, int *is_dst)
+{
+    time_t start;
+    struct tm *tm;
+
+    start = min;
+    tm = localtime(&start);
+    *is_dst = !tm->tm_isdst;
+    WINE_TRACE("starting date isdst %d, %s", !*is_dst, ctime(&start));
+
+    while (min <= max)
+    {
+        time_t pos = (min + max) / 2;
+        tm = localtime(&pos);
+
+        if (tm->tm_isdst != *is_dst)
+            min = pos + 1;
+        else
+            max = pos - 1;
+    }
+    return min;
+}
+
+static inline void convert_to_non_absolute(RTL_SYSTEM_TIME *st)
+{
+    /* see dlls/kernel32/time.c TIME_DayLightCompareDate */
+    WORD first;
+
+    /* if on 4th week of a 4-week month, there's no way to determine
+       if the rule is always for the 4th week, or if for the 'last'
+       week (usually 5) and it happens to be the 4th week this year */
+    st->wYear = 0;
+    first = (6 + st->wDay) % 7 + 1;
+    st->wDay = (st->wDay - first) / 7 + 1;
+}
+
+static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
+{
+    struct tm *tm;
+    time_t year_start, year_end, tmp, dlt = 0, std = 0;
+    int is_dst, current_is_dst;
+
+    year_start = time(NULL);
+    tm = localtime(&year_start);
+    current_is_dst = tm->tm_isdst;
+
+    memset(tzi, 0, sizeof(*tzi));
+
+    if (year)
+        tm->tm_year = year - 1900;
+    WINE_TRACE("tz data will be valid through year %d\n", tm->tm_year + 1900);
+
+    tm->tm_isdst = 0;
+    tm->tm_mday = 1;
+    tm->tm_mon = tm->tm_hour = tm->tm_min = tm->tm_sec = tm->tm_wday = tm->tm_yday = 0;
+    year_start = mktime(tm);
+    WINE_TRACE("year_start: %s", ctime(&year_start));
+
+    tm->tm_mday = tm->tm_wday = tm->tm_yday = 0;
+    tm->tm_mon = 12;
+    tm->tm_hour = 23;
+    tm->tm_min = tm->tm_sec = 59;
+    year_end = mktime(tm);
+    WINE_TRACE("year_end: %s", ctime(&year_end));
+
+    tm = gmtime(&year_start);
+    tzi->Bias = (LONG)(mktime(tm) - year_start) / 60;
+
+    tmp = find_dst_change(year_start, year_end, &is_dst);
+    if (is_dst)
+        dlt = tmp;
+    else
+        std = tmp;
+
+    tmp = find_dst_change(tmp, year_end, &is_dst);
+    if (is_dst)
+        dlt = tmp;
+    else
+        std = tmp;
+
+    WINE_TRACE("std: %s", ctime(&std));
+    WINE_TRACE("dlt: %s", ctime(&dlt));
+
+    if (dlt == std || !dlt || !std)
+        WINE_TRACE("there is no daylight saving rules in this time zone\n");
+    else
+    {
+        tmp = dlt - tzi->Bias * 60;
+        tm = gmtime(&tmp);
+        WINE_TRACE("dlt gmtime: %s", asctime(tm));
+
+        tzi->DaylightBias = -60;
+        tzi->DaylightDate.wYear = tm->tm_year + 1900;
+        tzi->DaylightDate.wMonth = tm->tm_mon + 1;
+        tzi->DaylightDate.wDayOfWeek = tm->tm_wday;
+        tzi->DaylightDate.wDay = tm->tm_mday;
+        tzi->DaylightDate.wHour = tm->tm_hour;
+        tzi->DaylightDate.wMinute = tm->tm_min;
+        tzi->DaylightDate.wSecond = tm->tm_sec;
+        tzi->DaylightDate.wMilliseconds = 0;
+
+        WINE_TRACE("daylight (d/m/y): %u/%02u/%04u day of week %u %u:%02u:%02u.%03u bias %d\n",
+            tzi->DaylightDate.wDay, tzi->DaylightDate.wMonth,
+            tzi->DaylightDate.wYear, tzi->DaylightDate.wDayOfWeek,
+            tzi->DaylightDate.wHour, tzi->DaylightDate.wMinute,
+            tzi->DaylightDate.wSecond, tzi->DaylightDate.wMilliseconds,
+            tzi->DaylightBias);
+
+        tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
+        tm = gmtime(&tmp);
+        WINE_TRACE("std gmtime: %s", asctime(tm));
+
+        tzi->StandardBias = 0;
+        tzi->StandardDate.wYear = tm->tm_year + 1900;
+        tzi->StandardDate.wMonth = tm->tm_mon + 1;
+        tzi->StandardDate.wDayOfWeek = tm->tm_wday;
+        tzi->StandardDate.wDay = tm->tm_mday;
+        tzi->StandardDate.wHour = tm->tm_hour;
+        tzi->StandardDate.wMinute = tm->tm_min;
+        tzi->StandardDate.wSecond = tm->tm_sec;
+        tzi->StandardDate.wMilliseconds = 0;
+
+        WINE_TRACE("standard (d/m/y): %u/%02u/%04u day of week %u %u:%02u:%02u.%03u bias %d\n",
+            tzi->StandardDate.wDay, tzi->StandardDate.wMonth,
+            tzi->StandardDate.wYear, tzi->StandardDate.wDayOfWeek,
+            tzi->StandardDate.wHour, tzi->StandardDate.wMinute,
+            tzi->StandardDate.wSecond, tzi->StandardDate.wMilliseconds,
+            tzi->StandardBias);
+
+        convert_to_non_absolute( &tzi->DaylightDate );
+        convert_to_non_absolute( &tzi->StandardDate );
+    }
+
+    return current_is_dst;
+}
+
+/* this MUST be called after wine.inf has installed the static time zones */
+
+struct tzmap
+{
+    struct list entry;
+    WCHAR *win_tz;
+    char *unix_tz;
+};
+
+static inline void free_timezones(struct list *tzs)
+{
+    struct list *head;
+    struct tzmap *tzentry;
+
+    while ((head = list_head( tzs )))
+    {
+        list_remove( head );
+        tzentry = LIST_ENTRY( head, struct tzmap, entry );
+        heap_free( tzentry );
+    }
+}
+
+#define TIME_ZONE_KEY_SIZE  (ARRAY_SIZE(((RTL_DYNAMIC_TIME_ZONE_INFORMATION*)0)->TimeZoneKeyName))
+
+static int read_timezones(struct list *tzs)
+{
+    char buffer[TIME_ZONE_KEY_SIZE];
+    const char *config_dir = wine_get_config_dir();
+    char *win_unix_map, *unix_tz;
+    size_t win_len, unix_len;
+    struct tzmap *tzentry;
+    FILE *file;
+
+    list_init( tzs );
+    if (!(win_unix_map = heap_alloc( strlen(config_dir) + sizeof("/win_unix_map") )))
+        return FALSE;
+
+    strcpy( win_unix_map, config_dir );
+    strcat( win_unix_map, "/win_unix_map" );
+    if (!(file = fopen( win_unix_map, "rt" )))
+    {
+        WINE_WARN("wine: failed to open %s, time zones will not be updated\n", win_unix_map );
+        heap_free( win_unix_map );
+        return FALSE;
+    }
+
+    while (fgets( buffer, sizeof(buffer), file ))
+    {
+        if (!(unix_tz = strchr( buffer, ',' )))
+        {
+            WINE_WARN("wine: invalid time zone map entry %s\n", debugstr_a(buffer));
+            continue;
+        }
+
+        *unix_tz++ = 0;
+        unix_len = strlen( unix_tz );
+        if (!unix_len)
+        {
+            WINE_WARN("wine: invalid time zone map entry %s\n", debugstr_a(buffer));
+            continue;
+        }
+        unix_tz[--unix_len] = 0; /* chop \n */
+
+        win_len = MultiByteToWideChar( CP_UTF8, 0, buffer, -1, NULL, 0 );
+        if (!win_len)
+        {
+            WINE_WARN("wine: invalid time zone map entry %s (%d)\n", debugstr_a(buffer), GetLastError());
+            continue;
+        }
+
+        tzentry = heap_alloc( sizeof(*tzentry) + unix_len + 1 + 1 + /* extra +1 for ':' */
+                              (win_len + 1) * sizeof(WCHAR) );
+        if (!tzentry)
+        {
+            WINE_ERR("wine: out of memory updating time zone %s\n", debugstr_a(buffer));
+            goto error;
+        }
+
+        tzentry->win_tz = (WCHAR *)((char *)tzentry + sizeof(*tzentry));
+        tzentry->unix_tz = ((char *)tzentry->win_tz) + (win_len + 1) * sizeof(WCHAR);
+
+        MultiByteToWideChar( CP_UTF8, 0, buffer, -1, tzentry->win_tz, strlen(buffer)+1 );
+        tzentry->unix_tz[0] = ':';
+        strcpy( tzentry->unix_tz+1, unix_tz );
+        list_add_tail( tzs, &tzentry->entry );
+    }
+    heap_free( win_unix_map );
+    fclose( file );
+    return TRUE;
+
+error:
+    free_timezones( tzs );
+    heap_free( win_unix_map );
+    fclose( file );
+    return FALSE;
+}
+
+static inline struct tzmap *find_timezone(struct list *tzs, const WCHAR *win_tz)
+{
+    struct tzmap *tzentry;
+    LIST_FOR_EACH_ENTRY( tzentry, tzs, struct tzmap, entry )
+    {
+        if (!lstrcmpW( tzentry->win_tz, win_tz ))
+            return tzentry;
+    }
+    return NULL;
+}
+
+static void fill_timezone(HKEY tzkey, struct tzmap *tzentry)
+{
+    const DWORD dynamic_start = 2004;
+    static const WCHAR firstW[] = { 'F','i','r','s','t','E','n','t','r','y',0 };
+    static const WCHAR lastW[] = { 'L','a','s','t','E','n','t','r','y',0 };
+    static const WCHAR ddstW[] = { 'D','y','n','a','m','i','c',' ','D','S','T',0 };
+    static const WCHAR tziW[] = { 'T','Z','I',0 };
+    static const WCHAR fmtW[] = { '%','u',0 };
+    WCHAR valname[5];
+    RTL_DYNAMIC_TIME_ZONE_INFORMATION dtzi, last;
+    DWORD ret, last_year, first_year, cur_year;
+    struct tm *tm;
+    time_t today;
+    HKEY dstkey;
+    struct tz_reg_data
+    {
+        LONG bias;
+        LONG std_bias;
+        LONG dlt_bias;
+        RTL_SYSTEM_TIME std_date;
+        RTL_SYSTEM_TIME dlt_date;
+    } tz_data;
+
+    setenv("TZ", tzentry->unix_tz, TRUE);
+    tzset();
+
+    init_tz_info( &dtzi, 0 );
+
+    tz_data.bias = dtzi.Bias;
+    tz_data.std_bias = dtzi.StandardBias;
+    tz_data.dlt_bias = dtzi.DaylightBias;
+    tz_data.std_date = dtzi.StandardDate;
+    tz_data.dlt_date = dtzi.DaylightDate;
+    RegSetValueExW( tzkey, tziW, 0, REG_BINARY, (const BYTE*)&tz_data, sizeof(tz_data) );
+
+    RegDeleteTreeA( tzkey, "Dynamic DST" );
+
+    today = time( NULL );
+    tm = localtime( &today );
+    cur_year = tm->tm_year + 1900;
+
+    init_tz_info( &last, dynamic_start );
+    for (first_year = dynamic_start + 1; first_year <= cur_year; first_year++)
+    {
+        init_tz_info( &dtzi, first_year );
+        if (memcmp( &dtzi, &last, sizeof(last) ))
+        {
+            --first_year;
+            break;
+        }
+    }
+
+    if (first_year > cur_year)
+    {
+        WINE_TRACE("time zone %s has no dynamic dst\n", debugstr_w(tzentry->win_tz));
+        return;
+    }
+
+    init_tz_info( &last, cur_year );
+    for (last_year = cur_year - 1; last_year >= first_year; last_year--)
+    {
+        init_tz_info( &dtzi, last_year );
+        if (memcmp( &dtzi, &last, sizeof(last) ))
+        {
+            ++last_year;
+            break;
+        }
+    }
+
+    if ((ret = RegCreateKeyExW( tzkey, ddstW, 0, NULL, 0, KEY_ALL_ACCESS, NULL, &dstkey, NULL )))
+    {
+        WINE_WARN("failed to create '%s\\%s'\n", debugstr_w(tzentry->win_tz), debugstr_w(ddstW));
+        return;
+    }
+
+    RegSetValueExW( dstkey, firstW, 0, REG_DWORD, (const BYTE *)&first_year, sizeof(first_year) );
+    RegSetValueExW( dstkey, lastW, 0, REG_DWORD, (const BYTE *)&last_year, sizeof(last_year) );
+
+    while (first_year <= last_year)
+    {
+        init_tz_info( &dtzi, first_year );
+
+        snprintfW( valname, sizeof(valname), fmtW, first_year );
+        tz_data.bias = dtzi.Bias;
+        tz_data.std_bias = dtzi.StandardBias;
+        tz_data.dlt_bias = dtzi.DaylightBias;
+        tz_data.std_date = dtzi.StandardDate;
+        tz_data.dlt_date = dtzi.DaylightDate;
+        RegSetValueExW( dstkey, valname, 0, REG_BINARY, (const BYTE*)&tz_data, sizeof(tz_data) );
+
+        first_year++;
+    }
+
+    RegCloseKey( dstkey );
+}
+
+static void update_timezones_from_tzdata(void)
+{
+    static const WCHAR timezonesW[] = {
+        'S','o','f','t','w','a','r','e','\\',
+        'M','i','c','r','o','s','o','f','t','\\',
+        'W','i','n','d','o','w','s',' ','N','T','\\',
+        'C','u','r','r','e','n','t','V','e','r','s','i','o','n','\\',
+        'T','i','m','e',' ','Z','o','n','e','s',0 };
+    RTL_DYNAMIC_TIME_ZONE_INFORMATION dtzi;
+    WCHAR keyname[TIME_ZONE_KEY_SIZE];
+    struct list tzs, *head;
+    struct tzmap *tzentry;
+    HKEY hkey, subkey;
+    DWORD index, ret;
+    char *orig_tz;
+
+    if (!read_timezones( &tzs ))
+        return;
+
+    orig_tz = getenv( "TZ" );
+    if ((ret = RegOpenKeyExW( HKEY_LOCAL_MACHINE, timezonesW, 0, KEY_ENUMERATE_SUB_KEYS, &hkey )))
+        goto error;
+
+    index = 0;
+    while (!(ret = RegEnumKeyW( hkey, index++, keyname, sizeof(keyname) )))
+    {
+        if (!(tzentry = find_timezone( &tzs, keyname )))
+        {
+            const DWORD obsolete = 1;
+
+            WINE_TRACE("marking time zone %s obsolete\n", debugstr_w(keyname));
+            if (RegOpenKeyExW( hkey, keyname, 0, KEY_SET_VALUE, &subkey ))
+            {
+                WINE_WARN("failed to open time zone %s to mark obsolete\n", debugstr_w(keyname));
+                continue;
+            }
+
+            RegSetValueExA( subkey, "IsObsolete", 0, REG_DWORD, (const BYTE *)&obsolete, sizeof(obsolete) );
+            RegCloseKey( subkey );
+        }
+        else
+        {
+            WINE_TRACE("updating time zone %s\n", debugstr_w(keyname));
+            list_remove( &tzentry->entry );
+            if (!RegOpenKeyExW( hkey, keyname, 0, KEY_SET_VALUE, &subkey ))
+            {
+                fill_timezone( subkey, tzentry );
+                RegCloseKey( subkey );
+            }
+            heap_free( tzentry );
+        }
+    }
+
+    while ((head = list_head( &tzs )))
+    {
+        static const WCHAR stdW[] = { 'S','t','d',0 };
+        static const WCHAR dltW[] = { 'D','l','t',0 };
+        static const WCHAR stdnameW[] = { 'S','t','a','n','d','a','r','d',0 };
+        static const WCHAR dltnameW[] = { 'D','a','y','l','i','g','h','t' };
+        WCHAR *stdstr;
+
+        list_remove( head );
+        tzentry = LIST_ENTRY( head, struct tzmap, entry );
+        WINE_TRACE("adding new time zone %s\n", debugstr_w(tzentry->win_tz));
+
+        if ((ret = RegCreateKeyExW(hkey, tzentry->win_tz, 0, NULL, 0, KEY_ALL_ACCESS, NULL, &subkey, NULL)))
+        {
+            WINE_WARN("failed to add new time zone %s\n", debugstr_w(tzentry->win_tz));
+            heap_free( tzentry );
+            continue;
+        }
+
+        lstrcpynW( dtzi.StandardName, tzentry->win_tz, sizeof(dtzi.StandardName) );
+        RegSetValueExW( subkey, stdW, 0, REG_SZ, (const BYTE *)dtzi.StandardName, sizeof(dtzi.StandardName) );
+
+        lstrcpynW( dtzi.DaylightName, tzentry->win_tz, sizeof(dtzi.DaylightName) );
+        if ((stdstr = strstrW( dtzi.DaylightName, stdnameW )))
+            memcpy( stdstr, dltnameW, sizeof(dltnameW) );
+        RegSetValueExW( subkey, dltW, 0, REG_SZ, (const BYTE *)dtzi.DaylightName, sizeof(dtzi.DaylightName) );
+
+        fill_timezone( subkey, tzentry );
+        RegCloseKey( subkey );
+        heap_free( tzentry );
+    }
+
+    RegCloseKey( hkey );
+
+error:
+    if (orig_tz)
+        setenv( "TZ", orig_tz, TRUE );
+    else
+        unsetenv( "TZ" );
+    tzset();
+    free_timezones( &tzs );
+}
+
 static void usage(void)
 {
     WINE_MESSAGE( "Usage: wineboot [options]\n" );
@@ -1256,6 +1699,9 @@ int main( int argc, char *argv[] )
         ProcessRunKeys( HKEY_CURRENT_USER, RunW, FALSE, FALSE );
         ProcessStartupItems();
     }
+
+    if (!restart)
+        update_timezones_from_tzdata();
 
     WINE_TRACE("Operation done\n");
 
