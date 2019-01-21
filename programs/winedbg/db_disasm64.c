@@ -1002,7 +1002,7 @@ static const struct inst db_inst_table[256] = {
 
 static const struct inst db_inst_c4ex[] = {
 /*e0*/	{ "",           FALSE,  NONE,   0,  0 },
-/*e1*/	{ "vcvtsi2sd",  TRUE,   NONE, op3(XMM, XMM, R),  0 },
+/*e1*/	{ "vcvtsi2sd",  TRUE,   NONE, op3(R, XMM, XMM),  0 },
 /*e2*/	{ "",           FALSE,  NONE,   0,  0 },
 /*e3*/	{ "",           FALSE,  NONE,   0,  0 },
 /*e4*/	{ "",           FALSE,  NONE,   0,  0 },
