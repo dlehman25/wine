@@ -1416,15 +1416,13 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 		ip = &ip[inst&0xf];
 	    }
 	}
-	else if (inst == 0xc4) {
+	else if (inst == 0xc4) { /* 3-byte form AVX */
+        printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
-	    ip = db_inst_c4[inst>>4];
-	    if (ip == 0) {
+        printf("inst %x\n", inst);
+	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
 		ip = &db_bad_inst;
-	    }
-	    else {
-		ip = &ip[inst&0xf];
-	    }
     }
 	else
 		ip = &db_inst_table[inst];
