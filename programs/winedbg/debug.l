@@ -140,6 +140,7 @@ STRING     \"[^\n"]+\"
 
 <<EOF>>                                 { return tEOF; }
 <*>\n		                        { BEGIN(INITIAL); syntax_error = 0; return tEOL; }
+<*>;		                        { BEGIN(INITIAL); syntax_error = 0; return tSEMICOLON; }
                                         /* Indicates end of command. Reset state. */
 
 "||"					{ return OP_LOR; }
