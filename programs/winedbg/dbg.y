@@ -52,7 +52,7 @@ static void parser(const char*);
 %token tENABLE tDISABLE tBREAK tHBREAK tWATCH tRWATCH tDELETE tSET tPRINT tEXAM
 %token tABORT tECHO
 %token tCLASS tMAPS tSTACK tSEGMENTS tSYMBOL tREGS tALLREGS tWND tLOCAL tEXCEPTION
-%token tPROCESS tTHREAD tEOL tEOF
+%token tPROCESS tTHREAD tEOL tEOF tSEMICOLON
 %token tFRAME tSHARE tMODULE tCOND tDISPLAY tUNDISPLAY tDISASSEMBLE tSYSTEM
 %token tSTEPI tNEXTI tFINISH tSHOW tDIR tWHATIS tSOURCE
 %token <string> tPATH tIDENTIFIER tSTRING tINTVAR
@@ -99,8 +99,13 @@ input:
     | input line
     ;
 
+commands:
+      command                       { expr_free_all(); }
+    | commands tSEMICOLON command   { expr_free_all(); }
+    ;
+
 line:
-      command tEOL              { expr_free_all(); }
+      commands tEOL
     | tEOL
     | tEOF                      { return 1; }
     | error tEOL               	{ yyerrok; expr_free_all(); }
