@@ -1417,8 +1417,25 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	    }
 	}
 	else if (inst == 0xc4) { /* 3-byte form AVX */
+/*
+0xc4 = 3 byte form
+0xe1 = 1110 0001 -> 111 0-0001
+        111 = REX RXB = 0,0,0
+        0-0001 = implied 0x0f
+0xfb = 1111 1011 -> 1 1111 0 11
+        1    - W: opcode specific (64-bit reg)
+        1111 - vvvv: unused
+        0    - L: 128-bit vector
+        11   - 0xf2 extension
+*/
         printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
+	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
+		ip = &db_bad_inst;
+    }
+    else if (inst == 0xc5) { /* 2-byte form AVX */
         printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
         printf("inst %x\n", inst);
