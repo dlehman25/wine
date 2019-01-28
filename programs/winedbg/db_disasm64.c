@@ -1430,6 +1430,31 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 */
         printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
+        { /* e1 -> 1110 0001 -> 111 0-0001 */
+            unsigned m_mmmm = (inst & 0x1f);
+            unsigned rex = (inst & 0xe0) >> 5;
+            printf("\trex %x %s%s%s m_mmmm %x\n", rex,
+                rex & REX_R ? "R" : "",
+                rex & REX_X ? "X" : "",
+                rex & REX_B ? "B" : "",
+                m_mmmm);
+
+            switch (m_mmmm)
+            {
+                case 1: printf("\timplied 0x0f\n"); break;
+                case 2: printf("\timplied 0x0f 0x38\n"); break;
+                case 3: printf("\timplied 0x0f 0x3a\n"); break;
+                default: printf("\treserved\n"); break;
+            }
+
+/*
+00000: Reserved for future use (will #UD)
+00001: implied 0F leading opcode byte
+00010: implied 0F 38 leading opcode bytes
+00011: implied 0F 3A leading opcode bytes
+00100-11111: Reserved for future use (will #UD)
+*/
+        }
         printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
         printf("inst %x\n", inst);
