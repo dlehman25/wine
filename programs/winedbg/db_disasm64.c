@@ -1430,6 +1430,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 */
         printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
         { /* e1 -> 1110 0001 -> 111 0-0001 */
             unsigned m_mmmm = (inst & 0x1f);
             unsigned rex = (inst & 0xe0) >> 5;
@@ -1455,9 +1456,28 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 00100-11111: Reserved for future use (will #UD)
 */
         }
-        printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
         printf("inst %x\n", inst);
+        { /* 0xfb -> 1111 1011 -> 1 1111 0 11 */
+            unsigned w = inst & 0x80;
+            unsigned reg = (inst & 0x78) >> 3;
+            unsigned vlen = (inst & 0x04) >> 2;
+            unsigned ext = (inst & 0x03);
+            static const char *exts[] = {"none", "66", "f3", "f2"};
+
+            if (w) printf("\topcode specific\n");
+            printf("\treg %x (%x -> %s)\n", reg, ~reg & 0xf, db_reg[0/*TODO?*/][3][~reg & 0xf]);
+            printf("\tvlen %d\n", vlen ? 256 : 128);
+            printf("\text %d (%s)\n", ext, exts[ext]);
+/*
+0xfb = 1111 1011 -> 1 1111 0 11
+        1    - W: opcode specific (64-bit reg)
+        1111 - vvvv: unused
+        0    - L: 128-bit vector
+        11   - 0xf2 extension
+*/
+            
+        }
 		ip = &db_bad_inst;
     }
     else if (inst == 0xc5) { /* 2-byte form AVX */
