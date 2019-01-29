@@ -1478,12 +1478,27 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 */
             
         }
-/* 40160e:	c4 e1 fb 2a c0       	vcvtsi2sd %rax,%xmm0,%xmm0 */
+/* 40160e:	c4 e1 fb 2a c0       	vcvtsi2sd %rax,%xmm0,%xmm0
+        2a  0010 1010
+        c0  1100 0000
+*/
 
 	    get_value_inc(inst, loc, 1, FALSE);
-        printf("inst %x\n", inst);
-	    get_value_inc(inst, loc, 1, FALSE);
-        printf("inst %x\n", inst);
+        printf("inst %x (index x%x offset x%x)\n", inst, inst >> 4, inst & 0xf);
+	    ip = db_inst_0f[inst>>4];
+	    if (ip == 0) {
+            ip = &db_bad_inst;
+	    }
+	    else {
+            ip = &ip[inst&0xf];
+	    }
+        printf("inst name %s\n", ip->i_name);
+
+        rex = 0x7;
+	    get_value_inc(regmodrm, loc, 1, FALSE);
+	    loc = db_read_address(loc, short_addr, rex, regmodrm, &address);
+        printf("address: is_reg %d disp %d\n", address.is_reg, address.disp);
+
 		ip = &db_bad_inst;
     }
     else if (inst == 0xc5) { /* 2-byte form AVX */
