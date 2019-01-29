@@ -302,7 +302,7 @@ static const struct inst db_inst_0f2x[] = {
 
 /*28*/	{ "movaps",TRUE,  NONE,  op2(E, XMM), 0 },
 /*29*/	{ "movaps",TRUE,  NONE,  op2(XMM, E), 0 },
-/*2a*/	{ "vcvtsi2sd", FALSE, NONE,  0,	      0 }, /* TODO: vcvtsi2sd vs cvtsi2sd? */
+/*2a*/	{ "vcvtsi2sd", TRUE, QUAD,  op3(R, XMM, XMM), 0 }, /* TODO: vcvtsi2sd vs cvtsi2sd? */
 /*2b*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2c*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2d*/	{ "",      FALSE, NONE,  0,	      0 },
@@ -1494,12 +1494,14 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	    }
         printf("inst name %s\n", ip->i_name);
 
+if (0)
+{
         rex = 0x7;
 	    get_value_inc(regmodrm, loc, 1, FALSE);
 	    loc = db_read_address(loc, short_addr, rex, regmodrm, &address);
         printf("address: is_reg %d disp %d\n", address.is_reg, address.disp);
+}
 
-		ip = &db_bad_inst;
     }
     else if (inst == 0xc5) { /* 2-byte form AVX */
         printf("inst %x\n", inst);
