@@ -1478,6 +1478,12 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 */
             
         }
+/* 40160e:	c4 e1 fb 2a c0       	vcvtsi2sd %rax,%xmm0,%xmm0 */
+
+	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
+	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
 		ip = &db_bad_inst;
     }
     else if (inst == 0xc5) { /* 2-byte form AVX */
