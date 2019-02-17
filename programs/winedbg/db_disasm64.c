@@ -302,7 +302,7 @@ static const struct inst db_inst_0f2x[] = {
 
 /*28*/	{ "movaps",TRUE,  NONE,  op2(E, XMM), 0 },
 /*29*/	{ "movaps",TRUE,  NONE,  op2(XMM, E), 0 },
-/*2a*/	{ "vcvtsi2sd", TRUE, QUAD,  op3(R, XMM, XMM), 0 }, /* TODO: vcvtsi2sd vs cvtsi2sd? */
+/*2a*/	{ "cvtsi2sd", TRUE, QUAD,  op3(R, XMM, XMM), 0 },
 /*2b*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2c*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2d*/	{ "",      FALSE, NONE,  0,	      0 },
@@ -1573,6 +1573,10 @@ if (0)
 		i_mode = 0;
 	}
 
+    if (vex) {
+        db_printf("v");
+    }
+
 	if (i_size == SDEP) {
 	    if (size == WORD)
 		db_printf("%s", i_name);
@@ -1596,7 +1600,7 @@ if (0)
 		}
 		else if (size == WORD)
 		    db_printf("w");
-		else {
+		else if (!vex) {
 		    if (rex & REX_W)
 			db_printf("q");
 		    else
@@ -1640,7 +1644,7 @@ if (0)
 		    break;
 
 		case R:
-		    db_printf("%s", db_reg[rex != 0 ? 1 : 0][(size == LONG && (rex & REX_W)) ? QUAD : size][f_reg(rex, regmodrm)]);
+		    db_printf("%s", db_reg[rex != 0 ? 1 : 0][(size == LONG && (rex & REX_W)) || vex ? QUAD : size][f_reg(rex, regmodrm)]);
 		    break;
 
 		case Rw:
