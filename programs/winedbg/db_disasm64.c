@@ -1321,6 +1321,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	const char *	i_name;
 	int	i_size;
 	int	i_mode;
+	int	vex = 0;
 	int	rex = 0;
 	int	regmodrm = 0;
 	boolean_t	first;
@@ -1416,6 +1417,10 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 		ip = &ip[inst&0xf];
 	    }
 	}
+	else if (inst == 0xc5) { /* 2-byte form AVX */
+        printf("%s: 2-BYTE AVX\n", __FUNCTION__);
+        vex = 1;
+    }
 	else if (inst == 0xc4) { /* 3-byte form AVX */
 /*
 0xc4 = 3 byte form
@@ -1428,6 +1433,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
         0    - L: 128-bit vector
         11   - 0xf2 extension
 */
+        vex = 1;
         printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
         printf("inst %x\n", inst);
