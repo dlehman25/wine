@@ -302,7 +302,7 @@ static const struct inst db_inst_0f2x[] = {
 
 /*28*/	{ "movaps",TRUE,  NONE,  op2(E, XMM), 0 },
 /*29*/	{ "movaps",TRUE,  NONE,  op2(XMM, E), 0 },
-/*2a*/	{ "cvtsi2sd", TRUE, QUAD,  op3(R, XMM, XMM), 0 },
+/*2a*/	{ "cvtsi2sd", TRUE, NONE,  op3(R, XMM, XMM), 0 },
 /*2b*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2c*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2d*/	{ "",      FALSE, NONE,  0,	      0 },
@@ -1602,14 +1602,6 @@ if (0)
 		}
 		else if (size == WORD)
 		    db_printf("w");
-		else if (vex) {
-			if (vexpfx == 0xf2) {
-				db_printf("d");
-			}
-			else if (vexpfx == 0xf3) {
-				db_printf("s");
-			}
-		}
 		else {
 		    if (rex & REX_W)
 			db_printf("q");
@@ -1617,7 +1609,16 @@ if (0)
 			db_printf("l");
 		}
 	    }
+            else if (vex) {
+                if (vexpfx == 0xf2) {
+                        db_printf("d");
+                }
+                else if (vexpfx == 0xf3) {
+                        db_printf("s");
+                }
+            }
 	}
+
 	db_printf("\t");
 	for (first = TRUE;
 	     i_mode != 0;
