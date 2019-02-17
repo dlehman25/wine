@@ -1002,7 +1002,7 @@ static const struct inst db_inst_table[256] = {
 
 static const struct inst db_inst_c4ex[] = {
 /*e0*/	{ "",           FALSE,  NONE,   0,  0 },
-/*e1*/	{ "vcvtsi2sd",  TRUE,   NONE, op3(R, XMM, XMM),  0 },
+/*e1*/	{ "vcvtsi2s",   TRUE,   NONE, op3(R, XMM, XMM),  0 },
 /*e2*/	{ "",           FALSE,  NONE,   0,  0 },
 /*e3*/	{ "",           FALSE,  NONE,   0,  0 },
 /*e4*/	{ "",           FALSE,  NONE,   0,  0 },
@@ -1322,6 +1322,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	int	i_size;
 	int	i_mode;
 	int	vex = 0;
+	int vexpfx = 0;
 	int	rex = 0;
 	int	regmodrm = 0;
 	boolean_t	first;
@@ -1470,6 +1471,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
             unsigned vlen = (inst & 0x04) >> 2;
             unsigned ext = (inst & 0x03);
             static const char *exts[] = {"none", "66", "f3", "f2"};
+            vexpfx = ext;
 
             if (w) printf("\topcode specific\n");
             printf("\treg %x (%x -> %s)\n", reg, ~reg & 0xf, db_reg[0/*TODO?*/][3][~reg & 0xf]);
@@ -1600,7 +1602,15 @@ if (0)
 		}
 		else if (size == WORD)
 		    db_printf("w");
-		else if (!vex) {
+		else if (vex) {
+			if (vexpfx == 0xf2) {
+				db_printf("d");
+			}
+			else if (vexpfx == 0xf3) {
+				db_printf("s");
+			}
+		}
+		else {
 		    if (rex & REX_W)
 			db_printf("q");
 		    else
