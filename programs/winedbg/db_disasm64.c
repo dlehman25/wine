@@ -1372,6 +1372,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 		case 0x65:
 		    seg = "%gs";
 		    break;
+                /* TODO: c4 & c5 here? */
 		case 0xf0:
 		    db_printf("lock ");
 		    break;
