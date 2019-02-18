@@ -1421,11 +1421,19 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	else if (inst == 0xc5) { /* 2-byte form AVX */
         vex = 1;
         printf("%s: 2-BYTE AVX\n", __FUNCTION__);
-        printf("inst %x\n", inst);
 	    get_value_inc(inst, loc, 1, FALSE);
-        printf("inst %x\n", inst);
+        {
+            unsigned rex_R = (inst & 0x80);
+            unsigned vvvv = (inst & 0x78) >> 3;
+            unsigned L = (inst & 0x04); /* vector len */
+            unsigned pp = (inst & 0x03); /* prefix 66, f2, f3 */
+            printf(": regR = %d\n", !!rex_R);
+            printf(": vvvv = %x\n", vvvv);
+            printf(": L = %d\n", !!L);
+            printf(": pp = %x\n", pp);
+
+        }
 	    get_value_inc(inst, loc, 1, FALSE);
-        printf("inst %x\n", inst);
 	    ip = db_inst_0f[inst>>4];
 	    if (ip == 0) {
             ip = &db_bad_inst;
