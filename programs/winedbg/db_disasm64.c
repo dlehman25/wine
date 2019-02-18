@@ -1419,6 +1419,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	    }
 	}
 	else if (inst == 0xc5) { /* 2-byte form AVX */
+        static const int prefixes[] = {0, 0x66, 0xf3, 0xf2};
         vex = 1;
         printf("%s: 2-BYTE AVX\n", __FUNCTION__);
 	    get_value_inc(inst, loc, 1, FALSE);
@@ -1432,6 +1433,8 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
             printf(": L = %d\n", !!L);
             printf(": pp = %x\n", pp);
 
+
+            vexpfx = prefixes[pp];
         }
 	    get_value_inc(inst, loc, 1, FALSE);
 	    ip = db_inst_0f[inst>>4];
