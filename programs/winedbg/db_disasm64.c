@@ -302,7 +302,7 @@ static const struct inst db_inst_0f2x[] = {
 
 /*28*/	{ "movaps",TRUE,  NONE,  op2(E, XMM), 0 },
 /*29*/	{ "movaps",TRUE,  NONE,  op2(XMM, E), 0 },
-/*2a*/	{ "cvtsi2sd", TRUE, NONE,  op3(R, XMM, XMM), 0 },
+/*2a*/	{ "cvtsi2s", TRUE, NONE,  op3(R, XMM, XMM), 0 },
 /*2b*/	{ "movntp", TRUE, NONE,  op2(R, XMM), 0 },
 /*2c*/	{ "",      FALSE, NONE,  0,	      0 },
 /*2d*/	{ "",      FALSE, NONE,  0,	      0 },
@@ -1492,7 +1492,8 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
             unsigned vlen = (inst & 0x04) >> 2;
             unsigned ext = (inst & 0x03);
             static const char *exts[] = {"none", "66", "f3", "f2"};
-            vexpfx = ext;
+            static const int prefixes[] = {0, 0x66, 0xf3, 0xf2};
+            vexpfx = prefixes[ext];
 
             if (w) printf("\topcode specific\n");
             printf("\treg %x (%x -> %s)\n", reg, ~reg & 0xf, db_reg[0/*TODO?*/][3][~reg & 0xf]);
