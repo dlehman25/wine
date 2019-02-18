@@ -1501,15 +1501,6 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
             ip = &ip[inst&0xf];
 	    }
         printf("inst name %s\n", ip->i_name);
-
-if (0)
-{
-        rex = 0x7;
-	    get_value_inc(regmodrm, loc, 1, FALSE);
-	    loc = db_read_address(loc, short_addr, rex, regmodrm, &address);
-        printf("address: is_reg %d disp %d\n", address.is_reg, address.disp);
-}
-
     }
     else if (inst == 0xc5) { /* 2-byte form AVX */
         printf("inst %x\n", inst);
