@@ -1419,8 +1419,21 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	    }
 	}
 	else if (inst == 0xc5) { /* 2-byte form AVX */
-        printf("%s: 2-BYTE AVX\n", __FUNCTION__);
         vex = 1;
+        printf("%s: 2-BYTE AVX\n", __FUNCTION__);
+        printf("inst %x\n", inst);
+	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
+	    get_value_inc(inst, loc, 1, FALSE);
+        printf("inst %x\n", inst);
+	    ip = db_inst_0f[inst>>4];
+	    if (ip == 0) {
+            ip = &db_bad_inst;
+	    }
+	    else {
+            ip = &ip[inst&0xf];
+	    }
+        printf("inst name %s\n", ip->i_name);
     }
 	else if (inst == 0xc4) { /* 3-byte form AVX */
 /*
@@ -1501,12 +1514,6 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
             ip = &ip[inst&0xf];
 	    }
         printf("inst name %s\n", ip->i_name);
-    }
-    else if (inst == 0xc5) { /* 2-byte form AVX */
-        printf("inst %x\n", inst);
-	    get_value_inc(inst, loc, 1, FALSE);
-        printf("inst %x\n", inst);
-		ip = &db_bad_inst;
     }
 	else
 		ip = &db_inst_table[inst];
