@@ -24,6 +24,7 @@
 #include "winnls.h"
 
 static BOOL (__cdecl *p__crtGetStringTypeW)(DWORD, DWORD, const wchar_t*, int, WORD*);
+static int (__cdecl *p__crtLCMapStringW)(LCID, DWORD, const MSVCRT_wchar_t*, int, MSVCRT_wchar_t*, int, unsigned int, int);
 static int (__cdecl *pmemcpy_s)(void *, size_t, void*, size_t);
 static int (__cdecl *p___mb_cur_max_func)(void);
 static int *(__cdecl *p__p___mb_cur_max)(void);
@@ -34,6 +35,7 @@ static void init(void)
     HMODULE hmod = GetModuleHandleA("msvcrt.dll");
 
     p__crtGetStringTypeW = (void*)GetProcAddress(hmod, "__crtGetStringTypeW");
+    p__crtLCMapStringW = (void*)GetProcAddress(hmod, "__crtLCMapStringW");
     pmemcpy_s = (void*)GetProcAddress(hmod, "memcpy_s");
     p___mb_cur_max_func = (void*)GetProcAddress(hmod, "___mb_cur_max_func");
     p__p___mb_cur_max = (void*)GetProcAddress(hmod, "__p___mb_cur_max");
@@ -664,6 +666,14 @@ static void test_crtGetStringTypeW(void)
     ok(!ret, "ret == TRUE\n");
 }
 
+static void test_crtLCMapStringW(void)
+{
+    if(!p__crtLCMapStringW) {
+        win_skip("Skipping __crtLCMapStringW tests\n");
+        return;
+    }
+}
+
 static void test__Gettnames(void)
 {
     static const DWORD time_data[] = {
@@ -780,6 +790,7 @@ START_TEST(locale)
     init();
 
     test_crtGetStringTypeW();
+    test_crtLCMapStringW();
     test_setlocale();
     test__Gettnames();
     test___mb_cur_max_func();
