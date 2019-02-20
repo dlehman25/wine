@@ -668,9 +668,24 @@ static void test_crtGetStringTypeW(void)
 
 static void test_crtLCMapStringW(void)
 {
+    LCID lcid;
+    int ret, exp, i;
+    WCHAR retout[16];
+    WCHAR expout[16];
+    static const WCHAR strs[1][] = {
+        { 'a',' ','s','t','r','i','n','g',0 }
+    };
+
     if(!p__crtLCMapStringW) {
         win_skip("Skipping __crtLCMapStringW tests\n");
         return;
+    }
+
+    lcid = LOCALE_USER_DEFAULT;
+    LCMapStringW(LOCALE_USER_DEFAULT, flags, src, srclen, dst, dstlen);
+    for(i=0; i<ARRAY_SIZE(strs); i++) {
+        exp = LCMapStringW(lcid, LCMAP_UPPERCASE, expout, -1, strs[i], lstrlenW(strs[i]));
+        ret = __crt
     }
 }
 
