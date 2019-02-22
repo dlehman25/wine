@@ -509,6 +509,26 @@ static const struct inst db_inst_0fcx[] = {
 /*cf*/	{ "bswap", FALSE, LONG,  op1(Ril),    0 },
 };
 
+static const struct inst db_inst_0ffx[] = {
+/*f0*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f1*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f2*/	{ "pslld", TRUE,  NONE,	 op2(EMX, MX), 0 },
+/*f3*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f4*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f5*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f6*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f7*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f8*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f9*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*fa*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*fb*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*fc*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*fd*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*fe*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*ff*/	{ "",	   FALSE, NONE,	 0,	      0 },
+};
+
+
 static const struct inst * const db_inst_0f[] = {
 	db_inst_0f0x,
 	db_inst_0f1x,
@@ -525,7 +545,7 @@ static const struct inst * const db_inst_0f[] = {
 	db_inst_0fcx,
 	0,
 	0,
-	0
+	db_inst_0ffx
 };
 
 static const char * const db_Esc92[] = {
