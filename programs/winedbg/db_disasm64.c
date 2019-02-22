@@ -513,7 +513,7 @@ static const struct inst db_inst_0ffx[] = {
 /*f0*/	{ "",	   FALSE, NONE,	 0,	      0 },
 /*f1*/	{ "psllw", TRUE,  NONE,	 op2(EMX, MX), 0 },
 /*f2*/	{ "pslld", TRUE,  NONE,	 op2(EMX, MX), 0 },
-/*f3*/	{ "",	   FALSE, NONE,	 0,	      0 },
+/*f3*/	{ "psllq", TRUE,  NONE,	 op2(EMX, MX), 0 },
 /*f4*/	{ "",	   FALSE, NONE,	 0,	      0 },
 /*f5*/	{ "",	   FALSE, NONE,	 0,	      0 },
 /*f6*/	{ "",	   FALSE, NONE,	 0,	      0 },
