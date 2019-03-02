@@ -4639,6 +4639,7 @@ static void test_file_access(void)
     {
         { GENERIC_READ | GENERIC_WRITE, 0, 0, 0 },
         { GENERIC_WRITE, 0, 0, ERROR_ACCESS_DENIED },
+#if 0
         { GENERIC_READ, 0, ERROR_ACCESS_DENIED, 0 },
         { FILE_READ_DATA | FILE_WRITE_DATA, 0, 0, 0 },
         { FILE_WRITE_DATA, 0, 0, ERROR_ACCESS_DENIED },
@@ -4647,6 +4648,7 @@ static void test_file_access(void)
         { FILE_READ_DATA | FILE_APPEND_DATA, 0, 0, 0 },
         { FILE_WRITE_DATA | FILE_APPEND_DATA, 0, 0, ERROR_ACCESS_DENIED },
         { 0, 0, ERROR_ACCESS_DENIED, ERROR_ACCESS_DENIED },
+#endif
     };
     char path[MAX_PATH], fname[MAX_PATH];
     unsigned char buf[16];
@@ -4672,6 +4674,12 @@ static void test_file_access(void)
 
         for (j = 0; j < ARRAY_SIZE(td); j++)
         {
+printf("%s: i %d j %d\n", __FUNCTION__, i, j);
+if (i == 1 && j == 0)
+{
+    printf("%s waiting\n", __FUNCTION__);
+    getchar();
+}
             SetLastError(0xdeadbeef);
             ret = DuplicateHandle(GetCurrentProcess(), hfile, GetCurrentProcess(), &hdup,
                                   td[j].access, 0, 0);
@@ -5235,6 +5243,8 @@ START_TEST(file)
     ret = DeleteFileA(filename);
     ok(ret != 0, "DeleteFile error %u\n", GetLastError());
 
+    test_file_access();
+return;
     test__hread(  );
     test__hwrite(  );
     test__lclose(  );
