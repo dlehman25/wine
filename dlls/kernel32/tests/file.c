@@ -4661,6 +4661,11 @@ static void test_file_access(void)
     for (i = 0; i < ARRAY_SIZE(td); i++)
     {
         SetLastError(0xdeadbeef);
+if (i == 1)
+{
+    printf("%s waiting\n", __FUNCTION__);
+    getchar();
+}
         hfile = CreateFileA(fname, td[i].access, 0, NULL, CREATE_ALWAYS,
                            FILE_FLAG_DELETE_ON_CLOSE, 0);
         if (td[i].create_error)
@@ -4675,7 +4680,7 @@ static void test_file_access(void)
         for (j = 0; j < ARRAY_SIZE(td); j++)
         {
 printf("%s: i %d j %d\n", __FUNCTION__, i, j);
-if (i == 1 && j == 0)
+if (0 && i == 1 && j == 0)
 {
     printf("%s waiting\n", __FUNCTION__);
     getchar();
