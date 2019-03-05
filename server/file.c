@@ -698,6 +698,12 @@ int get_file_unix_fd( struct file *file )
     return get_unix_fd( file->fd );
 }
 
+/* TODO: 
+modify ACE?
+- on first getting sd, add ACE to deny write?
+- or, more fine-grained checked for read vs read/write?
+*/
+
 /* create a file */
 DECL_HANDLER(create_file)
 {
