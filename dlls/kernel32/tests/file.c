@@ -5234,6 +5234,29 @@ static void test_overlapped_read(void)
     ok(ret, "Unexpected error %u.\n", GetLastError());
 }
 
+static void test_foobar(void)
+{
+    HANDLE a, b;
+    BOOL retok;
+    DWORD written;
+
+    a = CreateFileA("a.txt", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL, OPEN_EXISTING, 0, NULL);
+    ok(a != INVALID_HANDLE_VALUE, "failed to open the temp file, error %u.\n", GetLastError());
+    written = 0;
+    retok = WriteFile(a, &a, sizeof(a), &written, NULL );
+    ok(GetLastError() == ERROR_ACCESS_DENIED, "got %d\n", GetLastError());
+    ok(!retok, "succeeded\n");
+    ok(!written, "something written\n");
+
+    b = CreateFileA("a.txt", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL, OPEN_EXISTING, 0, NULL);
+    ok(b != INVALID_HANDLE_VALUE, "failed to open the temp file, error %u.\n", GetLastError());
+    written = 0;
+    retok = WriteFile(b, &a, sizeof(a), &written, NULL );
+    ok( retok && written == sizeof(a), "WriteFile error %d\n", GetLastError());
+}
+
 START_TEST(file)
 {
     char temp_path[MAX_PATH];
@@ -5247,7 +5270,8 @@ START_TEST(file)
     ok(ret != 0, "GetTempFileName error %u\n", GetLastError());
     ret = DeleteFileA(filename);
     ok(ret != 0, "DeleteFile error %u\n", GetLastError());
-
+    test_foobar();
+return;
     test_file_access();
 return;
     test__hread(  );
