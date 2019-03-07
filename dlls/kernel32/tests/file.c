@@ -5270,8 +5270,7 @@ START_TEST(file)
     ok(ret != 0, "GetTempFileName error %u\n", GetLastError());
     ret = DeleteFileA(filename);
     ok(ret != 0, "DeleteFile error %u\n", GetLastError());
-    test_foobar();
-return;
+if (0)   test_foobar();
     test_file_access();
 return;
     test__hread(  );
