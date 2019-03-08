@@ -256,7 +256,11 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
     {
         obj = create_file_obj( fd, access, mode );
         if (!obj->sd)
+        {
             file_get_sd(obj);
+            // if (access & ~file->access)
+            //      add deny record
+        }
     }
 
     release_object( fd );
