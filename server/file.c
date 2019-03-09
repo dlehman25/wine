@@ -186,6 +186,51 @@ static struct object *create_file_obj( struct fd *fd, unsigned int access, mode_
     return &file->obj;
 }
 
+static void update_access( struct object *obj, unsigned int access )
+{
+    //
+    // if (access & ~file->access)
+    //      add deny record
+    int present;
+    struct file *file = (struct file *)obj;
+    const ACL *dacl = sd_get_dacl( obj->sd, &present );
+    int change = 0;
+    
+    if (file->access == 0x130196)
+        change = 1;
+
+    printf("obj %x want %x\n", file->access, access);
+    if (present && dacl)
+    {
+        const ACE_HEADER *ace = (const ACE_HEADER *)(dacl + 1);
+        ULONG i;
+        for (i = 0; i < dacl->AceCount; i++, ace = ace_next( ace ))
+        {
+            const ACCESS_ALLOWED_ACE *aa_ace;
+            const ACCESS_DENIED_ACE *ad_ace;
+            const SID *sid;
+
+            if (ace->AceFlags & INHERIT_ONLY_ACE) continue;
+
+            switch (ace->AceType)
+            {
+                case ACCESS_DENIED_ACE_TYPE:
+                    ad_ace = (const ACCESS_DENIED_ACE *)ace;
+                    sid = (const SID *)&ad_ace->SidStart;
+                    printf("   denied %x\n", ad_ace->Mask);
+                    break;
+                case ACCESS_ALLOWED_ACE_TYPE:
+                    aa_ace = (const ACCESS_ALLOWED_ACE *)ace;                    
+                    sid = (const SID *)&aa_ace->SidStart;
+                    if (change && i > 0)
+                        ((ACCESS_ALLOWED_ACE *)aa_ace)->Mask = 0x130196;
+                    printf("   allowed %x\n", aa_ace->Mask);
+                    break;
+            }
+        }
+    }
+}
+
 static struct object *create_file( struct fd *root, const char *nameptr, data_size_t len,
                                    unsigned int access, unsigned int sharing, int create,
                                    unsigned int options, unsigned int attrs,
@@ -257,9 +302,8 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
         obj = create_file_obj( fd, access, mode );
         if (!obj->sd)
         {
-            file_get_sd(obj);
-            // if (access & ~file->access)
-            //      add deny record
+            file_get_sd( obj );
+            update_access( obj, access );
         }
     }
 
