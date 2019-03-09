@@ -6097,17 +6097,21 @@ static void test_kernel_objects_security(void)
     ret = validate_impersonation_token(token, &token_type);
     ok(ret, "access token should be a valid impersonation token\n");
     ok(token_type == TokenImpersonation, "expected TokenImpersonation, got %d\n", token_type);
-
+if (0)
+{
     test_mutex_security(token);
     test_event_security(token);
     test_named_pipe_security(token);
     test_semaphore_security(token);
+}
     test_file_security(token);
+if (0)
+{
     test_filemap_security();
     test_thread_security();
     test_process_access();
     /* FIXME: test other kernel object types */
-
+}
     CloseHandle(process_token);
     CloseHandle(token);
 }
@@ -7408,6 +7412,7 @@ START_TEST(security)
         return;
     }
     test_kernel_objects_security();
+return;
     test_sid();
     test_trustee();
     test_luid();
