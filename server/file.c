@@ -300,7 +300,15 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
     else
     {
         obj = create_file_obj( fd, access, mode );
-        if (!obj->sd)
+        if (!sd)
+        {
+            sd = mode_to_sd_mask( mode, token_get_user( current->process->token ),
+                                  token_get_primary_group( current->process->token ), access );
+            obj->sd = sd;
+printf("%s: obj %p obj->sd %p sd %p \n", __FUNCTION__, obj, obj->sd, sd); fflush(stdout);
+        }
+        
+        if (0 && !obj->sd)
         {
             file_get_sd( obj );
             update_access( obj, access );
@@ -385,7 +393,8 @@ unsigned int file_map_access( struct object *obj, unsigned int access )
 }
 
 
-struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID *group )
+struct security_descriptor *mode_to_sd_mask( mode_t mode, const SID *user, const SID *group,
+                                             unsigned int mask )
 {
     struct security_descriptor *sd;
     size_t dacl_size;
@@ -459,6 +468,8 @@ struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID 
             aaa->Mask |= FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
         if (mode & S_IWUSR)
             aaa->Mask |= FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD;
+if (mask != 0xffffffff)
+    aaa->Mask = mask;
         sid = (SID *)&aaa->SidStart;
         memcpy( sid, user, security_sid_len( user ));
     }
@@ -494,11 +505,18 @@ struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID 
             aaa->Mask |= FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
         if (mode & S_IWOTH)
             aaa->Mask |= FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD;
+if (mask != 0xffffffff)
+    aaa->Mask = mask;
         sid = (SID *)&aaa->SidStart;
         memcpy( sid, world_sid, security_sid_len( world_sid ));
     }
 
     return sd;
+}
+
+struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID *group )
+{
+    return mode_to_sd_mask( mode, user, group, 0xffffffff );
 }
 
 static struct security_descriptor *file_get_sd( struct object *obj )

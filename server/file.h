@@ -148,6 +148,7 @@ extern struct file *create_file_for_fd_obj( struct fd *fd, unsigned int access, 
 extern void file_set_error(void);
 extern struct object_type *file_get_type( struct object *obj );
 extern struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID *group );
+extern struct security_descriptor *mode_to_sd_mask( mode_t mode, const SID *user, const SID *group, unsigned int mask );
 extern mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner );
 
 /* file mapping functions */
