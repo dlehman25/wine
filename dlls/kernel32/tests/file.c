@@ -5240,8 +5240,10 @@ static void test_foobar(void)
     BOOL retok;
     DWORD written;
 
+printf("%s waiting\n", __FUNCTION__); getchar();
     a = CreateFileA("a.txt", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL, OPEN_EXISTING, 0, NULL);
+printf("a = %p\n", a);
     ok(a != INVALID_HANDLE_VALUE, "failed to open the temp file, error %u.\n", GetLastError());
     written = 0;
     retok = WriteFile(a, &a, sizeof(a), &written, NULL );
@@ -5251,6 +5253,7 @@ static void test_foobar(void)
 
     b = CreateFileA("a.txt", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL, OPEN_EXISTING, 0, NULL);
+printf("b = %p\n", b);
     ok(b != INVALID_HANDLE_VALUE, "failed to open the temp file, error %u.\n", GetLastError());
     written = 0;
     retok = WriteFile(b, &a, sizeof(a), &written, NULL );
@@ -5270,7 +5273,7 @@ START_TEST(file)
     ok(ret != 0, "GetTempFileName error %u\n", GetLastError());
     ret = DeleteFileA(filename);
     ok(ret != 0, "DeleteFile error %u\n", GetLastError());
-if (0)   test_foobar();
+if (0) {  test_foobar(); return; }
     test_file_access();
 return;
     test__hread(  );
