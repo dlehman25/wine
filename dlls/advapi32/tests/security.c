@@ -5640,6 +5640,13 @@ static void test_file_security(HANDLE token)
     GetTempPathA(MAX_PATH, temp_path);
     GetTempFileNameA(temp_path, "tmp", 0, file_name);
 
+    SetLastError(0xdeadbeef);
+    file = CreateFileA(file_name, GENERIC_READ, 0, NULL, CREATE_ALWAYS, 0, NULL);
+    ok(file != INVALID_HANDLE_VALUE, "CreateFile error %d\n", GetLastError());
+    access = get_obj_access(file);
+    ok(access == FILE_GENERIC_READ, "expected FILE_GENERIC_READ, got %#x\n", access);
+    CloseHandle(file);
+
     /* file */
     SetLastError(0xdeadbeef);
     file = CreateFileA(file_name, GENERIC_ALL, 0, NULL, CREATE_ALWAYS, 0, NULL);
