@@ -5307,13 +5307,37 @@ static void test_file_readonly_access(void)
     ok(ret, "DeleteFileA: error %d\n", GetLastError());
 }
 
+static void test_file(void)
+{
+    HANDLE file;
+
+    file = CreateFileA("ro.txt", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file == INVALID_HANDLE_VALUE, "got %p\n", file);
+    file = CreateFileA("ro.txt", GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file == INVALID_HANDLE_VALUE, "got %p\n", file);
+    file = CreateFileA("ro.txt", GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file != INVALID_HANDLE_VALUE, "got %p\n", file);
+    CloseHandle(file);
+
+    file = CreateFileA("rw.txt", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file != INVALID_HANDLE_VALUE, "got %p\n", file);
+    CloseHandle(file);
+    file = CreateFileA("rw.txt", GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file != INVALID_HANDLE_VALUE, "got %p\n", file);
+    CloseHandle(file);
+    file = CreateFileA("rw.txt", GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file != INVALID_HANDLE_VALUE, "got %p\n", file);
+    CloseHandle(file);
+}
+
 START_TEST(file)
 {
     char temp_path[MAX_PATH];
     DWORD ret;
 
     InitFunctionPointers();
-
+test_file();
+return;
     ret = GetTempPathA(MAX_PATH, temp_path);
     ok(ret != 0, "GetTempPath error %u\n", GetLastError());
     ret = GetTempFileNameA(temp_path, "tmp", 0, filename);
