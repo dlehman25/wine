@@ -253,7 +253,14 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
     else if (S_ISCHR(mode) && is_serial_fd( fd ))
         obj = create_serial( fd );
     else
+    {
         obj = create_file_obj( fd, access, mode );
+        if (obj)
+        {
+            if (!sd) /* TODO: what if !!sd? */
+                file_get_sd( obj );
+        }
+    }
 
     release_object( fd );
 
