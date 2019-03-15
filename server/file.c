@@ -62,6 +62,7 @@ struct file
 };
 
 static unsigned int generic_file_map_access( unsigned int access );
+static unsigned int file_map_access( struct object *obj, unsigned int access );
 
 static void file_dump( struct object *obj, int verbose );
 static struct fd *file_get_fd( struct object *obj );
@@ -87,7 +88,7 @@ static const struct object_ops file_ops =
     no_satisfied,                 /* satisfied */
     no_signal,                    /* signal */
     file_get_fd,                  /* get_fd */
-    default_fd_map_access,        /* map_access */
+    file_map_access,              /* map_access */
     file_get_sd,                  /* get_sd */
     file_set_sd,                  /* set_sd */
     file_lookup_name,             /* lookup_name */
@@ -186,6 +187,11 @@ static struct object *create_file_obj( struct fd *fd, unsigned int access, mode_
     return &file->obj;
 }
 
+static void update_sd( struct object *obj )
+{
+
+}
+
 static struct object *create_file( struct fd *root, const char *nameptr, data_size_t len,
                                    unsigned int access, unsigned int sharing, int create,
                                    unsigned int options, unsigned int attrs,
@@ -258,7 +264,14 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
         if (obj)
         {
             if (!sd) /* TODO: what if !!sd? */
+            {
+                struct file *file;
+
                 file_get_sd( obj );
+                file = (struct file *)obj;
+                if (access & ~file->access)
+                    update_sd( obj );
+            }
         }
     }
 
@@ -328,6 +341,22 @@ static unsigned int generic_file_map_access( unsigned int access )
     if (access & GENERIC_ALL)     access |= FILE_ALL_ACCESS;
     return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
 }
+
+unsigned int file_map_access( struct object *obj, unsigned int access )
+{
+    struct file *file;    
+    if (access & GENERIC_READ)    access |= FILE_GENERIC_READ;
+    if (access & GENERIC_WRITE)   access |= FILE_GENERIC_WRITE;
+    if (access & GENERIC_EXECUTE) access |= FILE_GENERIC_EXECUTE;
+    if (access & GENERIC_ALL)     access |= FILE_ALL_ACCESS;
+    if (obj->ops == &file_ops)
+    {
+        file = (struct file *)obj;
+        printf("foo\n");
+    }
+    return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
+}
+
 
 struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID *group )
 {
