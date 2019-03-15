@@ -5309,8 +5309,22 @@ static void test_file_readonly_access(void)
 
 static void test_file(void)
 {
-    HANDLE file;
+    HANDLE file, file2;
+    DWORD err;
 
+printf("%s: waiting\n", __FUNCTION__); fflush(stdout);
+getchar();
+    file = CreateFileA("rw.txt", GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, 0 );
+    ok(file != INVALID_HANDLE_VALUE, "got %p\n", file);
+    SetLastError(0xdeadbeef);
+    file2 = DuplicateHandle(GetCurrentProcess(), file, GetCurrentProcess(), &file2,
+                            GENERIC_WRITE, FALSE, 0);
+    err = GetLastError();
+    ok(err == ERROR_ACCESS_DENIED, "got 0x%x\n", err);
+    ok(file == INVALID_HANDLE_VALUE, "got %p\n", file);
+    CloseHandle(file);
+    CloseHandle(file2);
+return;
     file = CreateFileA("ro.txt", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0 );
     ok(file == INVALID_HANDLE_VALUE, "got %p\n", file);
     file = CreateFileA("ro.txt", GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0 );
