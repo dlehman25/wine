@@ -5385,6 +5385,13 @@ getchar();
             break;
         }
 
+/*
+rw.txt
+12019f S-1-5-21-....-1000   
+120089 S-1-22-2-1000        Samba user 1000
+120089 S-1-1-0              Everyone
+*/
+
         switch (ace->AceType)
         {
             case ACCESS_ALLOWED_ACE_TYPE:
