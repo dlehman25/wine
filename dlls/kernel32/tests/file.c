@@ -38,6 +38,7 @@
 #include "winnls.h"
 #include "fileapi.h"
 #include "accctrl.h"
+#include "aclapi.h"
 
 #undef DeleteFile  /* needed for FILE_DISPOSITION_INFO */
 
@@ -5315,14 +5316,20 @@ static void test_file(void)
     DWORD sdSize, retSize, rc, granted, priv_set_len;
     PRIVILEGE_SET priv_set;
     BOOL status;
-*/
     BYTE bufsd[SECURITY_DESCRIPTOR_MIN_LENGTH];
     SECURITY_DESCRIPTOR *sd = (SECURITY_DESCRIPTOR *)bufsd;
     GENERIC_MAPPING mapping = { FILE_READ_DATA, FILE_WRITE_DATA, FILE_EXECUTE, FILE_ALL_ACCESS };
+*/
     HANDLE file, file2, process_token, token;
+    ACL_SIZE_INFORMATION acl_size;
+    SECURITY_DESCRIPTOR *psd;
     DWORD err, sd_size;
+    ACE_HEADER *ace;
+    NTSTATUS status;
     ACL *sacl;
+    ACL *dacl;
     BOOL rc;
+    int i;
 
 printf("%s: waiting\n", __FUNCTION__); fflush(stdout);
 getchar();
@@ -5335,8 +5342,40 @@ getchar();
     err = DuplicateToken(process_token, SecurityImpersonation, &token);
     ok(err, "DuplicateToken error %d\n", GetLastError());
 
-    err = GetSecurityInfo(file, SE_FILE_OBJECT, SACL_SECURITY_INFORMATION, NULL, NULL, NULL, &sacl, &sd );
-    ok(err, "GetSecurityInfo error %d\n", GetLastError());
+    sacl = NULL;
+    psd = NULL;
+    err = GetSecurityInfo(file, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, NULL, NULL, &dacl, NULL, (void**)&psd );
+    ok(err == ERROR_SUCCESS, "got %d\n", err);
+
+    err = GetAclInformation(dacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+    for (i = 0; i < acl_size.AceCount; i++)
+    {
+        status = RtlGetAce(dacl, i, (void**)&ace);
+        if (status)
+        {
+            printf("%s: %d: status %x\n", __FUNCTION__, __LINE__, status);
+            break;
+        }
+
+        switch (ace->AceType)
+        {
+            case ACCESS_ALLOWED_ACE_TYPE:
+            {
+                ACCESS_ALLOWED_ACE *allow = (ACCESS_ALLOWED_ACE *)ace;
+                printf("allow %d/%d mask 0x%08x sid %08x\n", i, acl_size.AceCount, allow->Mask, allow->SidStart);
+            } break;
+            case ACCESS_DENIED_ACE_TYPE:
+            {
+                ACCESS_DENIED_ACE *deny = (ACCESS_DENIED_ACE *)ace;
+                printf("deny  %d/%d mask 0x%08x sid %08x\n", i, acl_size.AceCount, deny->Mask, deny->SidStart);
+            } break;
+            default:
+            {
+                printf("%s: %d\n", __FUNCTION__, __LINE__);
+            } break;
+        }
+    }
+return;
 /*
     bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
     priv_set_len = sizeof(priv_set);
