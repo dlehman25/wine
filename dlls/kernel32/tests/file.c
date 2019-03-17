@@ -5309,6 +5309,34 @@ static void test_file_readonly_access(void)
     ok(ret, "DeleteFileA: error %d\n", GetLastError());
 }
 
+#define SID_SLOTS 4
+static char debugsid_str[SID_SLOTS][256];
+static int debugsid_index = 0;
+static const char* debugstr_sid(PSID sid)
+{
+    LPSTR sidstr;
+    DWORD le = GetLastError();
+    char* res = debugsid_str[debugsid_index];
+    debugsid_index = (debugsid_index + 1) % SID_SLOTS;
+
+    if (!ConvertSidToStringSidA(sid, &sidstr))
+        sprintf(res, "ConvertSidToStringSidA failed le=%u", GetLastError());
+    else if (strlen(sidstr) > sizeof(*debugsid_str) - 1)
+    {
+        memcpy(res, sidstr, sizeof(*debugsid_str) - 4);
+        strcpy(res + sizeof(*debugsid_str) - 4, "...");
+        LocalFree(sidstr);
+    }
+    else
+    {
+        strcpy(res, sidstr);
+        LocalFree(sidstr);
+    }
+    /* Restore the last error in case ConvertSidToStringSidA() modified it */
+    SetLastError(le);
+    return res;
+}
+
 static void test_file(void)
 {
 /*
@@ -5362,12 +5390,12 @@ getchar();
             case ACCESS_ALLOWED_ACE_TYPE:
             {
                 ACCESS_ALLOWED_ACE *allow = (ACCESS_ALLOWED_ACE *)ace;
-                printf("allow %d/%d mask 0x%08x sid %08x\n", i, acl_size.AceCount, allow->Mask, allow->SidStart);
+                printf("allow %d/%d mask 0x%08x sid %s\n", i, acl_size.AceCount, allow->Mask, debugstr_sid((SID*)&allow->SidStart));
             } break;
             case ACCESS_DENIED_ACE_TYPE:
             {
                 ACCESS_DENIED_ACE *deny = (ACCESS_DENIED_ACE *)ace;
-                printf("deny  %d/%d mask 0x%08x sid %08x\n", i, acl_size.AceCount, deny->Mask, deny->SidStart);
+                printf("deny  %d/%d mask 0x%08x sid %s\n", i, acl_size.AceCount, deny->Mask, debugstr_sid((SID*)&deny->SidStart));
             } break;
             default:
             {
