@@ -37,6 +37,7 @@
 #include "winternl.h"
 #include "winnls.h"
 #include "fileapi.h"
+#include "accctrl.h"
 
 #undef DeleteFile  /* needed for FILE_DISPOSITION_INFO */
 
@@ -5309,13 +5310,52 @@ static void test_file_readonly_access(void)
 
 static void test_file(void)
 {
-    HANDLE file, file2;
-    DWORD err;
+/*
+    HANDLE process_token, token;
+    DWORD sdSize, retSize, rc, granted, priv_set_len;
+    PRIVILEGE_SET priv_set;
+    BOOL status;
+*/
+    BYTE bufsd[SECURITY_DESCRIPTOR_MIN_LENGTH];
+    SECURITY_DESCRIPTOR *sd = (SECURITY_DESCRIPTOR *)bufsd;
+    GENERIC_MAPPING mapping = { FILE_READ_DATA, FILE_WRITE_DATA, FILE_EXECUTE, FILE_ALL_ACCESS };
+    HANDLE file, file2, process_token, token;
+    DWORD err, sd_size;
+    ACL *sacl;
+    BOOL rc;
 
 printf("%s: waiting\n", __FUNCTION__); fflush(stdout);
 getchar();
     file = CreateFileA("rw.txt", GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, 0 );
     ok(file != INVALID_HANDLE_VALUE, "got %p\n", file);
+
+    err = OpenProcessToken(GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_QUERY, &process_token);
+    ok(err, "OpenProcessToken error %d\n", GetLastError());
+
+    err = DuplicateToken(process_token, SecurityImpersonation, &token);
+    ok(err, "DuplicateToken error %d\n", GetLastError());
+
+    err = GetSecurityInfo(file, SE_FILE_OBJECT, SACL_SECURITY_INFORMATION, NULL, NULL, NULL, &sacl, &sd );
+    ok(err, "GetSecurityInfo error %d\n", GetLastError());
+/*
+    bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+    priv_set_len = sizeof(priv_set);
+    granted = 0xdeadbeef;
+    status = 0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    rc = AccessCheck(sd, token, FILE_READ_DATA, &mapping, &priv_set, &priv_set_len, &granted, &status);
+    ok(rc, "AccessCheck error %d\n", GetLastError());
+    ok(status == 1, "expected 1, got %d\n", status);
+    SetLastError(0xdeadbeef);
+    rc = GetFileSecurityA("rw.txt", OWNER_SECURITY_INFORMATION, NULL, 0, &sd_size);
+    err = GetLastError();
+    ok(err == ERROR_ACCESS_DENIED, "got 0x%x\n", err);
+    ok(rc, "got %d\n", rc);
+
+    err = GetSecurityInfo( hkey, SE_REGISTRY_KEY, SACL_SECURITY_INFORMATION, NULL, NULL, NULL, &sacl, &sd );
+
+    ok(granted == FILE_READ_DATA, "expected FILE_READ_DATA, got %#x\n", granted);
+*/
     SetLastError(0xdeadbeef);
     file2 = DuplicateHandle(GetCurrentProcess(), file, GetCurrentProcess(), &file2,
                             GENERIC_WRITE, FALSE, 0);
