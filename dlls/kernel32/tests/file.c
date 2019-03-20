@@ -5410,7 +5410,6 @@ rw.txt
             } break;
         }
     }
-return;
 /*
     bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
     priv_set_len = sizeof(priv_set);
@@ -5435,7 +5434,7 @@ return;
                             GENERIC_WRITE, FALSE, 0);
     err = GetLastError();
     ok(err == ERROR_ACCESS_DENIED, "got 0x%x\n", err);
-    ok(file == INVALID_HANDLE_VALUE, "got %p\n", file);
+    ok(file2 == INVALID_HANDLE_VALUE, "got %p\n", file2);
     CloseHandle(file);
     CloseHandle(file2);
 return;
