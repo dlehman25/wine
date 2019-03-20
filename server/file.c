@@ -189,7 +189,33 @@ static struct object *create_file_obj( struct fd *fd, unsigned int access, mode_
 
 static void update_sd( struct object *obj )
 {
+    struct file *file = (struct file *)obj;
+    ACCESS_ALLOWED_ACE *allow;
+    ACCESS_DENIED_ACE *deny;
+    ACE_HEADER *hdr;
+    int present;
+    ACL *dacl;
+    WORD i;
 
+    if (!obj->sd)
+        return;
+
+    dacl = sd_get_dacl(obj->sd, &present);
+    hdr = (ACE_HEADER *)(dacl + 1);
+    for (i = 0; i < dacl->AceCount; i++)
+    {
+        switch (hdr->AceType)
+        {
+            case ACCESS_ALLOWED_ACE_TYPE:
+                allow = (ACCESS_ALLOWED_ACE *)hdr;
+                allow->Mask &= file->access;
+                break;
+            case ACCESS_DENIED_ACE_TYPE:
+                deny = (ACCESS_DENIED_ACE *)hdr;
+                break;
+        }
+        hdr = (ACE_HEADER *)((unsigned char *)hdr + hdr->AceSize);
+    }
 }
 
 static struct object *create_file( struct fd *root, const char *nameptr, data_size_t len,
@@ -269,8 +295,7 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
 
                 file_get_sd( obj );
                 file = (struct file *)obj;
-                if (access & ~file->access)
-                    update_sd( obj );
+                update_sd( obj );
             }
         }
     }
