@@ -5430,11 +5430,13 @@ rw.txt
     ok(granted == FILE_READ_DATA, "expected FILE_READ_DATA, got %#x\n", granted);
 */
     SetLastError(0xdeadbeef);
-    file2 = DuplicateHandle(GetCurrentProcess(), file, GetCurrentProcess(), &file2,
-                            GENERIC_WRITE, FALSE, 0);
+    file2 = NULL;
+    rc = DuplicateHandle(GetCurrentProcess(), file, GetCurrentProcess(), &file2,
+                        GENERIC_WRITE, FALSE, 0);
     err = GetLastError();
+    ok(!rc, "got %d\n", rc);
     ok(err == ERROR_ACCESS_DENIED, "got 0x%x\n", err);
-    ok(file2 == INVALID_HANDLE_VALUE, "got %p\n", file2);
+    ok(!file2, "got %p\n", file2);
     CloseHandle(file);
     CloseHandle(file2);
 return;
