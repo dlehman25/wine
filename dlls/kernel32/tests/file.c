@@ -5465,14 +5465,16 @@ START_TEST(file)
     DWORD ret;
 
     InitFunctionPointers();
-test_file();
-return;
+//test_file(); return;
     ret = GetTempPathA(MAX_PATH, temp_path);
     ok(ret != 0, "GetTempPath error %u\n", GetLastError());
     ret = GetTempFileNameA(temp_path, "tmp", 0, filename);
     ok(ret != 0, "GetTempFileName error %u\n", GetLastError());
     ret = DeleteFileA(filename);
     ok(ret != 0, "DeleteFile error %u\n", GetLastError());
+//test_file_access();
+//return;
+
 
     test__hread(  );
     test__hwrite(  );
