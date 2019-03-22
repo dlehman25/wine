@@ -976,8 +976,8 @@ printf("%s: rc %d -> %s\n", __FUNCTION__, rc, file);
 printf("%s: sd %u -> %p\n", __FUNCTION__, sdSize, sd);
     retSize = 0xdeadbeef;
     SetLastError(0xdeadbeef);
-printf("%s: %d waiting\n", __FUNCTION__, __LINE__); fflush(stdout);
-getchar();
+//printf("%s: %d waiting\n", __FUNCTION__, __LINE__); fflush(stdout);
+//getchar();
     rc = GetFileSecurityA(file, OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,
                           sd, sdSize, &retSize);
     ok(rc, "GetFileSecurity error %d\n", GetLastError());
@@ -1049,7 +1049,7 @@ printf("%s: dacl %p\n", __FUNCTION__, dacl);
     ok(rc, "AccessCheck error %d\n", GetLastError());    
     ok(status == 1, "expected 1, got %d\n", status);
     ok(granted == FILE_READ_DATA, "expected FILE_READ_DATA, got %#x\n", granted);
-return;
+//return;
     granted = 0xdeadbeef;
     status = 0xdeadbeef;
     SetLastError(0xdeadbeef);
@@ -7443,8 +7443,8 @@ START_TEST(security)
 {
     init();
     if (!hmod) return;
-test_FileSecurity();
-return;
+//test_FileSecurity();
+//return;
 
     if (myARGC >= 3)
     {
