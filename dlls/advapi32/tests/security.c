@@ -4826,6 +4826,8 @@ static void test_GetSecurityInfo(void)
     ok(bret, "Failed to add ACL to security descriptor.\n");
     ret = pSetSecurityInfo(obj, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
                           NULL, NULL, pDacl, NULL);
+printf("%s: waiting\n", __FUNCTION__); fflush(stdout);
+getchar();
     ok(ret == ERROR_SUCCESS, "SetSecurityInfo returned %d\n", ret);
     ret = pGetSecurityInfo(obj, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
                           NULL, NULL, &pDacl, NULL, &pSD);
@@ -4833,6 +4835,7 @@ static void test_GetSecurityInfo(void)
     ok(pDacl && IsValidAcl(pDacl), "GetSecurityInfo returned invalid DACL.\n");
     bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
     ok(bret, "GetAclInformation failed\n");
+printf("%s: %d: acl_size.AceCount %d\n", __FUNCTION__, __LINE__, acl_size.AceCount);
     if (acl_size.AceCount > 0)
     {
         bret = pGetAce(pDacl, 0, (VOID **)&ace);
@@ -7443,6 +7446,8 @@ START_TEST(security)
 {
     init();
     if (!hmod) return;
+test_GetSecurityInfo();
+return;
 //test_FileSecurity();
 //return;
 
