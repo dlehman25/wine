@@ -959,6 +959,7 @@ cleanup:
     SetLastError(0xdeadbeef);
     rc = GetTempFileNameA(wintmpdir, "tmp", 0, file);
     ok(rc, "GetTempFileName error %d\n", GetLastError());
+printf("%s: rc %d -> %s\n", __FUNCTION__, rc, file);
 
     rc = GetFileAttributesA(file);
     rc &= ~(FILE_ATTRIBUTE_NOT_CONTENT_INDEXED|FILE_ATTRIBUTE_COMPRESSED);
@@ -972,6 +973,7 @@ cleanup:
     ok(sdSize > sizeof(SECURITY_DESCRIPTOR), "got sd size %d\n", sdSize);
 
     sd = HeapAlloc(GetProcessHeap (), 0, sdSize);
+printf("%s: sd %u -> %p\n", __FUNCTION__, sdSize, sd);
     retSize = 0xdeadbeef;
     SetLastError(0xdeadbeef);
     rc = GetFileSecurityA(file, OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,
@@ -991,7 +993,7 @@ cleanup:
     SetLastError(0xdeadbeef);
     rc = OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &token);
     ok(rc, "OpenThreadToken error %d\n", GetLastError());
-
+    
     SetLastError(0xdeadbeef);
     rc = RevertToSelf();
     ok(rc, "RevertToSelf error %d\n", GetLastError());
@@ -1001,8 +1003,48 @@ cleanup:
     granted = 0xdeadbeef;
     status = 0xdeadbeef;
     SetLastError(0xdeadbeef);
+    {
+        BOOL ret, present, defaulted;
+        ACL_SIZE_INFORMATION acl_size;
+        DWORD err;
+        PACL dacl = NULL;
+        ACE_HEADER *ace;
+        NTSTATUS status;
+        int i;
+
+        ret = GetSecurityDescriptorDacl(sd, &present, &dacl, &defaulted);
+printf("%s: ret %d present %d defaulted %d\n", __FUNCTION__, ret, present, defaulted);
+printf("%s: dacl %p\n", __FUNCTION__, dacl);
+        err = GetAclInformation(dacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+        for (i = 0; i < acl_size.AceCount; i++)
+        {
+            status = RtlGetAce(dacl, i, (void**)&ace);
+            if (status)
+            {
+                printf("%s: %d: status %x\n", __FUNCTION__, __LINE__, status);
+                break;
+            }
+            switch (ace->AceType)
+            {
+                case ACCESS_ALLOWED_ACE_TYPE:
+                {
+                    ACCESS_ALLOWED_ACE *allow = (ACCESS_ALLOWED_ACE *)ace;
+                    printf("allow %d/%d mask 0x%08x sid %s\n", i, acl_size.AceCount, allow->Mask, debugstr_sid((SID*)&allow->SidStart));
+                } break;
+                case ACCESS_DENIED_ACE_TYPE:
+                {
+                    ACCESS_DENIED_ACE *deny = (ACCESS_DENIED_ACE *)ace;
+                    printf("deny  %d/%d mask 0x%08x sid %s\n", i, acl_size.AceCount, deny->Mask, debugstr_sid((SID*)&deny->SidStart));
+                } break;
+                default:
+                {
+                    printf("%s: %d\n", __FUNCTION__, __LINE__);
+                } break;
+            }
+        }
+    }
     rc = AccessCheck(sd, token, FILE_READ_DATA, &mapping, &priv_set, &priv_set_len, &granted, &status);
-    ok(rc, "AccessCheck error %d\n", GetLastError());
+    ok(rc, "AccessCheck error %d\n", GetLastError());    
     ok(status == 1, "expected 1, got %d\n", status);
     ok(granted == FILE_READ_DATA, "expected FILE_READ_DATA, got %#x\n", granted);
 return;
