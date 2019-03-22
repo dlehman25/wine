@@ -996,6 +996,7 @@ cleanup:
     rc = RevertToSelf();
     ok(rc, "RevertToSelf error %d\n", GetLastError());
 
+/* TODO */
     priv_set_len = sizeof(priv_set);
     granted = 0xdeadbeef;
     status = 0xdeadbeef;
@@ -1004,7 +1005,7 @@ cleanup:
     ok(rc, "AccessCheck error %d\n", GetLastError());
     ok(status == 1, "expected 1, got %d\n", status);
     ok(granted == FILE_READ_DATA, "expected FILE_READ_DATA, got %#x\n", granted);
-
+return;
     granted = 0xdeadbeef;
     status = 0xdeadbeef;
     SetLastError(0xdeadbeef);
@@ -7398,6 +7399,8 @@ START_TEST(security)
 {
     init();
     if (!hmod) return;
+test_FileSecurity();
+return;
 
     if (myARGC >= 3)
     {
