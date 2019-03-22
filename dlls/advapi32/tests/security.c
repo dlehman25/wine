@@ -4824,10 +4824,10 @@ static void test_GetSecurityInfo(void)
     ok(bret, "Failed to add Administrator Group to ACL.\n");
     bret = SetSecurityDescriptorDacl(pSD, TRUE, pDacl, FALSE);
     ok(bret, "Failed to add ACL to security descriptor.\n");
-    ret = pSetSecurityInfo(obj, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
-                          NULL, NULL, pDacl, NULL);
 printf("%s: waiting\n", __FUNCTION__); fflush(stdout);
 getchar();
+    ret = pSetSecurityInfo(obj, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                          NULL, NULL, pDacl, NULL);
     ok(ret == ERROR_SUCCESS, "SetSecurityInfo returned %d\n", ret);
     ret = pGetSecurityInfo(obj, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
                           NULL, NULL, &pDacl, NULL, &pSD);
