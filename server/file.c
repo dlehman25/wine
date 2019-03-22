@@ -289,7 +289,8 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
         obj = create_file_obj( fd, access, mode );
         if (obj)
         {
-            if (!sd) /* TODO: what if !!sd? */
+            /* TODO: what if !!sd? */            
+            if (!sd & !(options & FILE_OPEN_FOR_BACKUP_INTENT))
             {
                 struct file *file;
 

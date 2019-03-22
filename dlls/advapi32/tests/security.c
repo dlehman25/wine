@@ -976,6 +976,8 @@ printf("%s: rc %d -> %s\n", __FUNCTION__, rc, file);
 printf("%s: sd %u -> %p\n", __FUNCTION__, sdSize, sd);
     retSize = 0xdeadbeef;
     SetLastError(0xdeadbeef);
+printf("%s: %d waiting\n", __FUNCTION__, __LINE__); fflush(stdout);
+getchar();
     rc = GetFileSecurityA(file, OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,
                           sd, sdSize, &retSize);
     ok(rc, "GetFileSecurity error %d\n", GetLastError());
