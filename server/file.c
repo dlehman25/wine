@@ -618,7 +618,38 @@ mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner )
 
 static struct security_descriptor *copy_sd( const struct security_descriptor *sd )
 {
-    return NULL;
+    struct security_descriptor *ret;
+    data_size_t sd_len;
+    const SID *group;
+    const SID *owner;
+    int present;
+    char *ptr;
+    ACL *dacl;
+    ACL *sacl;
+
+    owner = sd_get_owner( sd );
+    group = sd_get_group( sd );
+    sacl = sd_get_sacl( sd, &present );
+    dacl = sd_get_dacl( sd, &present );
+    sd_len = sizeof(*sd) + sd->owner_len + sd->group_len + sd->sacl_len + sd->dacl_len;
+    ret = mem_alloc( sd_len );
+    if (!ret)
+    {
+        /* set error */
+        return NULL;
+    }
+
+    ptr = ret;
+    memcpy( ptr, sd, sizeof(*sd) );
+    ptr += sizeof(*sd);
+    memcpy( ptr, owner, sd->owner_len );
+    ptr += sd->owner_len;
+    memcpy( ptr, group, sd->group_len );
+    ptr += sd->group_len;
+    memcpy( ptr, sacl, sd->sacl_len );
+    ptr += sd->sacl_len;
+    memcpy( ptr, dacl, sd->dacl_len );
+    return ret;
 }
 
 static int file_set_sd( struct object *obj, const struct security_descriptor *sd,
