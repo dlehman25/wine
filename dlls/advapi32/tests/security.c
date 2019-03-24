@@ -4770,6 +4770,7 @@ static void test_GetSecurityInfo(void)
         skip("Couldn't create an object for GetSecurityInfo test\n");
         return;
     }
+printf("%s: file %s\n", __FUNCTION__, myARGV[0]);
 
     ret = pGetSecurityInfo(obj, SE_FILE_OBJECT,
                           OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,

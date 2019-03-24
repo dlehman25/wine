@@ -616,6 +616,11 @@ mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner )
     return new_mode;
 }
 
+static struct security_descriptor *copy_sd( const struct security_descriptor *sd )
+{
+    return NULL;
+}
+
 static int file_set_sd( struct object *obj, const struct security_descriptor *sd,
                         unsigned int set_info )
 {
@@ -663,6 +668,9 @@ static int file_set_sd( struct object *obj, const struct security_descriptor *sd
             return 0;
         }
     }
+    
+    free( obj->sd );
+    obj->sd = copy_sd( sd );
     return 1;
 }
 
