@@ -628,6 +628,7 @@ static struct security_descriptor *copy_sd( const struct security_descriptor *sd
     ACL *dacl;
     ACL *sacl;
 
+    /* TODO: RtlCopySecurityDescriptor */
     owner = sd_get_owner( sd );
     group = sd_get_group( sd );
     sacl = sd_get_sacl( sd, &present );
