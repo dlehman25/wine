@@ -622,6 +622,7 @@ static struct security_descriptor *copy_sd( const struct security_descriptor *sd
     data_size_t sd_len;
     const SID *group;
     const SID *owner;
+    const SID *sid;
     int present;
     char *ptr;
     ACL *dacl;
@@ -649,6 +650,34 @@ static struct security_descriptor *copy_sd( const struct security_descriptor *sd
     memcpy( ptr, sacl, sd->sacl_len );
     ptr += sd->sacl_len;
     memcpy( ptr, dacl, sd->dacl_len );
+
+    dacl = ptr;
+    if (dacl && present) /* TODO: present dacl */
+    {
+        ACE_HEADER *ace = (ACE_HEADER *)(dacl + 1);
+        ULONG i;
+        for (i = 0; i < dacl->AceCount; i++, ace = ace_next( ace ))
+        {
+            ACCESS_ALLOWED_ACE *aa_ace;
+            ACCESS_DENIED_ACE *ad_ace;
+            SID *sid;
+
+            if (ace->AceFlags & INHERIT_ONLY_ACE) continue;
+
+            switch (ace->AceType)
+            {
+                case ACCESS_DENIED_ACE_TYPE:
+                    ad_ace = (ACCESS_DENIED_ACE *)ace;
+                    ad_ace->Mask = generic_file_map_access( ad_ace->Mask );
+                    break;
+                case ACCESS_ALLOWED_ACE_TYPE:
+                    aa_ace = (ACCESS_ALLOWED_ACE *)ace;
+                    aa_ace->Mask = generic_file_map_access( aa_ace->Mask );
+                    break;
+            }
+        }
+    }
+
     return ret;
 }
 
