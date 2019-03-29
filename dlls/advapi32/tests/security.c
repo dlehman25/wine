@@ -7398,9 +7398,9 @@ START_TEST(security)
 {
     init();
     if (!hmod) return;
-test_FileSecurity();
-return;
 
+test_GetNamedSecurityInfoA();
+return;
     if (myARGC >= 3)
     {
         if (!strcmp(myARGV[2], "test_token_sd"))
@@ -7409,6 +7409,7 @@ return;
             test_process_security_child();
         return;
     }
+
     test_kernel_objects_security();
     test_sid();
     test_trustee();
