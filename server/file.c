@@ -713,8 +713,8 @@ static int file_set_sd( struct object *obj, const struct security_descriptor *sd
     else if (obj->sd)
     {
         owner = sd_get_owner( obj->sd );
-        /* TODO: if (!owner)
-            owner = token_get_user( current->process->token ); */
+        if (!owner)
+            owner = token_get_user( current->process->token );
     }
     else
         owner = token_get_user( current->process->token );

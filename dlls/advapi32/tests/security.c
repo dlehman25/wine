@@ -4061,8 +4061,6 @@ static void test_GetNamedSecurityInfoA(void)
     ok(h == INVALID_HANDLE_VALUE, "CreateFile error %d\n", GetLastError());
     CloseHandle(h);
 
-if (1)
-{
     /* test if DACL is properly mapped to permission */
     bret = InitializeAcl(pDacl, 100, ACL_REVISION);
     ok(bret, "Failed to initialize ACL.\n");
@@ -4075,7 +4073,6 @@ if (1)
     status = pNtSetSecurityObject(hTemp, DACL_SECURITY_INFORMATION, pSD);
     ok(status == ERROR_SUCCESS, "NtSetSecurityObject returned %x\n", status);
 
-return;
     h = CreateFileA(tmpfile, GENERIC_READ, FILE_SHARE_DELETE|FILE_SHARE_WRITE|FILE_SHARE_READ,
             NULL, OPEN_EXISTING, 0, NULL);
     ok(h != INVALID_HANDLE_VALUE, "CreateFile error %d\n", GetLastError());
@@ -4098,7 +4095,7 @@ return;
     HeapFree(GetProcessHeap(), 0, pDacl);
     HeapFree(GetProcessHeap(), 0, user);
     CloseHandle(hTemp);
-}
+
     /* Test querying the ownership of a built-in registry key */
     sid_size = sizeof(system_ptr);
     pCreateWellKnownSid(WinLocalSystemSid, NULL, system_sid, &sid_size);
