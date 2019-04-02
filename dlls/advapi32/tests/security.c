@@ -7399,8 +7399,6 @@ START_TEST(security)
     init();
     if (!hmod) return;
 
-test_GetNamedSecurityInfoA();
-return;
     if (myARGC >= 3)
     {
         if (!strcmp(myARGV[2], "test_token_sd"))
