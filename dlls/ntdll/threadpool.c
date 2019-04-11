@@ -2131,6 +2131,25 @@ static void tp_object_initialize( struct threadpool_object *object, struct threa
         tp_object_release( object );
 }
 
+static int tp_count_workers( struct threadpool *pool )
+{
+    struct threadpool_object *object;
+    unsigned int i;
+    int num;
+
+    num = 0;
+    for (i = 0; i < ARRAY_SIZE(pool->pools); ++i)
+    {
+        LIST_FOR_EACH_ENTRY( object, &pool->pools[i], struct threadpool_object, pool_entry )
+        {
+            if (object->type == TP_OBJECT_TYPE_WORK)
+            num++;
+        }
+    }
+
+    return num;
+}
+
 static void tp_object_prio_queue( struct threadpool_object *object )
 {
     ++object->pool->num_busy_workers;
@@ -2153,8 +2172,11 @@ static void tp_object_submit( struct threadpool_object *object, BOOL signaled )
 
     RtlEnterCriticalSection( &pool->cs );
 
-    /* Start new worker threads if required. */
-    if (pool->num_busy_workers >= pool->num_workers &&
+    /* Start new worker threads if required. Take into account any worker objects queued.
+       Higher level code that implements a thread pool using workers that wait need
+       running threads.  Any extra threads spawned now that sit idle will be cleaned
+       but by the worker timeout. */
+    if ((pool->num_busy_workers + tp_count_workers( pool )) >= pool->num_workers &&
         pool->num_workers < pool->max_workers)
         status = tp_new_worker_thread( pool );
 
@@ -2746,7 +2768,7 @@ NTSTATUS WINAPI TpCallbackMayRunLong( TP_CALLBACK_INSTANCE *instance )
     RtlEnterCriticalSection( &pool->cs );
 
     /* Start new worker threads if required. */
-    if (pool->num_busy_workers >= pool->num_workers)
+    if (pool->num_busy_workers + tp_count_workers( pool ) >= pool->num_workers)
     {
         if (pool->num_workers < pool->max_workers)
         {
