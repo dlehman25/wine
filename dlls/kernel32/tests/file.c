@@ -323,11 +323,47 @@ static void test__lcreat( void )
 
     ret = DeleteFileA(filename);
     ok( ret != 0, "DeleteFile failed (%d)\n", GetLastError());
+if (1)
+{
+filehandle = CreateFileA( filename, GENERIC_READ | GENERIC_WRITE,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, 0 );
+printf("%s: filehandle %p\n", __FUNCTION__, filehandle);
+DWORD written = 0;
+BOOL ret = WriteFile( filehandle, sillytext, strlen(sillytext), &written, NULL); // works on windows
+printf("%s: ret %d written %d\n", __FUNCTION__, ret, written);
+return;
+}
 
+if (0)
+{
+filehandle = CreateFileA( filename, GENERIC_READ | GENERIC_WRITE,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, 0 );
+printf("%s: filehandle %p\n", __FUNCTION__, filehandle);
+long ret = _hwrite( filehandle, sillytext, strlen( sillytext )); // works on windows
+printf("%s: ret %d\n", __FUNCTION__, ret);
+return;
+}
+
+if (0)
+{
+filehandle = CreateFileA( filename, GENERIC_READ,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, 0 );
+printf("%s: filehandle %p\n", __FUNCTION__, filehandle);
+long ret = _hwrite( filehandle, sillytext, strlen( sillytext )); // fails on windows
+printf("%s: ret %d\n", __FUNCTION__, ret);
+return;
+}
+
+
+printf("%s: waiting: %s\n", __FUNCTION__, filename); fflush(stdout); getchar();
     filehandle = _lcreat( filename, 1 ); /* readonly */
     ok( HFILE_ERROR != filehandle, "couldn't create file \"%s\" (err=%d)\n", filename, GetLastError(  ) );
 
     ok( HFILE_ERROR != _hwrite( filehandle, sillytext, strlen( sillytext ) ), "_hwrite shouldn't be able to write never the less\n" );
+return;
 
     ok( HFILE_ERROR != _lclose(filehandle), "_lclose complains\n" );
 
@@ -5475,6 +5511,8 @@ START_TEST(file)
 //test_file_access();
 //return;
 
+    test__lcreat(  );
+return;
 
     test__hread(  );
     test__hwrite(  );
