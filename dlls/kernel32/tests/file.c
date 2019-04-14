@@ -400,15 +400,19 @@ static void test__lcreat( void )
     ok( ret != 0, "DeleteFile failed (%d)\n", GetLastError());
 if (1)
 {
+DWORD written = 0;
 filehandle = CreateFileA( filename, GENERIC_READ | GENERIC_WRITE,
                                FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, 0 );
 printf("%s: filehandle %p\n", __FUNCTION__, filehandle);
 if (filehandle != INVALID_HANDLE_VALUE)
+{
     print_sd(filehandle);
-DWORD written = 0;
-BOOL ret = WriteFile( filehandle, sillytext, strlen(sillytext), &written, NULL); // works on windows
-printf("%s: ret %d written %d\n", __FUNCTION__, ret, written);
+    BOOL ret = WriteFile( filehandle, sillytext, strlen(sillytext), &written, NULL); // works on windows
+    printf("%s: ret %d written %d\n", __FUNCTION__, ret, written);
+}
+written = GetFileAttributesA(filename);
+printf("%s: attr 0x%x\n", __FUNCTION__, written);
 return;
 }
 
