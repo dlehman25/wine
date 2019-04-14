@@ -288,6 +288,81 @@ static void get_nt_pathW( const char *name, UNICODE_STRING *nameW )
     pRtlFreeUnicodeString( &strW );
 }
 
+#define SID_SLOTS 4
+static char debugsid_str[SID_SLOTS][256];
+static int debugsid_index = 0;
+static const char* debugstr_sid(PSID sid)
+{
+    LPSTR sidstr;
+    DWORD le = GetLastError();
+    char* res = debugsid_str[debugsid_index];
+    debugsid_index = (debugsid_index + 1) % SID_SLOTS;
+
+    if (!ConvertSidToStringSidA(sid, &sidstr))
+        sprintf(res, "ConvertSidToStringSidA failed le=%u", GetLastError());
+    else if (strlen(sidstr) > sizeof(*debugsid_str) - 1)
+    {
+        memcpy(res, sidstr, sizeof(*debugsid_str) - 4);
+        strcpy(res + sizeof(*debugsid_str) - 4, "...");
+        LocalFree(sidstr);
+    }
+    else
+    {
+        strcpy(res, sidstr);
+        LocalFree(sidstr);
+    }
+    /* Restore the last error in case ConvertSidToStringSidA() modified it */
+    SetLastError(le);
+    return res;
+}
+
+static void print_sd(HANDLE file)
+{
+    ACL_SIZE_INFORMATION acl_size;
+    SECURITY_DESCRIPTOR *psd;
+    DWORD err, sd_size;
+    ACE_HEADER *ace;
+    NTSTATUS status;
+    ACL *sacl;
+    ACL *dacl;
+    BOOL rc;
+    int i;
+
+    sacl = NULL;
+    psd = NULL;
+    err = GetSecurityInfo(file, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, NULL, NULL, &dacl, NULL, (void**)&psd );
+    ok(err == ERROR_SUCCESS, "got %d\n", err);
+
+    err = GetAclInformation(dacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+    for (i = 0; i < acl_size.AceCount; i++)
+    {
+        status = RtlGetAce(dacl, i, (void**)&ace);
+        if (status)
+        {
+            printf("%s: %d: status %x\n", __FUNCTION__, __LINE__, status);
+            break;
+        }
+
+        switch (ace->AceType)
+        {
+            case ACCESS_ALLOWED_ACE_TYPE:
+            {
+                ACCESS_ALLOWED_ACE *allow = (ACCESS_ALLOWED_ACE *)ace;
+                printf("allow %d/%d mask 0x%08x sid %s\n", i, acl_size.AceCount, allow->Mask, debugstr_sid((SID*)&allow->SidStart));
+            } break;
+            case ACCESS_DENIED_ACE_TYPE:
+            {
+                ACCESS_DENIED_ACE *deny = (ACCESS_DENIED_ACE *)ace;
+                printf("deny  %d/%d mask 0x%08x sid %s\n", i, acl_size.AceCount, deny->Mask, debugstr_sid((SID*)&deny->SidStart));
+            } break;
+            default:
+            {
+                printf("%s: %d\n", __FUNCTION__, __LINE__);
+            } break;
+        }
+    }
+}
+
 static void test__lcreat( void )
 {
     UNICODE_STRING filenameW;
@@ -329,6 +404,8 @@ filehandle = CreateFileA( filename, GENERIC_READ | GENERIC_WRITE,
                                FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, 0 );
 printf("%s: filehandle %p\n", __FUNCTION__, filehandle);
+if (filehandle != INVALID_HANDLE_VALUE)
+    print_sd(filehandle);
 DWORD written = 0;
 BOOL ret = WriteFile( filehandle, sillytext, strlen(sillytext), &written, NULL); // works on windows
 printf("%s: ret %d written %d\n", __FUNCTION__, ret, written);
@@ -5343,34 +5420,6 @@ static void test_file_readonly_access(void)
     SetFileAttributesA(file_name, FILE_ATTRIBUTE_NORMAL);
     ret = DeleteFileA(file_name);
     ok(ret, "DeleteFileA: error %d\n", GetLastError());
-}
-
-#define SID_SLOTS 4
-static char debugsid_str[SID_SLOTS][256];
-static int debugsid_index = 0;
-static const char* debugstr_sid(PSID sid)
-{
-    LPSTR sidstr;
-    DWORD le = GetLastError();
-    char* res = debugsid_str[debugsid_index];
-    debugsid_index = (debugsid_index + 1) % SID_SLOTS;
-
-    if (!ConvertSidToStringSidA(sid, &sidstr))
-        sprintf(res, "ConvertSidToStringSidA failed le=%u", GetLastError());
-    else if (strlen(sidstr) > sizeof(*debugsid_str) - 1)
-    {
-        memcpy(res, sidstr, sizeof(*debugsid_str) - 4);
-        strcpy(res + sizeof(*debugsid_str) - 4, "...");
-        LocalFree(sidstr);
-    }
-    else
-    {
-        strcpy(res, sidstr);
-        LocalFree(sidstr);
-    }
-    /* Restore the last error in case ConvertSidToStringSidA() modified it */
-    SetLastError(le);
-    return res;
 }
 
 static void test_file(void)
