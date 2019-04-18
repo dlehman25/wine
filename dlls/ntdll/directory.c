@@ -3287,7 +3287,11 @@ typedef struct
 
 static inline LONG64 dc_mtime_from_stat(const struct stat *st)
 {
+#ifdef HAVE_STRUCT_STAT_ST_MTIM
+    return (LONG64)st->st_mtim.tv_sec * 1000000000 + st->st_mtim.tv_nsec;
+#else
     return (LONG64)st->st_mtime;
+#endif
 }
 
 static int dfile_del_compare(const void *key, const struct wine_rb_entry *entry)
