@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "windef.h"
 #include "winbase.h"
@@ -3724,9 +3725,27 @@ static DWORD HTTP_HttpQueryInfoW(http_request_t *request, DWORD dwInfoLevel,
     /* coalesce value to requested type */
     if (dwInfoLevel & HTTP_QUERY_FLAG_NUMBER && lpBuffer)
     {
-        *(int *)lpBuffer = atoiW(lphttpHdr->lpszValue);
-        TRACE(" returning number: %d\n", *(int *)lpBuffer);
-     }
+        unsigned long conv;
+        DWORD value;
+
+        if (*lpdwBufferLength != sizeof(DWORD))
+        {
+            LeaveCriticalSection( &request->headers_section );
+            return ERROR_HTTP_INVALID_HEADER;
+        }
+
+        conv = strtoulW( lphttpHdr->lpszValue, NULL, 10 );
+        value = (DWORD)conv;
+        if ((unsigned long)value != conv ||
+            (value == 0xffffffff && errno == ERANGE))
+        {
+            LeaveCriticalSection( &request->headers_section );
+            return ERROR_HTTP_INVALID_HEADER;
+        }
+
+        *(DWORD *)lpBuffer = value;
+        TRACE(" returning number: %u\n", value);
+    }
     else if (dwInfoLevel & HTTP_QUERY_FLAG_SYSTEMTIME && lpBuffer)
     {
         time_t tmpTime;

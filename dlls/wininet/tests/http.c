@@ -2061,6 +2061,12 @@ static const char okmsg2[] =
 "Set-Cookie: two\r\n"
 "\r\n";
 
+static const char ok6gb[] =
+"HTTP/1.1 200 OK\r\n"
+"Connection: Keep-Alive\r\n"
+"Content-Length: 6442450944\r\n"
+"\r\n";
+
 static const char notokmsg[] =
 "HTTP/1.1 400 Bad Request\r\n"
 "Server: winetest\r\n"
@@ -2454,6 +2460,10 @@ static DWORD CALLBACK server_thread(LPVOID param)
         if (strstr(buffer, "GET /test_remove_dot_segments"))
         {
             send(c, okmsg, sizeof(okmsg)-1, 0);
+        }
+        if (strstr(buffer, "HEAD /test6G"))
+        {
+            send(c, ok6gb, sizeof(ok6gb), 0);
         }
         shutdown(c, 2);
         closesocket(c);
@@ -5515,6 +5525,45 @@ static void test_remove_dot_segments(int port)
     close_request(&req);
 }
 
+static void test_large_content(int port)
+{
+    test_request_t req;
+    DWORD len, len2;
+    DWORD64 len64;
+    BOOL ret;
+
+    open_simple_request(&req, "localhost", port, "HEAD", "/test6G");
+
+    ret = HttpSendRequestA(req.request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed: %u\n", GetLastError());
+
+    len = sizeof(len64);
+    len64 = ~0;
+    SetLastError(0xdeadbeef);
+    ret = HttpQueryInfoA(req.request, HTTP_QUERY_FLAG_NUMBER|HTTP_QUERY_CONTENT_LENGTH,
+                         &len64, &len, 0);
+    ok(!ret, "HttpQueryInfo should have failed\n");
+    ok(GetLastError() == ERROR_HTTP_INVALID_HEADER,
+        "HttpQueryInfo should have set last error to ERROR_HTTP_INVALID_HEADER instead of %u\n",
+        GetLastError());
+    ok(len == sizeof(DWORD64), "len = %u\n", len);
+    ok(len64 == ~0, "len64 = %x%08x\n", (DWORD)(len64 >> 32), (DWORD)len64);
+
+    len = sizeof(len2);
+    len2 = ~0;
+    SetLastError(0xdeadbeef);
+    ret = HttpQueryInfoA(req.request, HTTP_QUERY_FLAG_NUMBER|HTTP_QUERY_CONTENT_LENGTH,
+                         &len2, &len, 0);
+    ok(!ret, "HttpQueryInfo should have failed\n");
+    ok(GetLastError() == ERROR_HTTP_INVALID_HEADER,
+        "HttpQueryInfo should have set last error to ERROR_HTTP_INVALID_HEADER instead of %u\n",
+        GetLastError());
+    ok(len == sizeof(DWORD), "len = %u\n", len);
+    ok(len2 == ~0, "content_length = %x\n", len2);
+
+    close_request(&req);
+}
+
 static void test_http_connection(void)
 {
     struct server_info si;
@@ -5573,6 +5622,7 @@ static void test_http_connection(void)
     test_redirect(si.port);
     test_persistent_connection(si.port);
     test_remove_dot_segments(si.port);
+    test_large_content(si.port);
 
     /* send the basic request again to shutdown the server thread */
     test_basic_request(si.port, "GET", "/quit");
