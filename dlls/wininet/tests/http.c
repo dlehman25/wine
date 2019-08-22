@@ -2463,7 +2463,7 @@ static DWORD CALLBACK server_thread(LPVOID param)
         }
         if (strstr(buffer, "HEAD /test6G"))
         {
-            send(c, ok6gb, sizeof(ok6gb), 0);
+            send(c, ok6gb, sizeof(ok6gb)-1, 0);
         }
         shutdown(c, 2);
         closesocket(c);
