@@ -2441,7 +2441,7 @@ static void create_cache_entry(http_request_t *req)
         return;
     }
 
-    b = CreateUrlCacheEntryW(url, req->contentLength == ~0u ? 0 : req->contentLength, NULL, file_name, 0);
+    b = CreateUrlCacheEntryW(url, req->contentLength == ~0 ? 0 : req->contentLength, NULL, file_name, 0);
     if(!b) {
         WARN("Could not create cache entry: %08x\n", GetLastError());
         return;
@@ -2645,7 +2645,7 @@ static DWORD netconn_drain_content(data_stream_t *stream, http_request_t *req, B
     int len, res;
     size_t size;
 
-    if(netconn_stream->content_length == ~0u)
+    if(netconn_stream->content_length == ~0)
         return WSAEISCONN;
 
     while(netconn_stream->content_read < netconn_stream->content_length) {
@@ -2751,7 +2751,7 @@ static DWORD chunked_read(data_stream_t *stream, http_request_t *req, BYTE *buf,
                 TRACE("reading %u byte chunk\n", chunked_stream->chunk_size);
                 chunked_stream->buf_size++;
                 chunked_stream->buf_pos--;
-                if(req->contentLength == ~0u) req->contentLength = chunked_stream->chunk_size;
+                if(req->contentLength == ~0) req->contentLength = chunked_stream->chunk_size;
                 else req->contentLength += chunked_stream->chunk_size;
                 chunked_stream->state = CHUNKED_STREAM_STATE_DISCARD_EOL_AFTER_SIZE;
             }
@@ -2884,7 +2884,7 @@ static DWORD set_content_length(http_request_t *request)
     size = sizeof(request->contentLength);
     if (HTTP_HttpQueryInfoW(request, HTTP_QUERY_FLAG_NUMBER|HTTP_QUERY_CONTENT_LENGTH,
                             &request->contentLength, &size, NULL) != ERROR_SUCCESS)
-        request->contentLength = ~0u;
+        request->contentLength = ~0;
     request->netconn_stream.content_length = request->contentLength;
     request->netconn_stream.content_read = request->read_size;
 
@@ -2910,7 +2910,7 @@ static DWORD set_content_length(http_request_t *request)
         }
 
         request->data_stream = &chunked_stream->data_stream;
-        request->contentLength = ~0u;
+        request->contentLength = ~0;
     }
 
     if(request->hdr.decoding) {
@@ -3300,7 +3300,7 @@ static DWORD HTTP_HttpOpenRequestW(http_session_t *session,
     request->hdr.dwFlags = dwFlags;
     request->hdr.dwContext = dwContext;
     request->hdr.decoding = session->hdr.decoding;
-    request->contentLength = ~0u;
+    request->contentLength = ~0;
 
     request->netconn_stream.data_stream.vtbl = &netconn_stream_vtbl;
     request->data_stream = &request->netconn_stream.data_stream;
@@ -4926,7 +4926,7 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
         loop_next = FALSE;
 
         if(redirected) {
-            request->contentLength = ~0u;
+            request->contentLength = ~0;
             request->bytesToWrite = 0;
         }
 
