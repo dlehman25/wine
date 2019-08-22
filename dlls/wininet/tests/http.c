@@ -5584,6 +5584,8 @@ static void test_http_connection(void)
         return;
     }
 
+if (0)
+{
     test_basic_request(si.port, "GET", "/test1");
     test_proxy_indirect(si.port);
     test_proxy_direct(si.port);
@@ -5622,6 +5624,7 @@ static void test_http_connection(void)
     test_redirect(si.port);
     test_persistent_connection(si.port);
     test_remove_dot_segments(si.port);
+}
     test_large_content(si.port);
 
     /* send the basic request again to shutdown the server thread */
@@ -7092,6 +7095,8 @@ START_TEST(http)
 
     init_events();
     init_status_tests();
+    test_http_connection();
+return;
     test_InternetCloseHandle();
     InternetReadFile_test(INTERNET_FLAG_ASYNC, &test_data[0]);
     InternetReadFile_test(INTERNET_FLAG_ASYNC, &test_data[1]);
