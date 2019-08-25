@@ -3725,7 +3725,7 @@ static DWORD HTTP_HttpQueryInfoW(http_request_t *request, DWORD dwInfoLevel,
     /* coalesce value to requested type */
     if (dwInfoLevel & HTTP_QUERY_FLAG_NUMBER && lpBuffer)
     {
-        unsigned long conv;
+        unsigned long long conv;
         DWORD value;
 
         if (*lpdwBufferLength != sizeof(DWORD))
@@ -3734,10 +3734,10 @@ static DWORD HTTP_HttpQueryInfoW(http_request_t *request, DWORD dwInfoLevel,
             return ERROR_HTTP_INVALID_HEADER;
         }
 
-        conv = strtoulW( lphttpHdr->lpszValue, NULL, 10 );
+        conv = strtoullW( lphttpHdr->lpszValue, NULL, 10 );
         value = (DWORD)conv;
-        if ((unsigned long)value != conv ||
-            (value == 0xffffffff && errno == ERANGE))
+        if ((unsigned long long)value != conv ||
+            (value == ULLONG_MAX && errno == ERANGE))
         {
             LeaveCriticalSection( &request->headers_section );
             return ERROR_HTTP_INVALID_HEADER;
