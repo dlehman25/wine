@@ -620,6 +620,17 @@ static void HTTP_FixURL(http_request_t *request)
         }
     }
 
+    {
+        WCHAR escaped[4096];
+        DWORD nesc;
+
+        nesc = 4096;
+        memset(escaped, 0, sizeof(escaped));
+        UrlEscapeW(request->path, escaped, &nesc, URL_ESCAPE_PERCENT); /* UrlCanonicalizeW */
+        MESSAGE("%s: %s -> %s\n", __FUNCTION__, debugstr_w(request->path), debugstr_w(escaped));
+    }
+
+
     if(CSTR_EQUAL != CompareStringW( LOCALE_INVARIANT, NORM_IGNORECASE,
                        request->path, strlenW(request->path), szHttp, strlenW(szHttp) )
        && request->path[0] != '/') /* not an absolute path ?? --> fix it !! */
