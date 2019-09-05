@@ -1215,6 +1215,19 @@ static void InternetCanonicalizeUrl_test(void)
     ok(strcmp(dst, "http://www.winehq.org/%27/%20/./%3E/#>") == 0, "Got \"%s\"\n", dst);
 }
 
+static void InternetCanonicalizeUrlW_test(void)
+{
+    static const WCHAR url[] = {'h','t','t','p',':','/','/','l','/','J','P',0x908f, 0x5d0e, 0xff71, 0x30fb, 0x8811, 0x8f14, 0x2033, 0x8711, 0xff72, 0x7e67, 0x9854, 0xff74, 0x5d0e, 0xff71, 0x30fb, '.','h','t','m','l', 0};
+    static const WCHAR cmp[1] = {0};
+    WCHAR dst[128];
+    DWORD dstlen;
+
+    dstlen = sizeof(dst);
+    InternetCanonicalizeUrlW(url, dst, &dstlen, ICU_ESCAPE);
+    ok(lstrcmpW(dst, cmp) == 0, "Got \"%s\"\n", wine_dbgstr_w(dst));
+
+}
+
 START_TEST(url)
 {
     int i;
@@ -1233,4 +1246,5 @@ START_TEST(url)
     InternetCrackUrlW_test();
     InternetCreateUrlA_test();
     InternetCanonicalizeUrl_test();
+    InternetCanonicalizeUrlW_test();
 }

@@ -619,6 +619,17 @@ static void HTTP_FixURL(http_request_t *request)
             if (request->path[nLen] == '\\') request->path[nLen]='/';
         }
     }
+    
+    {
+        WCHAR escaped[4096];
+        DWORD nesc;
+
+        nesc = 4096;
+        memset(escaped, 0, sizeof(escaped));
+        UrlEscapeW(request->path, escaped, &nesc, URL_ESCAPE_PERCENT);
+        MESSAGE("%s: %s -> %s\n", __FUNCTION__, debugstr_w(request->path), debugstr_w(escaped));
+    }
+
 
     {
         WCHAR escaped[4096];
