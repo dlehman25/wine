@@ -1193,6 +1193,17 @@ static void test_UrlCanonicalizeW(void)
         choped = lstrlenW(szReturnUrl) < lstrlenW(szUrl);
         ok(choped == (i <= 32), "Incorrect char chopping for char %d\n", i);
     }
+    {
+        static const WCHAR url[] = {'J','P',0x7d0d,0x8c46,'/',0x5f15,0x304d,0x5272,0x808a,0x7d0d,0x8c46,'.','h','t','m','l',0};
+        static const WCHAR cmp[1] = {0};
+        WCHAR dst[128];
+        DWORD dstlen;
+
+        dstlen = sizeof(dst);
+        //pUrlCanonicalizeW(url, dst, &dstlen, URL_ESCAPE_AS_UTF8);
+        pUrlEscapeW(url, dst, &dstlen, URL_ESCAPE_AS_UTF8);
+        ok(lstrcmpW(dst, cmp) == 0, "Got \"%s\"\n", wine_dbgstr_w(dst));
+    }
 }
 
 /* ########################### */

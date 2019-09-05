@@ -626,23 +626,16 @@ static void HTTP_FixURL(http_request_t *request)
 
         nesc = 4096;
         memset(escaped, 0, sizeof(escaped));
-        UrlEscapeW(request->path, escaped, &nesc, URL_ESCAPE_PERCENT);
+        UrlEscapeW(request->path, escaped, &nesc, URL_ESCAPE_AS_UTF8);
         MESSAGE("%s: %s -> %s\n", __FUNCTION__, debugstr_w(request->path), debugstr_w(escaped));
+
+        WCHAR *fixurl = heap_alloc((strlenW(escaped) + 1)*sizeof(WCHAR));
+        strcpyW(fixurl, escaped);
+        heap_free( request->path );
+        request->path = fixurl;
     }
 
-
-    {
-        WCHAR escaped[4096];
-        DWORD nesc;
-
-        nesc = 4096;
-        memset(escaped, 0, sizeof(escaped));
-        UrlEscapeW(request->path, escaped, &nesc, URL_ESCAPE_PERCENT); /* UrlCanonicalizeW */
-        MESSAGE("%s: %s -> %s\n", __FUNCTION__, debugstr_w(request->path), debugstr_w(escaped));
-    }
-
-
-    if(CSTR_EQUAL != CompareStringW( LOCALE_INVARIANT, NORM_IGNORECASE,
+    if(0 && CSTR_EQUAL != CompareStringW( LOCALE_INVARIANT, NORM_IGNORECASE,
                        request->path, strlenW(request->path), szHttp, strlenW(szHttp) )
        && request->path[0] != '/') /* not an absolute path ?? --> fix it !! */
     {
@@ -3371,6 +3364,18 @@ static DWORD HTTP_HttpOpenRequestW(http_session_t *session,
             ERR("Unable to escape string!(%s) (%d)\n",debugstr_w(lpszObjectName),rc);
             strcpyW(request->path,lpszObjectName);
         }
+
+        {
+           char aa[1024];
+           WCHAR ww[1024];
+           WCHAR ee[1024];
+           WideCharToMultiByte(CP_ACP, 0, request->path, -1, aa, sizeof(aa), NULL, NULL);
+           MultiByteToWideChar(CP_UTF8, 0, aa, strlen(aa), ww, 1024);
+           DWORD size = 1024;
+           UrlEscapeW(ww, ee, &size, URL_ESCAPE_AS_UTF8);
+           MESSAGE("%s: %s -> %s -> %s -> %s\n", __FUNCTION__, debugstr_w(request->path), aa, debugstr_w(ww), debugstr_w(ee));
+        }
+
     }else {
         static const WCHAR slashW[] = {'/',0};
 
@@ -4835,12 +4840,12 @@ static DWORD open_http_connection(http_request_t *request, BOOL *reusing)
 
 static char *build_ascii_request( const WCHAR *str, void *data, DWORD data_len, DWORD *out_len )
 {
-    int len = WideCharToMultiByte( CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL );
+    int len = WideCharToMultiByte( CP_ACP, 0, str, -1, NULL, 0, NULL, NULL );
     char *ret, *tmp, *start, *end, *dst;
     DWORD nenc;
 
     if (!(ret = heap_alloc( len + data_len ))) return NULL;
-    WideCharToMultiByte( CP_UTF8, 0, str, -1, ret, len, NULL, NULL );
+    WideCharToMultiByte( CP_ACP, 0, str, -1, ret, len, NULL, NULL );
 
     start = strchr(ret, ' ');
     if (start)

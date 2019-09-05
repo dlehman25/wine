@@ -2457,6 +2457,12 @@ INT WINAPI MultiByteToWideChar( UINT page, DWORD flags, LPCSTR src, INT srclen,
     const union cptable *table;
     int ret;
 
+    if (page == 932 && strstr(src, "/International/articles/idn-and-iri/JP"))
+    {
+      MESSAGE("FOUND\n");
+      getchar();
+    }
+
     if (!src || !srclen || (!dst && dstlen) || dstlen < 0)
     {
         SetLastError( ERROR_INVALID_PARAMETER );

@@ -3752,6 +3752,7 @@ static nsresult NSAPI nsIOServiceHook_NewURI(nsIIOServiceHook *iface, const nsAC
         }
     }
 
+MESSAGE("%s: aOriginCharset %s\n", __FUNCTION__, aOriginCharset);
     if(aOriginCharset && *aOriginCharset && _strnicmp(aOriginCharset, "utf", 3)) {
         BSTR charset;
         int len;
@@ -3767,6 +3768,7 @@ static nsresult NSAPI nsIOServiceHook_NewURI(nsIIOServiceHook *iface, const nsAC
         SysFreeString(charset);
     }
 
+MESSAGE("%s: cp %u spec %s\n", __FUNCTION__, cp, spec);
     MultiByteToWideChar(cp, 0, spec, -1, new_spec, ARRAY_SIZE(new_spec));
 
     if(base_wine_uri) {
