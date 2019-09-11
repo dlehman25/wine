@@ -1005,6 +1005,43 @@ static void test_GetTimeZoneInformationForYear(void)
        "GetTimeZoneInformationForYear err %u\n", GetLastError());
 }
 
+#define TIME_ZONE_KEY_SIZE  (ARRAY_SIZE(((RTL_DYNAMIC_TIME_ZONE_INFORMATION*)0)->TimeZoneKeyName))
+typedef struct {
+    USHORT year;
+    const WCHAR tz[TIME_ZONE_KEY_SIZE];
+    DYNAMIC_TIME_ZONE_INFORMATION dyn_tzinfo;
+    TIME_ZONE_INFORMATION tzinfo;
+} GTZIFY_case;
+
+static void test_GetTimeZoneInformationForYear2(void)
+{
+    int i;
+    TIME_ZONE_INFORMATION tzinfo;
+    DYNAMIC_TIME_ZONE_INFORMATION dyn_tzinfo;
+    static const WCHAR std_tzname[] = {'G','r','e','e','n','l','a','n','d',' ','S','t','a','n','d','a','r','d',' ','T','i','m','e',0};
+
+    if (!pGetTimeZoneInformationForYear || !pGetDynamicTimeZoneInformation)
+    {
+        win_skip("GetTimeZoneInformationForYear not available\n");
+        return;
+    }
+
+    {
+        GTZIFY_case cases[] = {
+            {0}
+        };
+
+        for (i = 0; cases[i].year; i++)
+        {
+            memset(&dyn_tzinfo, 0xaa, sizeof(dyn_tzinfo));
+            lstrcpyW(dyn_tzinfo.TimeZoneKeyName, std_tzname);
+            dyn_tzinfo.DynamicDaylightTimeDisabled = FALSE;
+
+            pGetTimeZoneInformationForYear(cases[i].year, &dyn_tzinfo, &tzinfo);
+        }
+    }
+}
+
 static void test_GetTickCount(void)
 {
     DWORD t1, t2, t3;
@@ -1088,6 +1125,7 @@ START_TEST(time)
     test_GetSystemTimeAsFileTime();
     test_GetSystemTimePreciseAsFileTime();
     test_GetTimeZoneInformationForYear();
+    test_GetTimeZoneInformationForYear2();
     test_GetTickCount();
     test_QueryUnbiasedInterruptTime();
 }
