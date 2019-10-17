@@ -49,6 +49,8 @@
 #include "wine/exception.h"
 #include "wine/unicode.h"
 #include "wine/debug.h"
+#include "wine/library.h"
+#include "wine/list.h"
 #include "ntdll_misc.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
@@ -1121,4 +1123,501 @@ NTSTATUS WINAPI RtlQueryUnbiasedInterruptTime(ULONGLONG *time)
 {
     *time = monotonic_counter();
     return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           wine_update_timezones_from_tzdata (NTDLL.@) Not a Windows API
+ *
+ * Update time zones in registry using information from tzdata.
+ * $WINEPREFIX/win_unix_map provides the mapping between Windows and Olson IDs.
+ */
+
+/* similar to above functions of similar name
+    - cache is removed
+    - can pass specific year
+    - dynamic dst is computed using relative/day-of-week instead of absolute date
+*/
+static inline void convert_to_non_absolute(RTL_SYSTEM_TIME *st)
+{
+    /* see dlls/kernel32/time.c TIME_DayLightCompareDate */
+    WORD first;
+
+    /* if on 4th week of a 4-week month, there's no way to determine
+       if the rule is always for the 4th week, or if for the 'last'
+       week (usually 5) and it happens to be the 4th week this year */
+    st->wYear = 0;
+    first = (6 + st->wDay) % 7 + 1;
+    st->wDay = (st->wDay - first) / 7 + 1;
+}
+
+static int init_tz_info_year(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
+{
+    struct tm *tm;
+    time_t year_start, year_end, tmp, dlt = 0, std = 0;
+    int is_dst, current_is_dst;
+
+    year_start = time(NULL);
+    tm = localtime(&year_start);
+    current_is_dst = tm->tm_isdst;
+
+    memset(tzi, 0, sizeof(*tzi));
+
+    if (year)
+        tm->tm_year = year - 1900;
+    TRACE("tz data will be valid through year %d\n", tm->tm_year + 1900);
+
+    tm->tm_isdst = 0;
+    tm->tm_mday = 1;
+    tm->tm_mon = tm->tm_hour = tm->tm_min = tm->tm_sec = tm->tm_wday = tm->tm_yday = 0;
+    year_start = mktime(tm);
+    TRACE("year_start: %s", ctime(&year_start));
+
+    tm->tm_mday = tm->tm_wday = tm->tm_yday = 0;
+    tm->tm_mon = 12;
+    tm->tm_hour = 23;
+    tm->tm_min = tm->tm_sec = 59;
+    year_end = mktime(tm);
+    TRACE("year_end: %s", ctime(&year_end));
+
+    tm = gmtime(&year_start);
+    tzi->Bias = (LONG)(mktime(tm) - year_start) / 60;
+
+    tmp = find_dst_change(year_start, year_end, &is_dst);
+    if (is_dst)
+        dlt = tmp;
+    else
+        std = tmp;
+
+    tmp = find_dst_change(tmp, year_end, &is_dst);
+    if (is_dst)
+        dlt = tmp;
+    else
+        std = tmp;
+
+    TRACE("std: %s", ctime(&std));
+    TRACE("dlt: %s", ctime(&dlt));
+
+    if (dlt == std || !dlt || !std)
+        TRACE("there is no daylight saving rules in this time zone\n");
+    else
+    {
+        tmp = dlt - tzi->Bias * 60;
+        tm = gmtime(&tmp);
+        TRACE("dlt gmtime: %s", asctime(tm));
+
+        tzi->DaylightBias = -60;
+        tzi->DaylightDate.wYear = tm->tm_year + 1900;
+        tzi->DaylightDate.wMonth = tm->tm_mon + 1;
+        tzi->DaylightDate.wDayOfWeek = tm->tm_wday;
+        tzi->DaylightDate.wDay = tm->tm_mday;
+        tzi->DaylightDate.wHour = tm->tm_hour;
+        tzi->DaylightDate.wMinute = tm->tm_min;
+        tzi->DaylightDate.wSecond = tm->tm_sec;
+        tzi->DaylightDate.wMilliseconds = 0;
+
+        TRACE("daylight (d/m/y): %u/%02u/%04u day of week %u %u:%02u:%02u.%03u bias %d\n",
+            tzi->DaylightDate.wDay, tzi->DaylightDate.wMonth,
+            tzi->DaylightDate.wYear, tzi->DaylightDate.wDayOfWeek,
+            tzi->DaylightDate.wHour, tzi->DaylightDate.wMinute,
+            tzi->DaylightDate.wSecond, tzi->DaylightDate.wMilliseconds,
+            tzi->DaylightBias);
+
+        tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
+        tm = gmtime(&tmp);
+        TRACE("std gmtime: %s", asctime(tm));
+
+        tzi->StandardBias = 0;
+        tzi->StandardDate.wYear = tm->tm_year + 1900;
+        tzi->StandardDate.wMonth = tm->tm_mon + 1;
+        tzi->StandardDate.wDayOfWeek = tm->tm_wday;
+        tzi->StandardDate.wDay = tm->tm_mday;
+        tzi->StandardDate.wHour = tm->tm_hour;
+        tzi->StandardDate.wMinute = tm->tm_min;
+        tzi->StandardDate.wSecond = tm->tm_sec;
+        tzi->StandardDate.wMilliseconds = 0;
+
+        TRACE("standard (d/m/y): %u/%02u/%04u day of week %u %u:%02u:%02u.%03u bias %d\n",
+            tzi->StandardDate.wDay, tzi->StandardDate.wMonth,
+            tzi->StandardDate.wYear, tzi->StandardDate.wDayOfWeek,
+            tzi->StandardDate.wHour, tzi->StandardDate.wMinute,
+            tzi->StandardDate.wSecond, tzi->StandardDate.wMilliseconds,
+            tzi->StandardBias);
+
+        convert_to_non_absolute( &tzi->DaylightDate );
+        convert_to_non_absolute( &tzi->StandardDate );
+    }
+
+    return current_is_dst;
+}
+
+struct tzmap
+{
+    struct list entry;
+    WCHAR *win_tz;
+    char *unix_tz;
+};
+
+static inline void free_timezones(struct list *tzs)
+{
+    struct list *head;
+    struct tzmap *tzentry;
+
+    while ((head = list_head( tzs )))
+    {
+        list_remove( head );
+        tzentry = LIST_ENTRY( head, struct tzmap, entry );
+        RtlFreeHeap( GetProcessHeap(), 0, tzentry );
+    }
+}
+
+#define TIME_ZONE_KEY_LENGTH    (ARRAY_SIZE(((RTL_DYNAMIC_TIME_ZONE_INFORMATION*)0)->TimeZoneKeyName))
+
+static int read_timezones(struct list *tzs)
+{
+    char buffer[TIME_ZONE_KEY_LENGTH +1];
+    const char *config_dir = wine_get_config_dir();
+    size_t win_len, unix_len, buf_len;
+    char *win_unix_map, *unix_tz;
+    struct tzmap *tzentry;
+    FILE *file;
+
+    list_init( tzs );
+    if (!(win_unix_map = RtlAllocateHeap( GetProcessHeap(), 0, strlen(config_dir) + sizeof("/win_unix_map") )))
+        return FALSE;
+
+    strcpy( win_unix_map, config_dir );
+    strcat( win_unix_map, "/win_unix_map" );
+    if (!(file = fopen( win_unix_map, "rt" )))
+    {
+        WARN("wine: failed to open %s, time zones will not be updated\n", win_unix_map );
+        goto error;
+    }
+
+    while (fgets( buffer, TIME_ZONE_KEY_LENGTH, file ))
+    {
+        buffer[TIME_ZONE_KEY_LENGTH] = 0;
+        if (!(unix_tz = strchr( buffer, ',' )))
+        {
+            WARN("wine: invalid time zone map entry %s\n", debugstr_a(buffer));
+            continue;
+        }
+
+        *unix_tz++ = 0;
+        unix_len = strlen( unix_tz );
+        if (!unix_len)
+        {
+            WARN("wine: invalid time zone map entry %s\n", debugstr_a(buffer));
+            continue;
+        }
+        unix_tz[--unix_len] = 0; /* chop \n */
+
+        buf_len = strlen(buffer);
+        win_len = ntdll_umbstowcs( 0, buffer, buf_len, NULL, 0 );
+        if (!win_len)
+        {
+            WARN("wine: invalid time zone map entry %s (%d)\n", debugstr_a(buffer), GetLastError());
+            continue;
+        }
+
+        tzentry = RtlAllocateHeap( GetProcessHeap(), 0,
+                    sizeof(*tzentry) + unix_len + 1 + 1 + /* extra +1 for ':' */ (win_len + 1) * sizeof(WCHAR) );
+        if (!tzentry)
+        {
+            ERR("wine: out of memory updating time zone %s\n", debugstr_a(buffer));
+            goto error;
+        }
+
+        tzentry->win_tz = (WCHAR *)((char *)tzentry + sizeof(*tzentry));
+        tzentry->unix_tz = ((char *)tzentry->win_tz) + (win_len + 1) * sizeof(WCHAR);
+
+        ntdll_umbstowcs( 0, buffer, buf_len, tzentry->win_tz, win_len );
+        tzentry->win_tz[win_len] = 0;
+        tzentry->unix_tz[0] = ':';
+        strcpy( tzentry->unix_tz+1, unix_tz );
+        list_add_tail( tzs, &tzentry->entry );
+    }
+    RtlFreeHeap( GetProcessHeap(), 0, win_unix_map );
+    fclose( file );
+    return TRUE;
+
+error:
+    free_timezones( tzs );
+    RtlFreeHeap( GetProcessHeap(), 0, win_unix_map );
+    if (file) fclose( file );
+    return FALSE;
+}
+
+static inline struct tzmap *find_timezone(struct list *tzs, const WCHAR *win_tz)
+{
+    struct tzmap *tzentry;
+    LIST_FOR_EACH_ENTRY( tzentry, tzs, struct tzmap, entry )
+    {
+        if (!strcmpW( tzentry->win_tz, win_tz ))
+            return tzentry;
+    }
+    return NULL;
+}
+
+static void fill_timezone(HKEY tzkey, struct tzmap *tzentry)
+{
+    const DWORD dynamic_start = 2004;
+    static const WCHAR displayW[] = { 'D','i','s','p','l','a','y',0 };
+    static const WCHAR firstW[] = { 'F','i','r','s','t','E','n','t','r','y',0 };
+    static const WCHAR lastW[] = { 'L','a','s','t','E','n','t','r','y',0 };
+    static const WCHAR ddstW[] = { 'D','y','n','a','m','i','c',' ','D','S','T',0 };
+    static const WCHAR tziW[] = { 'T','Z','I',0 };
+    static const WCHAR fmtW[] = { '%','u',0 };
+    WCHAR tznameW[TIME_ZONE_KEY_LENGTH+1];
+    WCHAR valname[5];
+    RTL_DYNAMIC_TIME_ZONE_INFORMATION dtzi, last;
+    DWORD last_year, first_year, cur_year;
+    OBJECT_ATTRIBUTES attr;
+    UNICODE_STRING nameW;
+    char *unix_tz;
+    struct tm *tm;
+    time_t today;
+    HANDLE dstkey;
+    size_t len;
+    struct tz_reg_data
+    {
+        LONG bias;
+        LONG std_bias;
+        LONG dlt_bias;
+        RTL_SYSTEM_TIME std_date;
+        RTL_SYSTEM_TIME dlt_date;
+    } tz_data;
+
+    setenv("TZ", tzentry->unix_tz, TRUE);
+    tzset();
+
+    init_tz_info_year( &dtzi, 0 );
+
+    tz_data.bias = dtzi.Bias;
+    tz_data.std_bias = dtzi.StandardBias;
+    tz_data.dlt_bias = dtzi.DaylightBias;
+    tz_data.std_date = dtzi.StandardDate;
+    tz_data.dlt_date = dtzi.DaylightDate;
+    attr.Length = sizeof(attr);
+    attr.RootDirectory = 0;
+    attr.ObjectName = &nameW;
+    attr.Attributes = 0;
+    attr.SecurityDescriptor = 0;
+    attr.SecurityQualityOfService = 0;
+    RtlInitUnicodeString( &nameW, tziW );
+    NtSetValueKey( tzkey, &nameW, 0, REG_BINARY, &tz_data, sizeof(tz_data) );
+
+    unix_tz = tzentry->unix_tz + 1; /* skip : */
+    len = ntdll_umbstowcs( 0, unix_tz, strlen(unix_tz), tznameW, TIME_ZONE_KEY_LENGTH );
+    tznameW[len] = 0;
+    RtlInitUnicodeString( &nameW, displayW );
+    NtSetValueKey( tzkey, &nameW, 0, REG_SZ, tznameW, (len + 1) * sizeof(WCHAR) );
+
+    attr.RootDirectory = tzkey;
+    RtlInitUnicodeString( &nameW, ddstW );
+    if (!NtOpenKey( &dstkey, DELETE, &attr ))
+    {
+        NtDeleteKey( dstkey );
+        NtClose( dstkey );
+    }
+
+    today = time( NULL );
+    tm = localtime( &today );
+    cur_year = tm->tm_year + 1900;
+
+    init_tz_info_year( &last, dynamic_start );
+    for (first_year = dynamic_start + 1; first_year <= cur_year; first_year++)
+    {
+        init_tz_info_year( &dtzi, first_year );
+        if (memcmp( &dtzi, &last, sizeof(last) ))
+        {
+            --first_year;
+            break;
+        }
+    }
+
+    if (first_year > cur_year)
+    {
+        TRACE("time zone %s has no dynamic dst\n", debugstr_w(tzentry->win_tz));
+        return;
+    }
+
+    init_tz_info_year( &last, cur_year );
+    for (last_year = cur_year - 1; last_year >= first_year; last_year--)
+    {
+        init_tz_info_year( &dtzi, last_year );
+        if (memcmp( &dtzi, &last, sizeof(last) ))
+        {
+            ++last_year;
+            break;
+        }
+    }
+
+    attr.RootDirectory = tzkey;
+    RtlInitUnicodeString( &nameW, ddstW );
+    if (NtCreateKey( &dstkey, KEY_ALL_ACCESS, &attr, 0, NULL, 0, NULL ))
+    {
+        WARN("failed to create '%s\\%s'\n", debugstr_w(tzentry->win_tz), debugstr_w(ddstW));
+        return;
+    }
+
+    RtlInitUnicodeString( &nameW, firstW );
+    NtSetValueKey( dstkey, &nameW, 0, REG_DWORD, &first_year, sizeof(first_year) );
+    RtlInitUnicodeString( &nameW, lastW );
+    NtSetValueKey( dstkey, &nameW, 0, REG_DWORD, &last_year, sizeof(last_year) );
+
+    while (first_year <= last_year)
+    {
+        init_tz_info_year( &dtzi, first_year );
+
+        snprintfW( valname, sizeof(valname), fmtW, first_year );
+        tz_data.bias = dtzi.Bias;
+        tz_data.std_bias = dtzi.StandardBias;
+        tz_data.dlt_bias = dtzi.DaylightBias;
+        tz_data.std_date = dtzi.StandardDate;
+        tz_data.dlt_date = dtzi.DaylightDate;
+        RtlInitUnicodeString( &nameW, valname );
+        NtSetValueKey( dstkey, &nameW, 0, REG_BINARY, &tz_data, sizeof(tz_data) );
+
+        first_year++;
+    }
+
+    NtClose( dstkey );
+}
+
+BOOL CDECL wine_update_timezones_from_tzdata(void)
+{
+    static const WCHAR timezonesW[] = {
+        'M','a','c','h','i','n','e','\\',
+        'S','o','f','t','w','a','r','e','\\',
+        'M','i','c','r','o','s','o','f','t','\\',
+        'W','i','n','d','o','w','s',' ','N','T','\\',
+        'C','u','r','r','e','n','t','V','e','r','s','i','o','n','\\',
+        'T','i','m','e',' ','Z','o','n','e','s',0 };
+    RTL_DYNAMIC_TIME_ZONE_INFORMATION dtzi;
+    struct list tzs, *head;
+    OBJECT_ATTRIBUTES attr;
+    UNICODE_STRING nameW;
+    char buffer[TIME_ZONE_KEY_LENGTH * sizeof(WCHAR) + sizeof(KEY_NODE_INFORMATION)];
+    WCHAR keyname[TIME_ZONE_KEY_LENGTH+1];
+    KEY_NODE_INFORMATION *info = (KEY_NODE_INFORMATION *)buffer;
+    DWORD total_size, index;
+    struct tzmap *tzentry;
+    HANDLE hkey, subkey;
+    char *orig_tz;
+    BOOL ret;
+
+    if (!read_timezones( &tzs ))
+        return FALSE;
+
+    ret = FALSE;
+    orig_tz = getenv( "TZ" );
+
+    attr.Length = sizeof(attr);
+    attr.RootDirectory = 0;
+    attr.ObjectName = &nameW;
+    attr.Attributes = 0;
+    attr.SecurityDescriptor = NULL;
+    attr.SecurityQualityOfService = NULL;
+    RtlInitUnicodeString( &nameW, timezonesW );
+    if (NtOpenKey( &hkey, KEY_ENUMERATE_SUB_KEYS, &attr ))
+        goto error;
+
+    index = 0;
+    while (!NtEnumerateKey( hkey, index++, KeyNodeInformation, buffer, sizeof(buffer), &total_size ))
+    {
+        memcpy(keyname, info->Name, info->NameLength);
+        keyname[info->NameLength/sizeof(WCHAR)] = 0;
+
+        if (!(tzentry = find_timezone( &tzs, keyname )))
+        {
+            const DWORD obsolete = 1;
+            static const WCHAR obsoleteW[] = {'I','s','O','b','s','o','l','e','t','e',0};
+
+            TRACE("marking time zone %s obsolete\n", debugstr_w(keyname));
+            attr.RootDirectory = hkey;
+            RtlInitUnicodeString( &nameW, keyname );
+            if (NtOpenKey( &subkey, KEY_SET_VALUE, &attr ))
+            {
+                WARN("failed to open time zone %s to mark obsolete\n", debugstr_w(keyname));
+                continue;
+            }
+
+            attr.RootDirectory = subkey;
+            RtlInitUnicodeString( &nameW, obsoleteW );
+            NtSetValueKey( subkey, &nameW, 0, REG_DWORD, &obsolete, sizeof(obsolete) );
+            NtClose( subkey );
+        }
+        else
+        {
+            TRACE("updating time zone %s\n", debugstr_w(keyname));
+            list_remove( &tzentry->entry );
+
+            attr.RootDirectory = hkey;
+            RtlInitUnicodeString( &nameW, keyname );
+            if (!NtOpenKey( &subkey, KEY_SET_VALUE, &attr ))
+            {
+                fill_timezone( subkey, tzentry );
+                NtClose( subkey );
+            }
+            RtlFreeHeap( GetProcessHeap(), 0, tzentry );
+        }
+    }
+
+    attr.RootDirectory = hkey;
+    while ((head = list_head( &tzs )))
+    {
+        static const WCHAR stdW[] = { 'S','t','d',0 };
+        static const WCHAR dltW[] = { 'D','l','t',0 };
+        static const WCHAR mui_stdW[] = { 'M','U','I','_','S','t','d',0 };
+        static const WCHAR mui_dltW[] = { 'M','U','I','_','D','l','t',0 };
+        static const WCHAR stdnameW[] = { 'S','t','a','n','d','a','r','d',0 };
+        static const WCHAR dltnameW[] = { 'D','a','y','l','i','g','h','t' };
+        WCHAR *stdstr;
+
+        list_remove( head );
+        tzentry = LIST_ENTRY( head, struct tzmap, entry );
+        TRACE("adding new time zone %s\n", debugstr_w(tzentry->win_tz));
+
+        RtlInitUnicodeString( &nameW, tzentry->win_tz );
+        if (NtCreateKey( &subkey, KEY_ALL_ACCESS, &attr, 0, NULL, 0, NULL ))
+        {
+            WARN("failed to add new time zone %s\n", debugstr_w(tzentry->win_tz));
+            RtlFreeHeap( GetProcessHeap(), 0, tzentry );
+            continue;
+        }
+
+        lstrcpynW( dtzi.StandardName, tzentry->win_tz, sizeof(dtzi.StandardName) );
+        RtlInitUnicodeString( &nameW, stdW );
+        NtSetValueKey( subkey, &nameW, 0, REG_SZ, dtzi.StandardName,
+                       (strlenW(dtzi.StandardName) + 1) * sizeof(WCHAR) );
+        RtlInitUnicodeString( &nameW, mui_stdW );
+        NtSetValueKey( subkey, &nameW, 0, REG_SZ, dtzi.StandardName,
+                       (strlenW(dtzi.StandardName) + 1) * sizeof(WCHAR) );
+
+        lstrcpynW( dtzi.DaylightName, tzentry->win_tz, sizeof(dtzi.DaylightName) );
+        if ((stdstr = strstrW( dtzi.DaylightName, stdnameW )))
+            memcpy( stdstr, dltnameW, sizeof(dltnameW) );
+        RtlInitUnicodeString( &nameW, dltW );
+        NtSetValueKey( subkey, &nameW, 0, REG_SZ, dtzi.DaylightName,
+                       (strlenW(dtzi.DaylightName) + 1) * sizeof(WCHAR) );
+        RtlInitUnicodeString( &nameW, mui_dltW );
+        NtSetValueKey( subkey, &nameW, 0, REG_SZ, dtzi.DaylightName,
+                       (strlenW(dtzi.DaylightName) + 1) * sizeof(WCHAR) );
+
+        fill_timezone( subkey, tzentry );
+        NtClose( subkey );
+        RtlFreeHeap( GetProcessHeap(), 0, tzentry );
+    }
+
+    NtClose( hkey );
+    ret = TRUE;
+
+error:
+    if (orig_tz)
+        setenv( "TZ", orig_tz, TRUE );
+    else
+        unsetenv( "TZ" );
+    tzset();
+    free_timezones( &tzs );
+    return ret;
 }

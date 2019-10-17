@@ -59,6 +59,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 #include <windows.h>
 #include <winternl.h>
 #include <wine/svcctl.h>
@@ -1394,6 +1395,23 @@ int __cdecl main( int argc, char *argv[] )
         ProcessRunKeys( HKEY_LOCAL_MACHINE, RunW, FALSE, FALSE );
         ProcessRunKeys( HKEY_CURRENT_USER, RunW, FALSE, FALSE );
         ProcessStartupItems();
+    }
+
+    if (!restart)
+    {
+        /* this MUST be called after wine.inf has installed the static time zones */
+
+        BOOL (CDECL *wine_update_timezones_from_tzdata)( void );
+
+        wine_update_timezones_from_tzdata = (void *)GetProcAddress(GetModuleHandleA("ntdll.dll"),
+                                                    "wine_update_timezones_from_tzdata");
+        if (wine_update_timezones_from_tzdata)
+        {
+            if (wine_update_timezones_from_tzdata())
+                WINE_TRACE("Time zone information updated\n");
+            else
+                WINE_ERR("Failed to update time zone information\n");
+        }
     }
 
     WINE_TRACE("Operation done\n");
