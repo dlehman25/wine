@@ -37,6 +37,8 @@
 #include "thread.h"
 #include "request.h"
 #include "wine/library.h"
+#include "wine/shmlib.h"
+#include "shmlib.h"
 
 /* command-line options */
 int debug_level = 0;
@@ -145,6 +147,28 @@ int main( int argc, char *argv[] )
     init_signals();
     init_directories();
     init_registry();
+    {
+        shm_ptr_t ptr[10];
+        size_t size;
+        void *user;
+        int i;
+
+        printf("%s: TODO REMOVE ME\n", __FUNCTION__);
+        for (i = 0; i < sizeof(ptr)/sizeof(ptr[0]); i++)
+        {
+            size = rand() % 4096;
+            ptr[i] = shm_malloc(size);
+            user = shm_ptr_to_void_ptr(ptr[i]);
+            memset(user, (i+1), 16);
+            printf("%s: [% 2d] %08x %04zx (%zu)\n", __FUNCTION__, i, ptr[i], size, size);
+        }
+
+        for (i = 0; i < sizeof(ptr)/sizeof(ptr[0]); i += rand() % 5)
+        {
+            // printf("%s: [% 2d] %08x (freeing)\n", __FUNCTION__, i, ptr[i]);
+            // shm_free(ptr[i]);
+        }
+    }
     main_loop();
     return 0;
 }

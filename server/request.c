@@ -69,6 +69,8 @@
 #include "security.h"
 #define WANT_REQUEST_HANDLERS
 #include "request.h"
+#include "wine/shmlib.h"
+#include "shmlib.h"
 
 /* Some versions of glibc don't define this */
 #ifndef SCM_RIGHTS
@@ -591,6 +593,7 @@ static void socket_cleanup(void)
 {
     static int do_it_once;
     if (!do_it_once++) unlink( server_socket_name );
+    shm_term();
 }
 
 /* create a directory and check its permissions */

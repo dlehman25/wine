@@ -32,6 +32,7 @@ C_SRCS = \
 	request.c \
 	semaphore.c \
 	serial.c \
+	shmlib.c \
 	signal.c \
 	snapshot.c \
 	sock.c \
