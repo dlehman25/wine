@@ -51,6 +51,12 @@ WINE_DECLARE_DEBUG_CHANNEL(snoop);
 WINE_DECLARE_DEBUG_CHANNEL(loaddll);
 WINE_DECLARE_DEBUG_CHANNEL(imports);
 
+#include "wine/shmlib.h"
+static void test_shmlib(void)
+{
+    MESSAGE("%s: pid 0x%x unix %u\n", __FUNCTION__, GetCurrentProcessId(), getpid());
+}
+
 #ifdef _WIN64
 #define DEFAULT_SECURITY_COOKIE_64  (((ULONGLONG)0x00002b99 << 32) | 0x2ddfa232)
 #endif
@@ -4210,7 +4216,11 @@ NTSTATUS WINAPI NtUnloadDriver( const UNICODE_STRING *DriverServiceName )
  */
 BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
 {
-    if (reason == DLL_PROCESS_ATTACH) LdrDisableThreadCalloutsForDll( inst );
+    if (reason == DLL_PROCESS_ATTACH)
+    {
+        LdrDisableThreadCalloutsForDll( inst );
+        test_shmlib();
+    }
     return TRUE;
 }
 
