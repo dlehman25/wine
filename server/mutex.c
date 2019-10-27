@@ -35,6 +35,7 @@
 #include "thread.h"
 #include "request.h"
 #include "security.h"
+#include "shmlib.h"
 
 struct mutex
 {
@@ -43,6 +44,7 @@ struct mutex
     unsigned int   count;           /* recursion count */
     int            abandoned;       /* has it been abandoned? */
     struct list    entry;           /* entry in owner thread mutex list */
+    shm_ptr_t      shm_ptr;         /* shared memory pointer, if used */
 };
 
 static void mutex_dump( struct object *obj, int verbose );
@@ -220,6 +222,7 @@ DECL_HANDLER(create_mutex)
         else
             reply->handle = alloc_handle_no_access_check( current->process, mutex,
                                                           req->access, objattr->attributes );
+        reply->shm_ptr = shm_malloc(16);
         release_object( mutex );
     }
 
