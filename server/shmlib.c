@@ -325,6 +325,7 @@ shm_ptr_t shm_malloc(size_t sz)
     if (shm_init())
         return SHM_NULL;
 
+    sz += sizeof(struct shm_header);
     blk_sz = ROUND_ALIGN(sz);
     if (blk_sz < MIN_ALLOC)
         blk_sz = MIN_ALLOC;
