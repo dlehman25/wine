@@ -516,6 +516,7 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
 {
     NTSTATUS status;
     data_size_t len;
+    shm_ptr_t shm_ptr;
     struct object_attributes *objattr;
 
     if ((status = alloc_object_attributes( attr, &objattr, &len ))) return status;
@@ -527,8 +528,11 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
         wine_server_add_data( req, objattr, len );
         status = wine_server_call( req );
         *MutantHandle = wine_server_ptr_handle( reply->handle );
+        shm_ptr = reply->shm_ptr;
     }
     SERVER_END_REQ;
+
+    MESSAGE("%s: %p -> 0x%08x\n", __FUNCTION__, *MutantHandle, shm_ptr);
 
     RtlFreeHeap( GetProcessHeap(), 0, objattr );
     return status;
