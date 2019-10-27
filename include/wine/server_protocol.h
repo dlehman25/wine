@@ -20,6 +20,7 @@ typedef unsigned int user_handle_t;
 typedef unsigned int atom_t;
 typedef unsigned int process_id_t;
 typedef unsigned int thread_id_t;
+typedef unsigned int shm_ptr_t;
 typedef unsigned int data_size_t;
 typedef unsigned int ioctl_code_t;
 typedef unsigned __int64 lparam_t;
@@ -1363,7 +1364,7 @@ struct create_mutex_reply
 {
     struct reply_header __header;
     obj_handle_t handle;
-    char __pad_12[4];
+    shm_ptr_t    shm_ptr;
 };
 
 
@@ -1394,7 +1395,7 @@ struct open_mutex_reply
 {
     struct reply_header __header;
     obj_handle_t handle;
-    char __pad_12[4];
+    shm_ptr_t    shm_ptr;
 };
 
 
@@ -6691,6 +6692,6 @@ union generic_reply
     struct resume_process_reply resume_process_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 588
+#define SERVER_PROTOCOL_VERSION 589
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */

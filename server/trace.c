@@ -1672,6 +1672,7 @@ static void dump_create_mutex_request( const struct create_mutex_request *req )
 static void dump_create_mutex_reply( const struct create_mutex_reply *req )
 {
     fprintf( stderr, " handle=%04x", req->handle );
+    fprintf( stderr, ", shm_ptr=%08x", req->shm_ptr );
 }
 
 static void dump_release_mutex_request( const struct release_mutex_request *req )
@@ -1695,6 +1696,7 @@ static void dump_open_mutex_request( const struct open_mutex_request *req )
 static void dump_open_mutex_reply( const struct open_mutex_reply *req )
 {
     fprintf( stderr, " handle=%04x", req->handle );
+    fprintf( stderr, ", shm_ptr=%08x", req->shm_ptr );
 }
 
 static void dump_query_mutex_request( const struct query_mutex_request *req )
