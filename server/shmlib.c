@@ -82,7 +82,8 @@ struct shm_segment
     struct list freelist;   /* all free blocks sorted by size */
 };
 
-static inline key_t shm_get_key(int proj_id) {
+static inline key_t shm_get_key(int proj_id)
+{
     return ftok(wine_get_config_dir(), proj_id);
 }
 
