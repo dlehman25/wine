@@ -35,6 +35,7 @@ my %formats =
     "user_handle_t" => [  4,   4,  "%08x" ],
     "process_id_t"  => [  4,   4,  "%04x" ],
     "thread_id_t"   => [  4,   4,  "%04x" ],
+    "shm_ptr_t"     => [  4,   4,  "%08x" ],
     "client_ptr_t"  => [  8,   8,  "&dump_uint64" ],
     "mod_handle_t"  => [  8,   8,  "&dump_uint64" ],
     "lparam_t"      => [  8,   8,  "&dump_uint64" ],
