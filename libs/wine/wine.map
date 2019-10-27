@@ -26,6 +26,7 @@ WINE_1.0
     memchrW;
     memicmpW;
     memrchrW;
+    shm_ptr_to_void_ptr;
     snprintfW;
     sprintfW;
     strcatW;

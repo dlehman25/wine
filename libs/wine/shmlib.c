@@ -22,3 +22,8 @@
 #include "wine/port.h"
 
 #include "wine/shmlib.h"
+
+void *shm_ptr_to_void_ptr(shm_ptr_t shmptr)
+{
+    return NULL;
+}
