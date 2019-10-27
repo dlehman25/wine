@@ -31,5 +31,7 @@
 
 void test_shmlib(void)
 {
+    static int done;
+    if (done++) return;
     MESSAGE("%s: pid 0x%x unix %u\n", __FUNCTION__, GetCurrentProcessId(), getpid());
 }
