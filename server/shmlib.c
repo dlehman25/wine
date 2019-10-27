@@ -144,7 +144,9 @@ void *shm_ptr_to_void_ptr(shm_ptr_t shmptr)
     if (shmptr == SHM_NULL)
         return NULL;
 
-    segment = segment_from_ptr(shmptr);
+    if (!(segment = segment_from_ptr(shmptr)))
+        return NULL;
+
     block = shm_ptr_to_block(segment, shmptr);
     return block_to_data_ptr(block);
 }
