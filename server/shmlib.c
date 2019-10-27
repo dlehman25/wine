@@ -251,8 +251,8 @@ static struct shm_block *find_block_from_segment(struct shm_segment *segment, si
         block = LIST_ENTRY(cur, struct shm_block, entry);
         if (blk_sz <= block->size)
         {
-            block->flags = 0;
-            list_remove(&block->entry); /* TODO: here? */
+            block->flags &= ~SHM_FLAG_FREE;
+            list_remove(&block->entry);
             return block;
         }
 
