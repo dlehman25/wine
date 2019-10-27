@@ -21,6 +21,12 @@
 #include "config.h"
 #include "wine/port.h"
 
+#include "ntstatus.h"
+#define WIN32_NO_STATUS
+#define NONAMELESSUNION
+#include "ntdll_misc.h"
+
+#include "wine/debug.h"
 #include "wine/shmlib.h"
 
 void test_shmlib(void)
