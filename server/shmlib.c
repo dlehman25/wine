@@ -174,12 +174,6 @@ static void add_to_free_list(struct shm_segment *segment, struct shm_block *bloc
 
     block->flags |= SHM_FLAG_FREE;
     cur = list_head(&segment->freelist);
-    if (!cur)
-    {
-        list_add_head(&segment->freelist, &block->entry);
-        return;
-    }
-
     while (cur)
     {
         this = LIST_ENTRY(cur, struct shm_block, entry);
