@@ -36,6 +36,7 @@ typedef unsigned int user_handle_t;
 typedef unsigned int atom_t;
 typedef unsigned int process_id_t;
 typedef unsigned int thread_id_t;
+typedef unsigned int shm_ptr_t;
 typedef unsigned int data_size_t;
 typedef unsigned int ioctl_code_t;
 typedef unsigned __int64 lparam_t;
@@ -1167,6 +1168,7 @@ enum event_op { PULSE_EVENT, SET_EVENT, RESET_EVENT };
     VARARG(objattr,object_attributes); /* object attributes */
 @REPLY
     obj_handle_t handle;        /* handle to the mutex */
+    shm_ptr_t    shm_ptr;       /* shared memory pointer, if available */
 @END
 
 
@@ -1186,6 +1188,7 @@ enum event_op { PULSE_EVENT, SET_EVENT, RESET_EVENT };
     VARARG(name,unicode_str);   /* object name */
 @REPLY
     obj_handle_t handle;        /* handle to the mutex */
+    shm_ptr_t    shm_ptr;       /* shared memory pointer, if available */
 @END
 
 
