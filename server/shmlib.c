@@ -302,7 +302,6 @@ static void split_block(struct shm_segment *segment, struct shm_block *block, si
         next = get_next_block(segment, block);
         if (next)
         {
-            next->flags = SHM_FLAG_FREE;
             next->size = rem_sz;
             add_to_free_list(segment, next);
         }
