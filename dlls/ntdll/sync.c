@@ -535,7 +535,7 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
     SERVER_END_REQ;
 
     mutex = shm_ptr_to_void_ptr(shm_ptr);
-    MESSAGE("%s: %p -> 0x%08x -> %p\n", __FUNCTION__, *MutantHandle, shm_ptr, mutex);
+    MESSAGE("%s: pid 0x%04x %p -> 0x%08x -> %p\n", __FUNCTION__, GetCurrentProcessId(), *MutantHandle, shm_ptr, mutex);
 
     RtlFreeHeap( GetProcessHeap(), 0, objattr );
     return status;
