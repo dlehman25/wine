@@ -45,6 +45,7 @@ C_SRCS = \
 	signal_i386.c \
 	signal_powerpc.c \
 	signal_x86_64.c \
+	ssync.c \
 	string.c \
 	sync.c \
 	tape.c \
