@@ -214,7 +214,7 @@ static struct shm_segment *get_segment(int idx)
 
 static void shm_test(void)
 {
-  shm_ptr_t ptr[10];
+  shm_ptr_t ptr[30];
   size_t size;
   void *user;
   int i;
@@ -222,17 +222,17 @@ static void shm_test(void)
   printf("%s: TODO REMOVE ME\n", __FUNCTION__);
   for (i = 0; i < sizeof(ptr)/sizeof(ptr[0]); i++)
   {
-      size = rand() % 4096;
+      size = rand() % 128;
       ptr[i] = shm_malloc(size);
       user = shm_ptr_to_void_ptr(ptr[i]);
       memset(user, (i+1), 16);
       printf("%s: [% 2d] %08x %04zx (%zu)\n", __FUNCTION__, i, ptr[i], size, size);
   }
 
-  for (i = 0; i < sizeof(ptr)/sizeof(ptr[0]); i += rand() % 5)
+  for (i = 0; i < sizeof(ptr)/sizeof(ptr[0]); i += 2)
   {
-      // printf("%s: [% 2d] %08x (freeing)\n", __FUNCTION__, i, ptr[i]);
-      // shm_free(ptr[i]);
+      printf("%s: [% 2d] %08x (freeing)\n", __FUNCTION__, i, ptr[i]);
+      shm_free(ptr[i]);
   }
 }
 
@@ -430,6 +430,12 @@ static void shm_dump(void)
                 printf("%02x ", bytes[i]);
             printf("\n");
         } while (block);
+
+        printf("free blocks in list order\n");
+        LIST_FOR_EACH_ENTRY(block, &segment->freelist, struct shm_block, entry)
+        {
+            printf("    %p %8u 0x%06x\n", block, block->size, block->size);
+        }
     }
 }
 
