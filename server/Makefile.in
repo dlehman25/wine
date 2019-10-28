@@ -36,6 +36,7 @@ C_SRCS = \
 	signal.c \
 	snapshot.c \
 	sock.c \
+	ssync.c \
 	symlink.c \
 	thread.c \
 	timer.c \
