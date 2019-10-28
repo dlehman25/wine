@@ -59,6 +59,7 @@ extern const char *wine_get_config_dir(void);
 #define SHM_FLAG_FREE       0x01
 #define SHM_FLAG_PREV_FREE  0x02
 
+#include <pshpack4.h>
 struct shm_header
 {
     unsigned int flags :  2;
@@ -72,7 +73,11 @@ struct shm_block
 
     /* start of data area */
     struct list entry;
+
+    /* at end of block */
+    struct shm_block *prev_free;
 };
+#include <poppack.h>
 
 #define SHM_SEG_HDR_SIZE    ROUND_SIZE(sizeof(struct shm_segment))
 
@@ -400,6 +405,8 @@ static void shm_dump(void)
 
     printf("ALIGNMENT            %zu\n", ALIGNMENT);
     printf("ALIGNMENT_OFFSET     %zu\n", ALIGNMENT_OFFSET);
+
+    printf("MIN_ALLOC            %zu\n", MIN_ALLOC);
 
     for (i = 0; i < MAX_SHM_SEGS; i++ )
     {
