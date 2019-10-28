@@ -152,16 +152,6 @@ void *shm_ptr_to_void_ptr(shm_ptr_t shmptr)
     return block_to_data_ptr(block);
 }
 
-static inline struct shm_block *create_block(void *base, ptrdiff_t offset, unsigned int blk_sz)
-{
-    struct shm_block *block;
-
-    block = (struct shm_block *)((char *)base + offset);
-    block->flags = 0;
-    block->size = blk_sz;
-    return block;
-}
-
 static void add_to_free_list(struct shm_segment *segment, struct shm_block *block)
 {
     struct shm_block *this;
