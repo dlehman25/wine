@@ -222,7 +222,8 @@ DECL_HANDLER(create_mutex)
         else
             reply->handle = alloc_handle_no_access_check( current->process, mutex,
                                                           req->access, objattr->attributes );
-        reply->shm_ptr = shm_malloc(16);
+        mutex->shm_ptr = shm_malloc(16);
+        reply->shm_ptr = mutex->shm_ptr;
         release_object( mutex );
     }
 
@@ -252,6 +253,8 @@ DECL_HANDLER(release_mutex)
             reply->prev_count = mutex->count;
             if (!--mutex->count) do_release( mutex );
         }
+        if (mutex->obj.refcount == 1)
+            shm_free( mutex->shm_ptr );
         release_object( mutex );
     }
 }
