@@ -30,3 +30,11 @@
 #include <errno.h>
 #include <stdio.h>      // TODO:
 
+struct ss_obj *ss_alloc(void)
+{
+    return NULL;
+}
+
+void ss_free(struct ss_obj *obj)
+{
+}
