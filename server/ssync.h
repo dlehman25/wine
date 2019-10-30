@@ -29,7 +29,8 @@ struct ss_obj
     shm_ptr_t           shm_ptr;
 };
 
-struct ss_obj *ss_alloc(void);
 void ss_free(struct ss_obj *);
+
+struct ss_obj *ss_alloc_mutex(unsigned int);
 
 #endif

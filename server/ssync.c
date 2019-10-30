@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <stdio.h>      // TODO:
 
-struct ss_obj *ss_alloc(void)
+static struct ss_obj *ss_alloc(void)
 {
     shm_ptr_t shm_ptr;
     struct ss_obj *obj;
@@ -49,4 +49,16 @@ void ss_free(struct ss_obj *obj)
 {
     if (!obj) return;
     shm_free(obj->shm_ptr);
+}
+
+struct ss_obj *ss_alloc_mutex(unsigned int owner)
+{
+    struct ss_obj *obj;
+
+    if (!(obj = ss_alloc()))
+        return NULL;
+
+    obj->base.type = SS_OBJ_MUTEX;
+    obj->base.u.mutex.owner = owner;
+    return obj;
 }
