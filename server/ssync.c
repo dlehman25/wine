@@ -40,6 +40,7 @@ struct ss_obj *ss_alloc(void)
         return NULL;
 
     obj = shm_ptr_to_void_ptr(shm_ptr);
+    memset(obj, 0, sizeof(*obj));
     obj->shm_ptr = shm_ptr;
     return obj;
 }
