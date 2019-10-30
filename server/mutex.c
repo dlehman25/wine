@@ -35,6 +35,7 @@
 #include "thread.h"
 #include "request.h"
 #include "security.h"
+#include "wine/shmlib.h"
 #include "shmlib.h"
 #include "ssync.h"
 
@@ -224,7 +225,7 @@ DECL_HANDLER(create_mutex)
             reply->handle = alloc_handle_no_access_check( current->process, mutex,
                                                           req->access, objattr->attributes );
         mutex->ss_obj = ss_alloc();
-        reply->shm_ptr = mutex->ss_obj ? mutex->ss_obj->shm_ptr : 0; /* TODO: SHM_NULL; */
+        reply->shm_ptr = mutex->ss_obj ? mutex->ss_obj->shm_ptr : SHM_NULL;
         release_object( mutex );
     }
 
