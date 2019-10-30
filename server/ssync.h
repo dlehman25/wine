@@ -1,7 +1,7 @@
 /*
  * Server-side shared object management
  *
- * Copyright (C) 1998 Alexandre Julliard
+ * Copyright (C) 2019 Daniel Lehman
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,12 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef SSYNC_H
-#define SSYNC_H
+#ifndef SERVER_SSYNC_H
+#define SERVER_SSYNC_H
+
+#include "wine/ssync.h"
 
 struct ss_obj
 {
-    shm_ptr_t   shm_ptr;    /* shared memory pointer to self */
+    struct ss_obj_base  base;
+    shm_ptr_t           shm_ptr; /* TODO: remove */
 };
 
 struct ss_obj *ss_alloc(void);
