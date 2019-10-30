@@ -23,4 +23,6 @@ extern struct ss_cache *ss_state;
 
 int ss_init(void);
 int ss_term(void);
+
 int ss_set_handle(obj_handle_t, shm_ptr_t);
+int ss_get_handle(obj_handle_t, void **);

@@ -81,6 +81,7 @@
 #include "wine/server.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
+#include "ssync.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(server);
 
@@ -606,6 +607,20 @@ unsigned int server_select( const select_op_t *select_op, data_size_t size, UINT
     timeout_t abs_timeout = timeout ? timeout->QuadPart : TIMEOUT_INFINITE;
 
     memset( &result, 0, sizeof(result) );
+
+    if (select_op && ((select_op->op == SELECT_WAIT) || (select_op->op == SELECT_WAIT_ALL)))
+    {
+        int i;
+        int nhandles;
+
+        nhandles = (size - offsetof(select_op_t, wait.handles)) / sizeof(((select_op_t *)0)->wait.handles[0]);
+        for (i = 0; i < nhandles; i++)
+        {
+            void *obj = NULL;
+            ss_get_handle(select_op->wait.handles[i], &obj);
+            if (obj) MESSAGE("%s: [%d] 0x%x -> %p\n", __FUNCTION__, i, select_op->wait.handles[i], obj);
+        }
+    }
 
     for (;;)
     {

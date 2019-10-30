@@ -102,3 +102,15 @@ int ss_set_handle(obj_handle_t handle, shm_ptr_t shm_ptr)
     ss_state->entries[idx].ptr = ss_obj; /* TODO: old one? lock? */
     return 0;
 }
+
+int ss_get_handle(obj_handle_t handle, void **obj)
+{
+    unsigned int idx;
+
+    idx = ss_handle_to_index(handle);
+    if (idx < ss_state->nentries)
+        *obj = ss_state->entries[idx].ptr;
+    else
+        *obj = NULL;
+    return !*obj;
+}
