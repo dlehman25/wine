@@ -60,6 +60,7 @@
 #include "wine/server.h"
 #include "wine/debug.h"
 #include "wine/shmlib.h"
+#include "wine/ssync.h"
 #include "ntdll_misc.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(sync);
@@ -515,7 +516,8 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
                                IN const OBJECT_ATTRIBUTES* attr OPTIONAL,
                                IN BOOLEAN InitialOwner)
 {
-    void *mutex;
+    struct ss_obj_base *ss_obj;
+    struct ss_obj_mutex *mutex;
     NTSTATUS status;
     data_size_t len;
     shm_ptr_t shm_ptr;
@@ -534,9 +536,13 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
     }
     SERVER_END_REQ;
 
-    mutex = shm_ptr_to_void_ptr(shm_ptr);
-    MESSAGE("%s: pid 0x%04x %p -> 0x%08x -> %p\n", __FUNCTION__, GetCurrentProcessId(), *MutantHandle, shm_ptr, mutex);
-
+    if ((ss_obj = shm_ptr_to_void_ptr(shm_ptr)))
+    {
+        mutex = &ss_obj->u.mutex;
+        MESSAGE("%s: pid 0x%04x %p -> 0x%08x -> %p (%p tid %u cnd %u abd %d)\n", __FUNCTION__,
+                GetCurrentProcessId(), *MutantHandle, shm_ptr, ss_obj,
+                mutex, mutex->owner, mutex->count, mutex->abandoned);
+    }
     RtlFreeHeap( GetProcessHeap(), 0, objattr );
     return status;
 }
