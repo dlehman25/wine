@@ -18,7 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-extern void *ss_state;
+struct ss_cache;
+extern struct ss_cache *ss_state;
 
 int ss_init(void);
 int ss_term(void);

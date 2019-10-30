@@ -33,13 +33,45 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(ssync);
 
-void *ss_state;
+struct ss_cache_entry
+{
+    int                 lock;
+    struct ss_obj_base *ptr;
+};
+
+struct ss_cache
+{
+    unsigned int nentries;
+    struct ss_cache_entry entries[1];
+};
+
+struct ss_cache *ss_state;
+
+static inline void * __WINE_ALLOC_SIZE(1) heap_alloc(SIZE_T len)
+{
+    return RtlAllocateHeap(GetProcessHeap(), 0, len);
+}
+static inline void * __WINE_ALLOC_SIZE(1) heap_alloc_zero(SIZE_T len)
+{
+    return RtlAllocateHeap(GetProcessHeap(), HEAP_ZERO_MEMORY, len);
+}
+
+static inline void heap_free(void *mem)
+{
+    RtlFreeHeap(GetProcessHeap(), 0, mem);
+}
 
 int ss_init(void)
 {
-    FIXME("stub\n");
-    ss_state = (void*)0xdeadbeef;
-    return -1;
+    static const int MAX_ENTRIES = 4096;
+
+    TRACE("\n");
+
+    if (!(ss_state = heap_alloc_zero(offsetof(struct ss_cache, entries[MAX_ENTRIES]))))
+        return -1;
+
+    ss_state->nentries = MAX_ENTRIES;
+    return 0;
 }
 
 int ss_term(void)
