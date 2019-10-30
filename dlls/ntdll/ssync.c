@@ -61,6 +61,11 @@ static inline void heap_free(void *mem)
     RtlFreeHeap(GetProcessHeap(), 0, mem);
 }
 
+static inline unsigned int ss_handle_to_index(obj_handle_t handle)
+{
+    return (handle >> 2) - 1;
+}
+
 int ss_init(void)
 {
     static const int MAX_ENTRIES = 4096;
@@ -84,6 +89,8 @@ int ss_set_handle(obj_handle_t handle, shm_ptr_t shm_ptr)
 {
     struct ss_obj_base *ss_obj;
     struct ss_obj_mutex *mutex;
+    unsigned int idx;
+
     if (!(ss_obj = shm_ptr_to_void_ptr(shm_ptr)))
         return -1;
 
@@ -91,5 +98,7 @@ int ss_set_handle(obj_handle_t handle, shm_ptr_t shm_ptr)
     MESSAGE("%s: pid 0x%04x tid %d 0x%x -> 0x%08x -> %p (%p tid %u cnd %u abd %d)\n",
                 __FUNCTION__, GetCurrentProcessId(), GetCurrentThreadId(),
                 handle, shm_ptr, ss_obj, mutex, mutex->owner, mutex->count, mutex->abandoned);
+    idx = ss_handle_to_index(handle);
+    ss_state->entries[idx].ptr = ss_obj; /* TODO: old one? lock? */
     return 0;
 }
