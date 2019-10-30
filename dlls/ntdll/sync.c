@@ -539,8 +539,9 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
     if ((ss_obj = shm_ptr_to_void_ptr(shm_ptr)))
     {
         mutex = &ss_obj->u.mutex;
-        MESSAGE("%s: pid 0x%04x %p -> 0x%08x -> %p (%p tid %u cnd %u abd %d)\n", __FUNCTION__,
-                GetCurrentProcessId(), *MutantHandle, shm_ptr, ss_obj,
+        MESSAGE("%s: pid 0x%04x tid %d (%d) %p -> 0x%08x -> %p (%p tid %u cnd %u abd %d)\n",
+                __FUNCTION__, GetCurrentProcessId(), GetCurrentThreadId(), InitialOwner,
+                *MutantHandle, shm_ptr, ss_obj,
                 mutex, mutex->owner, mutex->count, mutex->abandoned);
     }
     RtlFreeHeap( GetProcessHeap(), 0, objattr );
