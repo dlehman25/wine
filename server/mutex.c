@@ -224,7 +224,7 @@ DECL_HANDLER(create_mutex)
         else
             reply->handle = alloc_handle_no_access_check( current->process, mutex,
                                                           req->access, objattr->attributes );
-        mutex->ss_obj = ss_alloc_mutex(0); /* TODO: no owner for now */
+        mutex->ss_obj = ss_alloc_mutex( req->owned ? current->id : 0 );
         reply->shm_ptr = mutex->ss_obj ? mutex->ss_obj->shm_ptr : SHM_NULL;
         release_object( mutex );
     }
