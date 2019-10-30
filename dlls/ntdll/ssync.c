@@ -28,4 +28,19 @@
 
 #include "wine/debug.h"
 #include "wine/shmlib.h"
+#include "wine/ssync.h"
+#include "ssync.h"
 
+int ss_set_handle(obj_handle_t handle, shm_ptr_t shm_ptr)
+{
+    struct ss_obj_base *ss_obj;
+    struct ss_obj_mutex *mutex;
+    if (!(ss_obj = shm_ptr_to_void_ptr(shm_ptr)))
+        return -1;
+
+    mutex = &ss_obj->u.mutex;
+    MESSAGE("%s: pid 0x%04x tid %d 0x%x -> 0x%08x -> %p (%p tid %u cnd %u abd %d)\n",
+                __FUNCTION__, GetCurrentProcessId(), GetCurrentThreadId(),
+                handle, shm_ptr, ss_obj, mutex, mutex->owner, mutex->count, mutex->abandoned);
+    return 0;
+}
