@@ -60,5 +60,6 @@ struct ss_obj *ss_alloc_mutex(unsigned int owner)
 
     obj->base.type = SS_OBJ_MUTEX;
     obj->base.u.mutex.owner = owner;
+    if (owner) obj->base.u.mutex.count = 1;
     return obj;
 }
