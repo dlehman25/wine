@@ -26,7 +26,7 @@
 struct ss_obj
 {
     struct ss_obj_base  base;
-    shm_ptr_t           shm_ptr; /* TODO: remove */
+    shm_ptr_t           shm_ptr;
 };
 
 struct ss_obj *ss_alloc(void);

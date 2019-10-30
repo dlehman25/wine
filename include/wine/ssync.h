@@ -52,7 +52,6 @@ struct ss_obj_base
 {
     int                 lock;       /* shared across process */
     enum ss_obj_type    type;
-    shm_ptr_t           shm_ptr;
     union
     {
         struct ss_obj_mutex     mutex;
