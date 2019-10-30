@@ -534,7 +534,7 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDLE* MutantHandle,
     }
     SERVER_END_REQ;
 
-    if (*MutantHandle && shm_ptr)
+    if (ss_state && *MutantHandle && shm_ptr)
         ss_set_handle(wine_server_obj_handle(*MutantHandle), shm_ptr);
 
     RtlFreeHeap( GetProcessHeap(), 0, objattr );

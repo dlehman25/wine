@@ -31,6 +31,23 @@
 #include "wine/ssync.h"
 #include "ssync.h"
 
+WINE_DEFAULT_DEBUG_CHANNEL(ssync);
+
+void *ss_state;
+
+int ss_init(void)
+{
+    FIXME("stub\n");
+    ss_state = (void*)0xdeadbeef;
+    return -1;
+}
+
+int ss_term(void)
+{
+    FIXME("stub\n");
+    return -1;
+}
+
 int ss_set_handle(obj_handle_t handle, shm_ptr_t shm_ptr)
 {
     struct ss_obj_base *ss_obj;

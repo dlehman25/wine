@@ -44,6 +44,7 @@
 #include "wine/server.h"
 #include "ntdll_misc.h"
 #include "ddk/wdm.h"
+#include "ssync.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(module);
 WINE_DECLARE_DEBUG_CHANNEL(relay);
@@ -4210,7 +4211,16 @@ NTSTATUS WINAPI NtUnloadDriver( const UNICODE_STRING *DriverServiceName )
  */
 BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
 {
-    if (reason == DLL_PROCESS_ATTACH) LdrDisableThreadCalloutsForDll( inst );
+    switch (reason)
+    {
+    case DLL_PROCESS_ATTACH:
+        LdrDisableThreadCalloutsForDll( inst );
+        ss_init();
+        break;
+    case DLL_PROCESS_DETACH:
+        ss_term();
+        break;
+    }
     return TRUE;
 }
 

@@ -18,4 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+extern void *ss_state;
+
+int ss_init(void);
+int ss_term(void);
 int ss_set_handle(obj_handle_t, shm_ptr_t);
