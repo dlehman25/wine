@@ -154,6 +154,12 @@ static struct object_type *mutex_get_type( struct object *obj )
 static int mutex_signaled( struct object *obj, struct wait_queue_entry *entry )
 {
     struct mutex *mutex = (struct mutex *)obj;
+    if (mutex->ss_obj)
+    {
+        ss_ptid ptid = ss_obj_try_lock(&mutex->ss_obj->base.lock, current->id);
+        printf("%s ss_obj %p owner %x prev %x\n", __FUNCTION__, mutex->ss_obj, current->id, ptid);
+        ss_obj_unlock(&mutex->ss_obj->base.lock);
+    }
     assert( obj->ops == &mutex_ops );
     return (!mutex->count || (mutex->owner == get_wait_queue_thread( entry )));
 }

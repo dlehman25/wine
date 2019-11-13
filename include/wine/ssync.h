@@ -48,9 +48,12 @@ struct ss_obj_semaphore
     unsigned int maxim;
 };
 
+typedef unsigned int ss_obj_lock;
+typedef unsigned int ss_ptid;
+
 struct ss_obj_base
 {
-    int                 lock;       /* shared across process */
+    ss_obj_lock         lock;       /* shared across process */
     enum ss_obj_type    type;
     union
     {
@@ -59,5 +62,15 @@ struct ss_obj_base
         struct ss_obj_semaphore semaphore;
     } u;
 };
+
+static inline ss_ptid ss_obj_try_lock(ss_obj_lock *lock, ss_ptid owner)
+{
+    return interlocked_cmpxchg((int*)lock, owner, 0);
+}
+
+static inline void ss_obj_unlock(ss_obj_lock *lock)
+{
+    interlocked_xchg((int*)lock, 0);
+}
 
 #endif
