@@ -81,6 +81,7 @@
 #include "wine/server.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
+#include "wine/ssync.h"
 #include "ssync.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(server);
@@ -618,7 +619,16 @@ unsigned int server_select( const select_op_t *select_op, data_size_t size, UINT
         {
             void *obj = NULL;
             ss_get_handle(select_op->wait.handles[i], &obj);
-            if (obj) MESSAGE("%s: [%d] 0x%x -> %p\n", __FUNCTION__, i, select_op->wait.handles[i], obj);
+            if (obj)
+            {
+                struct ss_obj_base *ss_obj = obj;
+                struct ss_obj_mutex *ss_mutex = &ss_obj->u.mutex;
+
+                MESSAGE("%s: [%d] 0x%x -> %p (cnt %u owner 0x%x (self 0x%x) sig %d)\n",
+                    __FUNCTION__, i, select_op->wait.handles[i], obj,
+                    ss_mutex->count, ss_mutex->owner, GetCurrentThreadId(),
+                    ss_mutex_signaled(ss_mutex, GetCurrentThreadId()));
+            }
         }
     }
 
