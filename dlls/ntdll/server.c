@@ -608,7 +608,7 @@ unsigned int server_select( const select_op_t *select_op, data_size_t size, UINT
 
     memset( &result, 0, sizeof(result) );
 
-    if (select_op && ((select_op->op == SELECT_WAIT) || (select_op->op == SELECT_WAIT_ALL)))
+    if (ss_is_supported(select_op, size))
     {
         int i;
         int nhandles;
