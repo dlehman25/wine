@@ -29,9 +29,12 @@ enum ss_obj_type
     SS_OBJ_SEMAPHORE,
 };
 
+typedef unsigned int ss_obj_lock;
+typedef unsigned int ss_ptid;
+
 struct ss_obj_mutex
 {
-    unsigned int    owner;  /* ptid */
+    ss_ptid         owner;
     unsigned int    count;
     int             abandoned;
 };
@@ -47,9 +50,6 @@ struct ss_obj_semaphore
     unsigned int count;
     unsigned int maxim;
 };
-
-typedef unsigned int ss_obj_lock;
-typedef unsigned int ss_ptid;
 
 struct ss_obj_base
 {
