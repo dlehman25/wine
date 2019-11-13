@@ -27,4 +27,4 @@ int ss_term(void);
 int ss_set_handle(obj_handle_t, shm_ptr_t);
 int ss_get_handle(obj_handle_t, void **);
 
-int ss_is_supported(const select_op_t *, data_size_t);
+int ss_get_supported(const select_op_t *, data_size_t);
