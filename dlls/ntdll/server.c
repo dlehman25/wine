@@ -606,29 +606,23 @@ unsigned int server_select( const select_op_t *select_op, data_size_t size, UINT
     apc_call_t call;
     apc_result_t result;
     timeout_t abs_timeout = timeout ? timeout->QuadPart : TIMEOUT_INFINITE;
+    int nhandles;
 
     memset( &result, 0, sizeof(result) );
 
-    if (ss_is_supported(select_op, size))
+    if ((nhandles = ss_get_supported(select_op, size)) == 1)
     {
-        int i;
-        int nhandles;
-
-        nhandles = (size - offsetof(select_op_t, wait.handles)) / sizeof(((select_op_t *)0)->wait.handles[0]);
-        for (i = 0; i < nhandles; i++)
+        void *obj = NULL;
+        ss_get_handle(select_op->wait.handles[0], &obj);
+        if (obj)
         {
-            void *obj = NULL;
-            ss_get_handle(select_op->wait.handles[i], &obj);
-            if (obj)
-            {
-                struct ss_obj_base *ss_obj = obj;
-                struct ss_obj_mutex *ss_mutex = &ss_obj->u.mutex;
+            struct ss_obj_base *ss_obj = obj;
+            struct ss_obj_mutex *ss_mutex = &ss_obj->u.mutex;
 
-                MESSAGE("%s: [%d] 0x%x -> %p (cnt %u owner 0x%x (self 0x%x) sig %d)\n",
-                    __FUNCTION__, i, select_op->wait.handles[i], obj,
-                    ss_mutex->count, ss_mutex->owner, GetCurrentThreadId(),
-                    ss_mutex_signaled(ss_mutex, GetCurrentThreadId()));
-            }
+            MESSAGE("%s: 0x%x -> %p (cnt %u owner 0x%x (self 0x%x) sig %d)\n",
+                __FUNCTION__, select_op->wait.handles[0], obj,
+                ss_mutex->count, ss_mutex->owner, GetCurrentThreadId(),
+                ss_mutex_signaled(ss_mutex, GetCurrentThreadId()));
         }
     }
 
