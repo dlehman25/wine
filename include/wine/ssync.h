@@ -73,4 +73,10 @@ static inline void ss_obj_unlock(ss_obj_lock *lock)
     interlocked_xchg((int*)lock, 0);
 }
 
+/* mutexes */
+static inline int ss_mutex_signaled(const struct ss_obj_mutex *mutex, ss_ptid tid)
+{
+    return !mutex->count || mutex->owner == tid;
+}
+
 #endif
