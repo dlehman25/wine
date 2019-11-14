@@ -28,3 +28,5 @@ int ss_set_handle(obj_handle_t, shm_ptr_t);
 int ss_get_handle(obj_handle_t, void **);
 
 int ss_get_supported(const select_op_t *, data_size_t);
+
+unsigned int ss_optimized_wait(const select_op_t *, data_size_t);

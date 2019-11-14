@@ -606,43 +606,29 @@ unsigned int server_select( const select_op_t *select_op, data_size_t size, UINT
     apc_call_t call;
     apc_result_t result;
     timeout_t abs_timeout = timeout ? timeout->QuadPart : TIMEOUT_INFINITE;
-    int nhandles;
 
     memset( &result, 0, sizeof(result) );
 
-    if ((nhandles = ss_get_supported(select_op, size)) == 1)
-    {
-        void *obj = NULL;
-        ss_get_handle(select_op->wait.handles[0], &obj);
-        if (obj)
-        {
-            struct ss_obj_base *ss_obj = obj;
-            struct ss_obj_mutex *ss_mutex = &ss_obj->u.mutex;
-
-            MESSAGE("%s: 0x%x -> %p (cnt %u owner 0x%x (self 0x%x) sig %d)\n",
-                __FUNCTION__, select_op->wait.handles[0], obj,
-                ss_mutex->count, ss_mutex->owner, GetCurrentThreadId(),
-                ss_mutex_signaled(ss_mutex, GetCurrentThreadId()));
-        }
-    }
-
     for (;;)
     {
-        SERVER_START_REQ( select )
+        if ((ret = ss_optimized_wait(select_op, size)) == STATUS_NOT_SUPPORTED)
         {
-            req->flags    = flags;
-            req->cookie   = wine_server_client_ptr( &cookie );
-            req->prev_apc = apc_handle;
-            req->timeout  = abs_timeout;
-            wine_server_add_data( req, &result, sizeof(result) );
-            wine_server_add_data( req, select_op, size );
-            ret = wine_server_call( req );
-            abs_timeout = reply->timeout;
-            apc_handle  = reply->apc_handle;
-            call        = reply->call;
+            SERVER_START_REQ( select )
+            {
+                req->flags    = flags;
+                req->cookie   = wine_server_client_ptr( &cookie );
+                req->prev_apc = apc_handle;
+                req->timeout  = abs_timeout;
+                wine_server_add_data( req, &result, sizeof(result) );
+                wine_server_add_data( req, select_op, size );
+                ret = wine_server_call( req );
+                abs_timeout = reply->timeout;
+                apc_handle  = reply->apc_handle;
+                call        = reply->call;
+            }
+            SERVER_END_REQ;
+            if (ret == STATUS_PENDING) ret = wait_select_reply( &cookie );
         }
-        SERVER_END_REQ;
-        if (ret == STATUS_PENDING) ret = wait_select_reply( &cookie );
         if (ret != STATUS_USER_APC) break;
         if (invoke_apc( &call, &result ))
         {

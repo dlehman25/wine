@@ -134,3 +134,26 @@ int ss_get_supported(const select_op_t *op, data_size_t size)
     return (size - offsetof(select_op_t, wait.handles)) /
             sizeof(((select_op_t *)0)->wait.handles[0]);
 }
+
+unsigned int ss_optimized_wait(const select_op_t *op, data_size_t size)
+{
+    void *obj;
+    int nhandles;
+    struct ss_obj_base *ss_obj;
+    struct ss_obj_mutex *ss_mutex;
+
+    if ((nhandles = ss_get_supported(op, size)) != 1)
+        return STATUS_NOT_SUPPORTED;
+
+    if (!ss_get_handle(op->wait.handles[0], &obj))
+        return STATUS_NOT_SUPPORTED;
+
+    ss_obj = obj;
+    ss_mutex = &ss_obj->u.mutex;
+    MESSAGE("%s: 0x%x -> %p (cnt %u owner 0x%x (self 0x%x) sig %d)\n",
+        __FUNCTION__, op->wait.handles[0], obj,
+        ss_mutex->count, ss_mutex->owner, GetCurrentThreadId(),
+        ss_mutex_signaled(ss_mutex, GetCurrentThreadId()));
+
+    return STATUS_NOT_SUPPORTED;
+}
