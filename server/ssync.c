@@ -26,15 +26,50 @@
 #include "shmlib.h"
 #include "ssync.h"
 
+#ifdef HAVE_SYS_SYSCALL_H
+#include <sys/syscall.h>
+#endif
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
 #include <stdio.h>      // TODO:
 
+#ifdef __linux__
+#define FUTEX_WAIT 0
+static int futex_private = 128;
+
+static inline int futex_wait( const int *addr, int val, struct timespec *timeout )
+{
+    return syscall( __NR_futex, addr, FUTEX_WAIT | futex_private, val, timeout, 0, 0 );
+}
+
+static inline int futexes_supported(void)
+{
+    static int supported = -1;
+
+    if (supported == -1)
+    {
+        futex_wait( &supported, 10, NULL );
+        if (errno == ENOSYS)
+        {
+            futex_private = 0;
+            futex_wait( &supported, 10, NULL );
+        }
+        supported = (errno != ENOSYS);
+    }
+    return supported;
+}
+#else
+static inline int futexes_supported(void) { return FALSE; }
+#endif
+
 static struct ss_obj *ss_alloc(void)
 {
     shm_ptr_t shm_ptr;
     struct ss_obj *obj;
+
+    if (!futexes_supported())
+        return NULL;
 
     if ((shm_ptr = shm_malloc(sizeof(*obj))) == SHM_NULL)
         return NULL;
