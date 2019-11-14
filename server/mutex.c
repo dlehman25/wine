@@ -46,7 +46,6 @@ struct mutex
     unsigned int   count;           /* recursion count */
     int            abandoned;       /* has it been abandoned? */
     struct list    entry;           /* entry in owner thread mutex list */
-    struct ss_obj *ss_obj;          /* shared memory object */
 };
 
 static void mutex_dump( struct object *obj, int verbose );
@@ -224,8 +223,8 @@ DECL_HANDLER(create_mutex)
         else
             reply->handle = alloc_handle_no_access_check( current->process, mutex,
                                                           req->access, objattr->attributes );
-        mutex->ss_obj = ss_alloc_mutex( req->owned ? current->id : 0 );
-        reply->shm_ptr = mutex->ss_obj ? mutex->ss_obj->shm_ptr : SHM_NULL;
+        mutex->obj.ss_obj = ss_alloc_mutex( req->owned ? current->id : 0 );
+        reply->shm_ptr = mutex->obj.ss_obj ? mutex->obj.ss_obj->shm_ptr : SHM_NULL;
         release_object( mutex );
     }
 
@@ -255,8 +254,6 @@ DECL_HANDLER(release_mutex)
             reply->prev_count = mutex->count;
             if (!--mutex->count) do_release( mutex );
         }
-        if (mutex->obj.refcount == 1)
-            ss_free( mutex->ss_obj );
         release_object( mutex );
     }
 }
