@@ -91,6 +91,14 @@ int ss_set_handle(obj_handle_t handle, shm_ptr_t shm_ptr)
     struct ss_obj_mutex *mutex;
     unsigned int idx;
 
+    /* TODO: handle handle == 0xfffffff0 (see wine_server_obj_handle) */
+    if (shm_ptr == SHM_NULL)
+    {
+        idx = ss_handle_to_index(handle);
+        ss_state->entries[idx].ptr = NULL; /* TODO: old one? lock? */
+        return 0;
+    }
+
     if (!(ss_obj = shm_ptr_to_void_ptr(shm_ptr)))
         return -1;
 
