@@ -21,6 +21,11 @@
 #include "config.h"
 #include "wine/port.h"
 
+#include <errno.h>
+#ifdef HAVE_SYS_SYSCALL_H
+#include <sys/syscall.h>
+#endif
+
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
 #define NONAMELESSUNION
@@ -60,6 +65,53 @@ static inline void heap_free(void *mem)
 {
     RtlFreeHeap(GetProcessHeap(), 0, mem);
 }
+
+#ifdef __linux__
+
+#define FUTEX_WAIT 0
+#define FUTEX_WAKE 1
+#define FUTEX_WAIT_BITSET 9
+#define FUTEX_WAKE_BITSET 10
+
+static int futex_private = 128;
+
+static inline int futex_wait( const int *addr, int val, struct timespec *timeout )
+{
+    return syscall( __NR_futex, addr, FUTEX_WAIT | futex_private, val, timeout, 0, 0 );
+}
+
+static inline int futex_wake( const int *addr, int val )
+{
+    return syscall( __NR_futex, addr, FUTEX_WAKE | futex_private, val, NULL, 0, 0 );
+}
+
+static inline int futex_wait_bitset( const int *addr, int val, struct timespec *timeout, int mask )
+{
+    return syscall( __NR_futex, addr, FUTEX_WAIT_BITSET | futex_private, val, timeout, 0, mask );
+}
+
+static inline int futex_wake_bitset( const int *addr, int val, int mask )
+{
+    return syscall( __NR_futex, addr, FUTEX_WAKE_BITSET | futex_private, val, NULL, 0, mask );
+}
+
+static inline int use_futexes(void)
+{
+    static int supported = -1;
+
+    if (supported == -1)
+    {
+        futex_wait( &supported, 10, NULL );
+        if (errno == ENOSYS)
+        {
+            futex_private = 0;
+            futex_wait( &supported, 10, NULL );
+        }
+        supported = (errno != ENOSYS);
+    }
+    return supported;
+}
+#endif
 
 static inline unsigned int ss_handle_to_index(obj_handle_t handle)
 {
