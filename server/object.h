@@ -108,6 +108,7 @@ struct object
 #ifdef DEBUG_OBJECTS
     struct list               obj_list;
 #endif
+    struct ss_obj *ss_obj;          /* shared memory object */
 };
 
 struct object_name

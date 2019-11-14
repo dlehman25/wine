@@ -209,6 +209,7 @@ void *alloc_object( const struct object_ops *ops )
 #ifdef DEBUG_OBJECTS
         list_add_head( &object_list, &obj->obj_list );
 #endif
+        obj->ss_obj       = NULL;
         return obj;
     }
     return NULL;
@@ -218,6 +219,8 @@ void *alloc_object( const struct object_ops *ops )
 void free_object( struct object *obj )
 {
     free( obj->sd );
+    if ( obj->ss_obj )
+        ss_free( obj->ss_obj );
 #ifdef DEBUG_OBJECTS
     list_remove( &obj->obj_list );
     memset( obj, 0xaa, obj->ops->size );
