@@ -126,10 +126,10 @@ int ss_get_handle(obj_handle_t handle, void **obj)
 int ss_get_supported(const select_op_t *op, data_size_t size)
 {
     if (!op)
-        return FALSE;
+        return 0;
 
     if (op->op != SELECT_WAIT && op->op != SELECT_WAIT_ALL)
-        return FALSE;
+        return 0;
 
     return (size - offsetof(select_op_t, wait.handles)) /
             sizeof(((select_op_t *)0)->wait.handles[0]);
