@@ -120,7 +120,7 @@ int ss_get_handle(obj_handle_t handle, void **obj)
         *obj = ss_state->entries[idx].ptr;
     else
         *obj = NULL;
-    return !*obj;
+    return !!*obj;
 }
 
 int ss_get_supported(const select_op_t *op, data_size_t size)
