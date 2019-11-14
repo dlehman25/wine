@@ -36,6 +36,8 @@
 #include "ntdll_misc.h"
 #include "wine/server.h"
 #include "wine/exception.h"
+#include "wine/shmlib.h"
+#include "ssync.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
 
@@ -386,6 +388,9 @@ NTSTATUS close_handle( HANDLE handle )
 {
     NTSTATUS ret;
     int fd = server_remove_fd_from_cache( handle );
+
+    if (ss_state && handle)
+        ss_set_handle( wine_server_obj_handle(handle), SHM_NULL );
 
     SERVER_START_REQ( close_handle )
     {
