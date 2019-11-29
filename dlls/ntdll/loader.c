@@ -51,6 +51,7 @@ WINE_DECLARE_DEBUG_CHANNEL(relay);
 WINE_DECLARE_DEBUG_CHANNEL(snoop);
 WINE_DECLARE_DEBUG_CHANNEL(loaddll);
 WINE_DECLARE_DEBUG_CHANNEL(imports);
+WINE_DECLARE_DEBUG_CHANNEL(heapleaks);
 
 #ifdef _WIN64
 #define DEFAULT_SECURITY_COOKIE_64  (((ULONGLONG)0x00002b99 << 32) | 0x2ddfa232)
@@ -272,6 +273,24 @@ static int modules_find(const void *addr, LDR_MODULE **mod)
     wm = WINE_RB_ENTRY_VALUE(entry, WINE_MODREF, rb_entry);
     *mod = &wm->ldr;
     return 1;
+}
+
+DWORD modules_count_loaded(DWORD naddr, const void **addrs)
+{
+    DWORD i;
+    LDR_MODULE *mod;
+
+    if (!RtlTryEnterCriticalSection(&loader_section))
+        return 0;
+
+    for (i = 0; i < naddr; i++)
+    {
+        if (!modules_find(addrs[i], &mod))
+            break;
+    }
+    RtlLeaveCriticalSection(&loader_section);
+
+    return i;
 }
 
 /*********************************************************************
@@ -4284,6 +4303,10 @@ BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
     case DLL_PROCESS_ATTACH:
         LdrDisableThreadCalloutsForDll( inst );
         break;
+    case DLL_PROCESS_DETACH:
+        if (TRACE_ON(heapleaks))
+            lh_term();
+        break;
     }
 
     return TRUE;
@@ -4402,4 +4425,23 @@ void __wine_process_init(void)
     teb->DeallocationStack = stack.DeallocationStack;
 
     server_init_process_done();
+}
+
+/* fetch limits of already loaded module - should NOT allocate memory */
+BOOL lh_fetch_module_limits(const WCHAR *libname, DWORD_PTR *start, DWORD_PTR *end)
+{
+    WINE_MODREF *modref;
+
+    if (!RtlTryEnterCriticalSection(&loader_section))
+        return FALSE;
+
+    if (!(modref = find_basename_module(libname)))
+    {
+        RtlLeaveCriticalSection(&loader_section);
+        return FALSE;
+    }
+    *start = (DWORD_PTR)modref->ldr.BaseAddress;
+    *end = *start + modref->ldr.SizeOfImage;
+    RtlLeaveCriticalSection(&loader_section);
+    return TRUE;
 }
