@@ -1576,3 +1576,6 @@
 # Filesystem
 @ cdecl wine_nt_to_unix_file_name(ptr ptr long long)
 @ cdecl wine_unix_to_nt_file_name(ptr ptr)
+
+# Heap leaks
+@ cdecl wine_heapleak_init()

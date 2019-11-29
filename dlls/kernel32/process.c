@@ -61,6 +61,7 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(process);
 WINE_DECLARE_DEBUG_CHANNEL(relay);
+WINE_DECLARE_DEBUG_CHANNEL(heapleaks);
 
 typedef struct
 {
@@ -120,6 +121,8 @@ static inline DWORD call_process_entry( PEB *peb, LPTHREAD_START_ROUTINE entry )
 }
 #endif
 
+extern BOOL CDECL wine_heapleak_init(void);
+
 /***********************************************************************
  *           __wine_start_process
  *
@@ -148,9 +151,12 @@ void CDECL __wine_start_process( LPTHREAD_START_ROUTINE entry, PEB *peb )
         if (!CheckRemoteDebuggerPresent( GetCurrentProcess(), &being_debugged ))
             being_debugged = FALSE;
 
-        SetLastError( 0 );  /* clear error code */
-        if (being_debugged) DbgBreakPoint();
-        ExitThread( call_process_entry( peb, entry ));
+        if (!TRACE_ON(heapleaks) || wine_heapleak_init())
+        {
+            SetLastError( 0 );  /* clear error code */
+            if (being_debugged) DbgBreakPoint();
+            ExitThread( call_process_entry( peb, entry ));
+        }
     }
     __EXCEPT(UnhandledExceptionFilter)
     {
