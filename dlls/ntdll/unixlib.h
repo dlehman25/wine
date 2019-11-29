@@ -66,6 +66,41 @@ struct unwind_builtin_dll_params
     CONTEXT                    *context;
 };
 
+struct lh_send_params
+{
+    int fd;
+    size_t len;
+    const char *buffer;
+    size_t nsent;
+};
+
+struct lh_recvline_params
+{
+    int fd;
+    size_t len;
+    char *buffer;
+    size_t nrecv;
+};
+
+struct lh_thread_init_params
+{
+    short port_min;
+    short port_max;
+    int fd;
+};
+
+struct lh_accept_params
+{
+    int fd;
+    int connectfd;
+};
+
+struct lh_malloc_params
+{
+    size_t size;
+    void *ptr;
+};
+
 enum ntdll_unix_funcs
 {
     unix_load_so_dll,
@@ -76,6 +111,14 @@ enum ntdll_unix_funcs
     unix_wine_server_handle_to_fd,
     unix_wine_spawnvp,
     unix_system_time_precise,
+    unix_lh_thread_init,
+    unix_lh_thread_term,
+    unix_lh_send,
+    unix_lh_recvline,
+    unix_lh_accept,
+    unix_lh_shutdown,
+    unix_lh_malloc,
+    unix_lh_free,
 };
 
 extern unixlib_handle_t __wine_unixlib_handle;

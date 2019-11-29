@@ -26,16 +26,33 @@
 #include <string.h>
 
 #define RUNNING_ON_VALGRIND 0  /* FIXME */
+#ifdef HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#define LH_THREAD_SUPPORT
+#endif
 
 #include "ntstatus.h"
 #include "windef.h"
 #include "winnt.h"
 #include "winternl.h"
 #include "ntdll_misc.h"
+#include "verrsrc.h"
+#include "imagehlp.h"
 #include "wine/list.h"
+#include "wine/rbtree.h"
 #include "wine/debug.h"
+#include "wine/exception.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(heap);
+WINE_DECLARE_DEBUG_CHANNEL(heapleaks);
+
+struct heap;
+static BOOL lh_enabled;
+static void lh_stack_alloc(struct heap *, const void *, SIZE_T);
+static void lh_stack_free(struct heap *, const void *);
+static void lh_stack_resize(struct heap*, const void *, const void *, SIZE_T);
+static void lh_heap_create(struct heap *);
+static void lh_heap_destroy(struct heap *);
 
 /* HeapCompatibilityInformation values */
 
@@ -294,6 +311,7 @@ struct heap
     struct list      large_list;    /* Large blocks list */
     SIZE_T           grow_size;     /* Size of next subheap for growing heap */
     SIZE_T           min_size;      /* Minimum committed size */
+    struct rb_tree   leaks;         /* Leak records (if enabled) */
     DWORD            magic;         /* Magic number */
     DWORD            pending_pos;   /* Position in pending free requests ring */
     struct block   **pending_free;  /* Ring buffer for pending free requests */
@@ -1596,6 +1614,7 @@ HANDLE WINAPI RtlCreateHeap( ULONG flags, void *addr, SIZE_T total_size, SIZE_T 
         list_init( &process_heap->entry );
     }
 
+    lh_heap_create(heap); /* always initialize */
     return heap;
 }
 
@@ -1649,6 +1668,7 @@ HANDLE WINAPI RtlDestroyHeap( HANDLE handle )
     /* remove it from the per-process list */
     RtlEnterCriticalSection( &process_heap->cs );
     list_remove( &heap->entry );
+    if (lh_enabled) lh_heap_destroy(heap);
     RtlLeaveCriticalSection( &process_heap->cs );
 
     heap->cs.DebugInfo->Spare[0] = 0;
@@ -2065,6 +2085,7 @@ void *WINAPI DECLSPEC_HOTPATCH RtlAllocateHeap( HANDLE handle, ULONG flags, SIZE
     }
 
     if (!status) valgrind_notify_alloc( ptr, size, flags & HEAP_ZERO_MEMORY );
+    if (!status && lh_enabled) lh_stack_alloc( heap, ptr, size );
 
     TRACE( "handle %p, flags %#lx, size %#Ix, return %p, status %#lx.\n", handle, flags, size, ptr, status );
     heap_set_status( heap, flags, status );
@@ -2106,6 +2127,8 @@ BOOLEAN WINAPI DECLSPEC_HOTPATCH RtlFreeHeap( HANDLE handle, ULONG flags, void *
 
         if (!status && heap->bins) InterlockedIncrement( &heap->bins[bin].count_freed );
     }
+
+    if (!status && lh_enabled) lh_stack_free( heap, ptr );
 
     TRACE( "handle %p, flags %#lx, ptr %p, return %u, status %#lx.\n", handle, flags, ptr, !status, status );
     heap_set_status( heap, flags, status );
@@ -2257,6 +2280,8 @@ void *WINAPI RtlReAllocateHeap( HANDLE handle, ULONG flags, void *ptr, SIZE_T si
             status = STATUS_SUCCESS;
         }
     }
+
+    if (!status && lh_enabled) lh_stack_resize( heap, ptr, ret, size );
 
     TRACE( "handle %p, flags %#lx, ptr %p, size %#Ix, return %p, status %#lx.\n", handle, flags, ptr, size, ret, status );
     heap_set_status( heap, flags, status );
@@ -2743,4 +2768,1472 @@ BOOLEAN WINAPI RtlSetUserFlagsHeap( HANDLE handle, ULONG flags, void *ptr, ULONG
     }
 
     return ret;
+}
+
+/*
+ * built-in leak detection
+ */
+#define HL_MAX_NFRAMES  64
+struct lh_stack
+{
+    struct rb_entry entry;
+    struct /* only used when grouping */
+    {
+        struct rb_entry entry;
+        SIZE_T size;
+        ULONG count;
+    } group;
+    const void *ptr;
+    SIZE_T size;
+    ULONG hash;
+    BOOL invalid;
+    DWORD nframes;
+    DWORD_PTR frames[HL_MAX_NFRAMES];
+};
+
+/* total memory = overhead + used + unused */
+struct lh_subheap_stats
+{
+    DWORD   nblocks;        /* total # blocks */
+    DWORD   nused;          /* # in-use blocks */
+    SIZE_T  reserved;       /* total memory reserved */
+    SIZE_T  data;           /* size of data area requested */
+    SIZE_T  unused;         /* unused memory for alignment */
+    SIZE_T  overhead;       /* memory used by arena headers */
+    SIZE_T  committed;      /* amount of committed memory */
+    SIZE_T  free;           /* amount of free memory */
+    SIZE_T  largestfree;    /* largest free block */
+};
+
+struct lh_large_stats
+{
+    DWORD   nblocks;        /* total # blocks */
+    SIZE_T  committed;      /* total committed memory (block size) */
+    SIZE_T  data;           /* size of data area requested */
+    SIZE_T  unused;         /* unused memory for alignment */
+    SIZE_T  overhead;       /* memory used by arena headers */
+};
+
+struct lh_stats
+{
+    struct lh_subheap_stats subheap;
+    struct lh_large_stats large;
+};
+
+#define LH_CELL_FREE        ' '
+#define LH_CELL_PARTIAL     '.'
+#define LH_CELL_INUSE       'X'
+#define LH_CELL_DECOMMIT    'D'
+#define LH_CELL_SIZE        4096
+#define LH_CELLS_PER_ROW    64
+#define LH_SIZE_PER_ROW     (LH_CELL_SIZE * LH_CELLS_PER_ROW)
+struct lh_row
+{
+    SIZE_T cellused;
+    SIZE_T cellsize;
+    int rowidx;
+    char *rowptr;
+    char row[LH_CELLS_PER_ROW+1];
+};
+
+typedef DWORD (WINAPI *SymSetOptions_t)(DWORD);
+typedef BOOL (WINAPI *SymInitialize_t)(HANDLE, PCSTR, BOOL);
+typedef BOOL (WINAPI *SymCleanup_t)(HANDLE);
+typedef BOOL (WINAPI *SymFromAddr_t)(HANDLE, DWORD64, DWORD64*, PSYMBOL_INFO);
+typedef BOOL (WINAPI *SymGetLineFromAddr64_t)(HANDLE, DWORD64, PDWORD, PIMAGEHLP_LINE64);
+typedef BOOL (WINAPI *SymGetModuleInfo_t)(HANDLE, DWORD, PIMAGEHLP_MODULE);
+typedef BOOL (WINAPI *SymGetModuleInfoW64_t)(HANDLE, DWORD64, PIMAGEHLP_MODULEW64);
+
+static SymSetOptions_t SymSetOptions_func;
+static SymInitialize_t SymInitialize_func;
+static SymCleanup_t SymCleanup_func;
+static SymFromAddr_t SymFromAddr_func;
+static SymGetLineFromAddr64_t SymGetLineFromAddr64_func;
+static SymGetModuleInfo_t SymGetModuleInfo_func;
+static SymGetModuleInfoW64_t SymGetModuleInfoW64_func;
+
+extern USHORT WINAPI RtlCaptureStackBackTrace(ULONG, ULONG, PVOID *, ULONG *);
+
+static void stack_rb_destroy(struct rb_entry *entry, void *context)
+{
+    struct lh_stack *stack;
+
+    stack = RB_ENTRY_VALUE(entry, struct lh_stack, entry);
+    WINE_UNIX_CALL(unix_lh_free, stack);
+}
+
+static int stack_rb_compare(const void *key, const struct rb_entry *entry)
+{
+    const struct lh_stack *stack;
+
+    stack = RB_ENTRY_VALUE(entry, struct lh_stack, entry);
+    return (DWORD_PTR)key - (DWORD_PTR)stack->ptr;
+}
+
+static inline int lh_compare_stacks(const struct lh_stack *a, const struct lh_stack *b)
+{
+    int diff;
+    DWORD i;
+
+    if ((diff = a->hash - b->hash))
+        return diff;
+
+    if ((diff = a->nframes - b->nframes))
+        return diff;
+
+    for (i = 0; i < a->nframes; i++)
+    {
+        if ((diff = a->frames[i] - b->frames[i]))
+            return diff;
+    }
+
+    return 0;
+}
+
+static int lh_stack_group_rb_compare(const void *_key, const struct rb_entry *entry)
+{
+    const struct lh_stack *set;
+    const struct lh_stack *key;
+
+    key = _key;
+    set = RB_ENTRY_VALUE(entry, struct lh_stack, group.entry);
+    return lh_compare_stacks(key, set);
+}
+
+static int lh_stack_group_by_size_rb_compare(const void *_key, const struct rb_entry *entry)
+{
+    const struct lh_stack *set;
+    const struct lh_stack *key;
+    int diff;
+
+    key = _key;
+    set = RB_ENTRY_VALUE(entry, struct lh_stack, group.entry);
+    if ((diff = key->group.size - set->group.size))
+        return diff;
+    if ((diff = key->group.count - set->group.count))
+        return diff;
+    return lh_compare_stacks(key, set);
+}
+
+static int lh_stack_group_by_freq_rb_compare(const void *_key, const struct rb_entry *entry)
+{
+    const struct lh_stack *set;
+    const struct lh_stack *key;
+    int diff;
+
+    key = _key;
+    set = RB_ENTRY_VALUE(entry, struct lh_stack, group.entry);
+    if ((diff = key->group.count - set->group.count))
+        return diff;
+    if ((diff = key->group.size - set->group.size))
+        return diff;
+    return lh_compare_stacks(key, set);
+}
+
+static HMODULE hdbghelp;
+static DWORD_PTR dbghelp_start;
+static DWORD_PTR dbghelp_end;
+
+static int lh_skip = 2;
+static SIZE_T lh_min;
+static SIZE_T lh_max = ~0;
+static DWORD lh_nframes = 20;
+static DWORD lh_nprint = 32;
+static WCHAR lh_include_path[MAX_PATH]; /* NOTE: only support single modules for now */
+static DWORD_PTR lh_include_start;      /*       since probably only troubleshoot one */
+static DWORD_PTR lh_include_end;        /*       memory leak at a time */
+static BOOL lh_dump_each;
+static short lh_port_min = 0;
+static short lh_port_max = 0;
+static BOOL lh_listener_running;
+static HANDLE lh_thread;
+
+enum lh_sort_type {
+    LH_SORT_UNKNOWN = -1,
+    LH_SORT_NONE,
+    LH_SORT_SIZE,
+    LH_SORT_FREQ
+};
+static enum lh_sort_type lh_sort = LH_SORT_NONE;
+
+static inline NTSTATUS lh_getenv(const WCHAR *env, WCHAR *buffer, DWORD size)
+{
+    UNICODE_STRING envname;
+    UNICODE_STRING envval;
+    NTSTATUS status;
+
+    RtlInitUnicodeString(&envname, env);
+    envval.Length = 0;
+    envval.MaximumLength = size;
+    envval.Buffer = buffer;
+    if (!(status = RtlQueryEnvironmentVariable_U(NULL, &envname, &envval)))
+        buffer[size-1] = 0;
+    return status;
+}
+
+static NTSTATUS lh_getenv_ul(const WCHAR *env, unsigned long *val)
+{
+    NTSTATUS status;
+    WCHAR value[32];
+    int base;
+
+    if ((status = lh_getenv(env, value, sizeof(value))))
+        return status;
+
+    base = 10;
+    if ((wcslen(value) > 2) &&
+        (value[0] == '0') &&
+        (value[1] == 'x' || value[1] == 'X'))
+        base = 16;
+    *val = wcstoul(value, 0, base);
+    return STATUS_SUCCESS;
+}
+
+static inline BOOL lh_filter_exclude(const struct lh_stack *stack)
+{
+    DWORD i;
+
+    /* ignore stacks from dbghelp */
+    for (i = 0; i < stack->nframes; i++)
+    {
+        if (stack->frames[i] >= dbghelp_start && stack->frames[i] < dbghelp_end)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static BOOL lh_filter_include(const struct lh_stack *stack)
+{
+    DWORD i;
+
+    if (!lh_include_start &&
+        !lh_fetch_module_limits(lh_include_path, &lh_include_start, &lh_include_end))
+        return FALSE;
+
+    for (i = 0; i < stack->nframes; i++)
+    {
+        if (stack->frames[i] >= lh_include_start && stack->frames[i] < lh_include_end)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+typedef void (CALLBACK *LDRENUMPROC)(LDR_DATA_TABLE_ENTRY *, void *, BOOLEAN *);
+extern NTSTATUS WINAPI LdrEnumerateLoadedModules(void *, LDRENUMPROC, void *);
+
+static RTL_CRITICAL_SECTION lh_modcs;
+static RTL_CRITICAL_SECTION_DEBUG lh_modcsdbg =
+{
+    0, 0, &lh_modcs,
+    { &lh_modcsdbg.ProcessLocksList, &lh_modcsdbg.ProcessLocksList },
+      0, 0, { (DWORD_PTR)(__FILE__ ": lh_modcs") }
+};
+static RTL_CRITICAL_SECTION lh_modcs = { &lh_modcsdbg, -1, 0, 0, 0, 0 };
+
+static DWORD lh_stack_fetch(struct lh_stack *stack)
+{
+    DWORD i;
+
+    /* randomly crashes on certain java frames */
+    __TRY
+    {
+        stack->nframes = RtlCaptureStackBackTrace(lh_skip, ARRAY_SIZE(stack->frames),
+                                                  (void*)stack->frames, &stack->hash);
+    }
+    __EXCEPT_PAGE_FAULT
+    {
+        stack->nframes = 0;
+    }
+    __ENDTRY
+
+    if (lh_filter_exclude(stack))
+        return 0;
+
+    /* trim frames that have zero */
+    for (i = 0; i < stack->nframes; i++)
+    {
+        /* remove frames that may be bogus in linux java */
+        if (!stack->frames[i])
+            break;
+    }
+    stack->nframes = i;
+
+    if (stack->nframes)
+    {
+        i = modules_count_loaded(stack->nframes, (const void **)stack->frames);
+        stack->invalid = i != stack->nframes;
+        stack->nframes = i;
+    }
+
+    if (lh_include_path[0] && !lh_filter_include(stack))
+        return 0;
+
+    return stack->nframes;
+}
+
+static void lh_stack_print_bytes(const void *ptr, DWORD size)
+{
+    const BYTE *bytes = ptr;
+    const BYTE *end = bytes + size;
+    char buffer[128]; /* >= 16 + 2 + 16 * 3 + 1 + 16 + 1 + 1 */
+    DWORD remain;     /*    address  bytes    | ascii  |  \0 */
+    DWORD line;
+    DWORD i, j;
+
+    while (bytes < end)
+    {
+        line = min(size, 16);
+        size -= line;
+
+        j = sprintf(buffer, "%p: ", bytes);
+        for (i = 0; i < line; i++)
+        {
+            j += sprintf(&buffer[j], "%02x ", bytes[i]);
+        }
+
+        remain = 16 - line;
+        if (remain)
+        {
+            memset(&buffer[j], ' ', remain * 3); /* '00 ' */
+            j += remain * 3;
+        }
+
+        buffer[j++] = '|';
+        for (i = 0; i < line; i++)
+            buffer[j++] = isalnum(bytes[i]) || ispunct(bytes[i]) ? bytes[i] : '.';
+        memset(&buffer[j], '.', remain);
+        j += remain;
+        buffer[j++] = '|';
+        buffer[j] = 0;
+
+        MESSAGE("%s\n", buffer);
+
+        bytes += 16;
+    }
+}
+
+static void lh_stack_print_frames(const struct heap *heap, const struct lh_stack *stack)
+{
+    BYTE buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
+    SYMBOL_INFO *si = (SYMBOL_INFO *)buffer;
+    IMAGEHLP_MODULEW64 modinfo;
+    IMAGEHLP_LINE64 il;
+    char numbuf[16];
+    DWORD64 disp64;
+    DWORD nframes;
+    DWORD disp;
+    int i;
+
+    nframes = min(stack->nframes, lh_nframes); /* in case given nframes is bogus */
+    for (i = 0; i < nframes; i++)
+    {
+        disp = 0;
+        disp64 = 0;
+        memset(buffer, 0, sizeof(buffer));
+        si->SizeOfStruct = sizeof(*si);
+        si->MaxNameLen = MAX_SYM_NAME;
+        memset(&il, 0, sizeof(il));
+        il.SizeOfStruct = sizeof(il);
+        SymFromAddr_func(GetCurrentProcess(), stack->frames[i], &disp64, si);
+
+        numbuf[0] = 0;
+        if (SymGetLineFromAddr64_func(GetCurrentProcess(), stack->frames[i], &disp, &il))
+            sprintf(numbuf, ":%lu", il.LineNumber);
+
+        memset(&modinfo, 0, sizeof(modinfo));
+        modinfo.SizeOfStruct = sizeof(modinfo);
+        SymGetModuleInfoW64_func(GetCurrentProcess(), stack->frames[i], &modinfo);
+        MESSAGE("  [%d] 0x%s+0x%s %s (0x%s %s) %s%s\n", i,
+                wine_dbgstr_longlong(stack->frames[i] - disp64),
+                wine_dbgstr_longlong(disp64), debugstr_an(si->Name, si->NameLen),
+                wine_dbgstr_longlong(modinfo.BaseOfImage), debugstr_w(modinfo.ImageName),
+                il.LineNumber ? debugstr_a(il.FileName): "", numbuf);
+    }
+
+}
+
+static void lh_stack_print(struct heap *heap, const struct lh_stack *stack)
+{
+    MESSAGE("0x%s bytes leaked in heap %p at %p:%s\n",
+            wine_dbgstr_longlong(stack->size), heap, stack->ptr,
+            stack->invalid ? "(invalid)" : "");
+    lh_stack_print_bytes(stack->ptr, min(stack->size, lh_nprint));
+    lh_stack_print_frames(heap, stack);
+}
+
+static void lh_stack_group_print(const struct heap *heap, const struct lh_stack *stack)
+{
+    MESSAGE("0x%s bytes in %lu sets leaked in heap %p:%s\n",
+            wine_dbgstr_longlong(stack->group.size), stack->group.count, heap,
+            stack->invalid ? "(invalid)" : "");
+    lh_stack_print_frames(heap, stack);
+}
+
+static void lh_dump_stack_groups(struct heap *heap)
+{
+    struct lh_stack *stack;
+    struct lh_stack *group;
+    struct rb_entry *entry;
+    struct rb_tree leak_groups;
+    struct rb_tree leak_sorted;
+    struct rb_tree *leaks;
+
+    rb_init(&leak_groups, lh_stack_group_rb_compare);
+    switch (lh_sort)
+    {
+        case LH_SORT_SIZE:
+            rb_init(&leak_sorted, lh_stack_group_by_size_rb_compare);
+            leaks = &leak_sorted;
+            break;
+        case LH_SORT_FREQ:
+            rb_init(&leak_sorted, lh_stack_group_by_freq_rb_compare);
+            leaks = &leak_sorted;
+            break;
+        default:
+            leaks = &leak_groups;
+            break;
+    }
+
+    RB_FOR_EACH_ENTRY(stack, &heap->leaks, struct lh_stack, entry)
+    {
+        if ((entry = rb_get(&leak_groups, stack)))
+        {
+            group = RB_ENTRY_VALUE(entry, struct lh_stack, group.entry);
+            group->group.size += stack->size;
+            group->group.count++;
+        }
+        else
+        {
+            stack->group.size = stack->size;
+            stack->group.count = 1;
+            rb_put(&leak_groups, stack, &stack->group.entry);
+        }
+    }
+
+    if (leaks == &leak_sorted)
+    {
+        while ((entry = rb_head(leak_groups.root)))
+        {
+            group = RB_ENTRY_VALUE(entry, struct lh_stack, group.entry);
+            rb_remove(&leak_groups, entry);
+            rb_put(&leak_sorted, group, &group->group.entry);
+        }
+    }
+
+    RB_FOR_EACH_ENTRY(group, leaks, struct lh_stack, group.entry)
+    {
+        lh_stack_group_print(heap, group);
+    }
+}
+
+static inline SIZE_T lh_dump_summary_heap(const struct heap *heap, DWORD *count)
+{
+    struct lh_stack *stack;
+    DWORD nstacks;
+    SIZE_T sum;
+
+    sum = 0;
+    nstacks = 0;
+    RB_FOR_EACH_ENTRY(stack, &heap->leaks, struct lh_stack, entry)
+    {
+        sum += stack->size;
+        nstacks++;
+    }
+    *count = nstacks;
+
+    return sum;
+}
+
+static inline const char *lh_pretty_size(SIZE_T size)
+{
+    const SIZE_T MB = 1024 * 1024;
+    const SIZE_T GB = MB * 1024;
+    static char buffer[2][32];
+    static int idx;
+
+    idx = (idx + 1) % ARRAY_SIZE(buffer);
+    if (size >= GB)
+        snprintf(buffer[idx], sizeof(buffer[idx]), "%llu GB %llu MB", size / GB, (size % GB) / MB);
+    else if (size >= MB)
+        snprintf(buffer[idx], sizeof(buffer[idx]), "%llu MB %llu KB", size / MB, (size % MB) / 1024);
+    else if (size >= 1024)
+        snprintf(buffer[idx], sizeof(buffer[idx]), "%llu KB", size / 1024);
+    else
+        snprintf(buffer[idx], sizeof(buffer[idx]), "%llu B", size);
+    return buffer[idx];
+}
+
+static void lh_dump_summary(void)
+{
+    SIZE_T sum;
+    SIZE_T leaked;
+    DWORD count;
+    DWORD nstacks;
+    struct heap *heap;
+
+    sum = 0;
+    count = 0;
+    LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+    {
+        nstacks = 0;
+        leaked = lh_dump_summary_heap(heap, &nstacks);
+        if (nstacks)
+            MESSAGE("Heap %p: 0x%llx bytes (%s) leaked in %lu records\n", heap, leaked,
+                    lh_pretty_size(leaked), nstacks);
+        sum += leaked;
+        count += nstacks;
+    }
+    leaked = lh_dump_summary_heap(process_heap, &nstacks);
+    MESSAGE("Main: %p: 0x%llx bytes (%s) leaked in %lu records\n", process_heap, leaked,
+            lh_pretty_size(leaked), nstacks);
+    sum += leaked;
+    count += nstacks;
+    MESSAGE("Summary: 0x%llx bytes (%s) leaked in %lu records\n", sum, lh_pretty_size(sum), count);
+}
+
+static inline void lh_dump_heap(struct heap *heap)
+{
+    struct lh_stack *stack;
+
+    if (!lh_dump_each)
+        lh_dump_stack_groups(heap);
+    else
+    {
+        RB_FOR_EACH_ENTRY(stack, &heap->leaks, struct lh_stack, entry)
+        {
+            lh_stack_print(heap, stack);
+        }
+    }
+}
+
+static inline BOOL lh_validate_heap(const struct heap *search)
+{
+    struct heap *heap;
+
+    if (search == process_heap)
+        return TRUE;
+    LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+    {
+        if (heap == search)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+static void lh_send(int fd, const char *fmt, ...)
+{
+    va_list va;
+    char buffer[128];
+    struct lh_send_params params;
+
+    va_start(va, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, va);
+    va_end(va);
+
+    params.fd = fd;
+    params.len = strlen(buffer);
+    params.buffer = buffer;
+    WINE_UNIX_CALL(unix_lh_send, &params);
+}
+
+static inline void lh_init_symbols(void)
+{
+    /* invade process to get full symbol info for printing stack
+       these may call filename lookup functions that call back into
+       the heap while holding dir_section critical section.  to avoid
+       deadlock, call these outside of heap lock */
+    SymSetOptions_func(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
+    if (!SymInitialize_func(GetCurrentProcess(), NULL, TRUE))
+    {
+        WARN_(heapleaks)("failed to initialize dbghelp\n");
+        return;
+    }
+}
+
+static inline void lh_term_symbols(void)
+{
+    SymCleanup_func(GetCurrentProcess());
+}
+
+static void lh_dump(int connectfd, struct heap *spec)
+{
+    struct heap *heap;
+
+    if (spec)
+    {
+        if (lh_validate_heap(spec))
+            lh_dump_heap(spec);
+        else
+            lh_send(connectfd, "invalid heap: %p\n", spec);
+    }
+    else
+    {
+        lh_dump_heap(process_heap);
+        LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+        {
+            lh_dump_heap(heap);
+        }
+
+        lh_dump_summary();
+    }
+}
+
+static void lh_cmd_clear(int connectfd)
+{
+    struct heap *heap;
+
+    LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+    {
+        lh_heap_destroy(heap);
+    }
+    lh_heap_destroy(process_heap);
+    MESSAGE("leaks freed\n");
+    lh_send(connectfd, "leaks freed\n");
+}
+
+static void lh_cmd_list(int connectfd)
+{
+    struct heap *heap;
+
+    lh_send(connectfd, "Heaps:\n");
+    LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+    {
+        lh_send(connectfd, "%p\n", heap);
+    }
+    lh_send(connectfd, "%p (process heap)\n", process_heap);
+}
+
+void lh_stack_alloc(struct heap *heap, const void *ptr, SIZE_T size)
+{
+    struct lh_malloc_params params;
+    struct lh_stack *stack;
+    struct lh_stack tmp;
+
+    if (size < lh_min || size > lh_max)
+        return;
+
+    /* ideally, the stack information would be in the very block being allocated
+       but that seemed to cause problems;  either it was a sloppy first attempt
+       or some memory corruption that doesn't usually show */
+    tmp.nframes = 0;
+    tmp.invalid = FALSE;
+    if (!lh_stack_fetch(&tmp))
+        return;
+
+    params.size = FIELD_OFFSET(struct lh_stack, frames[tmp.nframes]);
+    if (FAILED(WINE_UNIX_CALL(unix_lh_malloc, &params)))
+        return;
+
+    stack = params.ptr;
+    stack->ptr = ptr;
+    stack->size = size;
+    stack->hash = tmp.hash;
+    stack->invalid = tmp.invalid;
+    stack->nframes = tmp.nframes;
+    memcpy(stack->frames, tmp.frames, tmp.nframes * sizeof(tmp.frames[0]));
+    heap_lock(heap, 0);
+    rb_put(&heap->leaks, ptr, &stack->entry);
+    heap_unlock(heap, 0);
+}
+
+void lh_stack_free(struct heap *heap, const void *ptr)
+{
+    struct rb_entry *entry;
+    struct lh_stack *stack;
+
+    heap_lock(heap, 0);
+    if ((entry = rb_get(&heap->leaks, ptr)))
+        rb_remove(&heap->leaks, entry);
+    heap_unlock(heap, 0);
+
+    if (!entry)
+        return;
+
+    stack = RB_ENTRY_VALUE(entry, struct lh_stack, entry);
+    WINE_UNIX_CALL(unix_lh_free, stack);
+}
+
+static void lh_stack_resize(struct heap *heap, const void *old_ptr, const void *new_ptr, SIZE_T new_size)
+{
+    lh_stack_free(heap, old_ptr);
+    lh_stack_alloc(heap, new_ptr, new_size);
+}
+
+static void CALLBACK lh_pin_modules(LDR_DATA_TABLE_ENTRY *module, void *context, BOOLEAN *stop)
+{
+    /* keep dlls loaded in memory so that their addresses are valid
+       and consistent till the end when records are dumped */
+    LdrAddRefDll(LDR_ADDREF_DLL_PIN, module->DllBase);
+}
+
+extern NTSTATUS WINAPI LdrRegisterDllNotification(ULONG, PLDR_DLL_NOTIFICATION_FUNCTION,
+                                                  void *, void **);
+void CALLBACK lh_dll_pin(ULONG reason, LDR_DLL_NOTIFICATION_DATA *data, void *mod)
+{
+    TRACE_(heapleaks)("[%llx-%llx] %s\n", (DWORD_PTR)data->Loaded.DllBase,
+                                          (DWORD_PTR)data->Loaded.DllBase + data->Loaded.SizeOfImage,
+                                          debugstr_us(data->Loaded.FullDllName));
+    if (reason == LDR_DLL_NOTIFICATION_REASON_LOADED)
+    {
+        /* keep dlls loaded in memory so that their addresses are valid
+           and consistent till the end when records are dumped */
+        LdrAddRefDll(LDR_ADDREF_DLL_PIN, data->Loaded.DllBase);
+    }
+}
+
+static void lh_heap_create(struct heap *heap)
+{
+    rb_init(&heap->leaks, stack_rb_compare);
+}
+
+static void lh_heap_destroy(struct heap *heap)
+{
+    rb_destroy(&heap->leaks, stack_rb_destroy, NULL);
+}
+
+static void lh_lock_all_heaps(void)
+{
+    struct heap *heap;
+
+    RtlEnterCriticalSection(&process_heap->cs);
+    LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+    {
+        RtlEnterCriticalSection(&heap->cs);
+    }
+}
+
+static void lh_unlock_all_heaps(void)
+{
+    struct heap *heap;
+
+    LIST_FOR_EACH_ENTRY_REV(heap, &process_heap->entry, struct heap, entry)
+    {
+        RtlLeaveCriticalSection(&heap->cs);
+    }
+    RtlLeaveCriticalSection(&process_heap->cs);
+}
+
+static inline void lh_subheap_stats_add(struct lh_subheap_stats *totals,
+                                        const struct lh_subheap_stats *stats)
+{
+    totals->nblocks += stats->nblocks;
+    totals->nused += stats->nused;
+    totals->reserved += stats->reserved;
+    totals->data += stats->data;
+    totals->unused += stats->unused;
+    totals->overhead += stats->overhead;
+    totals->committed += stats->committed;
+    totals->free += stats->free;
+    totals->largestfree = max(totals->largestfree, stats->largestfree);
+}
+
+static void lh_subheap_stats_print(const struct lh_subheap_stats *stats)
+{
+    MESSAGE("\tsubheaps\n");
+    MESSAGE("\t\ttotal # blocks %lu\n", stats->nblocks);
+    MESSAGE("\t\tused # blocks  %lu (free %lu)\n", stats->nused,
+            stats->nblocks - stats->nused);
+    MESSAGE("\t\ttotal reserved %08llx (%10s)\n", stats->reserved,
+            lh_pretty_size(stats->reserved));
+    MESSAGE("\t\tcommitted      %08llx (%10s)\n", stats->committed,
+            lh_pretty_size(stats->committed));
+    MESSAGE("\t\ttotal data     %08llx (%10s)\n", stats->data,
+            lh_pretty_size(stats->data));
+    MESSAGE("\t\ttotal unused   %08llx (%10s)\n", stats->unused,
+            lh_pretty_size(stats->unused));
+    MESSAGE("\t\ttotal overhead %08llx (%10s)\n", stats->overhead,
+            lh_pretty_size(stats->overhead));
+    MESSAGE("\t\ttotal free     %08llx (%10s)\n", stats->free,
+            lh_pretty_size(stats->free));
+    MESSAGE("\t\tlargest free   %08llx (%10s)\n", stats->largestfree,
+            lh_pretty_size(stats->largestfree));
+    if (stats->free)
+    {
+        MESSAGE("\t\texternal fragmentation %lld.%lld%%\n",
+                (stats->free - stats->largestfree) * 100000 / stats->free / 1000,
+                ((stats->free - stats->largestfree) * 100000 / stats->free) % 1000);
+    }
+    if (stats->data + stats->unused)
+    {
+        MESSAGE("\t\tinternal fragmentation %lld.%lld%%\n",
+                stats->unused * 100000 / (stats->data + stats->unused) / 1000,
+                (stats->unused * 100000 / (stats->data + stats->unused)) % 1000);
+    }
+}
+
+static inline void lh_large_stats_add(struct lh_large_stats *totals,
+                                      const struct lh_large_stats *stats)
+{
+    totals->nblocks += stats->nblocks;
+    totals->committed += stats->committed;
+    totals->data += stats->data;
+    totals->unused += stats->unused;
+    totals->overhead += stats->overhead;
+}
+
+static void lh_large_stats_print(const struct lh_large_stats *stats)
+{
+    MESSAGE("\tlarge blocks\n");
+    MESSAGE("\t# blocks   %lu\n", stats->nblocks);
+    MESSAGE("\t\ttotal committed    %08llx (%10s)\n", stats->committed,
+            lh_pretty_size(stats->committed));
+    MESSAGE("\t\ttotal data         %08llx (%10s)\n", stats->data,
+            lh_pretty_size(stats->data));
+    MESSAGE("\t\ttotal unused       %08llx (%10s)\n", stats->unused,
+            lh_pretty_size(stats->unused));
+    MESSAGE("\t\ttotal overhead     %08llx (%10s)\n", stats->overhead,
+            lh_pretty_size(stats->overhead));
+}
+
+static void lh_subheap_info(SUBHEAP *subheap, struct lh_subheap_stats *totals)
+{
+    SIZE_T size;
+    const struct block *block;
+    struct lh_subheap_stats stats;
+
+    memset(&stats, 0, sizeof(stats));
+    stats.overhead = subheap_overhead(subheap);
+    stats.committed = (char *)subheap_commit_end( subheap ) - (char *)subheap;
+    stats.reserved = subheap_size(subheap);
+    for (block = first_block(subheap); block; block = next_block(subheap, block))
+    {
+        stats.nblocks++;
+        size = block_get_size(block);
+        if (block_get_flags(block) & BLOCK_FLAG_FREE)
+        {
+            stats.overhead += block_get_overhead(block);
+            stats.free += block_get_size(block);
+            stats.largestfree = max(stats.largestfree, size);
+        }
+        else
+        {
+            stats.nused++;
+            stats.data += size;
+            stats.overhead += block_get_overhead(block);
+            stats.unused += block->tail_size;
+        }
+    }
+    lh_subheap_stats_add(totals, &stats);
+    lh_subheap_stats_print(&stats);
+}
+
+static void lh_large_blocks_info(struct heap *heap, struct lh_large_stats *totals)
+{
+    ARENA_LARGE *arena;
+    struct lh_large_stats stats;
+
+    MESSAGE("large blocks for heap %p\n", heap);
+
+    memset(&stats, 0, sizeof(stats));
+    LIST_FOR_EACH_ENTRY(arena, &heap->large_list, ARENA_LARGE, entry)
+    {
+        stats.nblocks++;
+        stats.committed += arena->block_size;
+        stats.data += arena->data_size;
+        stats.unused += arena->block_size - arena->data_size - sizeof(*arena);
+        stats.overhead += sizeof(*arena);
+
+        MESSAGE("\t%p: data %llx (%10s) block %llx (%10s)\n", (arena+1),
+                arena->data_size, lh_pretty_size(arena->data_size),
+                arena->block_size, lh_pretty_size(arena->block_size));
+    }
+    if (!stats.nblocks) return;
+    lh_large_stats_add(totals, &stats);
+    lh_large_stats_print(&stats);
+}
+
+static inline void lh_runner(void)
+{
+    MESSAGE("============================================================================\n");
+}
+
+static void lh_print_stats(const struct lh_stats *stats)
+{
+    MESSAGE("total # blocks     %lu (%lu subheap + %lu large)\n",
+            stats->subheap.nblocks + stats->large.nblocks,
+            stats->subheap.nblocks, stats->large.nblocks);
+    lh_subheap_stats_print(&stats->subheap);
+    if (stats->large.nblocks)
+        lh_large_stats_print(&stats->large);
+    lh_runner();
+}
+
+static void lh_heap_info(struct heap *heap, struct lh_stats *totals)
+{
+    SUBHEAP *subheap;
+    struct lh_stats stats;
+
+    memset(&stats, 0, sizeof(stats));
+    MESSAGE("heap: %p\n", heap);
+    MESSAGE("subheaps: %u\n", list_count(&heap->subheap_list));
+    LIST_FOR_EACH_ENTRY(subheap, &heap->subheap_list, SUBHEAP, entry)
+    {
+        lh_subheap_info(subheap, &stats.subheap);
+    }
+    lh_large_blocks_info(heap, &stats.large);
+    MESSAGE("totals for heap %p\n", heap);
+    lh_print_stats(&stats);
+
+    lh_subheap_stats_add(&totals->subheap, &stats.subheap);
+    lh_large_stats_add(&totals->large, &stats.large);
+}
+
+static void lh_info(int connectfd, struct heap *heap)
+{
+    struct lh_stats stats;
+
+    memset(&stats, 0, sizeof(stats));
+    lh_lock_all_heaps();
+    if (heap)
+    {
+        if (lh_validate_heap(heap))
+            lh_heap_info(heap, &stats);
+        else
+            lh_send(connectfd, "invalid heap: %p\n", heap);
+    }
+    else
+    {
+        LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+        {
+            lh_heap_info(heap, &stats);
+        }
+        lh_heap_info(process_heap, &stats);
+        MESSAGE("totals for all heaps\n");
+        lh_print_stats(&stats);
+    }
+    lh_unlock_all_heaps();
+}
+
+static void inline lh_row_init(struct lh_row *row, char *ptr)
+{
+    memset(row, 0, sizeof(*row));
+    row->rowptr = ptr;
+}
+
+static void lh_row_flush(struct lh_row *row)
+{
+    while (row->rowidx < LH_CELLS_PER_ROW)
+        row->row[row->rowidx++] = LH_CELL_FREE;
+
+    row->row[row->rowidx] = 0;
+    MESSAGE("%p: |%s|\n", row->rowptr, row->row);
+    row->rowidx = 0;
+    row->rowptr += LH_SIZE_PER_ROW;
+}
+
+static void lh_row_add(struct lh_row *row, SIZE_T size, char type)
+{
+    SIZE_T leftused;
+    SIZE_T left;
+
+    if (type == LH_CELL_INUSE) row->cellused += size;
+    row->cellsize += size;
+
+    while (row->cellsize >= LH_CELL_SIZE)
+    {
+        left = min(row->cellsize, LH_CELL_SIZE);
+        leftused = min(row->cellused, LH_CELL_SIZE);
+
+        row->row[row->rowidx++] = row->cellused && (row->cellused != row->cellsize) ?
+                                    LH_CELL_PARTIAL : type;
+        row->cellsize -= left;
+        row->cellused -= leftused;
+        if (row->rowidx == LH_CELLS_PER_ROW)
+            lh_row_flush(row);
+    }
+}
+
+static void lh_subheap_map(struct heap *heap, SUBHEAP *subheap)
+{
+    char *base;
+    SIZE_T size;
+    struct lh_row row;
+    struct block *block;
+
+    MESSAGE("heap %p subheap %p\n", heap, subheap);
+
+    base = subheap_base(subheap);
+
+    lh_row_init(&row, base);
+    lh_row_add(&row, subheap_overhead(subheap), LH_CELL_INUSE);
+    for (block = first_block( subheap ); block; block = next_block( subheap, block ))
+    {
+        size = block_get_size(block);
+        lh_row_add(&row, size, block_get_flags(block) & BLOCK_FLAG_FREE ? LH_CELL_FREE : LH_CELL_INUSE);
+    }
+    size = (SIZE_T)(base + subheap_size(subheap)) - (SIZE_T)subheap_commit_end(subheap);
+    lh_row_add(&row, size, LH_CELL_DECOMMIT);
+    lh_row_flush(&row);
+}
+
+
+static void lh_heap_map(struct heap *heap)
+{
+    ARENA_LARGE *arena;
+    SUBHEAP *subheap;
+
+    MESSAGE("map for heap %p\n", heap);
+    MESSAGE("each cell is 0x%x (%s) (each row is 0x%x (%s))\n",
+        LH_CELL_SIZE, lh_pretty_size(LH_CELL_SIZE),
+        LH_SIZE_PER_ROW, lh_pretty_size(LH_SIZE_PER_ROW));
+    MESSAGE("key: cell in-use: '%c' free: '%c' mix of in-use and free: '%c'\n",
+        LH_CELL_INUSE, LH_CELL_FREE, LH_CELL_PARTIAL);
+    LIST_FOR_EACH_ENTRY(subheap, &heap->subheap_list, SUBHEAP, entry)
+    {
+        lh_subheap_map(heap, subheap);
+    }
+
+    LIST_FOR_EACH_ENTRY(arena, &heap->large_list, ARENA_LARGE, entry)
+    {
+        MESSAGE("large block %p (data %llx (%s) block %llx (%s)) for heap %p\n", arena,
+                arena->data_size, lh_pretty_size(arena->data_size),
+                arena->block_size, lh_pretty_size(arena->block_size), heap);
+    }
+    lh_runner();
+}
+
+static void lh_map(int connectfd, struct heap *heap)
+{
+    lh_lock_all_heaps();
+    if (heap)
+    {
+        if (lh_validate_heap(heap))
+            lh_heap_map(heap);
+        else
+            lh_send(connectfd, "invalid heap: %p\n", heap);
+    }
+    else
+    {
+        LIST_FOR_EACH_ENTRY(heap, &process_heap->entry, struct heap, entry)
+        {
+            lh_heap_map(heap);
+        }
+        lh_heap_map(process_heap);
+    }
+    lh_unlock_all_heaps();
+}
+
+static void lh_thread_help(int fd)
+{
+    const char help[] =
+"dump [sort by] [heap]  dump all leak records by group\n"
+" where sort by is one of:\n"
+"   size                sort grouped records by size\n"
+"   freq                sort grouped records by frequency\n"
+"   none                grouped records are unsorted\n"
+"   [heap]              use 'summary' to list heaps (ex: dump size 0x10000)\n"
+"                       default: HEAPLEAKS_SORTBY or unsorted on all heaps\n"
+"clear                  clear all leak records\n"
+"summary                print only summary of leaks\n"
+"list                   list all heaps\n"
+"info [heap]            print information about all or specific heap\n"
+"map [heap]             print map of blocks for all or specific heap\n"
+"quit                   detach from process\n";
+    struct lh_send_params params;
+    params.fd = fd;
+    params.len = sizeof(help);
+    params.buffer = help;
+    WINE_UNIX_CALL(unix_lh_send, &params);
+}
+
+static inline enum lh_sort_type lh_str_to_sort_type(const char *str)
+{
+    if (!strcasecmp(str, "none"))
+        return LH_SORT_NONE;
+    else if (!strcasecmp(str, "size"))
+        return LH_SORT_SIZE;
+    else if (!strcasecmp(str, "freq"))
+        return LH_SORT_FREQ;
+    return LH_SORT_UNKNOWN;
+}
+
+static inline void *lh_parse_heap(const char *token)
+{
+    void *ptr;
+
+    ptr = NULL;
+    sscanf(token, "%p", &ptr);
+    return ptr;
+}
+
+static char *next_token(char *str, char **ctx)
+{
+    const char delim = ' ';
+    if (!str) str = *ctx;
+
+    while (*str && (*str == delim))
+        str++;
+    if (!*str)
+    {
+        *ctx = str;
+        return NULL;
+    }
+
+    *ctx = str + 1;
+    while (**ctx && (**ctx != delim))
+        (*ctx)++;
+    if (**ctx)
+        *(*ctx)++ = 0;
+
+    return str;
+}
+
+/* the thread handler is split between PE and ELF sides
+ * PE - plugs into heap, captures stack
+ * ELF - communication and tracking of wine heap memory using glibc memory
+ */
+static void CALLBACK lh_thread_proc(LPVOID arg)
+{
+    HANDLE ready = arg;
+    int fd;
+    int connectfd;
+    char buffer[64];
+    char *token, *next;
+    struct heap *heap;
+    enum lh_sort_type sort;
+    enum lh_sort_type sort_save;
+    struct lh_accept_params acceptargs;
+    struct lh_recvline_params recvlineargs;
+    struct lh_thread_init_params thread_initargs;
+
+    thread_initargs.port_min = lh_port_min;
+    thread_initargs.port_max = lh_port_max;
+    if ((FAILED(WINE_UNIX_CALL(unix_lh_thread_init, &thread_initargs))))
+    {
+        NtSetEvent(ready, NULL);
+        return;
+    }
+
+    fd = thread_initargs.fd;
+    lh_listener_running = TRUE;
+    NtSetEvent(ready, NULL);
+
+    for (;;)
+    {
+        acceptargs.fd = fd;
+        if (FAILED(WINE_UNIX_CALL(unix_lh_accept, &acceptargs)))
+            break;
+        connectfd = acceptargs.connectfd;
+
+        while (1)
+        {
+            memset(buffer, 0, sizeof(buffer));
+            recvlineargs.fd = connectfd;
+            recvlineargs.len = sizeof(buffer);
+            recvlineargs.buffer = buffer;
+            if (FAILED(WINE_UNIX_CALL(unix_lh_recvline, &recvlineargs)))
+                break;
+            if (!recvlineargs.nrecv)
+                continue;
+
+            token = next_token(buffer, &next);
+            if (!strcasecmp(token, "dump"))
+            {
+                /* [sort] */
+                sort = LH_SORT_UNKNOWN;
+                if ((token = next_token(NULL, &next)))
+                {
+                    sort = lh_str_to_sort_type(token);
+                    if (sort == LH_SORT_UNKNOWN)
+                    {
+                        lh_send(connectfd, "unknown sort: %s\n", token);
+                        continue;
+                    }
+                }
+
+                /* [heap] */
+                heap = NULL;
+                if ((token = next_token(NULL, &next)) &&
+                    !(heap = lh_parse_heap(token)))
+                {
+                    lh_send(connectfd, "invalid heap: %s\n", token);
+                    continue;
+                }
+
+                sort_save = sort;
+                lh_init_symbols();
+                lh_lock_all_heaps();
+                if (token)
+                    lh_sort = sort;
+                lh_dump(connectfd, heap);
+                if (token)
+                    lh_sort = sort_save;
+                lh_unlock_all_heaps();
+                lh_term_symbols();
+            }
+            else if (!strcasecmp(token, "clear"))
+            {
+                lh_lock_all_heaps();
+                lh_cmd_clear(connectfd);
+                lh_unlock_all_heaps();
+            }
+            else if (!strcasecmp(token, "summary"))
+            {
+                lh_lock_all_heaps();
+                lh_dump_summary();
+                lh_unlock_all_heaps();
+            }
+            else if (!strcasecmp(token, "list"))
+            {
+                lh_lock_all_heaps();
+                lh_cmd_list(connectfd);
+                lh_unlock_all_heaps();
+            }
+            else if (!strcasecmp(token, "info"))
+            {
+                /* [heap] */
+                heap = NULL;
+                if ((token = next_token(NULL, &next)) &&
+                    !(heap = lh_parse_heap(token)))
+                {
+                    lh_send(connectfd, "invalid heap: %s\n", token);
+                    continue;
+                }
+
+                lh_info(connectfd, heap);
+            }
+            else if (!strcasecmp(token, "map"))
+            {
+                /* [heap] */
+                heap = NULL;
+                if ((token = next_token(NULL, &next)) &&
+                    !(heap = lh_parse_heap(token)))
+                {
+                    lh_send(connectfd, "invalid heap: %s\n", token);
+                    continue;
+                }
+
+                lh_map(connectfd, heap);
+            }
+            else if (!strcasecmp(token, "help"))
+                lh_thread_help(connectfd);
+            else if (!strcasecmp(token, "quit"))
+                break;
+            else
+                lh_send(connectfd, "unknown command (try 'help'): %s\n", token);
+       }
+
+        WINE_UNIX_CALL(unix_lh_shutdown, &connectfd);
+    }
+    WINE_UNIX_CALL(unix_lh_thread_term, &fd);
+}
+
+static RTL_RUN_ONCE lh_init_once = RTL_RUN_ONCE_INIT;
+/* SIGQUIT will terminate thread on exit */
+static DWORD WINAPI lh_start_thread(RTL_RUN_ONCE *once, void *param, void **context)
+{
+    HANDLE ready;
+    CLIENT_ID tid;
+    NTSTATUS status;
+    OBJECT_ATTRIBUTES attr;
+
+    attr.Length                   = sizeof(attr);
+    attr.RootDirectory            = 0;
+    attr.ObjectName               = NULL;
+    attr.Attributes               = OBJ_OPENIF;
+    attr.SecurityDescriptor       = NULL;
+    attr.SecurityQualityOfService = NULL;
+
+    status = NtCreateEvent(&ready, EVENT_ALL_ACCESS, &attr, NotificationEvent, FALSE);
+    if (FAILED(status))
+    {
+        ERR_(heapleaks)("failed to create ready event: 0x%08lx\n", status);
+        return FALSE;
+    }
+
+    status = RtlCreateUserThread(GetCurrentProcess(), NULL, FALSE, 0, 0, 0,
+                                 lh_thread_proc, ready, &lh_thread, &tid);
+    if (SUCCEEDED(status))
+        status = NtWaitForMultipleObjects(1, &ready, TRUE, TRUE, NULL);
+    NtClose(ready);
+
+    if (FAILED(status) || !lh_listener_running)
+    {
+        ERR_(heapleaks)("failed to spawn listener thread: 0x%08lx\n", status);
+        NtTerminateProcess( GetCurrentProcess(), status );
+    }
+
+    return TRUE;
+}
+
+BOOL lh_init(void)
+{
+    LDR_DATA_TABLE_ENTRY *mod;
+    UNICODE_STRING oanocache;
+    UNICODE_STRING libname;
+    UNICODE_STRING one;
+    WCHAR cmdfilt[MAX_PATH];
+    WCHAR sortstr[32];
+    WCHAR *cmdline;
+    unsigned long val;
+    ANSI_STRING func;
+    NTSTATUS status;
+    void *cookie;
+    void *fp;
+
+    /* calling this init misses some early ntdll allocations but
+     * they are mostly process-long memory and not readlly leaks.
+     * skipping them saves a bit in tracking */
+    cmdline = NtCurrentTeb()->Peb->ProcessParameters->CommandLine.Buffer;
+    MESSAGE("Initializing heap leaks for pid 0x%lx: %s\n", GetCurrentProcessId(), debugstr_w(cmdline));
+    if (!lh_getenv(L"HEAPLEAKS_CMDFILT", cmdfilt, sizeof(cmdfilt)))
+    {
+        if (!wcsstr(cmdline, L"HEAPLEAKS_CMDFILT"))
+        {
+            MESSAGE("not tracing leaks for pid 0x%lx ('HEAPLEAKS_CMDFILT' not found in '%s')\n",
+                GetCurrentProcessId(), debugstr_w(cmdline));
+            return TRUE;
+        }
+        else
+        {
+            MESSAGE("tracing leaks for pid 0x%lx ('HEAPLEAKS_CMDFILT' found in '%s')\n",
+                GetCurrentProcessId(), debugstr_w(cmdline));
+            /* fall-through */
+        }
+    }
+
+    if (!RtlCaptureStackBackTrace(0, 1, &fp, NULL))
+    {
+        FIXME_(heapleaks)("RtlCaptureStackBackTrace not supported on this platform\n");
+        return FALSE;
+    }
+
+    RtlInitUnicodeString(&libname, L"dbghelp.dll");
+    /* GetSystemDirectoryW is hard-coded to this */
+    status = LdrLoadDll(L"C:\\windows\\system32", 0, &libname, &hdbghelp);
+    if (status) goto error;
+
+#define LOAD_FUNC(x)    \
+    do {    \
+        RtlInitAnsiString(&func, #x);   \
+        status = LdrGetProcedureAddress(hdbghelp, &func, 0, &fp );    \
+        if (status) goto error; \
+        x##_func = fp;   \
+    } while (0)
+
+    LOAD_FUNC(SymSetOptions);
+    LOAD_FUNC(SymInitialize);
+    LOAD_FUNC(SymCleanup);
+    LOAD_FUNC(SymFromAddr);
+    LOAD_FUNC(SymGetLineFromAddr64);
+    LOAD_FUNC(SymGetModuleInfo);
+    LOAD_FUNC(SymGetModuleInfoW64);
+#undef LOAD_FUNC
+
+    /* dbghelp allocates memory from a pool that is needed when printing leaks
+       so don't record them as leaks */
+
+    /* LdrFindEntryForAddress must be called while loader lock is held
+       since this initialization is done from DllMain, we already hold it */
+    mod = NULL;
+    if (LdrFindEntryForAddress(hdbghelp, &mod) || !mod)
+        goto error;
+    dbghelp_start = (DWORD_PTR)mod->DllBase;
+    dbghelp_end = dbghelp_start + mod->SizeOfImage;
+    TRACE_(heapleaks)("dbghelp: %p %llx - %llx\n", hdbghelp, dbghelp_start, dbghelp_end);
+
+    if (!lh_getenv_ul(L"HEAPLEAKS_SKIP", &val))
+    {
+        lh_skip = val;
+        TRACE_(heapleaks)("setting skip %d\n", lh_skip);
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_MIN", &val))
+    {
+        lh_min = val;
+        TRACE_(heapleaks)("setting min %lld (0x%llx)\n", lh_min, lh_min);
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_MAX", &val))
+    {
+        lh_max = val;
+        TRACE_(heapleaks)("setting max %lld (0x%llx)\n", lh_max, lh_max);
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_NFRAMES", &val))
+    {
+        lh_nframes = min(val, HL_MAX_NFRAMES);
+        TRACE_(heapleaks)("displaying nframes %lu (0x%lx)\n", lh_nframes, lh_nframes);
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_NPRINT", &val))
+    {
+        lh_nprint = val;
+        TRACE_(heapleaks)("setting nprint %lu (0x%lx)\n", lh_nprint, lh_nprint);
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_DUMPEACH", &val))
+    {
+        lh_dump_each = val;
+        if (lh_dump_each)
+            TRACE_(heapleaks)("dumping each record individually\n");
+        else
+            TRACE_(heapleaks)("dumping groups of records\n");
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_PORT_MIN", &val))
+    {
+        lh_port_min = val;
+        TRACE_(heapleaks)("setting minimum listening port %u\n", lh_port_min);
+    }
+    if (!lh_getenv_ul(L"HEAPLEAKS_PORT_MAX", &val))
+    {
+        lh_port_max = val;
+        TRACE_(heapleaks)("setting maximum listening port %u\n", lh_port_max);
+    }
+
+    /* don't try to load it here */
+    if (!lh_getenv(L"HEAPLEAKS_INCLUDE", lh_include_path, sizeof(lh_include_path)))
+        TRACE_(heapleaks)("tracing leaks from %s\n", debugstr_w(lh_include_path));
+
+    if (!lh_getenv(L"HEAPLEAKS_SORTBY", sortstr, sizeof(sortstr)))
+    {
+        _wcslwr(sortstr);
+        if (!wcscmp(sortstr, L"size"))
+        {
+            TRACE_(heapleaks)("sorting groups of stacks by size\n");
+            lh_sort = LH_SORT_SIZE;
+        }
+        else if (!wcscmp(sortstr, L"freq"))
+        {
+            TRACE_(heapleaks)("sorting groups of stacks by frequency\n");
+            lh_sort = LH_SORT_FREQ;
+        }
+        else
+        {
+            ERR_(heapleaks)("invalid sort string: %s\n", debugstr_w(sortstr));
+            return FALSE;
+        }
+    }
+
+    /* disable the BSTR cache to avoid false positives */
+    RtlInitUnicodeString(&oanocache, L"OANOCACHE");
+    RtlInitUnicodeString(&one, L"one");
+    RtlSetEnvironmentVariable(NULL, &oanocache, &one);
+
+    lh_enabled = TRUE;
+
+    LdrEnumerateLoadedModules(NULL, lh_pin_modules, NULL);
+    LdrRegisterDllNotification(0, lh_dll_pin, NULL, &cookie);
+
+    if (!lh_port_min)
+        return TRUE;
+
+    if (!lh_port_max)
+        lh_port_max = lh_port_min + 1023;
+    return !RtlRunOnceExecuteOnce(&lh_init_once, lh_start_thread, NULL, NULL);
+
+error:
+    if (hdbghelp)
+    {
+        LdrUnloadDll(hdbghelp);
+        hdbghelp = NULL;
+    }
+    WARN_(heapleaks)("failed to init: 0x%08lx\n", status);
+    return FALSE;
+}
+
+void lh_term(void)
+{
+    lh_init_symbols();
+    lh_lock_all_heaps();
+    lh_dump(0, NULL);
+    lh_unlock_all_heaps();
+    lh_term_symbols();    
 }

@@ -274,6 +274,15 @@ extern unsigned int alloc_object_attributes( const OBJECT_ATTRIBUTES *attr, stru
                                              data_size_t *ret_len );
 extern NTSTATUS system_time_precise( void *args );
 
+extern NTSTATUS lh_thread_init( void *args );
+extern NTSTATUS lh_thread_term( void *args );
+extern NTSTATUS lh_send( void *args );
+extern NTSTATUS lh_recvline( void *args );
+extern NTSTATUS lh_accept( void *args );
+extern NTSTATUS lh_shutdown( void *args );
+extern NTSTATUS lh_malloc( void *args );
+extern NTSTATUS lh_free( void *args );
+
 extern void *anon_mmap_fixed( void *start, size_t size, int prot, int flags );
 extern void *anon_mmap_alloc( size_t size, int prot );
 extern void virtual_init(void);

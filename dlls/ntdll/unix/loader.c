@@ -58,6 +58,9 @@
 #ifdef HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
 #endif
+#ifdef HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#endif
 #ifdef __APPLE__
 # include <CoreFoundation/CoreFoundation.h>
 # define LoadResource MacLoadResource
@@ -1015,6 +1018,14 @@ static const unixlib_entry_t unix_call_funcs[] =
     unixcall_wine_server_handle_to_fd,
     unixcall_wine_spawnvp,
     system_time_precise,
+    lh_thread_init,
+    lh_thread_term,
+    lh_send,
+    lh_recvline,
+    lh_accept,
+    lh_shutdown,
+    lh_malloc,
+    lh_free,
 };
 
 
@@ -1022,6 +1033,15 @@ static const unixlib_entry_t unix_call_funcs[] =
 
 static NTSTATUS wow64_load_so_dll( void *args ) { return STATUS_INVALID_IMAGE_FORMAT; }
 static NTSTATUS wow64_unwind_builtin_dll( void *args ) { return STATUS_UNSUCCESSFUL; }
+
+static NTSTATUS wow64_lh_thread_init( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_thread_term( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_send( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_recvline( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_accept( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_shutdown( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_malloc( void *args ) { return STATUS_UNSUCCESSFUL; }
+static NTSTATUS wow64_lh_free( void *args ) { return STATUS_UNSUCCESSFUL; }
 
 const unixlib_entry_t unix_call_wow64_funcs[] =
 {
@@ -1033,6 +1053,14 @@ const unixlib_entry_t unix_call_wow64_funcs[] =
     wow64_wine_server_handle_to_fd,
     wow64_wine_spawnvp,
     system_time_precise,
+    wow64_lh_thread_init,
+    wow64_lh_thread_term,
+    wow64_lh_send,
+    wow64_lh_recvline,
+    wow64_lh_accept,
+    wow64_lh_shutdown,
+    wow64_lh_malloc,
+    wow64_lh_free,
 };
 
 #endif  /* _WIN64 */
@@ -1848,6 +1876,142 @@ static ULONG_PTR get_image_address(void)
         return dyld_info.all_image_info_addr;
 #endif
     return 0;
+}
+
+/***********************************************************************
+ *           heap leaks
+ */
+NTSTATUS lh_thread_init(void *args)
+{
+    struct lh_thread_init_params *params = args;
+    const short port_min = params->port_min;
+    const short port_max = params->port_max;
+    struct sockaddr_in addr;
+    short port;
+    int err;
+    int one;
+    int fd;
+
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        goto error;
+
+    one = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
+        goto error;
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    for (port = port_min; port <= port_max; port++)
+    {
+        addr.sin_port = htons(port);
+        if (!bind(fd, (const struct sockaddr *)&addr, sizeof(addr)))
+            break;
+    }
+    if (port > port_max)
+        goto error;
+
+    if (listen(fd, 1) < 0)
+        goto error;
+
+    MESSAGE("Listening for heap-leaks commands on port %d (pid 0x%x unixpid %d)\n",
+        port, GetCurrentProcessId(), getpid());
+    params->fd = fd;
+    return STATUS_SUCCESS;
+
+error:
+    err = errno;
+    MESSAGE("Failed to initialize listener thread (pid 0x%x unixpid %d): %s\n",
+            GetCurrentProcessId(), getpid(), strerror(err));
+    if (fd != -1) close(fd);
+    return errno_to_status(err);
+}
+
+NTSTATUS lh_thread_term(void *arg)
+{
+    int fd = *(int *)arg;
+
+    close(fd);
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS lh_send(void *args)
+{
+    struct lh_send_params *params = args;
+    const char *buffer = params->buffer;
+    const size_t len = params->len;
+    const int fd = params->fd;
+    ssize_t nsent;
+
+    if ((nsent = send(fd, buffer, len, MSG_DONTWAIT) < 0))
+        MESSAGE("Failed to send '%s' (%zd) on %d (pid 0x%x unixpid %d): %s\n",
+            debugstr_an(buffer, len), len, fd, GetCurrentProcessId(), getpid(), strerror(errno));
+    params->nsent = nsent;
+    return nsent < 0 ? errno_to_status(errno) : STATUS_SUCCESS;
+}
+
+NTSTATUS lh_recvline(void *arg)
+{
+    struct lh_recvline_params *params = arg;
+    const size_t len = params->len;
+    const int fd = params->fd;
+    char *buffer = params->buffer;
+    ssize_t r, nrecv;
+
+    r = nrecv = 0;
+    while (nrecv < len-1)
+    {
+        if ((r = recv(fd, &buffer[nrecv], 1, 0)) != 1)
+        {
+            if (r < 0)
+                MESSAGE("Failed to receive char on %d nrecv %zd (pid 0x%x unixpid %d): %s\n",
+                    fd, nrecv, GetCurrentProcessId(), getpid(), strerror(errno));
+            break;
+        }
+        if (buffer[nrecv] == '\n' || buffer[nrecv] == '\r')
+            break;
+        nrecv++;
+    }
+    buffer[nrecv] = 0;
+    params->nrecv = nrecv;
+    return r < 0 ? errno_to_status(errno) : STATUS_SUCCESS;
+}
+
+NTSTATUS lh_accept(void *args)
+{
+    struct lh_accept_params *params = args;
+
+    params->connectfd = accept(params->fd, NULL, NULL);
+    if (params->connectfd < 0)
+    {
+        MESSAGE("Failed to accept connection on %d (pid 0x%x unixpid %d): %s\n",
+            params->fd, GetCurrentProcessId(), getpid(), strerror(errno));
+        return errno_to_status(errno);
+    }
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS lh_shutdown(void *args)
+{
+    int fd = *(int *)args;
+
+    shutdown(fd, 2);
+    close(fd);
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS lh_malloc(void *args)
+{
+    struct lh_malloc_params *params = args;
+    params->ptr = malloc(params->size);
+    return params->ptr ? STATUS_SUCCESS : STATUS_NO_MEMORY;
+}
+
+NTSTATUS lh_free(void *ptr)
+{
+    free(ptr);
+    return STATUS_SUCCESS;
 }
 
 /***********************************************************************

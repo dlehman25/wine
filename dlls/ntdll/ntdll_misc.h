@@ -186,4 +186,10 @@ extern void *__os_arm64x_helper8;
 
 #endif
 
+/* heap leak functions */
+BOOL lh_init(void);
+void lh_term(void);
+BOOL lh_fetch_module_limits(const WCHAR *, DWORD_PTR *, DWORD_PTR *);
+DWORD modules_count_loaded(DWORD, const void **);
+
 #endif

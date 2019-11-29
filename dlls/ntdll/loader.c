@@ -44,6 +44,7 @@ WINE_DECLARE_DEBUG_CHANNEL(relay);
 WINE_DECLARE_DEBUG_CHANNEL(snoop);
 WINE_DECLARE_DEBUG_CHANNEL(loaddll);
 WINE_DECLARE_DEBUG_CHANNEL(imports);
+WINE_DECLARE_DEBUG_CHANNEL(heapleaks);
 
 #ifdef _WIN64
 #define DEFAULT_SECURITY_COOKIE_64  (((ULONGLONG)0x00002b99 << 32) | 0x2ddfa232)
@@ -255,6 +256,24 @@ static int modules_find(const void *addr, LDR_DATA_TABLE_ENTRY **mod)
     wm = WINE_RB_ENTRY_VALUE(entry, WINE_MODREF, rb_entry);
     *mod = &wm->ldr;
     return 1;
+}
+
+DWORD modules_count_loaded(DWORD naddr, const void **addrs)
+{
+    DWORD i;
+    LDR_DATA_TABLE_ENTRY *mod;
+
+    if (!RtlTryEnterCriticalSection(&loader_section))
+        return 0;
+
+    for (i = 0; i < naddr; i++)
+    {
+        if (!modules_find(addrs[i], &mod))
+            break;
+    }
+    RtlLeaveCriticalSection(&loader_section);
+
+    return i;
 }
 
 #define RTL_UNLOAD_EVENT_TRACE_NUMBER 64
@@ -4482,6 +4501,7 @@ void loader_init( CONTEXT *context, void **entry )
     NTSTATUS status;
     ULONG_PTR cookie, port = 0;
     WINE_MODREF *wm;
+    BOOL first = FALSE;
 
     if (process_detaching) NtTerminateThread( GetCurrentThread(), 0 );
 
@@ -4583,6 +4603,7 @@ void loader_init( CONTEXT *context, void **entry )
 
     if (!attach_done)  /* first time around */
     {
+        first = TRUE;
         attach_done = 1;
         if ((status = alloc_thread_tls()) != STATUS_SUCCESS)
         {
@@ -4627,6 +4648,12 @@ void loader_init( CONTEXT *context, void **entry )
     }
 
     RtlLeaveCriticalSection( &loader_section );
+
+    if (first && TRACE_ON(heapleaks))
+    {
+        if (!lh_init())
+            NtTerminateProcess( GetCurrentProcess(), STATUS_UNSUCCESSFUL );
+    }
 }
 
 
@@ -5003,6 +5030,34 @@ NTSTATUS WINAPI ApiSetQueryApiSetPresenceEx( const UNICODE_STRING *name, BOOLEAN
  */
 BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
 {
-    if (reason == DLL_PROCESS_ATTACH) LdrDisableThreadCalloutsForDll( inst );
+    switch (reason)
+    {
+        case DLL_PROCESS_ATTACH:
+            LdrDisableThreadCalloutsForDll( inst );
+            break;
+        case DLL_PROCESS_DETACH:
+            if (TRACE_ON(heapleaks))
+                lh_term();
+            break;
+    }
+    return TRUE;
+}
+
+/* fetch limits of already loaded module - should NOT allocate memory */
+BOOL lh_fetch_module_limits(const WCHAR *libname, DWORD_PTR *start, DWORD_PTR *end)
+{
+    WINE_MODREF *modref;
+
+    if (!RtlTryEnterCriticalSection(&loader_section))
+        return FALSE;
+
+    if (!(modref = find_basename_module(libname)))
+    {
+        RtlLeaveCriticalSection(&loader_section);
+        return FALSE;
+    }
+    *start = (DWORD_PTR)modref->ldr.DllBase;
+    *end = *start + modref->ldr.SizeOfImage;
+    RtlLeaveCriticalSection(&loader_section);
     return TRUE;
 }
