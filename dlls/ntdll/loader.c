@@ -33,6 +33,8 @@
 #include "wine/exception.h"
 #include "wine/debug.h"
 #include "wine/list.h"
+#include "wine/rbtree.h"
+#include "wine/server.h"
 #include "ntdll_misc.h"
 #include "ddk/ntddk.h"
 #include "ddk/wdm.h"
@@ -139,6 +141,7 @@ typedef struct _wine_modref
     struct file_id        id;
     ULONG                 CheckSum;
     BOOL                  system;
+    struct wine_rb_entry  rb_entry;
 } WINE_MODREF;
 
 static UINT tls_module_count = 32;     /* number of modules with TLS directory */
@@ -202,6 +205,56 @@ static FARPROC find_named_export( HMODULE module, const IMAGE_EXPORT_DIRECTORY *
 static inline BOOL contains_path( LPCWSTR name )
 {
     return ((*name && (name[1] == ':')) || wcschr(name, '/') || wcschr(name, '\\'));
+}
+
+/* caller must hold loader_section */
+static int modules_rb_compare_func(const void *key_, const struct wine_rb_entry *entry)
+{
+    const WINE_MODREF *key = key_;
+    const WINE_MODREF *mod = WINE_RB_ENTRY_VALUE(entry, WINE_MODREF, rb_entry);
+
+    /* SizeOfImage == 0 means lookup */
+    if (!key->ldr.SizeOfImage)
+    {
+        if (key->ldr.DllBase >= mod->ldr.DllBase &&
+            (SIZE_T)key->ldr.DllBase < (SIZE_T)mod->ldr.DllBase + mod->ldr.SizeOfImage)
+            return 0;
+        /* fall-through */
+    }
+    return (SIZE_T)key->ldr.DllBase - (SIZE_T)mod->ldr.DllBase;
+}
+
+static struct wine_rb_tree modules = {modules_rb_compare_func, NULL};
+static void modules_add(WINE_MODREF *mod)
+{
+    wine_rb_put(&modules, mod, &mod->rb_entry);
+}
+
+static void modules_remove(WINE_MODREF *mod)
+{
+    struct wine_rb_entry *entry;
+
+    if ((entry = wine_rb_get(&modules, mod)))
+        wine_rb_remove(&modules, entry);
+}
+
+static int modules_find(const void *addr, LDR_DATA_TABLE_ENTRY **mod)
+{
+    WINE_MODREF key;
+    WINE_MODREF *wm;
+    struct wine_rb_entry *entry;
+
+    key.ldr.DllBase = (void *)addr;
+    key.ldr.SizeOfImage = 0;
+    if (!(entry = wine_rb_get(&modules, &key)))
+    {
+        *mod = NULL;
+        return 0;
+    }
+
+    wm = WINE_RB_ENTRY_VALUE(entry, WINE_MODREF, rb_entry);
+    *mod = &wm->ldr;
+    return 1;
 }
 
 #define RTL_UNLOAD_EVENT_TRACE_NUMBER 64
@@ -1591,6 +1644,7 @@ static WINE_MODREF *alloc_module( HMODULE hModule, const UNICODE_STRING *nt_name
     InsertTailList(&hash_table[hash_basename( &wm->ldr.BaseDllName )], &wm->ldr.HashLinks);
     if (rtl_rb_tree_put( &base_address_index_tree, wm->ldr.DllBase, &wm->ldr.BaseAddressIndexNode, base_address_compare ))
         ERR( "rtl_rb_tree_put failed.\n" );
+    modules_add(wm);
     /* wait until init is called for inserting into InInitializationOrderModuleList */
 
     if (!(nt->OptionalHeader.DllCharacteristics & IMAGE_DLLCHARACTERISTICS_NX_COMPAT))
@@ -2297,6 +2351,7 @@ static NTSTATUS build_module( LPCWSTR load_path, const UNICODE_STRING *nt_name, 
             RemoveEntryList(&wm->ldr.InMemoryOrderLinks);
             RemoveEntryList(&wm->ldr.HashLinks);
             RtlRbRemoveNode( &base_address_index_tree, &wm->ldr.BaseAddressIndexNode );
+            modules_remove(wm);
 
             /* FIXME: there are several more dangling references
              * left. Including dlls loaded by this dll before the
@@ -4002,6 +4057,7 @@ static void free_modref( WINE_MODREF *wm )
     RemoveEntryList(&wm->ldr.InMemoryOrderLinks);
     RemoveEntryList(&wm->ldr.HashLinks);
     RtlRbRemoveNode( &base_address_index_tree, &wm->ldr.BaseAddressIndexNode );
+    modules_remove(wm);
     if (wm->ldr.InInitializationOrderLinks.Flink)
         RemoveEntryList(&wm->ldr.InInitializationOrderLinks);
 
