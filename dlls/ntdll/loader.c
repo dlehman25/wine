@@ -4302,8 +4302,6 @@ BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
     {
     case DLL_PROCESS_ATTACH:
         LdrDisableThreadCalloutsForDll( inst );
-        if (TRACE_ON(heapleaks) && !lh_init())
-            return FALSE;
         break;
     case DLL_PROCESS_DETACH:
         if (TRACE_ON(heapleaks))

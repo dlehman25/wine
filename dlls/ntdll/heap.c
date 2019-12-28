@@ -2503,185 +2503,6 @@ static NTSTATUS lh_getenv_ul(const WCHAR *env, unsigned long *val)
     return STATUS_SUCCESS;
 }
 
-BOOL lh_init(void)
-{
-    UNICODE_STRING oanocache;
-    UNICODE_STRING libname;
-    UNICODE_STRING one;
-    WCHAR cmdfilt[MAX_PATH];
-    WCHAR sortstr[32];
-    unsigned long val;
-    ANSI_STRING func;
-    NTSTATUS status;
-    LDR_MODULE *mod;
-    void *fp;
-
-    /* GetSystemDirectoryW is hard-coded to this */
-    static const WCHAR system32[] = {'C',':','\\','w','i','n','d','o','w','s',
-                                     '\\','s','y','s','t','e','m','3','2',0};
-    static const WCHAR dbghelp[] = {'d','b','g','h','e','l','p','.','d','l','l',0};
-    static const WCHAR oanocacheW[] = {'o','a','n','o','c','a','c','h','e',0};
-    static const WCHAR oneW[] = {'o','n','e',0};
-    static const WCHAR skipW[] = {'H','E','A','P','L','E','A','K','S','_','S','K','I','P',0};
-    static const WCHAR minW[] = {'H','E','A','P','L','E','A','K','S','_','M','I','N',0};
-    static const WCHAR maxW[] = {'H','E','A','P','L','E','A','K','S','_','M','A','X',0};
-    static const WCHAR nframesW[] = {'H','E','A','P','L','E','A','K','S','_','N','F','R','A','M','E','S',0};
-    static const WCHAR nprintW[] = {'H','E','A','P','L','E','A','K','S','_','N','P','R','I','N','T',0};
-    static const WCHAR includeW[] = {'H','E','A','P','L','E','A','K','S','_','I','N','C','L','U','D','E',0};
-    static const WCHAR dumpeachW[] = {'H','E','A','P','L','E','A','K','S','_','D','U','M','P','E','A','C','H',0};
-    static const WCHAR sortbyW[] = {'H','E','A','P','L','E','A','K','S','_','S','O','R','T','B','Y',0};
-    static const WCHAR cmdfiltW[] = {'H','E','A','P','L','E','A','K','S','_','C','M','D','F','I','L','T',0};
-    static const WCHAR portminW[] = {'H','E','A','P','L','E','A','K','S','_','P','O','R','T','_','M','I','N',0};
-    static const WCHAR portmaxW[] = {'H','E','A','P','L','E','A','K','S','_','P','O','R','T','_','M','A','X',0};
-
-
-    if (!lh_getenv(cmdfiltW, cmdfilt, sizeof(cmdfilt)))
-    {
-        WCHAR *cmdline = NtCurrentTeb()->Peb->ProcessParameters->CommandLine.Buffer;
-
-        if (!strstrW(cmdline, cmdfilt))
-        {
-            MESSAGE("not tracing leaks for pid 0x%x (unix %d) ('%s' not found in '%s')\n",
-                GetCurrentProcessId(), getpid(), debugstr_w(cmdfilt), debugstr_w(cmdline));
-            return TRUE;
-        }
-        else
-        {
-            MESSAGE("tracing leaks for pid 0x%x (unix %d) ('%s' found in '%s')\n",
-                GetCurrentProcessId(), getpid(), debugstr_w(cmdfilt), debugstr_w(cmdline));
-            /* fall-through */
-        }
-    }
-
-    if (!RtlCaptureStackBackTrace(0, 1, &fp, NULL))
-    {
-        FIXME_(heapleaks)("RtlCaptureStackBackTrace not supported on this platform\n");
-        return FALSE;
-    }
-
-    RtlInitUnicodeString(&libname, dbghelp);
-    status = LdrLoadDll(system32, 0, &libname, &hdbghelp);
-    if (status) goto error;
-
-#define LOAD_FUNC(x)    \
-    do {    \
-        RtlInitAnsiString(&func, #x);   \
-        status = LdrGetProcedureAddress(hdbghelp, &func, 0, &fp );    \
-        if (status) goto error; \
-        x##_func = fp;   \
-    } while (0)
-
-    LOAD_FUNC(SymSetOptions);
-    LOAD_FUNC(SymInitialize);
-    LOAD_FUNC(SymCleanup);
-    LOAD_FUNC(SymFromAddr);
-    LOAD_FUNC(SymGetLineFromAddr64);
-    LOAD_FUNC(SymGetModuleInfo);
-    LOAD_FUNC(SymGetModuleInfoW64);
-#undef LOAD_FUNC
-
-    /* dbghelp allocates memory from a pool that is needed when printing leaks
-       so don't record them as leaks */
-
-    /* LdrFindEntryForAddress must be called while loader lock is held
-       since this initialization is done from DllMain, we already hold it */
-    mod = NULL;
-    if (LdrFindEntryForAddress(hdbghelp, &mod) || !mod)
-        goto error;
-    dbghelp_start = (DWORD_PTR)mod->BaseAddress;
-    dbghelp_end = dbghelp_start + mod->SizeOfImage;
-    TRACE_(heapleaks)("dbghelp: %p %lx - %lx\n", hdbghelp, dbghelp_start, dbghelp_end);
-
-    if (!lh_getenv_ul(skipW, &val))
-    {
-        lh_skip = val;
-        TRACE_(heapleaks)("setting skip %d\n", lh_skip);
-    }
-    if (!lh_getenv_ul(minW, &val))
-    {
-        lh_min = val;
-        TRACE_(heapleaks)("setting min %ld (0x%lx)\n", lh_min, lh_min);
-    }
-    if (!lh_getenv_ul(maxW, &val))
-    {
-        lh_max = val;
-        TRACE_(heapleaks)("setting max %ld (0x%lx)\n", lh_max, lh_max);
-    }
-    if (!lh_getenv_ul(nframesW, &val))
-    {
-        lh_nframes = min(val, HL_MAX_NFRAMES);
-        TRACE_(heapleaks)("displaying nframes %u (0x%x)\n", lh_nframes, lh_nframes);
-    }
-    if (!lh_getenv_ul(nprintW, &val))
-    {
-        lh_nprint = val;
-        TRACE_(heapleaks)("setting nprint %u (0x%x)\n", lh_nprint, lh_nprint);
-    }
-    if (!lh_getenv_ul(dumpeachW, &val))
-    {
-        lh_dump_each = val;
-        if (lh_dump_each)
-            TRACE_(heapleaks)("dumping each record individually\n");
-        else
-            TRACE_(heapleaks)("dumping groups of records\n");
-    }
-    if (!lh_getenv_ul(portminW, &val))
-    {
-        lh_port_min = val;
-        TRACE_(heapleaks)("setting minimum listening port %u\n", lh_port_min);
-    }
-    if (!lh_getenv_ul(portmaxW, &val))
-    {
-        lh_port_max = val;
-        TRACE_(heapleaks)("setting maximum listening port %u\n", lh_port_max);
-    }
-
-    /* don't try to load it here */
-    if (!lh_getenv(includeW, lh_include_path, sizeof(lh_include_path)))
-        TRACE_(heapleaks)("tracing leaks from %s\n", debugstr_w(lh_include_path));
-
-    if (!lh_getenv(sortbyW, sortstr, sizeof(sortstr)))
-    {
-        static const WCHAR sizeW[] = {'s','i','z','e',0};
-        static const WCHAR freqW[] = {'f','r','e','q',0};
-
-        strlwrW(sortstr);
-        if (!memcmp(sortstr, sizeW, strlenW(sortstr) * sizeof(WCHAR)))
-        {
-            TRACE_(heapleaks)("sorting groups of stacks by size\n");
-            lh_sort = LH_SORT_SIZE;
-        }
-        else if (!memcmp(sortstr, freqW, strlenW(sortstr) * sizeof(WCHAR)))
-        {
-            TRACE_(heapleaks)("sorting groups of stacks by frequency\n");
-            lh_sort = LH_SORT_FREQ;
-        }
-        else
-        {
-            ERR_(heapleaks)("invalid sort string: %s\n", debugstr_w(sortstr));
-            return FALSE;
-        }
-    }
-
-    /* disable the BSTR cache to avoid false positives */
-    RtlInitUnicodeString(&oanocache, oanocacheW);
-    RtlInitUnicodeString(&one, oneW);
-    RtlSetEnvironmentVariable(NULL, &oanocache, &one);
-
-    lh_enabled = TRUE;
-
-    return TRUE;
-
-error:
-    if (hdbghelp)
-    {
-        LdrUnloadDll(hdbghelp);
-        hdbghelp = NULL;
-    }
-    WARN_(heapleaks)("failed to init: 0x%08x\n", status);
-    return FALSE;
-}
-
 static inline BOOL lh_filter_exclude(const struct lh_stack *stack)
 {
     DWORD i;
@@ -3712,7 +3533,175 @@ static DWORD WINAPI lh_start_thread(RTL_RUN_ONCE *once, void *param, void **cont
 
 BOOL CDECL wine_heapleak_init(void)
 {
+    UNICODE_STRING oanocache;
+    UNICODE_STRING libname;
+    UNICODE_STRING one;
+    WCHAR cmdfilt[MAX_PATH];
+    WCHAR sortstr[32];
+    unsigned long val;
+    ANSI_STRING func;
+    NTSTATUS status;
+    LDR_MODULE *mod;
     void *cookie;
+    void *fp;
+
+    /* calling this init from kernel32 misses some early ntdll
+       allocations but they are mostly process-long memory and
+       not readlly leaks.  skipping them saves a bit in tracking */
+
+    /* GetSystemDirectoryW is hard-coded to this */
+    static const WCHAR system32[] = {'C',':','\\','w','i','n','d','o','w','s',
+                                     '\\','s','y','s','t','e','m','3','2',0};
+    static const WCHAR dbghelp[] = {'d','b','g','h','e','l','p','.','d','l','l',0};
+    static const WCHAR oanocacheW[] = {'o','a','n','o','c','a','c','h','e',0};
+    static const WCHAR oneW[] = {'o','n','e',0};
+    static const WCHAR skipW[] = {'H','E','A','P','L','E','A','K','S','_','S','K','I','P',0};
+    static const WCHAR minW[] = {'H','E','A','P','L','E','A','K','S','_','M','I','N',0};
+    static const WCHAR maxW[] = {'H','E','A','P','L','E','A','K','S','_','M','A','X',0};
+    static const WCHAR nframesW[] = {'H','E','A','P','L','E','A','K','S','_','N','F','R','A','M','E','S',0};
+    static const WCHAR nprintW[] = {'H','E','A','P','L','E','A','K','S','_','N','P','R','I','N','T',0};
+    static const WCHAR includeW[] = {'H','E','A','P','L','E','A','K','S','_','I','N','C','L','U','D','E',0};
+    static const WCHAR dumpeachW[] = {'H','E','A','P','L','E','A','K','S','_','D','U','M','P','E','A','C','H',0};
+    static const WCHAR sortbyW[] = {'H','E','A','P','L','E','A','K','S','_','S','O','R','T','B','Y',0};
+    static const WCHAR cmdfiltW[] = {'H','E','A','P','L','E','A','K','S','_','C','M','D','F','I','L','T',0};
+    static const WCHAR portminW[] = {'H','E','A','P','L','E','A','K','S','_','P','O','R','T','_','M','I','N',0};
+    static const WCHAR portmaxW[] = {'H','E','A','P','L','E','A','K','S','_','P','O','R','T','_','M','A','X',0};
+
+
+    if (!lh_getenv(cmdfiltW, cmdfilt, sizeof(cmdfilt)))
+    {
+        WCHAR *cmdline = NtCurrentTeb()->Peb->ProcessParameters->CommandLine.Buffer;
+
+        if (!strstrW(cmdline, cmdfilt))
+        {
+            MESSAGE("not tracing leaks for pid 0x%x (unix %d) ('%s' not found in '%s')\n",
+                GetCurrentProcessId(), getpid(), debugstr_w(cmdfilt), debugstr_w(cmdline));
+            return TRUE;
+        }
+        else
+        {
+            MESSAGE("tracing leaks for pid 0x%x (unix %d) ('%s' found in '%s')\n",
+                GetCurrentProcessId(), getpid(), debugstr_w(cmdfilt), debugstr_w(cmdline));
+            /* fall-through */
+        }
+    }
+
+    if (!RtlCaptureStackBackTrace(0, 1, &fp, NULL))
+    {
+        FIXME_(heapleaks)("RtlCaptureStackBackTrace not supported on this platform\n");
+        return FALSE;
+    }
+
+    RtlInitUnicodeString(&libname, dbghelp);
+    status = LdrLoadDll(system32, 0, &libname, &hdbghelp);
+    if (status) goto error;
+
+#define LOAD_FUNC(x)    \
+    do {    \
+        RtlInitAnsiString(&func, #x);   \
+        status = LdrGetProcedureAddress(hdbghelp, &func, 0, &fp );    \
+        if (status) goto error; \
+        x##_func = fp;   \
+    } while (0)
+
+    LOAD_FUNC(SymSetOptions);
+    LOAD_FUNC(SymInitialize);
+    LOAD_FUNC(SymCleanup);
+    LOAD_FUNC(SymFromAddr);
+    LOAD_FUNC(SymGetLineFromAddr64);
+    LOAD_FUNC(SymGetModuleInfo);
+    LOAD_FUNC(SymGetModuleInfoW64);
+#undef LOAD_FUNC
+
+    /* dbghelp allocates memory from a pool that is needed when printing leaks
+       so don't record them as leaks */
+
+    /* LdrFindEntryForAddress must be called while loader lock is held
+       since this initialization is done from DllMain, we already hold it */
+    mod = NULL;
+    if (LdrFindEntryForAddress(hdbghelp, &mod) || !mod)
+        goto error;
+    dbghelp_start = (DWORD_PTR)mod->BaseAddress;
+    dbghelp_end = dbghelp_start + mod->SizeOfImage;
+    TRACE_(heapleaks)("dbghelp: %p %lx - %lx\n", hdbghelp, dbghelp_start, dbghelp_end);
+
+    if (!lh_getenv_ul(skipW, &val))
+    {
+        lh_skip = val;
+        TRACE_(heapleaks)("setting skip %d\n", lh_skip);
+    }
+    if (!lh_getenv_ul(minW, &val))
+    {
+        lh_min = val;
+        TRACE_(heapleaks)("setting min %ld (0x%lx)\n", lh_min, lh_min);
+    }
+    if (!lh_getenv_ul(maxW, &val))
+    {
+        lh_max = val;
+        TRACE_(heapleaks)("setting max %ld (0x%lx)\n", lh_max, lh_max);
+    }
+    if (!lh_getenv_ul(nframesW, &val))
+    {
+        lh_nframes = min(val, HL_MAX_NFRAMES);
+        TRACE_(heapleaks)("displaying nframes %u (0x%x)\n", lh_nframes, lh_nframes);
+    }
+    if (!lh_getenv_ul(nprintW, &val))
+    {
+        lh_nprint = val;
+        TRACE_(heapleaks)("setting nprint %u (0x%x)\n", lh_nprint, lh_nprint);
+    }
+    if (!lh_getenv_ul(dumpeachW, &val))
+    {
+        lh_dump_each = val;
+        if (lh_dump_each)
+            TRACE_(heapleaks)("dumping each record individually\n");
+        else
+            TRACE_(heapleaks)("dumping groups of records\n");
+    }
+    if (!lh_getenv_ul(portminW, &val))
+    {
+        lh_port_min = val;
+        TRACE_(heapleaks)("setting minimum listening port %u\n", lh_port_min);
+    }
+    if (!lh_getenv_ul(portmaxW, &val))
+    {
+        lh_port_max = val;
+        TRACE_(heapleaks)("setting maximum listening port %u\n", lh_port_max);
+    }
+
+    /* don't try to load it here */
+    if (!lh_getenv(includeW, lh_include_path, sizeof(lh_include_path)))
+        TRACE_(heapleaks)("tracing leaks from %s\n", debugstr_w(lh_include_path));
+
+    if (!lh_getenv(sortbyW, sortstr, sizeof(sortstr)))
+    {
+        static const WCHAR sizeW[] = {'s','i','z','e',0};
+        static const WCHAR freqW[] = {'f','r','e','q',0};
+
+        strlwrW(sortstr);
+        if (!memcmp(sortstr, sizeW, strlenW(sortstr) * sizeof(WCHAR)))
+        {
+            TRACE_(heapleaks)("sorting groups of stacks by size\n");
+            lh_sort = LH_SORT_SIZE;
+        }
+        else if (!memcmp(sortstr, freqW, strlenW(sortstr) * sizeof(WCHAR)))
+        {
+            TRACE_(heapleaks)("sorting groups of stacks by frequency\n");
+            lh_sort = LH_SORT_FREQ;
+        }
+        else
+        {
+            ERR_(heapleaks)("invalid sort string: %s\n", debugstr_w(sortstr));
+            return FALSE;
+        }
+    }
+
+    /* disable the BSTR cache to avoid false positives */
+    RtlInitUnicodeString(&oanocache, oanocacheW);
+    RtlInitUnicodeString(&one, oneW);
+    RtlSetEnvironmentVariable(NULL, &oanocache, &one);
+
+    lh_enabled = TRUE;
 
     LdrEnumerateLoadedModules(NULL, lh_pin_modules, NULL);
     LdrRegisterDllNotification(0, lh_dll_pin, NULL, &cookie);
@@ -3728,6 +3717,15 @@ BOOL CDECL wine_heapleak_init(void)
     FIXME_(heapleaks)("listener thread not supported\n");
     return TRUE;
 #endif
+
+error:
+    if (hdbghelp)
+    {
+        LdrUnloadDll(hdbghelp);
+        hdbghelp = NULL;
+    }
+    WARN_(heapleaks)("failed to init: 0x%08x\n", status);
+    return FALSE;
 }
 
 void lh_term(void)

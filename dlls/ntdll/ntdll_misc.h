@@ -277,9 +277,7 @@ int __cdecl _stricmp( LPCSTR str1, LPCSTR str2 );
 
 /* heap leak functions */
 void lh_term(void);
-BOOL lh_init(void);
 BOOL lh_fetch_module_limits(const WCHAR *, DWORD_PTR *, DWORD_PTR *);
-BOOL lh_post_init(void);
 DWORD modules_count_loaded(DWORD, const void **);
 
 #endif
