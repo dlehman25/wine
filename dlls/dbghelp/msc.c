@@ -2032,6 +2032,10 @@ static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg, const BYTE* roo
             TRACE("Unsupported symbol id %x\n", sym->generic.id);
             break;
 
+        case S_UNAMESPACE:
+            /* TODO: https://reviews.llvm.org/D50007 */
+            FIXME("'using namespace' unsupported %x\n", sym->generic.id);
+            break;
         default:
             FIXME("Unsupported symbol id %x\n", sym->generic.id);
             dump(sym, 2 + sym->generic.len);
