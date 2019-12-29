@@ -2036,6 +2036,12 @@ static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg, const BYTE* roo
             /* TODO: https://reviews.llvm.org/D50007 */
             FIXME("'using namespace' unsupported %x\n", sym->generic.id);
             break;
+
+        case 0X1168: /* S_INLINEES */
+            /* TODO: https://github.com/Microsoft/microsoft-pdb/issues/29 */
+            FIXME("unsupported %x\n", sym->generic.id);
+            break;
+
         default:
             FIXME("Unsupported symbol id %x\n", sym->generic.id);
             dump(sym, 2 + sym->generic.len);
