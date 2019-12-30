@@ -2859,6 +2859,19 @@ static void lh_send(int fd, const char *fmt, ...)
     send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
 }
 
+static void lh_cmd_clear(int connectfd)
+{
+    HEAP *heap;
+
+    LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
+    {
+        lh_heap_destroy(heap);
+    }
+    lh_heap_destroy(processHeap);
+    MESSAGE("leaks freed\n");
+    lh_send(connectfd, "leaks freed\n");
+}
+
 static void lh_cmd_list(int connectfd)
 {
     HEAP *heap;
@@ -2962,23 +2975,6 @@ static void lh_unlock_all_heaps(void)
     {
         RtlLeaveCriticalSection(&heap->critSection);
     }
-    RtlLeaveCriticalSection(&processHeap->critSection);
-}
-
-static void lh_clear_leaks(void)
-{
-    HEAP *heap;
-
-    MESSAGE("Freeing leaks\n");
-
-    RtlEnterCriticalSection(&processHeap->critSection);
-    LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
-    {
-        RtlEnterCriticalSection(&heap->critSection);
-        lh_heap_destroy(heap);
-        RtlLeaveCriticalSection(&heap->critSection);
-    }
-    lh_heap_destroy(processHeap);
     RtlLeaveCriticalSection(&processHeap->critSection);
 }
 
@@ -3454,7 +3450,11 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
                     lh_unlock_all_heaps();
             }
             else if (!strcasecmp(token, "clear"))
-                lh_clear_leaks();
+            {
+                lh_lock_all_heaps();
+                lh_cmd_clear(connectfd);
+                lh_unlock_all_heaps();
+            }
             else if (!strcasecmp(token, "summary"))
             {
                 lh_lock_all_heaps();
