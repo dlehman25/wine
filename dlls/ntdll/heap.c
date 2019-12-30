@@ -3004,7 +3004,7 @@ static void lh_subheap_info(SUBHEAP *subheap, struct lh_stats *stats)
     stats->overhead += overhead;
     stats->unused += unused_size;
     stats->largest = max(largest, stats->largest);
-    /* TODO: stats->committed += */
+    stats->committed += subheap->commitSize;
 
     MESSAGE("subheap %p\n", subheap);
     MESSAGE("\ttotal # blocks %lu (used %lu free %lu)\n", ntotal, nused, ntotal - nused);
