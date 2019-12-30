@@ -3145,11 +3145,7 @@ static void lh_info(HEAP *heap)
     memset(&stats, 0, sizeof(stats));
     lh_lock_all_heaps();
     if (heap)
-    {
-        RtlEnterCriticalSection(&heap->critSection);
         lh_heap_info(heap, &stats);
-        RtlLeaveCriticalSection(&heap->critSection);
-    }
     else
     {
         LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
