@@ -2820,31 +2820,18 @@ static inline void lh_dump_heap(HEAP *heap)
     }
 }
 
-static void lh_dump(HEAP *spec)
+static inline BOOL lh_validate_heap(const HEAP *search)
 {
     HEAP *heap;
 
-    /* invade process to get full symbol info for printing stack */
-    SymSetOptions_func(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
-    if (!SymInitialize_func(GetCurrentProcess(), NULL, TRUE))
+    if (search == processHeap)
+        return TRUE;
+    LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
     {
-        WARN_(heapleaks)("failed to initialize dbghelp\n");
-        return;
+        if (heap == search)
+            return TRUE;
     }
-
-    if (spec)
-        lh_dump_heap(spec);
-    else
-    {
-        lh_dump_heap(processHeap);
-        LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
-        {
-            lh_dump_heap(heap);
-        }
-
-        lh_dump_summary();
-    }
-    SymCleanup_func(GetCurrentProcess());
+    return FALSE;
 }
 
 static void lh_send(int fd, const char *fmt, ...)
@@ -2857,6 +2844,38 @@ static void lh_send(int fd, const char *fmt, ...)
     va_end(va);
 
     send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
+}
+
+static void lh_dump(int connectfd, HEAP *spec)
+{
+    HEAP *heap;
+
+    /* invade process to get full symbol info for printing stack */
+    SymSetOptions_func(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
+    if (!SymInitialize_func(GetCurrentProcess(), NULL, TRUE))
+    {
+        WARN_(heapleaks)("failed to initialize dbghelp\n");
+        return;
+    }
+
+    if (spec)
+    {
+        if (lh_validate_heap(spec))
+            lh_dump_heap(spec);
+        else
+            lh_send(connectfd, "invalid heap: %p\n", spec);
+    }
+    else
+    {
+        lh_dump_heap(processHeap);
+        LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
+        {
+            lh_dump_heap(heap);
+        }
+
+        lh_dump_summary();
+    }
+    SymCleanup_func(GetCurrentProcess());
 }
 
 static void lh_cmd_clear(int connectfd)
@@ -3138,14 +3157,19 @@ static void lh_heap_info(HEAP *heap, struct lh_stats *stats)
     stats->committed += heapstats.committed;
 }
 
-static void lh_info(HEAP *heap)
+static void lh_info(int connectfd, HEAP *heap)
 {
     struct lh_stats stats;
 
     memset(&stats, 0, sizeof(stats));
     lh_lock_all_heaps();
     if (heap)
-        lh_heap_info(heap, &stats);
+    {
+        if (lh_validate_heap(heap))
+            lh_heap_info(heap, &stats);
+        else
+            lh_send(connectfd, "invalid heap: %p\n", heap);
+    }
     else
     {
         LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
@@ -3272,11 +3296,16 @@ static void lh_heap_map(HEAP *heap)
     lh_runner();
 }
 
-static void lh_map(HEAP *heap)
+static void lh_map(int connectfd, HEAP *heap)
 {
     lh_lock_all_heaps();
     if (heap)
-        lh_heap_map(heap);
+    {
+        if (lh_validate_heap(heap))
+            lh_heap_map(heap);
+        else
+            lh_send(connectfd, "invalid heap: %p\n", heap);
+    }
     else
     {
         LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
@@ -3318,27 +3347,12 @@ static inline enum lh_sort_type lh_str_to_sort_type(const char *str)
     return LH_SORT_UNKNOWN;
 }
 
-static HEAP *lh_parse_heap(const char *token)
+static inline HEAP *lh_parse_heap(const char *token)
 {
-    HEAP *search, *heap;
-
     if (token[0] != '0' || (token[1] != 'x' && token[1] != 'X'))
         return NULL;
 
-    search = (HEAP *)strtol(token, NULL, 16);
-
-    /* TODO: race? should we lock all to make sure can't delete? */
-    RtlEnterCriticalSection(&processHeap->critSection);
-    LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
-    {
-        if (heap == search)
-            break;
-    }
-    RtlLeaveCriticalSection(&processHeap->critSection);
-
-    if (heap == search)
-        return heap;
-    return NULL;
+    return (HEAP *)strtol(token, NULL, 16);
 }
 
 static HANDLE lh_thread;
@@ -3429,21 +3443,13 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
                     continue;
                 }
 
-                if (heap)
-                    RtlEnterCriticalSection(&heap->critSection);
-                else
-                    lh_lock_all_heaps();
-
+                lh_lock_all_heaps();
                 if (token)
                     sort = interlocked_xchg(&lh_sort, sort);
-                lh_dump(heap);
+                lh_dump(connectfd, heap);
                 if (token)
                     interlocked_xchg(&lh_sort, sort);
-
-                if (heap)
-                    RtlLeaveCriticalSection(&heap->critSection);
-                else
-                    lh_unlock_all_heaps();
+                lh_unlock_all_heaps();
             }
             else if (!strcasecmp(token, "clear"))
             {
@@ -3474,7 +3480,7 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
                     continue;
                 }
 
-                lh_info(heap);
+                lh_info(connectfd, heap);
             }
             else if (!strcasecmp(token, "map"))
             {
@@ -3487,7 +3493,7 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
                     continue;
                 }
 
-                lh_map(heap);
+                lh_map(connectfd, heap);
             }
             else if (!strcasecmp(token, "help"))
                 lh_thread_help(connectfd);
@@ -3745,5 +3751,5 @@ error:
 
 void lh_term(void)
 {
-    lh_dump(NULL);
+    lh_dump(0, NULL); /* TODO: 0 connectfd */
 }
