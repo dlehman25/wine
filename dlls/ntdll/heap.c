@@ -3025,7 +3025,7 @@ static void lh_subheap_info(SUBHEAP *subheap, struct lh_stats *stats)
     MESSAGE("\tinternal fragmentation %5.2f%%\n",
             unused_size*100.0/used_size);
     MESSAGE("\texternal fragmentation %5.2f%%\n",
-            (subheap->size - largest) * 100.0 / subheap->size);
+            (free_size - largest) * 100.0 / free_size);
 }
 
 static void lh_large_blocks_info(HEAP *heap, struct lh_stats *stats)
