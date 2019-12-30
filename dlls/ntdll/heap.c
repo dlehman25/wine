@@ -2847,6 +2847,30 @@ static void lh_dump(HEAP *spec)
     SymCleanup_func(GetCurrentProcess());
 }
 
+static void lh_send(int fd, const char *fmt, ...)
+{
+    va_list va;
+    char buffer[128];
+
+    va_start(va, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, va);
+    va_end(va);
+
+    send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
+}
+
+static void lh_cmd_list(int connectfd)
+{
+    HEAP *heap;
+
+    lh_send(connectfd, "Heaps:\n");
+    LIST_FOR_EACH_ENTRY(heap, &processHeap->entry, HEAP, entry)
+    {
+        lh_send(connectfd, "%p\n", heap);
+    }
+    lh_send(connectfd, "%p (process heap)\n", processHeap);
+}
+
 void lh_stack_alloc(HEAP *heap, void *ptr, SIZE_T size)
 {
     struct lh_stack *stack;
@@ -3272,18 +3296,6 @@ static void lh_map(HEAP *heap)
     lh_unlock_all_heaps();
 }
 
-static void lh_send(int fd, const char *fmt, ...)
-{
-    va_list va;
-    char buffer[128];
-
-    va_start(va, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, va);
-    va_end(va);
-
-    send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
-}
-
 static void lh_thread_help(int fd)
 {
     const char help[] =
@@ -3296,6 +3308,7 @@ static void lh_thread_help(int fd)
 "                       default: HEAPLEAKS_SORTBY or unsorted on all heaps\n"
 "clear                  clear all leak records\n"
 "summary                print only summary of leaks\n"
+"list                   list all heaps\n"
 "info [heap]            print information about all or specific heap\n"
 "map [heap]             print map of blocks for all or specific heap\n"
 "quit                   detach from process\n";
@@ -3446,6 +3459,12 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
             {
                 lh_lock_all_heaps();
                 lh_dump_summary();
+                lh_unlock_all_heaps();
+            }
+            else if (!strcasecmp(token, "list"))
+            {
+                lh_lock_all_heaps();
+                lh_cmd_list(connectfd);
                 lh_unlock_all_heaps();
             }
             else if (!strcasecmp(token, "info"))
