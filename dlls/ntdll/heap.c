@@ -2339,7 +2339,8 @@ struct lh_subheap_stats
 struct lh_large_stats
 {
     DWORD   nblocks;        /* total # blocks */
-    SIZE_T  used;           /* requested in-use memory */
+    SIZE_T  committed;      /* total committed memory (block size) */
+    SIZE_T  data;           /* size of data area requested */
     SIZE_T  unused;         /* unused memory for alignment */
     SIZE_T  overhead;       /* memory used by arena headers */
 };
@@ -3054,7 +3055,8 @@ static inline void lh_large_stats_add(struct lh_large_stats *totals,
                                       const struct lh_large_stats *stats)
 {
     totals->nblocks += stats->nblocks;
-    totals->used += stats->used;
+    totals->committed += stats->committed;
+    totals->data += stats->data;
     totals->unused += stats->unused;
     totals->overhead += stats->overhead;
 }
@@ -3063,13 +3065,14 @@ static void lh_large_stats_print(const struct lh_large_stats *stats)
 {
     MESSAGE("\tlarge blocks\n");
     MESSAGE("\t# blocks   %u\n", stats->nblocks);
-    MESSAGE("\t\ttotal used     %08lx (%10s)\n", stats->used,
-            lh_pretty_size(stats->used));
-    MESSAGE("\t\ttotal unused   %08lx (%10s)\n", stats->unused,
+    MESSAGE("\t\ttotal committed    %08lx (%10s)\n", stats->committed,
+            lh_pretty_size(stats->committed));
+    MESSAGE("\t\ttotal data         %08lx (%10s)\n", stats->data,
+            lh_pretty_size(stats->data));
+    MESSAGE("\t\ttotal unused       %08lx (%10s)\n", stats->unused,
             lh_pretty_size(stats->unused));
-    MESSAGE("\t\ttotal overhead %08lx (%10s)\n", stats->overhead,
+    MESSAGE("\t\ttotal overhead     %08lx (%10s)\n", stats->overhead,
             lh_pretty_size(stats->overhead));
-    // TODO MESSAGE("\ttotal committed %08lx (%10s)\n", committed, lh_pretty_size(committed));
 }
 
 static void lh_subheap_info(SUBHEAP *subheap, struct lh_subheap_stats *totals)
@@ -3119,11 +3122,12 @@ static void lh_large_blocks_info(HEAP *heap, struct lh_large_stats *totals)
     LIST_FOR_EACH_ENTRY(arena, &heap->large_list, ARENA_LARGE, entry)
     {
         stats.nblocks++;
-        stats.used += arena->data_size;
+        stats.committed += arena->block_size;
+        stats.data += arena->data_size;
         stats.unused += arena->block_size - arena->data_size - sizeof(*arena);
         stats.overhead += sizeof(*arena);
 
-        MESSAGE("\t%08lx: data %lx (%s) block %lx (%s)\n", (long)(arena+1),
+        MESSAGE("\t%08lx: data %lx (%10s) block %lx (%10s)\n", (long)(arena+1),
                 arena->data_size, lh_pretty_size(arena->data_size),
                 arena->block_size, lh_pretty_size(arena->block_size));
     }
