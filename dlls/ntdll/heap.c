@@ -2324,17 +2324,30 @@ struct lh_stack
     DWORD_PTR frames[HL_MAX_NFRAMES];
 };
 
+/* total memory = overhead + used + unused */
+struct lh_subheap_stats
+{
+    DWORD   nblocks;        /* total # blocks */
+    DWORD   nused;          /* # in-use blocks */
+    SIZE_T  used;           /* requested in-use memory */
+    SIZE_T  unused;         /* unused memory for alignment */
+    SIZE_T  overhead;       /* memory used by arena headers */
+    SIZE_T  committed;      /* amount of committed memory */
+    SIZE_T  largestfree;    /* largest free block */
+};
+
+struct lh_large_stats
+{
+    DWORD   nblocks;        /* total # blocks */
+    SIZE_T  used;           /* requested in-use memory */
+    SIZE_T  unused;         /* unused memory for alignment */
+    SIZE_T  overhead;       /* memory used by arena headers */
+};
+
 struct lh_stats
 {
-    DWORD  nblocks;     /* total # blocks (large + subheap) */
-    DWORD  nlarge;      /* # of large blocks */
-    DWORD  nused;       /* # blocks in use (large + subheap) */ /* TODO: just subheap?? */
-    SIZE_T total;       /* total memory allocated */
-    SIZE_T used;        /* memory actually in use */
-    SIZE_T overhead;    /* memory used by block headers */
-    SIZE_T unused;      /* memory in block used for alignment */
-    SIZE_T largest;     /* largest subheap free block */
-    SIZE_T committed;   /* amount of committed memory */ /* TODO: subheap + large? */
+    struct lh_subheap_stats subheap;
+    struct lh_large_stats large;
 };
 
 #define LH_CELL_FREE        ' '
@@ -2999,109 +3012,124 @@ static void lh_unlock_all_heaps(void)
     RtlLeaveCriticalSection(&processHeap->critSection);
 }
 
-static void lh_subheap_info(SUBHEAP *subheap, struct lh_stats *stats)
+static inline void lh_subheap_stats_add(struct lh_subheap_stats *totals,
+                                        const struct lh_subheap_stats *stats)
+{
+    totals->nblocks += stats->nblocks;
+    totals->nused += stats->nused;
+    totals->used += stats->used;
+    totals->unused += stats->unused;
+    totals->overhead += stats->overhead;
+    totals->committed += stats->committed;
+    totals->largestfree = max(totals->largestfree, stats->largestfree);
+}
+
+static void lh_subheap_stats_print(const struct lh_subheap_stats *stats)
+{
+    MESSAGE("\tsubheaps\n");
+    MESSAGE("\t\ttotal # blocks %u\n", stats->nblocks);
+    MESSAGE("\t\tused # blocks  %u (free %u)\n", stats->nused,
+            stats->nblocks - stats->nused);
+    MESSAGE("\t\ttotal used     %08lx (%10s)\n", stats->used,
+            lh_pretty_size(stats->used));
+    MESSAGE("\t\ttotal unused   %08lx (%10s)\n", stats->unused,
+            lh_pretty_size(stats->unused));
+    MESSAGE("\t\ttotal overhead %08lx (%10s)\n", stats->overhead,
+            lh_pretty_size(stats->overhead));
+    MESSAGE("\t\tcommitted      %08lx (%10s)\n", stats->committed,
+            lh_pretty_size(stats->committed));
+    MESSAGE("\t\tlargest free   %08lx (%10s)\n", stats->largestfree,
+            lh_pretty_size(stats->largestfree));
+/* TODO
+    MESSAGE("\tfree size    %08lx (%10s) (%5.2f%% of subheap)\n", free_size,
+            lh_pretty_size(free_size), free_size * 100.0 / subheap->size);
+*/
+    // TODO: MESSAGE("\tinternal fragmentation %5.2f%%\n",
+    //        stats->unused * 100.0 / stats->used); // + unused [+overhead]
+    // TODO: MESSAGE("\texternal fragmentation %5.2f%%\n",
+    //        (free_size - largest) * 100.0 / free_size);
+}
+
+static inline void lh_large_stats_add(struct lh_large_stats *totals,
+                                      const struct lh_large_stats *stats)
+{
+    totals->nblocks += stats->nblocks;
+    totals->used += stats->used;
+    totals->unused += stats->unused;
+    totals->overhead += stats->overhead;
+}
+
+static void lh_large_stats_print(const struct lh_large_stats *stats)
+{
+    MESSAGE("\tlarge blocks\n");
+    MESSAGE("\t# blocks   %u\n", stats->nblocks);
+    MESSAGE("\t\ttotal used     %08lx (%10s)\n", stats->used,
+            lh_pretty_size(stats->used));
+    MESSAGE("\t\ttotal unused   %08lx (%10s)\n", stats->unused,
+            lh_pretty_size(stats->unused));
+    MESSAGE("\t\ttotal overhead %08lx (%10s)\n", stats->overhead,
+            lh_pretty_size(stats->overhead));
+    // TODO MESSAGE("\ttotal committed %08lx (%10s)\n", committed, lh_pretty_size(committed));
+}
+
+static void lh_subheap_info(SUBHEAP *subheap, struct lh_subheap_stats *totals)
 {
     char *ptr;
-    SIZE_T free_size = 0;
-    SIZE_T used_size = 0;
-    SIZE_T unused_size = 0;
-    SIZE_T overhead = subheap->headerSize;
-    SIZE_T largest = 0;
     SIZE_T size;
-    SIZE_T nused;
-    SIZE_T ntotal;
+    struct lh_subheap_stats stats;
 
-    nused = 0;
-    ntotal = 0;
+    memset(&stats, 0, sizeof(stats));
+    stats.overhead = subheap->headerSize;
+    stats.committed = subheap->commitSize;
     ptr = (char *)subheap->base + subheap->headerSize;
     while (ptr < (char *)subheap->base + subheap->size)
     {
-        ntotal++;
+        stats.nblocks++;
         if (*(DWORD *)ptr & ARENA_FLAG_FREE)
         {
             ARENA_FREE *arena = (ARENA_FREE *)ptr;
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
-            overhead += sizeof(ARENA_FREE);
-            free_size += size;
-            largest = max(size, largest);
+            stats.overhead += sizeof(*arena);
+            stats.largestfree = max(stats.largestfree, size);
         }
         else
         {
             ARENA_INUSE *arena = (ARENA_INUSE *)ptr;
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
-            overhead += sizeof(ARENA_INUSE);
-            used_size += size;
-            unused_size += arena->unused_bytes;
-            nused++;
+            stats.nused++;
+            stats.used += size;
+            stats.overhead += sizeof(*arena);
+            stats.unused += arena->unused_bytes;
         }
     }
-
-    stats->nblocks += ntotal;
-    stats->nused += nused;
-    stats->total += used_size + free_size;
-    stats->used += used_size;
-    stats->overhead += overhead;
-    stats->unused += unused_size;
-    stats->largest = max(largest, stats->largest);
-    stats->committed += subheap->commitSize;
-
-    MESSAGE("subheap %p\n", subheap);
-    MESSAGE("\ttotal # blocks %lu (used %lu free %lu)\n", ntotal, nused, ntotal - nused);
-    MESSAGE("\ttotal size   %08lx (%10s)\n",
-            subheap->size, lh_pretty_size(subheap->size));
-    MESSAGE("\tcommit       %08lx (%10s) (%5.2f%% of total)\n", subheap->commitSize,
-            lh_pretty_size(subheap->commitSize), subheap->commitSize * 100.0 / subheap->size);
-    MESSAGE("\tfree size    %08lx (%10s) (%5.2f%% of subheap)\n", free_size,
-            lh_pretty_size(free_size), free_size * 100.0 / subheap->size);
-    MESSAGE("\tused size    %08lx (%10s) (%5.2f%% of subheap)\n", used_size,
-            lh_pretty_size(used_size), used_size * 100.0 / subheap->size);
-    MESSAGE("\tunused_size  %08lx (%10s) (%5.2f%% of subheap)\n", unused_size,
-            lh_pretty_size(unused_size), unused_size * 100.0 / subheap->size);
-    MESSAGE("\toverhead     %08lx (%10s) (%5.2f%% of subheap)\n", overhead,
-            lh_pretty_size(overhead), overhead * 100.0 / subheap->size);
-    MESSAGE("\tlargest free %08lx (%10s) (%5.2f%% of subheap)\n", largest,
-            lh_pretty_size(largest), largest * 100.0 / subheap->size);
-    MESSAGE("\tinternal fragmentation %5.2f%%\n",
-            unused_size*100.0/used_size);
-    MESSAGE("\texternal fragmentation %5.2f%%\n",
-            (free_size - largest) * 100.0 / free_size);
+    lh_subheap_stats_add(totals, &stats);
+    lh_subheap_stats_print(&stats);
 }
 
-static void lh_large_blocks_info(HEAP *heap, struct lh_stats *stats)
+static void lh_large_blocks_info(HEAP *heap, struct lh_large_stats *totals)
 {
     ARENA_LARGE *arena;
-    DWORD nblocks;
-    SIZE_T block_size;
-    SIZE_T data_size;
+    struct lh_large_stats stats;
 
     MESSAGE("large blocks for heap %p\n", heap);
-    block_size = 0;
-    data_size = 0;
-    nblocks = 0;
+
+    memset(&stats, 0, sizeof(stats));
     LIST_FOR_EACH_ENTRY(arena, &heap->large_list, ARENA_LARGE, entry)
     {
-        ++nblocks;
-        block_size += arena->block_size;
-        data_size += arena->data_size;
+        stats.nblocks++;
+        stats.used += arena->data_size;
+        stats.unused += arena->block_size - arena->data_size - sizeof(*arena);
+        stats.overhead += sizeof(*arena);
+
         MESSAGE("\t%08lx: data %lx (%s) block %lx (%s)\n", (long)(arena+1),
                 arena->data_size, lh_pretty_size(arena->data_size),
                 arena->block_size, lh_pretty_size(arena->block_size));
-        /* TODO: clean up */
-        stats->nblocks++;
-        stats->nlarge++;
-        stats->nused++; /* TODO: subheap only? */
-        stats->total += arena->block_size;
-        stats->used += arena->data_size;
-        stats->overhead += sizeof(*arena);
-        stats->unused = arena->block_size - arena->data_size;
-        stats->committed += arena->block_size; /* TODO: subheap only? */
     }
-    MESSAGE("\ttotal # blocks %u\n", nblocks);
-    if (!nblocks) return;
-    MESSAGE("\ttotal block size %08lx (%10s)\n", block_size, lh_pretty_size(block_size));
-    MESSAGE("\ttotal data size  %08lx (%10s)\n", data_size, lh_pretty_size(data_size));
+    if (!stats.nblocks) return;
+    lh_large_stats_add(totals, &stats);
+    lh_large_stats_print(&stats);
 }
 
 static inline void lh_runner(void)
@@ -3111,52 +3139,33 @@ static inline void lh_runner(void)
 
 static void lh_print_stats(const struct lh_stats *stats)
 {
-    SIZE_T free_size;
-
-    free_size = stats->total - stats->used;
-    MESSAGE("\ttotal # blocks  %u (subheap + large)\n", stats->nblocks);
-    MESSAGE("\t# large blocks  %u (subheap %u)\n", stats->nlarge,
-            stats->nblocks - stats->nlarge);
-    MESSAGE("\t# in-use blocks %u (subheap %u)\n", stats->nused,
-            stats->nused - stats->nlarge);
-    MESSAGE("\ttotal size      %08lx (%10s)\n", stats->total, lh_pretty_size(stats->total));
-    MESSAGE("\tin-use size     %08lx (%10s)\n", stats->used, lh_pretty_size(stats->used));
-    MESSAGE("\tfree size       %08lx (%10s)\n", free_size, lh_pretty_size(free_size));
-    MESSAGE("\toverhead size   %08lx (%10s)\n", stats->overhead,
-            lh_pretty_size(stats->overhead));
-    MESSAGE("\tlargest free    %08lx (%10s)\n", stats->largest,
-            lh_pretty_size(stats->largest));
-    MESSAGE("\tcommitted       %08lx (%10s)\n", stats->committed,
-            lh_pretty_size(stats->committed));
-    /* TODO: internal + external fragmentation */
+    MESSAGE("total # blocks     %u (%u subheap + %u large)\n",
+            stats->subheap.nblocks + stats->large.nblocks,
+            stats->subheap.nblocks, stats->large.nblocks);
+    lh_subheap_stats_print(&stats->subheap);
+    if (stats->large.nblocks)
+        lh_large_stats_print(&stats->large);
     lh_runner();
 }
 
-static void lh_heap_info(HEAP *heap, struct lh_stats *stats)
+static void lh_heap_info(HEAP *heap, struct lh_stats *totals)
 {
     SUBHEAP *subheap;
-    struct lh_stats heapstats;
+    struct lh_stats stats;
 
-    memset(&heapstats, 0, sizeof(heapstats));
+    memset(&stats, 0, sizeof(stats));
     MESSAGE("heap: %p\n", heap);
     MESSAGE("subheaps: %u\n", list_count(&heap->subheap_list));
     LIST_FOR_EACH_ENTRY(subheap, &heap->subheap_list, SUBHEAP, entry)
     {
-        lh_subheap_info(subheap, &heapstats);
+        lh_subheap_info(subheap, &stats.subheap);
     }
-    lh_large_blocks_info(heap, &heapstats);
+    lh_large_blocks_info(heap, &stats.large);
     MESSAGE("totals for heap %p\n", heap);
-    lh_print_stats(&heapstats);
+    lh_print_stats(&stats);
 
-    stats->nblocks += heapstats.nblocks;
-    stats->nlarge += heapstats.nlarge;
-    stats->nused += heapstats.nused;
-    stats->total += heapstats.total;
-    stats->used += heapstats.used;
-    stats->overhead += heapstats.overhead;
-    stats->unused += heapstats.unused;
-    stats->largest = max(stats->largest, heapstats.largest);
-    stats->committed += heapstats.committed;
+    lh_subheap_stats_add(&totals->subheap, &stats.subheap);
+    lh_large_stats_add(&totals->large, &stats.large);
 }
 
 static void lh_info(int connectfd, HEAP *heap)
