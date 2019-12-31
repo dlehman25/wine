@@ -3243,8 +3243,8 @@ static void lh_subheap_map(SUBHEAP *subheap)
         if (*(DWORD *)ptr & ARENA_FLAG_FREE)
         {
             ARENA_FREE *arena = (ARENA_FREE *)ptr;
-            size = arena->size & ARENA_SIZE_MASK;
-            ptr += sizeof(*arena) + size;
+            size = sizeof(*arena) + (arena->size & ARENA_SIZE_MASK);
+            ptr += size;
             if (ptr < decommit)
                 lh_row_add(&row, size, LH_CELL_EMPTY);
             else
@@ -3257,8 +3257,8 @@ static void lh_subheap_map(SUBHEAP *subheap)
         else
         {
             ARENA_INUSE *arena = (ARENA_INUSE *)ptr;
-            size = arena->size & ARENA_SIZE_MASK;
-            ptr += sizeof(*arena) + size;
+            size = sizeof(*arena) + (arena->size & ARENA_SIZE_MASK);
+            ptr += size;
             lh_row_add(&row, size, LH_CELL_FULL);
         }
     }
