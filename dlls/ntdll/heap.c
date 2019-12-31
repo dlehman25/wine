@@ -2334,6 +2334,7 @@ struct lh_subheap_stats
     SIZE_T  unused;         /* unused memory for alignment */
     SIZE_T  overhead;       /* memory used by arena headers */
     SIZE_T  committed;      /* amount of committed memory */
+    SIZE_T  free;           /* amount of free memory */
     SIZE_T  largestfree;    /* largest free block */
 };
 
@@ -3024,6 +3025,7 @@ static inline void lh_subheap_stats_add(struct lh_subheap_stats *totals,
     totals->unused += stats->unused;
     totals->overhead += stats->overhead;
     totals->committed += stats->committed;
+    totals->free += stats->free;
     totals->largestfree = max(totals->largestfree, stats->largestfree);
 }
 
@@ -3035,24 +3037,25 @@ static void lh_subheap_stats_print(const struct lh_subheap_stats *stats)
             stats->nblocks - stats->nused);
     MESSAGE("\t\ttotal reserved %08lx (%10s)\n", stats->reserved,
             lh_pretty_size(stats->reserved));
+    MESSAGE("\t\tcommitted      %08lx (%10s)\n", stats->committed,
+            lh_pretty_size(stats->committed));
     MESSAGE("\t\ttotal data     %08lx (%10s)\n", stats->data,
             lh_pretty_size(stats->data));
     MESSAGE("\t\ttotal unused   %08lx (%10s)\n", stats->unused,
             lh_pretty_size(stats->unused));
     MESSAGE("\t\ttotal overhead %08lx (%10s)\n", stats->overhead,
             lh_pretty_size(stats->overhead));
-    MESSAGE("\t\tcommitted      %08lx (%10s)\n", stats->committed,
-            lh_pretty_size(stats->committed));
+    MESSAGE("\t\ttotal free     %08lx (%10s)\n", stats->free,
+            lh_pretty_size(stats->free));
     MESSAGE("\t\tlargest free   %08lx (%10s)\n", stats->largestfree,
             lh_pretty_size(stats->largestfree));
-/* TODO
-    MESSAGE("\tfree size    %08lx (%10s) (%5.2f%% of subheap)\n", free_size,
-            lh_pretty_size(free_size), free_size * 100.0 / subheap->size);
-*/
-    // TODO: MESSAGE("\tinternal fragmentation %5.2f%%\n",
-    //        stats->unused * 100.0 / stats->used); // + unused [+overhead]
-    // TODO: MESSAGE("\texternal fragmentation %5.2f%%\n",
-    //        (free_size - largest) * 100.0 / free_size);
+    if (stats->free)
+    {
+        MESSAGE("\t\texternal fragmentation %5.2f%%\n",
+                (stats->free - stats->largestfree) * 100.0 / stats->free);
+    }
+    MESSAGE("\t\tinternal fragmentation %5.2f%%\n",
+            stats->unused * 100.0 / (stats->data + stats->unused));
 }
 
 static inline void lh_large_stats_add(struct lh_large_stats *totals,
@@ -3099,6 +3102,7 @@ static void lh_subheap_info(SUBHEAP *subheap, struct lh_subheap_stats *totals)
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
             stats.overhead += sizeof(*arena);
+            stats.free += size;
             stats.largestfree = max(stats.largestfree, size);
         }
         else
