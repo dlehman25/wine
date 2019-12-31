@@ -3768,5 +3768,5 @@ error:
 
 void lh_term(void)
 {
-    lh_dump(0, NULL); /* TODO: 0 connectfd */
+    lh_dump(0, NULL);
 }
