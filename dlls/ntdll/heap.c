@@ -2336,9 +2336,9 @@ struct lh_stats
     SIZE_T committed;   /* amount of committed memory */ /* TODO: subheap + large? */
 };
 
-#define LH_CELL_EMPTY       ' '
+#define LH_CELL_FREE        ' '
 #define LH_CELL_PARTIAL     '.'
-#define LH_CELL_FULL        'X'
+#define LH_CELL_INUSE       'X'
 #define LH_CELL_DECOMMIT    'D'
 #define LH_CELL_SIZE        4096
 #define LH_CELLS_PER_ROW    64
@@ -3193,7 +3193,7 @@ static void inline lh_row_init(struct lh_row *row, char *ptr)
 static void lh_row_flush(struct lh_row *row)
 {
     while (row->rowidx < LH_CELLS_PER_ROW)
-        row->row[row->rowidx++] = LH_CELL_EMPTY;
+        row->row[row->rowidx++] = LH_CELL_FREE;
 
     row->row[row->rowidx] = 0;
     MESSAGE("%p: |%s|\n", row->rowptr, row->row);
@@ -3206,7 +3206,7 @@ static void lh_row_add(struct lh_row *row, SIZE_T size, char type)
     SIZE_T leftused;
     SIZE_T left;
 
-    if (type == LH_CELL_FULL) row->cellused += size;
+    if (type == LH_CELL_INUSE) row->cellused += size;
     row->cellsize += size;
 
     while (row->cellsize >= LH_CELL_SIZE)
@@ -3236,7 +3236,7 @@ static void lh_subheap_map(SUBHEAP *subheap)
     decommit = (char *)subheap->base + subheap->commitSize;
 
     lh_row_init(&row, subheap->base);
-    lh_row_add(&row, subheap->headerSize, LH_CELL_FULL);
+    lh_row_add(&row, subheap->headerSize, LH_CELL_INUSE);
     ptr = (char *)subheap->base + subheap->headerSize;
     while (ptr < (char *)subheap->base + subheap->size)
     {
@@ -3246,11 +3246,11 @@ static void lh_subheap_map(SUBHEAP *subheap)
             size = sizeof(*arena) + (arena->size & ARENA_SIZE_MASK);
             ptr += size;
             if (ptr < decommit)
-                lh_row_add(&row, size, LH_CELL_EMPTY);
+                lh_row_add(&row, size, LH_CELL_FREE);
             else
             {
                 overflow = ptr - decommit;
-                lh_row_add(&row, size - overflow, LH_CELL_EMPTY);
+                lh_row_add(&row, size - overflow, LH_CELL_FREE);
                 lh_row_add(&row, overflow, LH_CELL_DECOMMIT);
             }
         }
@@ -3259,7 +3259,7 @@ static void lh_subheap_map(SUBHEAP *subheap)
             ARENA_INUSE *arena = (ARENA_INUSE *)ptr;
             size = sizeof(*arena) + (arena->size & ARENA_SIZE_MASK);
             ptr += size;
-            lh_row_add(&row, size, LH_CELL_FULL);
+            lh_row_add(&row, size, LH_CELL_INUSE);
         }
     }
     lh_row_flush(&row);
@@ -3276,7 +3276,7 @@ static void lh_heap_map(HEAP *heap)
         LH_CELL_SIZE, lh_pretty_size(LH_CELL_SIZE),
         LH_SIZE_PER_ROW, lh_pretty_size(LH_SIZE_PER_ROW));
     MESSAGE("key: cell in-use: '%c' free: '%c' mix of in-use and free: '%c'\n",
-        LH_CELL_FULL, LH_CELL_EMPTY, LH_CELL_PARTIAL);
+        LH_CELL_INUSE, LH_CELL_FREE, LH_CELL_PARTIAL);
     LIST_FOR_EACH_ENTRY(subheap, &heap->subheap_list, SUBHEAP, entry)
     {
         lh_subheap_map(subheap);
