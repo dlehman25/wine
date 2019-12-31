@@ -3192,8 +3192,6 @@ static void inline lh_row_init(struct lh_row *row, char *ptr)
 
 static void lh_row_flush(struct lh_row *row)
 {
-    DWORD skipped;
-
     while (row->rowidx < LH_CELLS_PER_ROW)
         row->row[row->rowidx++] = LH_CELL_EMPTY;
 
@@ -3201,23 +3199,8 @@ static void lh_row_flush(struct lh_row *row)
     MESSAGE("%p: |%s|\n", row->rowptr, row->row);
     row->rowidx = 0;
     row->rowptr += LH_SIZE_PER_ROW;
-
-    /* don't skip partial rows */ /* TODO: only works if large size added */
-    if (row->cellused && (row->cellused != row->cellsize))
-        return;
-
-    skipped = 0;
-    while (row->cellsize > LH_SIZE_PER_ROW)
-    {
-        row->cellsize -= LH_SIZE_PER_ROW;
-        row->rowptr += LH_SIZE_PER_ROW;
-        ++skipped;
-    }
-    if (skipped)
-        MESSAGE("  (%u %s rows skipped)\n", skipped, !row->cellused ? "free" : "used");
 }
 
-/* TODO: clean this up */
 static void lh_row_add(struct lh_row *row, SIZE_T size, char type)
 {
     SIZE_T leftused;
