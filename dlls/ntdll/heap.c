@@ -2330,7 +2330,7 @@ struct lh_subheap_stats
     DWORD   nblocks;        /* total # blocks */
     DWORD   nused;          /* # in-use blocks */
     SIZE_T  reserved;       /* total memory reserved */
-    SIZE_T  used;           /* requested in-use memory */
+    SIZE_T  data;           /* size of data area requested */
     SIZE_T  unused;         /* unused memory for alignment */
     SIZE_T  overhead;       /* memory used by arena headers */
     SIZE_T  committed;      /* amount of committed memory */
@@ -3020,7 +3020,7 @@ static inline void lh_subheap_stats_add(struct lh_subheap_stats *totals,
     totals->nblocks += stats->nblocks;
     totals->nused += stats->nused;
     totals->reserved += stats->reserved;
-    totals->used += stats->used;
+    totals->data += stats->data;
     totals->unused += stats->unused;
     totals->overhead += stats->overhead;
     totals->committed += stats->committed;
@@ -3035,8 +3035,8 @@ static void lh_subheap_stats_print(const struct lh_subheap_stats *stats)
             stats->nblocks - stats->nused);
     MESSAGE("\t\ttotal reserved %08lx (%10s)\n", stats->reserved,
             lh_pretty_size(stats->reserved));
-    MESSAGE("\t\ttotal used     %08lx (%10s)\n", stats->used,
-            lh_pretty_size(stats->used));
+    MESSAGE("\t\ttotal data     %08lx (%10s)\n", stats->data,
+            lh_pretty_size(stats->data));
     MESSAGE("\t\ttotal unused   %08lx (%10s)\n", stats->unused,
             lh_pretty_size(stats->unused));
     MESSAGE("\t\ttotal overhead %08lx (%10s)\n", stats->overhead,
@@ -3107,7 +3107,7 @@ static void lh_subheap_info(SUBHEAP *subheap, struct lh_subheap_stats *totals)
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
             stats.nused++;
-            stats.used += size;
+            stats.data += size;
             stats.overhead += sizeof(*arena);
             stats.unused += arena->unused_bytes;
         }
