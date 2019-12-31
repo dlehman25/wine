@@ -2339,6 +2339,7 @@ struct lh_stats
 #define LH_CELL_EMPTY       ' '
 #define LH_CELL_PARTIAL     '.'
 #define LH_CELL_FULL        'X'
+#define LH_CELL_DECOMMIT    'D'
 #define LH_CELL_SIZE        4096
 #define LH_CELLS_PER_ROW    64
 #define LH_SIZE_PER_ROW     (LH_CELL_SIZE * LH_CELLS_PER_ROW)
@@ -3243,21 +3244,32 @@ static void lh_subheap_map(SUBHEAP *subheap)
 {
     char *ptr;
     SIZE_T size;
+    SIZE_T overflow;
     struct lh_row row;
+    const char *decommit;
 
     MESSAGE("heap %p subheap %p\n", subheap->heap, subheap);
+
+    decommit = (char *)subheap->base + subheap->commitSize;
+
     lh_row_init(&row, subheap->base);
     lh_row_add(&row, subheap->headerSize, LH_CELL_FULL);
     ptr = (char *)subheap->base + subheap->headerSize;
     while (ptr < (char *)subheap->base + subheap->size)
     {
-
         if (*(DWORD *)ptr & ARENA_FLAG_FREE)
         {
             ARENA_FREE *arena = (ARENA_FREE *)ptr;
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
-            lh_row_add(&row, size, LH_CELL_EMPTY); /* TODO: include decommitted */
+            if (ptr < decommit)
+                lh_row_add(&row, size, LH_CELL_EMPTY);
+            else
+            {
+                overflow = ptr - decommit;
+                lh_row_add(&row, size - overflow, LH_CELL_EMPTY);
+                lh_row_add(&row, overflow, LH_CELL_DECOMMIT);
+            }
         }
         else
         {
