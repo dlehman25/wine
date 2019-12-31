@@ -3217,12 +3217,12 @@ static void lh_row_flush(struct lh_row *row)
 }
 
 /* TODO: clean this up */
-static void lh_row_add(struct lh_row *row, SIZE_T size, SIZE_T used)
+static void lh_row_add(struct lh_row *row, SIZE_T size, char type)
 {
     SIZE_T leftused;
     SIZE_T left;
 
-    if (used) row->cellused += size;
+    if (type == LH_CELL_FULL) row->cellused += size;
     row->cellsize += size;
 
     while (row->cellsize >= LH_CELL_SIZE)
@@ -3230,8 +3230,8 @@ static void lh_row_add(struct lh_row *row, SIZE_T size, SIZE_T used)
         left = min(row->cellsize, LH_CELL_SIZE);
         leftused = min(row->cellused, LH_CELL_SIZE);
 
-        row->row[row->rowidx++] = !row->cellused ? LH_CELL_EMPTY :
-            row->cellsize == row->cellused ? LH_CELL_FULL : LH_CELL_PARTIAL;
+        row->row[row->rowidx++] = row->cellused && (row->cellused != row->cellsize) ?
+                                    LH_CELL_PARTIAL : type;
         row->cellsize -= left;
         row->cellused -= leftused;
         if (row->rowidx == LH_CELLS_PER_ROW)
@@ -3247,7 +3247,7 @@ static void lh_subheap_map(SUBHEAP *subheap)
 
     MESSAGE("heap %p subheap %p\n", subheap->heap, subheap);
     lh_row_init(&row, subheap->base);
-    lh_row_add(&row, subheap->headerSize, TRUE);
+    lh_row_add(&row, subheap->headerSize, LH_CELL_FULL);
     ptr = (char *)subheap->base + subheap->headerSize;
     while (ptr < (char *)subheap->base + subheap->size)
     {
@@ -3257,14 +3257,14 @@ static void lh_subheap_map(SUBHEAP *subheap)
             ARENA_FREE *arena = (ARENA_FREE *)ptr;
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
-            lh_row_add(&row, size, FALSE); /* TODO: include decommitted */
+            lh_row_add(&row, size, LH_CELL_EMPTY); /* TODO: include decommitted */
         }
         else
         {
             ARENA_INUSE *arena = (ARENA_INUSE *)ptr;
             size = arena->size & ARENA_SIZE_MASK;
             ptr += sizeof(*arena) + size;
-            lh_row_add(&row, size, TRUE);
+            lh_row_add(&row, size, LH_CELL_FULL);
         }
     }
     lh_row_flush(&row);
