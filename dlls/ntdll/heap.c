@@ -2478,6 +2478,7 @@ static BOOL lh_dump_each;
 static short lh_port_min = 0;
 static short lh_port_max = 0;
 static BOOL lh_listener_running;
+static HANDLE lh_thread;
 
 enum lh_sort_type {
     LH_SORT_UNKNOWN = -1,
@@ -3372,7 +3373,6 @@ static inline HEAP *lh_parse_heap(const char *token)
     return (HEAP *)strtol(token, NULL, 16);
 }
 
-static HANDLE lh_thread;
 static void CALLBACK lh_thread_proc(LPVOID arg)
 {
     HANDLE ready = arg;
