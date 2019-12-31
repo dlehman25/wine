@@ -270,7 +270,6 @@ static inline void initialize_block( void *ptr, SIZE_T size, SIZE_T unused, DWOR
     mark_block_tail( (char *)ptr + size, unused, flags );
 }
 
-/* TODO: use these instead? */
 /* notify that a new block of memory has been allocated for debugging purposes */
 static inline void notify_alloc( void *ptr, SIZE_T size, BOOL init )
 {
