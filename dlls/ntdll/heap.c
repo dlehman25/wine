@@ -2864,17 +2864,28 @@ static void lh_send(int fd, const char *fmt, ...)
     send(fd, buffer, strlen(buffer), MSG_DONTWAIT);
 }
 
-static void lh_dump(int connectfd, HEAP *spec)
+static inline void lh_init_symbols(void)
 {
-    HEAP *heap;
-
-    /* invade process to get full symbol info for printing stack */
+    /* invade process to get full symbol info for printing stack
+       these may call filename lookup functions that call back into
+       the heap while holding dir_section critical section.  to avoid
+       deadlock, call these outside of heap lock */
     SymSetOptions_func(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
     if (!SymInitialize_func(GetCurrentProcess(), NULL, TRUE))
     {
         WARN_(heapleaks)("failed to initialize dbghelp\n");
         return;
     }
+}
+
+static inline void lh_term_symbols(void)
+{
+    SymCleanup_func(GetCurrentProcess());
+}
+
+static void lh_dump(int connectfd, HEAP *spec)
+{
+    HEAP *heap;
 
     if (spec)
     {
@@ -2893,7 +2904,6 @@ static void lh_dump(int connectfd, HEAP *spec)
 
         lh_dump_summary();
     }
-    SymCleanup_func(GetCurrentProcess());
 }
 
 static void lh_cmd_clear(int connectfd)
@@ -3460,6 +3470,7 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
                     continue;
                 }
 
+                lh_init_symbols();
                 lh_lock_all_heaps();
                 if (token)
                     sort = interlocked_xchg(&lh_sort, sort);
@@ -3467,6 +3478,7 @@ static void CALLBACK lh_thread_proc(LPVOID arg)
                 if (token)
                     interlocked_xchg(&lh_sort, sort);
                 lh_unlock_all_heaps();
+                lh_term_symbols();
             }
             else if (!strcasecmp(token, "clear"))
             {
@@ -3768,5 +3780,7 @@ error:
 
 void lh_term(void)
 {
+    lh_init_symbols();
     lh_dump(0, NULL);
+    lh_term_symbols();
 }
