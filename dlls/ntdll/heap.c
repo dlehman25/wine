@@ -2341,19 +2341,8 @@ C_ASSERT(FIELD_OFFSET(TBLOCK, flags) == FIELD_OFFSET(FBLOCK, flags));
 #define LFH_MASK        (LFH_ALIGNMENT-1)
 
 /* offset/size are 16-bit and cannot be scaled more than LFH_SHIFT */
-#define TBUFFER_SIZE_FULL  ((1 << 16) << LFH_SHIFT)
-
-/* trim desired size bit so that when the back-end adds the header
-   and rounds the size, it results in the desired size.  for large
-   blocks this prevents wasted pages from being allocated
-   use ALIGNMENT here (vs LFH_ALIGNMENT) since it's for the back-end
-   no need to consider TAIL because LFH is not used if validation is on */
-#if TBUFFER_SIZE_FULL < HEAP_MIN_LARGE_BLOCK_SIZE
-#define TBUFFER_SIZE    ((TBUFFER_SIZE_FULL - ARENA_OFFSET) & ~(ALIGNMENT-1))
-#else
-C_ASSERT( TBUFFER_SIZE_FULL % (COMMIT_MASK+1) == 0 );
-#define TBUFFER_SIZE    TBUFFER_SIZE_FULL
-#endif
+#define TBUFFER_SIZE    ((1 << 16) << LFH_SHIFT)
+C_ASSERT( TBUFFER_SIZE % (COMMIT_MASK+1) == 0 );
 
 /* threshold MUST be <=16k since size/offset are WORD-sized */
 #define LFH_THRESHOLD   (16*1024)
