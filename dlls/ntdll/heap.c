@@ -3000,21 +3000,17 @@ static int buffer_rb_compare(const void *key, const struct wine_rb_entry *entry)
     return 0;
 }
 
-static TBUFFER *WINAPI allocate_buffer( PERTHREAD *pt )
+static TBUFFER *WINAPI LFH_NOINLINE allocate_buffer( PERTHREAD *pt )
 {
-    TFREE_LIST_ENTRY *entry;
     struct list *head;
     TBUFFER *buffer;
     void *address;
     SIZE_T size;
     HEAP *heap;
-    int i;
 
     buffer = NULL;
     heap = pt->heap;
-    RtlEnterCriticalSection( &heap->critSection );
     /* use the opportunity to reclaim orphaned buffers */
-    list_move_tail( &pt->buffers, &heap->lfh_heap->orphan_bufs );
     if ((head = list_head( &heap->lfh_heap->freed_bufs )))
     {
         heap->lfh_heap->freed_size -= TBUFFER_SIZE;
@@ -3035,8 +3031,14 @@ static TBUFFER *WINAPI allocate_buffer( PERTHREAD *pt )
             wine_rb_put( &heap->lfh_heap->buffers, buffer, &buffer->rb_entry );
         }
     }
-    RtlLeaveCriticalSection( &heap->critSection );
-    if (!buffer) return NULL;
+
+    return buffer;
+}
+
+static void WINAPI init_buffer( PERTHREAD *pt, TBUFFER *buffer )
+{
+    TFREE_LIST_ENTRY *entry;
+    int i;
 
     buffer->other = NULL;
     buffer->perthread = pt;
@@ -3058,8 +3060,6 @@ static TBUFFER *WINAPI allocate_buffer( PERTHREAD *pt )
 
     create_block( buffer, (BYTE*)buffer + LFH_BUFFER_HEADER_SIZE,
                   TBUFFER_SIZE - LFH_BUFFER_HEADER_SIZE );
-
-    return buffer;
 }
 
 /* split given block to new size
@@ -3152,6 +3152,7 @@ static TBLOCK *WINAPI find_block_in_buffer( TBUFFER *buffer, SIZE_T blk_size )
 
 static void *WINAPI find_block( PERTHREAD *pt, SIZE_T blk_size )
 {
+    HEAP *heap;
     TBLOCK *block;
     TBUFFER *buffer;
 
@@ -3179,9 +3180,23 @@ static void *WINAPI find_block( PERTHREAD *pt, SIZE_T blk_size )
         }
     }
 
+    heap = pt->heap;
+    RtlEnterCriticalSection( &heap->critSection );
+    LIST_FOR_EACH_ENTRY( buffer, &heap->lfh_heap->orphan_bufs, TBUFFER, entry )
+    {
+        if ((block = find_block_in_buffer( buffer, blk_size )))
+        {
+            list_remove( &buffer->entry );
+            list_add_head( &pt->buffers, &buffer->entry );
+            RtlLeaveCriticalSection( &heap->critSection );
+            return block;
+        }
+    }
     buffer = allocate_buffer( pt );
-    if (!buffer) return NULL;
+    RtlLeaveCriticalSection( &heap->critSection );
 
+    if (!buffer) return NULL;
+    init_buffer( pt, buffer );
     return find_block_in_buffer( buffer, blk_size );
 }
 
