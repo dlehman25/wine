@@ -285,6 +285,11 @@ static NTSTATUS open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJEC
     return status;
 }
 
+static NTSTATUS cache_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
+{
+    return open_key( retkey, options, access, attr );
+}
+
 /* create one of the HKEY_* special root keys */
 static HKEY create_special_root_hkey( HKEY hkey, DWORD access )
 {
@@ -520,7 +525,7 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH RegOpenKeyExW( HKEY hkey, LPCWSTR name, DWORD o
     attr.SecurityDescriptor = NULL;
     attr.SecurityQualityOfService = NULL;
     RtlInitUnicodeString( &nameW, name );
-    return RtlNtStatusToDosError( open_key( retkey, options, access, &attr ) );
+    return RtlNtStatusToDosError( cache_open_key( retkey, options, access, &attr ) );
 }
 
 
@@ -578,7 +583,7 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH RegOpenKeyExA( HKEY hkey, LPCSTR name, DWORD op
     if (!(status = RtlAnsiStringToUnicodeString( &NtCurrentTeb()->StaticUnicodeString,
                                                  &nameA, FALSE )))
     {
-        status = open_key( retkey, options, access, &attr );
+        status = cache_open_key( retkey, options, access, &attr );
     }
     return RtlNtStatusToDosError( status );
 }
