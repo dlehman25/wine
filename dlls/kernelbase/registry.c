@@ -285,9 +285,67 @@ static NTSTATUS open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJEC
     return status;
 }
 
+struct rc_node_s;
+typedef struct rc_value_s
+{
+    struct rc_node_s *node;
+    LPWSTR name;
+    DWORD count;
+    DWORD type;
+    BYTE  data[1];
+} rc_value_t;
+
+typedef struct rc_node_s
+{
+    HKEY root;
+    HKEY key;
+    UNICODE_STRING path;
+    DWORD times;
+    struct rc_node_s *children;
+    rc_value_t *values;
+} rc_node_t;
+
+static int cache_invalidate( HKEY root, const UNICODE_STRING *path )
+{
+    return 0;
+}
+static int cache_add_key( HKEY root, const UNICODE_STRING *path, HKEY key )
+{
+    return 0;
+}
+
+static int cache_remove_key( HKEY key )
+{
+    return 0;
+}
+
+static int cache_get_key( HKEY *retkey, HKEY root, const UNICODE_STRING *path )
+{
+    return 0;
+}
+
+static int cache_add_value( HKEY key, LPCWSTR name, DWORD type, DWORD size, const BYTE *data )
+{
+    return 0;
+}
+
+static int cache_remove_value( HKEY key, LPCWSTR name )
+{
+    return 0;
+}
+
+static int cache_get_value( HKEY key, LPCWSTR name, DWORD *type, DWORD *size, BYTE **data )
+{
+    return 0;
+}
+
 static NTSTATUS cache_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
 {
-    return open_key( retkey, options, access, attr );
+    NTSTATUS status;
+    status = open_key( retkey, options, access, attr );
+    if (status == S_OK)
+        MESSAGE("cache %p\n", *retkey);
+    return status;
 }
 
 /* create one of the HKEY_* special root keys */
