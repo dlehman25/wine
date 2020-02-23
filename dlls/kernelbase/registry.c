@@ -318,6 +318,22 @@ static CRITICAL_SECTION_DEBUG rc_cache_cs_debug =
 };
 static CRITICAL_SECTION rc_cache_cs = { &rc_cache_cs_debug, -1, 0, 0, 0, 0 };
 static struct wine_rb_tree rc_cache;
+static BOOL rc_inited;
+
+static int rc_cmp(const void *keyptr, const struct wine_rb_entry *entry)
+{
+    const rc_node_t *node;
+    const HKEY key = keyptr;
+
+    node = WINE_RB_ENTRY_VALUE(entry, rc_node_t, entry);
+    return node->root - key;
+}
+
+static int rc_init(void)
+{
+    wine_rb_init(&rc_cache, rc_cmp);
+    return 0;
+}
 
 static int cache_invalidate( HKEY root, const UNICODE_STRING *path )
 {
@@ -356,6 +372,13 @@ static int cache_get_value( HKEY key, LPCWSTR name, DWORD *type, DWORD *size, BY
 static NTSTATUS rc_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
 {
     NTSTATUS status;
+    RtlEnterCriticalSection( &rc_cache_cs );
+    if (!rc_inited)
+    {
+        rc_init();
+        rc_inited = TRUE;
+    }
+    RtlLeaveCriticalSection( &rc_cache_cs );
     status = open_key( retkey, options, access, attr );
     if (status == S_OK)
         MESSAGE("%p \\ %s -> %p\n", attr->RootDirectory, debugstr_wn(attr->ObjectName->Buffer, attr->ObjectName->Length/2), *retkey);
