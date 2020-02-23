@@ -401,6 +401,15 @@ static NTSTATUS rc_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OB
         return S_OK;
     }
     status = open_key( retkey, options, access, attr );
+    if (0 && status == S_OK)
+    {
+        node = heap_alloc( sizeof(*node) );
+        /* TODO: !node */
+        node->root = attr->RootDirectory;
+        RtlDuplicateUnicodeString(0, attr->ObjectName, &node->path); /* TODO: return */
+        node->key = *retkey;
+        wine_rb_put(&rc_cache, &key, &node->entry);
+    }
     RtlLeaveCriticalSection( &rc_cache_cs );
     return status;
 }
