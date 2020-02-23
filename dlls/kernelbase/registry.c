@@ -286,6 +286,12 @@ static NTSTATUS open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJEC
     return status;
 }
 
+typedef struct rc_key_t
+{
+    HKEY root;
+    UNICODE_STRING path;
+} rc_key_t;
+
 struct rc_node_s;
 typedef struct rc_value_s
 {
@@ -323,10 +329,14 @@ static BOOL rc_inited;
 static int rc_cmp(const void *keyptr, const struct wine_rb_entry *entry)
 {
     const rc_node_t *node;
-    const HKEY key = keyptr;
+    const rc_key_t *key = keyptr;
+    int diff;
 
     node = WINE_RB_ENTRY_VALUE(entry, rc_node_t, entry);
-    return node->root - key;
+    diff = node->root - key->root;
+    if (diff) return diff;
+    diff = RtlCompareUnicodeString(&node->path, &key->path, TRUE);
+    return diff;
 }
 
 static int rc_init(void)
@@ -371,17 +381,27 @@ static int cache_get_value( HKEY key, LPCWSTR name, DWORD *type, DWORD *size, BY
 
 static NTSTATUS rc_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
 {
+    rc_key_t key;
+    rc_node_t *node;
     NTSTATUS status;
+
     RtlEnterCriticalSection( &rc_cache_cs );
     if (!rc_inited)
     {
         rc_init();
         rc_inited = TRUE;
     }
-    RtlLeaveCriticalSection( &rc_cache_cs );
+    key.root = attr->RootDirectory;
+    key.path = *attr->ObjectName;
+    node = wine_rb_get(&rc_cache, &key);
+    if (node)
+    {
+        *retkey = node->key;
+        RtlLeaveCriticalSection( &rc_cache_cs );
+        return S_OK;
+    }
     status = open_key( retkey, options, access, attr );
-    if (status == S_OK)
-        MESSAGE("%p \\ %s -> %p\n", attr->RootDirectory, debugstr_wn(attr->ObjectName->Buffer, attr->ObjectName->Length/2), *retkey);
+    RtlLeaveCriticalSection( &rc_cache_cs );
     return status;
 }
 
