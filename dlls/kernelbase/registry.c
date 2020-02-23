@@ -44,6 +44,7 @@
 #include "wine/exception.h"
 #include "wine/heap.h"
 #include "wine/list.h"
+#include "wine/rbtree.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(reg);
 
@@ -288,6 +289,7 @@ static NTSTATUS open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJEC
 struct rc_node_s;
 typedef struct rc_value_s
 {
+    struct wine_rb_entry entry;
     struct rc_node_s *node;
     LPWSTR name;
     DWORD count;
@@ -297,6 +299,7 @@ typedef struct rc_value_s
 
 typedef struct rc_node_s
 {
+    struct wine_rb_entry entry;
     HKEY root;
     HKEY key;
     UNICODE_STRING path;
@@ -304,6 +307,17 @@ typedef struct rc_node_s
     struct rc_node_s *children;
     rc_value_t *values;
 } rc_node_t;
+
+static CRITICAL_SECTION rc_cache_cs;
+static CRITICAL_SECTION_DEBUG rc_cache_cs_debug =
+{
+    0, 0, &rc_cache_cs,
+    { &rc_cache_cs_debug.ProcessLocksList,
+      &rc_cache_cs_debug.ProcessLocksList },
+    0, 0, { (DWORD_PTR)(__FILE__ ": rc_cache_cs") }
+};
+static CRITICAL_SECTION rc_cache_cs = { &rc_cache_cs_debug, -1, 0, 0, 0, 0 };
+static struct wine_rb_tree rc_cache;
 
 static int cache_invalidate( HKEY root, const UNICODE_STRING *path )
 {
@@ -339,13 +353,18 @@ static int cache_get_value( HKEY key, LPCWSTR name, DWORD *type, DWORD *size, BY
     return 0;
 }
 
-static NTSTATUS cache_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
+static NTSTATUS rc_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
 {
     NTSTATUS status;
     status = open_key( retkey, options, access, attr );
     if (status == S_OK)
-        MESSAGE("cache %p\n", *retkey);
+        MESSAGE("%p \\ %s -> %p\n", attr->RootDirectory, debugstr_wn(attr->ObjectName->Buffer, attr->ObjectName->Length/2), *retkey);
     return status;
+}
+
+static NTSTATUS rc_close_key( HKEY key )
+{
+    return NtClose( key );
 }
 
 /* create one of the HKEY_* special root keys */
@@ -583,7 +602,7 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH RegOpenKeyExW( HKEY hkey, LPCWSTR name, DWORD o
     attr.SecurityDescriptor = NULL;
     attr.SecurityQualityOfService = NULL;
     RtlInitUnicodeString( &nameW, name );
-    return RtlNtStatusToDosError( cache_open_key( retkey, options, access, &attr ) );
+    return RtlNtStatusToDosError( rc_open_key( retkey, options, access, &attr ) );
 }
 
 
@@ -641,7 +660,7 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH RegOpenKeyExA( HKEY hkey, LPCSTR name, DWORD op
     if (!(status = RtlAnsiStringToUnicodeString( &NtCurrentTeb()->StaticUnicodeString,
                                                  &nameA, FALSE )))
     {
-        status = cache_open_key( retkey, options, access, &attr );
+        status = rc_open_key( retkey, options, access, &attr );
     }
     return RtlNtStatusToDosError( status );
 }
@@ -1059,7 +1078,7 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH RegCloseKey( HKEY hkey )
 {
     if (!hkey) return ERROR_INVALID_HANDLE;
     if (hkey >= (HKEY)0x80000000) return ERROR_SUCCESS;
-    return RtlNtStatusToDosError( NtClose( hkey ) );
+    return RtlNtStatusToDosError( rc_close_key( hkey ) );
 }
 
 
