@@ -286,18 +286,13 @@ static NTSTATUS open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJEC
     return status;
 }
 
-typedef struct rc_key_t
-{
-    HKEY root;
-    UNICODE_STRING path;
-} rc_key_t;
-
 typedef struct rc_node_s
 {
     struct wine_rb_entry entry;
     HKEY root;
     HKEY key;
     UNICODE_STRING path;
+    struct wine_rb_tree nodes;
 } rc_node_t;
 
 static CRITICAL_SECTION rc_cache_cs;
@@ -312,22 +307,28 @@ static CRITICAL_SECTION rc_cache_cs = { &rc_cache_cs_debug, -1, 0, 0, 0, 0 };
 static struct wine_rb_tree rc_cache;
 static BOOL rc_inited;
 
-static int rc_cmp(const void *keyptr, const struct wine_rb_entry *entry)
+static int rc_cmp_key(const void *ptr, const struct wine_rb_entry *entry)
 {
     const rc_node_t *node;
-    const rc_key_t *key = keyptr;
-    int diff;
+    const HKEY key = ptr;
 
     node = WINE_RB_ENTRY_VALUE(entry, rc_node_t, entry);
-    diff = node->root - key->root;
-    if (diff) return diff;
-    diff = RtlCompareUnicodeString(&node->path, &key->path, TRUE);
-    return diff;
+    return node->key - key;
+}
+
+static int rc_cmp_path(const void *ptr, const struct wine_rb_entry *entry)
+{
+    const rc_node_t *node;
+    const UNICODE_STRING *key = ptr;
+
+    node = WINE_RB_ENTRY_VALUE(entry, rc_node_t, entry);
+    return RtlCompareUnicodeString(&node->path, key, TRUE);
 }
 
 static int rc_init(void)
 {
-    wine_rb_init(&rc_cache, rc_cmp);
+    wine_rb_init(&rc_cache, rc_cmp_key);
+    rc_inited = TRUE;
     return 0;
 }
 
@@ -367,34 +368,40 @@ static int cache_get_value( HKEY key, LPCWSTR name, DWORD *type, DWORD *size, BY
 
 static NTSTATUS rc_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OBJECT_ATTRIBUTES *attr )
 {
-    rc_key_t key;
     rc_node_t *node;
     NTSTATUS status;
 
     RtlEnterCriticalSection( &rc_cache_cs );
     if (!rc_inited)
-    {
         rc_init();
-        rc_inited = TRUE;
-    }
-    key.root = attr->RootDirectory;
-    key.path = *attr->ObjectName;
-    node = wine_rb_get(&rc_cache, &key);
+    node = wine_rb_get(&rc_cache, attr->RootDirectory);
     if (node)
     {
-        *retkey = node->key;
-        RtlLeaveCriticalSection( &rc_cache_cs );
-        return S_OK;
+        node = wine_rb_get(&node->nodes, attr->ObjectName);
+        if (node)
+        {
+            *retkey = node->key;
+            RtlLeaveCriticalSection( &rc_cache_cs );
+            return S_OK;
+        }
     }
     status = open_key( retkey, options, access, attr );
     if (0 && status == S_OK)
     {
+        if (!node)
+        {
+            node = heap_alloc( sizeof(*node) );
+            node->root = NULL;
+            node->key = attr->RootDirectory;
+            // node->path = NULL;
+            wine_rb_init(&node->nodes, rc_cmp_path);
+            wine_rb_put(&rc_cache, node->key, &node->entry);
+        }
         node = heap_alloc( sizeof(*node) );
         /* TODO: !node */
         node->root = attr->RootDirectory;
-        RtlDuplicateUnicodeString(0, attr->ObjectName, &node->path); /* TODO: return */
         node->key = *retkey;
-        wine_rb_put(&rc_cache, &key, &node->entry);
+        wine_rb_put(&rc_cache, node->key, &node->entry);
     }
     RtlLeaveCriticalSection( &rc_cache_cs );
     return status;
@@ -402,6 +409,14 @@ static NTSTATUS rc_open_key( HKEY *retkey, DWORD options, ACCESS_MASK access, OB
 
 static NTSTATUS rc_close_key( HKEY key )
 {
+    rc_node_t *node;
+    RtlEnterCriticalSection( &rc_cache_cs );
+    node = wine_rb_get(&rc_cache, key);
+    if (node)
+    {
+        // TODO: remove 
+    }
+    RtlLeaveCriticalSection( &rc_cache_cs );
     return NtClose( key );
 }
 
