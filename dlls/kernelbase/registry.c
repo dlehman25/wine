@@ -292,26 +292,12 @@ typedef struct rc_key_t
     UNICODE_STRING path;
 } rc_key_t;
 
-struct rc_node_s;
-typedef struct rc_value_s
-{
-    struct wine_rb_entry entry;
-    struct rc_node_s *node;
-    LPWSTR name;
-    DWORD count;
-    DWORD type;
-    BYTE  data[1];
-} rc_value_t;
-
 typedef struct rc_node_s
 {
     struct wine_rb_entry entry;
     HKEY root;
     HKEY key;
     UNICODE_STRING path;
-    DWORD times;
-    struct rc_node_s *children;
-    rc_value_t *values;
 } rc_node_t;
 
 static CRITICAL_SECTION rc_cache_cs;
