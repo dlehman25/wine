@@ -4133,14 +4133,12 @@ todo_wine_if (i == 1)
 
         SetLastError(0xdeadbeef);
         hfile2 = CreateFileA(file_name, td2[i].access1, td2[i].share1, NULL, td2[i].disposition1, 0, 0);
-todo_wine_if(i == 0 || i == 9)
-{
+todo_wine_if(i == 9)
         ok(GetLastError() == td2[i].error, "%d: expected %d, got %d\n", i, td2[i].error, GetLastError());
         if (td2[i].error && (td2[i].error != ERROR_ALREADY_EXISTS))
             ok(hfile2 == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
         else
             ok(hfile2 != INVALID_HANDLE_VALUE, "%d: CreateFile error %d\n", i, GetLastError());
-}
         if (hfile2 != INVALID_HANDLE_VALUE)
             CloseHandle(hfile2);
         CloseHandle(hfile);

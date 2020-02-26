@@ -4145,12 +4145,11 @@ static void test_NtCreateFile(void)
                                FILE_ATTRIBUTE_NORMAL, td2[i].share1,
                                td2[i].disposition1, 0, NULL, 0);
 
-    todo_wine_if(i == 0 || i == 9 || i == 12 || i == 13)
+    todo_wine_if(i == 12 || i == 13)
         ok(status == td2[i].status, "%d: expected %#x got %#x\n", i, td2[i].status, status);
 
         if (!status)
         {
-        todo_wine_if(i == 0 || i == 9)
             ok(io.Information == td2[i].result,"%d: expected %#x got %#lx\n", i, td2[i].result, io.Information);
             CloseHandle(handle2);
         }
