@@ -4026,8 +4026,6 @@ static void test_CreateFile(void)
         ok(hfile == INVALID_HANDLE_VALUE, "CreateFile should fail\n");
         if (i == 0 || i == 5)
         {
-/* FIXME: remove once Wine is fixed */
-todo_wine_if (i == 5)
             ok(GetLastError() == ERROR_INVALID_PARAMETER, "%d: expected ERROR_INVALID_PARAMETER, got %d\n", i, GetLastError());
         }
         else
@@ -4086,11 +4084,8 @@ todo_wine_if (i == 1)
             /* FIXME: remove the condition below once Wine is fixed */
             if (td[i].disposition == TRUNCATE_EXISTING && !(td[i].access & GENERIC_WRITE))
             {
-                todo_wine
-                {
                 ok(hfile == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
                 ok(GetLastError() == td[i].error, "%d: expected %d, got %d\n", i, td[i].error, GetLastError());
-                }
                 CloseHandle(hfile);
             }
             else
@@ -4116,7 +4111,6 @@ todo_wine_if (i == 1)
         SetLastError(0xdeadbeef);
         hfile2 = CreateFileA(file_name, td2[i].access, td2[i].share2 ? td2[i].share2 : td2[i].share,
                              NULL, td2[i].disposition, 0, 0);
-todo_wine_if(i == 18 || i == 19)
         ok(GetLastError() == td2[i].error, "%d: expected %d, got %d\n", i, td2[i].error, GetLastError());
         if (td2[i].error && (td2[i].error != ERROR_ALREADY_EXISTS))
             ok(hfile2 == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
