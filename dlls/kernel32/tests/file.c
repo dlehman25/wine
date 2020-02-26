@@ -4116,15 +4116,12 @@ todo_wine_if (i == 1)
         SetLastError(0xdeadbeef);
         hfile2 = CreateFileA(file_name, td2[i].access, td2[i].share2 ? td2[i].share2 : td2[i].share,
                              NULL, td2[i].disposition, 0, 0);
-todo_wine_if(i == 1 || i == 18 || i == 19)
+todo_wine_if(i == 18 || i == 19)
         ok(GetLastError() == td2[i].error, "%d: expected %d, got %d\n", i, td2[i].error, GetLastError());
-todo_wine_if(i == 1 || i == 19)
-{
         if (td2[i].error && (td2[i].error != ERROR_ALREADY_EXISTS))
             ok(hfile2 == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
         else
             ok(hfile2 != INVALID_HANDLE_VALUE, "%d: CreateFile error %d\n", i, GetLastError());
-}
         if (hfile2 != INVALID_HANDLE_VALUE)
             CloseHandle(hfile2);
         CloseHandle(hfile);

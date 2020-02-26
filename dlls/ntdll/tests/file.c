@@ -4117,11 +4117,10 @@ static void test_NtCreateFile(void)
                                FILE_ATTRIBUTE_NORMAL, td2[i].share2 ? td2[i].share2 : td2[i].share,
                                td2[i].disposition, 0, NULL, 0);
 
-        todo_wine_if(i == 1 || i == 19 || i == 24 || i == 26)
+        todo_wine_if(i == 24 || i == 26)
         ok(status == td2[i].status, "%d: expected %#x got %#x\n", i, td2[i].status, status);
         if (!status)
         {
-            todo_wine_if(i == 1 || i == 19)
             ok(io.Information == td2[i].result,"%d: expected %#x got %#lx\n", i, td2[i].result, io.Information);
             CloseHandle(handle2);
         }
