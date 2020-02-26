@@ -3978,8 +3978,6 @@ static void test_CreateFile(void)
         ok(hfile == INVALID_HANDLE_VALUE, "CreateFile should fail\n");
         if (i == 0 || i == 5)
         {
-/* FIXME: remove once Wine is fixed */
-todo_wine_if (i == 5)
             ok(GetLastError() == ERROR_INVALID_PARAMETER, "%d: expected ERROR_INVALID_PARAMETER, got %d\n", i, GetLastError());
         }
         else
@@ -4038,11 +4036,8 @@ todo_wine_if (i == 1)
             /* FIXME: remove the condition below once Wine is fixed */
             if (td[i].disposition == TRUNCATE_EXISTING && !(td[i].access & GENERIC_WRITE))
             {
-                todo_wine
-                {
                 ok(hfile == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
                 ok(GetLastError() == td[i].error, "%d: expected %d, got %d\n", i, td[i].error, GetLastError());
-                }
                 CloseHandle(hfile);
             }
             else
