@@ -4012,9 +4012,72 @@ static void test_NtCreateFile(void)
     /*17*/{ FILE_SUPERSEDE, FILE_ATTRIBUTE_READONLY, 0, FILE_SUPERSEDED, FILE_ATTRIBUTE_ARCHIVE|FILE_ATTRIBUTE_READONLY, TRUE },
     /*18*/{ FILE_SUPERSEDE, 0, 0, FILE_CREATED, FILE_ATTRIBUTE_ARCHIVE, TRUE }
     };
+    static const struct test_data2
+    {
+        DWORD access0, share0,
+              access1, share1,
+              disposition1;
+        NTSTATUS status;
+        DWORD result;
+    } td2[] =
+    {
+    /* roughly matches dlls/kernel32/tests/file.c plus FILE_SUPERSEDE */
+    /*  0*/ { GENERIC_READ, FILE_SHARE_READ,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_OVERWRITE_IF, STATUS_SHARING_VIOLATION },
+    /*  1*/ { GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_OVERWRITE_IF, 0, FILE_OVERWRITTEN },
+    /*  2*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              FILE_OVERWRITE_IF, 0, FILE_OVERWRITTEN },
+
+    /*  3*/ { GENERIC_READ, FILE_SHARE_READ,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_CREATE, STATUS_OBJECT_NAME_COLLISION },
+    /*  4*/ { GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_CREATE, STATUS_OBJECT_NAME_COLLISION },
+    /*  5*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              FILE_CREATE, STATUS_OBJECT_NAME_COLLISION },
+
+    /*  6*/ { GENERIC_READ, FILE_SHARE_READ,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_OPEN_IF, 0, FILE_OPENED },
+    /*  7*/ { GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_OPEN_IF, 0, FILE_OPENED },
+    /*  8*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              FILE_OPEN_IF, 0, FILE_OPENED },
+
+    /*  9*/ { GENERIC_READ, FILE_SHARE_READ,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_OVERWRITE, STATUS_SHARING_VIOLATION },
+    /* 10*/ { GENERIC_WRITE, FILE_SHARE_READ,
+              GENERIC_WRITE, FILE_SHARE_READ,
+              FILE_OVERWRITE, STATUS_SHARING_VIOLATION },
+    /* 11*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              FILE_OVERWRITE, 0, FILE_OVERWRITTEN },
+
+    /* 12*/ { GENERIC_READ, FILE_SHARE_READ,
+              GENERIC_READ, FILE_SHARE_READ,
+              FILE_SUPERSEDE, STATUS_SHARING_VIOLATION },
+    /* 13*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              FILE_SUPERSEDE, STATUS_SHARING_VIOLATION },
+    /* 14*/ { GENERIC_WRITE, FILE_SHARE_DELETE,
+              GENERIC_WRITE, FILE_SHARE_DELETE,
+              FILE_SUPERSEDE, STATUS_SHARING_VIOLATION },
+    /* 15*/ { GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              FILE_SUPERSEDE, 0, FILE_SUPERSEDED },
+    };
     static const WCHAR fooW[] = {'f','o','o',0};
     NTSTATUS status;
-    HANDLE handle;
+    HANDLE handle, handle2;
     WCHAR path[MAX_PATH];
     OBJECT_ATTRIBUTES attr;
     IO_STATUS_BLOCK io;
@@ -4067,8 +4130,36 @@ static void test_NtCreateFile(void)
         }
     }
 
-    pRtlFreeUnicodeString( &nameW );
     SetFileAttributesW(path, FILE_ATTRIBUTE_ARCHIVE);
+    DeleteFileW( path );
+
+    /* test consecutive calls to NtCreateFile */
+    for (i = 0; i < ARRAY_SIZE(td2); i++)
+    {
+        status = pNtCreateFile(&handle, td2[i].access0, &attr, &io, NULL,
+                               FILE_ATTRIBUTE_NORMAL, td2[i].share0,
+                               FILE_CREATE, 0, NULL, 0);
+        ok(status == STATUS_SUCCESS, "%d: expected 0 got %#x\n", i, status);
+
+        status = pNtCreateFile(&handle2, td2[i].access1, &attr, &io, NULL,
+                               FILE_ATTRIBUTE_NORMAL, td2[i].share1,
+                               td2[i].disposition1, 0, NULL, 0);
+
+    todo_wine_if(i == 0 || i == 9 || i == 12 || i == 13)
+        ok(status == td2[i].status, "%d: expected %#x got %#x\n", i, td2[i].status, status);
+
+        if (!status)
+        {
+        todo_wine_if(i == 0 || i == 9)
+            ok(io.Information == td2[i].result,"%d: expected %#x got %#lx\n", i, td2[i].result, io.Information);
+            CloseHandle(handle2);
+        }
+
+        CloseHandle(handle);
+        DeleteFileW(path);
+    }
+
+    pRtlFreeUnicodeString( &nameW );
     DeleteFileW( path );
 }
 
