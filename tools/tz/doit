@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# DST https://techcommunity.microsoft.com/t5/daylight-saving-time-time-zone/bg-p/DSTBlog
 wget --no-check-certificate https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml -O windowsZones.xml > /dev/null 2>&1
 ./zones.pl ~/stuff/wine/dlls/tzres/tzres.rc > zones.c
 gcc -Wall -I$(dirname $(which wine64))/../include/wine/windows -o tzinfgen tzinfgen.c
