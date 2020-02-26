@@ -3978,10 +3978,40 @@ static void test_CreateFile(void)
     /* 25*/ { TRUNCATE_EXISTING, GENERIC_READ|GENERIC_WRITE, 0, 0 },
     /* 26*/ { TRUNCATE_EXISTING, FILE_WRITE_DATA, ERROR_INVALID_PARAMETER, 0 }
     };
+    static const struct test_data2
+    {
+        DWORD disposition, access, share, share2, error;
+    } td2[] =
+    {
+    /* roughly matches dlls/ntdll/tests/file.c minus FILE_SUPERSEDE */
+    /*  0 */ { CREATE_ALWAYS, GENERIC_READ, 0, FILE_SHARE_READ, ERROR_SHARING_VIOLATION },
+    /*  1 */ { CREATE_ALWAYS, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_SHARING_VIOLATION },
+    /*  2 */ { CREATE_ALWAYS, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_SHARE_READ, ERROR_ALREADY_EXISTS },
+    /*  3 */ { CREATE_ALWAYS, GENERIC_WRITE, 0, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+    /*  4 */ { CREATE_ALWAYS, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_ALREADY_EXISTS },
+    /*  5 */ { CREATE_NEW, GENERIC_READ, 0, FILE_SHARE_READ, ERROR_FILE_EXISTS },
+    /*  6 */ { CREATE_NEW, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_FILE_EXISTS },
+    /*  7 */ { CREATE_NEW, GENERIC_WRITE, 0, FILE_SHARE_WRITE, ERROR_FILE_EXISTS },
+    /*  8 */ { CREATE_NEW, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_FILE_EXISTS },
+    /*  9 */ { OPEN_ALWAYS, GENERIC_READ, 0, FILE_SHARE_READ, ERROR_SHARING_VIOLATION },
+    /* 10 */ { OPEN_ALWAYS, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_ALREADY_EXISTS },
+    /* 11 */ { OPEN_ALWAYS, GENERIC_WRITE, 0, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+    /* 12 */ { OPEN_ALWAYS, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_ALREADY_EXISTS },
+    /* 13 */ { OPEN_EXISTING, GENERIC_READ, 0, FILE_SHARE_READ, ERROR_SHARING_VIOLATION },
+    /* 14 */ { OPEN_EXISTING, GENERIC_READ, FILE_SHARE_READ, 0, 0 },
+    /* 15 */ { OPEN_EXISTING, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_SHARE_READ, ERROR_SHARING_VIOLATION },
+    /* 16 */ { OPEN_EXISTING, GENERIC_WRITE, 0, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+    /* 17 */ { OPEN_EXISTING, GENERIC_WRITE, FILE_SHARE_WRITE, 0, 0 },
+    /* 18 */ { TRUNCATE_EXISTING, GENERIC_READ, 0, FILE_SHARE_READ, ERROR_INVALID_PARAMETER },
+    /* 19 */ { TRUNCATE_EXISTING, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_INVALID_PARAMETER },
+    /* 20 */ { TRUNCATE_EXISTING, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+    /* 21 */ { TRUNCATE_EXISTING, GENERIC_WRITE, 0, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+    /* 22 */ { TRUNCATE_EXISTING, GENERIC_WRITE, FILE_SHARE_WRITE, 0, 0 },
+    };
     char temp_path[MAX_PATH];
     char file_name[MAX_PATH];
     DWORD i, ret, written;
-    HANDLE hfile;
+    HANDLE hfile, hfile2;
 
     GetTempPathA(MAX_PATH, temp_path);
     GetTempFileNameA(temp_path, "tmp", 0, file_name);
@@ -4074,6 +4104,32 @@ todo_wine_if (i == 1)
     }
 
     DeleteFileA(file_name);
+
+    /* test consecutive calls to CreateFile */
+    for (i = 0; i < ARRAY_SIZE(td2); i++)
+    {
+        SetLastError(0xdeadbeef);
+        hfile  = CreateFileA(file_name, td2[i].access, td2[i].share, NULL, CREATE_NEW, 0, 0);
+        ok(GetLastError() == ERROR_SUCCESS, "%d: expected 0, got %d\n", i, GetLastError());
+        ok(hfile != INVALID_HANDLE_VALUE, "%d: CreateFile error %d\n", i, GetLastError());
+
+        SetLastError(0xdeadbeef);
+        hfile2 = CreateFileA(file_name, td2[i].access, td2[i].share2 ? td2[i].share2 : td2[i].share,
+                             NULL, td2[i].disposition, 0, 0);
+todo_wine_if(i == 1 || i == 18 || i == 19)
+        ok(GetLastError() == td2[i].error, "%d: expected %d, got %d\n", i, td2[i].error, GetLastError());
+todo_wine_if(i == 1 || i == 19)
+{
+        if (td2[i].error && (td2[i].error != ERROR_ALREADY_EXISTS))
+            ok(hfile2 == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
+        else
+            ok(hfile2 != INVALID_HANDLE_VALUE, "%d: CreateFile error %d\n", i, GetLastError());
+}
+        if (hfile2 != INVALID_HANDLE_VALUE)
+            CloseHandle(hfile2);
+        CloseHandle(hfile);
+        DeleteFileA(file_name);
+    }
 }
 
 static void test_GetFileInformationByHandleEx(void)
