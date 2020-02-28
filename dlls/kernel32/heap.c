@@ -748,7 +748,7 @@ HGLOBAL WINAPI GlobalFree(HGLOBAL hmem)
     {
         __TRY
         {
-            if(!HeapFree(GetProcessHeap(), HEAP_NO_SERIALIZE, hmem))
+            if(!HeapFree(GetProcessHeap(), 0, hmem))
             {
                 SetLastError(ERROR_INVALID_HANDLE);
                 hreturned = hmem;
