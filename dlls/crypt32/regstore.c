@@ -510,7 +510,7 @@ static BOOL WINAPI CRYPT_RegAutoResync(HCERTSTORE hCertStore)
     }
     LeaveCriticalSection(&store->cs);
 
-    SetThreadpoolWait(wait, resync, NULL);
+    SetThreadpoolWait(store->wait, resync, NULL);
     return TRUE;
 
 error:
