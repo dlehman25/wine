@@ -97,7 +97,7 @@ static time_t find_dst_change(time_t min, time_t max, int *is_dst)
 
 static inline void convert_to_non_absolute(RTL_SYSTEM_TIME *st)
 {
-    /* see dlls/kernel32/time.c TIME_DayLightCompareDate */
+    /* see dlls/kernelbase/time.c compare_tzdate */
     WORD first;
 
     /* if on 4th week of a 4-week month, there's no way to determine
