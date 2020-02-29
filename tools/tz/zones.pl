@@ -46,6 +46,14 @@ EOM
 foreach my $windowsID (sort keys %mapping)
 {
     my $tzid = $tzres{$windowsID} + 0;
+    if (!$tzid)
+    {
+        my $sha = qx(echo -n '$windowsID'| sha1sum);
+        chomp($sha);
+        $sha1 = substr($sha, 37, 3); # dcb282412af7d2090f3dfb7a16048cc77bc8b92a -> 92a
+        $sha1 = "${sha1}0";
+        $tzid = hex($sha1);
+    }
     printf("    { %-40s %-30s %5u }, /* %-40s */\n",
         "\"$windowsID\",", "\"$olsonIDs{$windowsID}\",", $tzid, $mapping{$windowsID});
 }
