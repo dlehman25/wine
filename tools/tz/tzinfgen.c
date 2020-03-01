@@ -108,6 +108,134 @@ static inline void convert_to_non_absolute(RTL_SYSTEM_TIME *st)
     st->wDay = (st->wDay - first) / 7 + 1;
 }
 
+static time_t find_dst_change2(time_t min, time_t max, int *is_dst)
+{
+    time_t start, pos;
+    struct tm tm;
+
+    start = min;
+    localtime_r(&start, &tm);
+    *is_dst = !tm.tm_isdst;
+
+    while (min <= max)
+    {
+        pos = (min + max) / 2;
+        localtime_r(&pos, &tm);
+
+        if (tm.tm_isdst != *is_dst)
+            min = pos + 1;
+        else
+            max = pos - 1;
+    }
+
+    return min;
+}
+
+static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
+{
+    int is_dst;
+    int week1st;
+    int weeknum;
+    struct tm dlttm;
+    struct tm stdtm;
+    struct tm local;
+    struct tm mo1st;
+    struct tm jan1st;
+    struct tm dec31st;
+    time_t start, end, tmp, dlt, std;
+
+    memset(&local, 0, sizeof(local));
+    memset(&mo1st, 0, sizeof(mo1st));
+    memset(&jan1st, 0, sizeof(jan1st));
+    memset(&dec31st, 0, sizeof(dec31st));
+    if (year)
+    {
+        mo1st.tm_year = year - 1900;
+        jan1st.tm_year = year - 1900;
+        dec31st.tm_year = year - 1900;
+    }
+
+    jan1st.tm_mday = 1;
+    start = mktime(&jan1st);
+
+    dec31st.tm_mday = 31;
+    dec31st.tm_mon  = 11;
+    dec31st.tm_hour = 23;
+    dec31st.tm_min  = 59;
+    dec31st.tm_sec  = 59;
+    end = mktime(&dec31st);
+
+    tmp = time(NULL);
+    localtime_r(&tmp, &local);
+
+    memset(tzi, 0, sizeof(*tzi));
+
+    tzi->Bias = -local.tm_gmtoff / 60;
+
+    dlt = std = 0;
+    tmp = find_dst_change2(start, end, &is_dst);
+    if (is_dst)
+        dlt = tmp;
+    else
+        std = tmp;
+
+    tmp = find_dst_change2(tmp, end, &is_dst);
+    if (is_dst)
+        dlt = tmp;
+    else
+        std = tmp;
+    
+    /* TODO: set some other fields before returning? */
+    if (dlt == std || !dlt || !std)
+        return local.tm_isdst;
+
+    localtime_r(&dlt, &dlttm);
+    memset(&mo1st, 0, sizeof(mo1st));
+    mo1st.tm_year = dlttm.tm_year;
+    mo1st.tm_mon = dlttm.tm_mon;
+    mo1st.tm_mday = 1;
+    mktime(&mo1st);
+
+    week1st = (mo1st.tm_yday + jan1st.tm_wday) / 7;
+    weeknum = (dlttm.tm_yday + jan1st.tm_wday) / 7;
+    weeknum -= week1st;
+
+    dlt += local.tm_gmtoff;
+    gmtime_r(&dlt, &dlttm);
+    tzi->DaylightBias = -60;
+    tzi->DaylightDate.wYear = 0;
+    tzi->DaylightDate.wMonth = dlttm.tm_mon + 1;
+    tzi->DaylightDate.wDayOfWeek = dlttm.tm_wday;
+    tzi->DaylightDate.wDay = weeknum; 
+    tzi->DaylightDate.wHour = dlttm.tm_hour;
+    tzi->DaylightDate.wMinute = dlttm.tm_min;
+    tzi->DaylightDate.wSecond = dlttm.tm_sec;
+
+    localtime_r(&std, &stdtm);
+    memset(&mo1st, 0, sizeof(mo1st));
+    mo1st.tm_year = stdtm.tm_year;
+    mo1st.tm_mon = stdtm.tm_mon;
+    mo1st.tm_mday = 1;
+    mktime(&mo1st);
+
+    week1st = (mo1st.tm_yday + jan1st.tm_wday) / 7;
+    weeknum = (stdtm.tm_yday + jan1st.tm_wday) / 7;
+    weeknum -= week1st;
+
+    std += local.tm_gmtoff - tzi->DaylightBias * 60;
+    gmtime_r(&std, &stdtm);
+    tzi->StandardBias = 0;
+    tzi->StandardDate.wYear = 0;
+    tzi->StandardDate.wMonth = stdtm.tm_mon + 1;
+    tzi->StandardDate.wDayOfWeek = stdtm.tm_wday;
+    tzi->StandardDate.wDay = weeknum;
+    tzi->StandardDate.wHour = stdtm.tm_hour;
+    tzi->StandardDate.wMinute = stdtm.tm_min;
+    tzi->StandardDate.wSecond = stdtm.tm_sec;
+
+    return local.tm_isdst;
+}
+
 static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 {
     struct tm *tm;
@@ -200,7 +328,7 @@ static void dump_timezone(const char *win_tz, const char *unix_tz, unsigned int 
     setenv("TZ", unix_tz, TRUE);
     tzset();
 
-    init_tz_info(&dtzi, 0);
+    init_tz_info2(&dtzi, 0);
 
     tzi.Bias = dtzi.Bias;
     tzi.StandardBias = dtzi.StandardBias;
@@ -227,10 +355,10 @@ static void dump_timezone(const char *win_tz, const char *unix_tz, unsigned int 
     tm = localtime(&today);
     cur_year = tm->tm_year + 1900;
 
-    init_tz_info(&last, dynamic_start);
+    init_tz_info2(&last, dynamic_start);
     for (first_year = dynamic_start + 1; first_year <= cur_year; first_year++)
     {
-        init_tz_info(&dtzi, first_year);
+        init_tz_info2(&dtzi, first_year);
         if (memcmp(&dtzi, &last, sizeof(last)))
         {
             --first_year;
@@ -241,10 +369,10 @@ static void dump_timezone(const char *win_tz, const char *unix_tz, unsigned int 
     if (first_year > cur_year)
         return; /* no dynamic dst */
 
-    init_tz_info(&last, cur_year);
+    init_tz_info2(&last, cur_year);
     for (last_year = cur_year - 1; last_year >= first_year; last_year--)
     {
-        init_tz_info(&dtzi, last_year);
+        init_tz_info2(&dtzi, last_year);
         if (memcmp(&dtzi, &last, sizeof(last)))
         {
             ++last_year;
@@ -254,7 +382,7 @@ static void dump_timezone(const char *win_tz, const char *unix_tz, unsigned int 
 
     for (cur_year = first_year; cur_year <= last_year; cur_year++)
     {
-        init_tz_info(&dtzi, cur_year);
+        init_tz_info2(&dtzi, cur_year);
 
         tzi.Bias = dtzi.Bias;
         tzi.StandardBias = dtzi.StandardBias;
