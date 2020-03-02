@@ -129,7 +129,7 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     year_start = mktime(tm);
 
     tm->tm_mday = tm->tm_wday = tm->tm_yday = 0;
-    tm->tm_mon = 12;
+    tm->tm_mon = 11;
     tm->tm_hour = 23;
     tm->tm_min = tm->tm_sec = 59;
     year_end = mktime(tm);
