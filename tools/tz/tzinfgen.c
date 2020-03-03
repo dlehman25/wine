@@ -195,11 +195,13 @@ static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     else
         std = tmp;
     
-    /* TODO: set some other fields before returning? */
     if (dlt == std || !dlt || !std)
         return local.tm_isdst;
 
     localtime_r(&dlt, &dlttm);
+    localtime_r(&std, &stdtm);
+    tzi->DaylightBias = (stdtm.tm_gmtoff - dlttm.tm_gmtoff) / 60;
+
     memset(&mo1st, 0, sizeof(mo1st));
     mo1st.tm_year = dlttm.tm_year;
     mo1st.tm_mon = dlttm.tm_mon;
@@ -221,7 +223,6 @@ static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 
     dlt += local.tm_gmtoff;
     gmtime_r(&dlt, &dlttm);
-    tzi->DaylightBias = -60;
     tzi->DaylightDate.wYear = 0;
     tzi->DaylightDate.wMonth = dlttm.tm_mon + 1;
     tzi->DaylightDate.wDayOfWeek = dlttm.tm_wday;
@@ -230,7 +231,6 @@ static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     tzi->DaylightDate.wMinute = dlttm.tm_min;
     tzi->DaylightDate.wSecond = dlttm.tm_sec;
 
-    localtime_r(&std, &stdtm);
     memset(&mo1st, 0, sizeof(mo1st));
     mo1st.tm_year = stdtm.tm_year;
     mo1st.tm_mon = stdtm.tm_mon;
