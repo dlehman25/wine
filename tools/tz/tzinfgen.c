@@ -131,26 +131,36 @@ static time_t find_dst_change2(time_t min, time_t max, int *is_dst)
     return min;
 }
 
+static inline int is_leap_year(int year)
+{
+    return !(year % 4) && ((year % 100) || !(year % 400));
+}
+
 static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 {
+    static int mdays[2][12] =
+    {
+        { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+        { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+    };
     int is_dst;
     int week1st;
+    int weeklast;
     int weeknum;
     struct tm dlttm;
     struct tm stdtm;
     struct tm local;
     struct tm mo1st;
+    struct tm molast;
     struct tm jan1st;
     struct tm dec31st;
     time_t start, end, tmp, dlt, std;
 
     memset(&local, 0, sizeof(local));
-    memset(&mo1st, 0, sizeof(mo1st));
     memset(&jan1st, 0, sizeof(jan1st));
     memset(&dec31st, 0, sizeof(dec31st));
     if (year)
     {
-        mo1st.tm_year = year - 1900;
         jan1st.tm_year = year - 1900;
         dec31st.tm_year = year - 1900;
     }
@@ -195,10 +205,19 @@ static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     mo1st.tm_mon = dlttm.tm_mon;
     mo1st.tm_mday = 1;
     mktime(&mo1st);
+    memset(&molast, 0, sizeof(molast));
+    molast.tm_year = dlttm.tm_year;
+    molast.tm_mon = dlttm.tm_mon;
+    molast.tm_mday = mdays[is_leap_year(dlttm.tm_year + 1900)][dlttm.tm_mon];
+    mktime(&molast);
 
     week1st = (mo1st.tm_yday + jan1st.tm_wday) / 7;
+    weeklast = (molast.tm_yday + jan1st.tm_wday) / 7;
     weeknum = (dlttm.tm_yday + jan1st.tm_wday) / 7;
-    weeknum -= week1st;
+    if (weeknum == weeklast)
+        weeknum = 5;
+    else
+        weeknum -= week1st;
 
     dlt += local.tm_gmtoff;
     gmtime_r(&dlt, &dlttm);
@@ -217,10 +236,19 @@ static int init_tz_info2(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     mo1st.tm_mon = stdtm.tm_mon;
     mo1st.tm_mday = 1;
     mktime(&mo1st);
+    memset(&molast, 0, sizeof(molast));
+    molast.tm_year = stdtm.tm_year;
+    molast.tm_mon = stdtm.tm_mon;
+    molast.tm_mday = mdays[is_leap_year(stdtm.tm_year + 1900)][stdtm.tm_mon];
+    mktime(&molast);
 
     week1st = (mo1st.tm_yday + jan1st.tm_wday) / 7;
+    weeklast = (molast.tm_yday + jan1st.tm_wday) / 7;
     weeknum = (stdtm.tm_yday + jan1st.tm_wday) / 7;
-    weeknum -= week1st;
+    if (weeknum == weeklast)
+        weeknum = 5;
+    else
+        weeknum -= week1st;
 
     std += local.tm_gmtoff - tzi->DaylightBias * 60;
     gmtime_r(&std, &stdtm);
