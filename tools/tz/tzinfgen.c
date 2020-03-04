@@ -180,8 +180,8 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     else
         weeknum -= week1st;
 
-    dlt += local.tm_gmtoff;
-    gmtime_r(&dlt, &dlttm);
+    tmp = dlt - tzi->Bias * 60;
+    gmtime_r(&tmp, &dlttm);
     tzi->DaylightDate.wYear = 0;
     tzi->DaylightDate.wMonth = dlttm.tm_mon + 1;
     tzi->DaylightDate.wDayOfWeek = dlttm.tm_wday;
@@ -209,8 +209,8 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     else
         weeknum -= week1st;
 
-    std += local.tm_gmtoff - tzi->DaylightBias * 60;
-    gmtime_r(&std, &stdtm);
+    tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
+    gmtime_r(&tmp, &stdtm);
     tzi->StandardBias = 0;
     tzi->StandardDate.wYear = 0;
     tzi->StandardDate.wMonth = stdtm.tm_mon + 1;
