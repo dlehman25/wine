@@ -97,20 +97,10 @@ static inline int is_leap_year(int year)
 
 static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 {
-    static int mdays[2][12] =
-    {
-        { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
-        { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
-    };
     int is_dst;
-    int week1st;
-    int weeklast;
-    int weeknum;
     struct tm dlttm;
     struct tm stdtm;
     struct tm local;
-    struct tm mo1st;
-    struct tm molast;
     struct tm jan1st;
     struct tm dec31st;
     time_t start, end, tmp, dlt, std;
@@ -153,7 +143,7 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         dlt = tmp;
     else
         std = tmp;
-    
+
     if (dlt == std || !dlt || !std)
         return local.tm_isdst;
 
@@ -161,53 +151,15 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     localtime_r(&std, &stdtm);
     tzi->DaylightBias = (stdtm.tm_gmtoff - dlttm.tm_gmtoff) / 60;
 
-    memset(&mo1st, 0, sizeof(mo1st));
-    mo1st.tm_year = dlttm.tm_year;
-    mo1st.tm_mon = dlttm.tm_mon;
-    mo1st.tm_mday = 1;
-    mktime(&mo1st);
-    memset(&molast, 0, sizeof(molast));
-    molast.tm_year = dlttm.tm_year;
-    molast.tm_mon = dlttm.tm_mon;
-    molast.tm_mday = mdays[is_leap_year(dlttm.tm_year + 1900)][dlttm.tm_mon];
-    mktime(&molast);
-
-    week1st = (mo1st.tm_yday + jan1st.tm_wday) / 7;
-    weeklast = (molast.tm_yday + jan1st.tm_wday) / 7;
-    weeknum = (dlttm.tm_yday + jan1st.tm_wday) / 7;
-    if (weeknum == weeklast)
-        weeknum = 5;
-    else
-        weeknum -= week1st;
-
     tmp = dlt - tzi->Bias * 60;
     gmtime_r(&tmp, &dlttm);
     tzi->DaylightDate.wYear = 0;
     tzi->DaylightDate.wMonth = dlttm.tm_mon + 1;
     tzi->DaylightDate.wDayOfWeek = dlttm.tm_wday;
-    tzi->DaylightDate.wDay = weeknum; 
+    tzi->DaylightDate.wDay = (dlttm.tm_mday - 1) / 7 + 1;
     tzi->DaylightDate.wHour = dlttm.tm_hour;
     tzi->DaylightDate.wMinute = dlttm.tm_min;
     tzi->DaylightDate.wSecond = dlttm.tm_sec;
-
-    memset(&mo1st, 0, sizeof(mo1st));
-    mo1st.tm_year = stdtm.tm_year;
-    mo1st.tm_mon = stdtm.tm_mon;
-    mo1st.tm_mday = 1;
-    mktime(&mo1st);
-    memset(&molast, 0, sizeof(molast));
-    molast.tm_year = stdtm.tm_year;
-    molast.tm_mon = stdtm.tm_mon;
-    molast.tm_mday = mdays[is_leap_year(stdtm.tm_year + 1900)][stdtm.tm_mon];
-    mktime(&molast);
-
-    week1st = (mo1st.tm_yday + jan1st.tm_wday) / 7;
-    weeklast = (molast.tm_yday + jan1st.tm_wday) / 7;
-    weeknum = (stdtm.tm_yday + jan1st.tm_wday) / 7;
-    if (weeknum == weeklast)
-        weeknum = 5;
-    else
-        weeknum -= week1st;
 
     tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
     gmtime_r(&tmp, &stdtm);
@@ -215,7 +167,7 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     tzi->StandardDate.wYear = 0;
     tzi->StandardDate.wMonth = stdtm.tm_mon + 1;
     tzi->StandardDate.wDayOfWeek = stdtm.tm_wday;
-    tzi->StandardDate.wDay = weeknum;
+    tzi->StandardDate.wDay = (stdtm.tm_mday - 1) / 7 + 1;
     tzi->StandardDate.wHour = stdtm.tm_hour;
     tzi->StandardDate.wMinute = stdtm.tm_min;
     tzi->StandardDate.wSecond = stdtm.tm_sec;
