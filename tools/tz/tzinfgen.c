@@ -97,6 +97,11 @@ static inline int is_leap_year(int year)
 
 static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 {
+    static int mdays[2][12] =
+    {
+        { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+        { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+    };
     int is_dst;
     struct tm dlttm;
     struct tm stdtm;
@@ -161,6 +166,12 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     tzi->DaylightDate.wMinute = dlttm.tm_min;
     tzi->DaylightDate.wSecond = dlttm.tm_sec;
 
+    if (tzi->DaylightDate.wDay == 4)
+    {
+        if (dlttm.tm_mday + 7 > mdays[is_leap_year(dlttm.tm_year + 1900)][dlttm.tm_mon])
+            tzi->DaylightDate.wDay++;
+    }
+
     tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
     gmtime_r(&tmp, &stdtm);
     tzi->StandardBias = 0;
@@ -171,6 +182,12 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     tzi->StandardDate.wHour = stdtm.tm_hour;
     tzi->StandardDate.wMinute = stdtm.tm_min;
     tzi->StandardDate.wSecond = stdtm.tm_sec;
+
+    if (tzi->StandardDate.wDay == 4)
+    {
+        if (stdtm.tm_mday + 7 > mdays[is_leap_year(stdtm.tm_year + 1900)][stdtm.tm_mon])
+            tzi->StandardDate.wDay++;
+    }
 
     return local.tm_isdst;
 }
