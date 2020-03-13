@@ -43,7 +43,7 @@ static const tzdata zoneinfo[] =
 EOM
 ;
 
-foreach my $windowsID (sort keys %mapping)
+foreach my $windowsID (sort { "\L$a" cmp "\L$b" } keys %mapping)
 {
     my $tzid = $tzres{$windowsID} + 0;
     if (!$tzid)
