@@ -95,7 +95,7 @@ static inline int is_leap_year(int year)
     return !(year % 4) && ((year % 100) || !(year % 400));
 }
 
-static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
+static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 {
     static int mdays[2][12] =
     {
@@ -150,7 +150,7 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         std = tmp;
 
     if (dlt == std || !dlt || !std)
-        return local.tm_isdst;
+        return;
 
     localtime_r(&dlt, &dlttm);
     localtime_r(&std, &stdtm);
@@ -188,8 +188,6 @@ static int init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         if (stdtm.tm_mday + 7 > mdays[is_leap_year(stdtm.tm_year + 1900)][stdtm.tm_mon])
             tzi->StandardDate.wDay++;
     }
-
-    return local.tm_isdst;
 }
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
