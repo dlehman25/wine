@@ -131,12 +131,7 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     dec31st.tm_sec  = 59;
     end = mktime(&dec31st);
 
-    tmp = time(NULL);
-    localtime_r(&tmp, &local);
-
     memset(tzi, 0, sizeof(*tzi));
-
-    tzi->Bias = -local.tm_gmtoff / 60;
 
     dlt = std = 0;
     tmp = find_dst_change(start, end, &is_dst);
@@ -150,6 +145,10 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         dlt = tmp;
     else
         std = tmp;
+
+    tmp = std ? std : time(NULL);
+    localtime_r(&tmp, &local);
+    tzi->Bias = -local.tm_gmtoff / 60;
 
     if (dlt == std || !dlt || !std)
         return;
