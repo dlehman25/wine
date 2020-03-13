@@ -113,15 +113,17 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     memset(&local, 0, sizeof(local));
     memset(&jan1st, 0, sizeof(jan1st));
     memset(&dec31st, 0, sizeof(dec31st));
-    if (year)
+    if (!year)
     {
-        jan1st.tm_year = year - 1900;
-        dec31st.tm_year = year - 1900;
+        tmp = time(NULL);
+        localtime_r(&tmp, &local);
+        year = local.tm_year + 1900;
     }
-
+    jan1st.tm_year = year - 1900;
     jan1st.tm_mday = 1;
     start = mktime(&jan1st);
 
+    dec31st.tm_year = year - 1900;
     dec31st.tm_mday = 31;
     dec31st.tm_mon  = 11;
     dec31st.tm_hour = 23;
