@@ -67,27 +67,30 @@ static void print_tzi(const REGTIMEZONEINFORMATION *tzi)
     }
 }
 
+/* some time zones (Pacific/Bougainville) redefine standard time */
 static time_t find_dst_change(time_t min, time_t max, int *is_dst)
 {
-    time_t start, pos;
+    time_t pos;
     struct tm tm;
+    long gmtoff;
 
-    start = min;
-    localtime_r(&start, &tm);
+    pos = min;
+    localtime_r(&pos, &tm);
+    gmtoff = tm.tm_gmtoff;
     *is_dst = !tm.tm_isdst;
 
     while (min <= max)
     {
         pos = (min + max) / 2;
         localtime_r(&pos, &tm);
-
-        if (tm.tm_isdst != *is_dst)
+        if (tm.tm_gmtoff == gmtoff)
             min = pos + 1;
         else
             max = pos - 1;
     }
 
     return min;
+
 }
 
 static inline int is_leap_year(int year)
@@ -151,7 +154,13 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         if (is_dst)
             dlt = tmp;
         else
-            std = tmp;
+        {
+            /* use daylight time for cases where standard time is redefined */
+            if (std)
+                dlt = tmp;
+            else
+                std = tmp;
+        }
     }
 
     if (!dlt) dlt = start;
