@@ -135,22 +135,33 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 
     dlt = std = 0;
     tmp = find_dst_change(start, end, &is_dst);
-    if (is_dst)
-        dlt = tmp;
+    if (tmp <= end)
+    {
+        if (is_dst)
+            dlt = tmp;
+        else
+            std = tmp;
+    }
     else
-        std = tmp;
+        tmp = start;
 
     tmp = find_dst_change(tmp, end, &is_dst);
-    if (is_dst)
-        dlt = tmp;
-    else
-        std = tmp;
+    if (tmp <= end)
+    {
+        if (is_dst)
+            dlt = tmp;
+        else
+            std = tmp;
+    }
 
     tmp = std ? std : time(NULL);
     localtime_r(&tmp, &local);
     tzi->Bias = -local.tm_gmtoff / 60;
 
-    if (dlt == std || !dlt || !std)
+    if (!dlt) dlt = start;
+    if (!std) std = start;
+
+    if (dlt == std)
         return;
 
     localtime_r(&dlt, &dlttm);
@@ -163,9 +174,13 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     tzi->DaylightDate.wMonth = dlttm.tm_mon + 1;
     tzi->DaylightDate.wDayOfWeek = dlttm.tm_wday;
     tzi->DaylightDate.wDay = (dlttm.tm_mday - 1) / 7 + 1;
-    tzi->DaylightDate.wHour = dlttm.tm_hour;
-    tzi->DaylightDate.wMinute = dlttm.tm_min;
-    tzi->DaylightDate.wSecond = dlttm.tm_sec;
+    if (dlt != start)
+    {
+        /* only fill out transition time if one was found */
+        tzi->DaylightDate.wHour = dlttm.tm_hour;
+        tzi->DaylightDate.wMinute = dlttm.tm_min;
+        tzi->DaylightDate.wSecond = dlttm.tm_sec;
+    }
 
     if (tzi->DaylightDate.wDay == 4)
     {
@@ -180,9 +195,12 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     tzi->StandardDate.wMonth = stdtm.tm_mon + 1;
     tzi->StandardDate.wDayOfWeek = stdtm.tm_wday;
     tzi->StandardDate.wDay = (stdtm.tm_mday - 1) / 7 + 1;
-    tzi->StandardDate.wHour = stdtm.tm_hour;
-    tzi->StandardDate.wMinute = stdtm.tm_min;
-    tzi->StandardDate.wSecond = stdtm.tm_sec;
+    if (std != start)
+    {
+        tzi->StandardDate.wHour = stdtm.tm_hour;
+        tzi->StandardDate.wMinute = stdtm.tm_min;
+        tzi->StandardDate.wSecond = stdtm.tm_sec;
+    }
 
     if (tzi->StandardDate.wDay == 4)
     {
