@@ -124,7 +124,7 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     start = mktime(&jan1st);
 
     dec31st.tm_year = year - 1900;
-    dec31st.tm_mday = 0;
+    dec31st.tm_mday = 31;
     dec31st.tm_mon  = 11;
     dec31st.tm_hour = 23;
     dec31st.tm_min  = 59;
