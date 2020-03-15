@@ -154,12 +154,11 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
             std = tmp;
     }
 
-    tmp = std ? std : time(NULL);
-    localtime_r(&tmp, &local);
-    tzi->Bias = -local.tm_gmtoff / 60;
-
     if (!dlt) dlt = start;
     if (!std) std = start;
+
+    localtime_r(&std, &local);
+    tzi->Bias = -local.tm_gmtoff / 60;
 
     if (dlt == std)
         return;
