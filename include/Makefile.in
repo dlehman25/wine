@@ -716,6 +716,7 @@ SOURCES = \
 	spatialaudioclient.idl \
 	specstrings.h \
 	specstrings_strict.h \
+	spellcheck.idl \
 	sperror.h \
 	sql.h \
 	sqlext.h \
