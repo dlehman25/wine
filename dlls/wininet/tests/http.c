@@ -2145,6 +2145,7 @@ struct server_info {
 static int test_cache_gzip;
 static const char *send_buffer;
 static int server_socket;
+static int server_port;
 
 static DWORD CALLBACK server_thread(LPVOID param)
 {
@@ -2509,6 +2510,29 @@ static DWORD CALLBACK server_thread(LPVOID param)
             char msg[sizeof(largemsg) + 16];
             sprintf(msg, largemsg, content_length);
             send(c, msg, strlen(msg), 0);
+        }
+        if (strstr(buffer, "GET /redirect"))
+        {
+            static const char location[] =
+            {
+                "HTTP/1.1 302 Found\r\n"
+                "Location: http://localhost:%u/echo_request?%s\r\n"
+                "\r\n"
+            };
+            char *large, *args;
+            DWORD size;
+
+            sscanf(buffer, "GET /redirect/%u", &size);
+            args = malloc(size + 1);
+            memset(args, 'x', size);
+            args[size] = 0;
+
+            large = malloc(size + sizeof(location) + 16);
+            sprintf(large, location, server_port, args);
+            send(c, large, strlen(large), 0);
+
+            free(large);
+            free(args);
         }
         shutdown(c, 2);
         closesocket(c);
@@ -5799,8 +5823,12 @@ static void test_persistent_connection(int port)
 static void test_redirect(int port)
 {
     char buf[4000], expect_url[INTERNET_MAX_URL_LENGTH];
+    char *large_buf, *large_expect;
     INTERNET_BUFFERSW ib;
     test_request_t req;
+    DWORD size;
+    BOOL ret;
+    int c;
 
     if(!is_ie7plus)
         return;
@@ -5813,6 +5841,8 @@ static void test_redirect(int port)
 
     trace("Testing redirection...\n");
 
+if (0)
+{
     open_socket_request(port, &req, NULL);
 
     SET_OPTIONAL(INTERNET_STATUS_COOKIE_SENT);
@@ -5904,8 +5934,36 @@ static void test_redirect(int port)
 
     close_connection();
     close_async_handle(req.session, 2);
-
+}
     skip_receive_notification_tests = FALSE;
+
+    size = 64*1024; /* 8192 * 1024 ok */
+    sprintf(buf, "/redirect/%u", size);
+    open_simple_request(&req, "localhost", port, "GET", buf);
+
+    ret = HttpSendRequestA(req.request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed: %u\n", GetLastError());
+
+    c = sprintf(buf, "http://localhost:%u/echo_request?", port);
+    large_expect = malloc(c + size + 1);
+    memcpy(large_expect, buf, c);
+    memset(large_expect + c, 'x', size);
+    large_expect[c + size] = 0;
+
+    size += c + 1;
+    large_buf = malloc(size);
+    memset(large_buf, 0, size);
+
+    ret = InternetQueryOptionA(req.request, INTERNET_OPTION_URL, large_buf, &size);
+    ok(ret, "failed gle %u\n", GetLastError());
+    ok(size == strlen(large_expect), "got %zu\n", size);
+    ok(!memcmp(large_buf, large_expect, size), "failed\n");
+    test_status_code(req.request, 200);
+
+    free(large_expect);
+    free(large_buf);
+
+    close_request(&req);
 }
 
 static void test_remove_dot_segments(int port)
@@ -6017,7 +6075,7 @@ static void test_http_connection(void)
     DWORD id = 0, r;
 
     si.hEvent = CreateEventW(NULL, 0, 0, NULL);
-    si.port = 7531;
+    si.port = server_port = 7531;
 
     hThread = CreateThread(NULL, 0, server_thread, &si, 0, &id);
     ok( hThread != NULL, "create thread failed\n");
@@ -6030,6 +6088,8 @@ static void test_http_connection(void)
         return;
     }
 
+if (0)
+{
     test_basic_request(si.port, "GET", "/test1");
     test_proxy_indirect(si.port);
     test_proxy_direct(si.port);
@@ -6069,11 +6129,14 @@ static void test_http_connection(void)
     test_http_read(si.port);
     test_connection_break(si.port);
     test_long_url(si.port);
+}
     test_redirect(si.port);
+if (0)
+{
     test_persistent_connection(si.port);
     test_remove_dot_segments(si.port);
     test_large_content(si.port);
-
+}
     /* send the basic request again to shutdown the server thread */
     test_basic_request(si.port, "GET", "/quit");
 
@@ -7683,6 +7746,8 @@ START_TEST(http)
 
     init_events();
     init_status_tests();
+if (0)
+{
     test_InternetCloseHandle();
     InternetReadFile_test(INTERNET_FLAG_ASYNC, &test_data[0]);
     InternetReadFile_test(INTERNET_FLAG_ASYNC, &test_data[1]);
@@ -7702,7 +7767,10 @@ START_TEST(http)
     InternetLockRequestFile_test();
     InternetOpenUrlA_test();
     HttpHeaders_test();
+}
     test_http_connection();
+if (0)
+{
     test_user_agent_header();
     test_bogus_accept_types_array();
     InternetReadFile_chunked_test();
@@ -7712,5 +7780,6 @@ START_TEST(http)
     test_default_service_port();
     test_concurrent_header_access();
     test_cert_string();
+}
     free_events();
 }

@@ -4165,6 +4165,7 @@ static WCHAR *get_redirect_url(http_request_t *request)
         redirect_url = heap_alloc(url_length);
         res = HTTP_HttpQueryInfoW(request, HTTP_QUERY_LOCATION, redirect_url, &url_length, NULL);
     }
+
     if(res != ERROR_SUCCESS) {
         heap_free(redirect_url);
         return NULL;
