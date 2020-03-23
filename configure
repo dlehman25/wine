@@ -1273,6 +1273,7 @@ enable_msrle32
 enable_msscript_ocx
 enable_mssign32
 enable_mssip32
+enable_msspellcheckingfacility
 enable_mstask
 enable_msttsengine
 enable_msv1_0
@@ -21776,6 +21777,7 @@ wine_fn_config_makefile dlls/msscript.ocx enable_msscript_ocx
 wine_fn_config_makefile dlls/msscript.ocx/tests enable_tests
 wine_fn_config_makefile dlls/mssign32 enable_mssign32
 wine_fn_config_makefile dlls/mssip32 enable_mssip32
+wine_fn_config_makefile dlls/msspellcheckingfacility enable_msspellcheckingfacility
 wine_fn_config_makefile dlls/mstask enable_mstask
 wine_fn_config_makefile dlls/mstask/tests enable_tests
 wine_fn_config_makefile dlls/msttsengine enable_msttsengine
