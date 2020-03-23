@@ -30,9 +30,30 @@
 #include "wine/test.h"
 #include "wine/heap.h"
 
+#include "initguid.h"
+#include "spellcheck.h"
+
+static void test_factory(void)
+{
+    ISpellCheckerFactory *factory;
+    HRESULT hr;
+
+    factory = NULL;
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    todo_wine {
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!factory, "got NULL\n");
+    }
+
+    if (factory)
+        ISpellCheckerFactory_Release(factory);
+}
+
 START_TEST(msspell)
 {
-    CoInitialize(NULL);
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
+    test_factory();
     CoUninitialize();
 }
