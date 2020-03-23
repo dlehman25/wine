@@ -638,6 +638,7 @@ SOURCES = \
 	snmp.h \
 	softpub.h \
 	spatialaudioclient.idl \
+	spellcheck.idl \
 	sperror.h \
 	sql.h \
 	sqlext.h \
