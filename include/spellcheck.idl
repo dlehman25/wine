@@ -1,0 +1,126 @@
+/*
+ * Copyright (C) 2020 Daniel Lehman
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+import "oaidl.idl";
+
+[
+    object,
+    uuid(b7c82d61-fbe8-4b47-9b27-6c0d2e0de0a3),
+    pointer_default(unique)
+]
+interface ISpellingError : IUnknown
+{
+    typedef [v1_enum] enum CORRECTIVE_ACTION
+    {
+        CORRECTIVE_ACTION_NONE              = 0,
+        CORRECTIVE_ACTION_GET_SUGGESTIONS   = 1,
+        CORRECTIVE_ACTION_REPLACE           = 2,
+        CORRECTIVE_ACTION_DELETE            = 3
+    } CORRECTIVE_ACTION;
+    [propget] HRESULT StartIndex([out, retval] ULONG*);
+    [propget] HRESULT Length([out, retval] ULONG*);
+    [propget] HRESULT CorrectiveAction([out, retval] CORRECTIVE_ACTION*);
+    [propget] HRESULT Replacement([out, retval] LPWSTR*);
+}
+
+[
+    object,
+    uuid(803e3bd4-2828-4410-8290-418d1d73c762),
+    pointer_default(unique)
+]
+interface IEnumSpellingError : IUnknown
+{
+    HRESULT Next([out, retval] ISpellingError**);
+}
+
+[
+    object,
+    uuid(432e5f85-35cf-4606-a801-6f70277e1d7a),
+    pointer_default(unique)
+]
+interface IOptionDescription : IUnknown
+{
+    [propget] HRESULT Id([out, retval] LPWSTR*);
+    [propget] HRESULT Heading([out, retval] LPWSTR*);
+    [propget] HRESULT Description([out, retval] LPWSTR*);
+    [propget] HRESULT Labels([out, retval] IEnumString**);
+}
+
+interface ISpellCheckerChangedEventHandler;
+
+[
+    object,
+    uuid(b6fd0b71-e2bc-4653-8d05-f197e412770b),
+    pointer_default(unique)
+]
+interface ISpellChecker : IUnknown
+{
+    [propget] HRESULT LanguageTag([out, retval] LPWSTR*);
+    HRESULT Check([in] LPCWSTR, [out, retval] IEnumSpellingError**);
+    HRESULT Suggest([in] LPCWSTR, [out, retval] IEnumString**);
+    HRESULT Add([in] LPCWSTR);
+    HRESULT Ignore([in] LPCWSTR);
+    HRESULT AutoCorrect([in] LPCWSTR, [in] LPCWSTR);
+    HRESULT GetOptionValue([in] LPCWSTR, [out, retval] BYTE*);
+    [propget] HRESULT OptionIds([out, retval] IEnumString**);
+    [propget] HRESULT Id([out, retval] LPWSTR*);
+    [propget] HRESULT LocalizedName([out, retval] LPWSTR*);
+    HRESULT add_SpellCheckerChanged([in] ISpellCheckerChangedEventHandler*, [out, retval] DWORD*);
+    HRESULT remove_SpellCheckerChanged([in] DWORD);
+    HRESULT GetOptionDescription([in] LPCWSTR, [out, retval] IOptionDescription**);
+    HRESULT ComprehensiveCheck([in] LPCWSTR, [out, retval] IEnumSpellingError**);
+}
+
+[
+    object,
+    uuid(0b83a5b0-792f-4eab-9799-acf52c5ed08a),
+    pointer_default(unique)
+]
+interface ISpellCheckerChangedEventHandler : IUnknown
+{
+    HRESULT Invoke([in] ISpellChecker*);
+}
+
+[
+    object,
+    uuid(8e018a9d-2415-4677-bf08-794ea61f94bb),
+    pointer_default(unique)
+]
+interface ISpellCheckerFactory : IUnknown
+{
+    [propget] HRESULT SupportedLanguages([out, retval] IEnumString**);
+    HRESULT IsSupported([in] LPCWSTR, [out, retval] BOOL*);
+    HRESULT CreateSpellChecker([in] LPCWSTR, [out, retval] ISpellChecker**);
+}
+
+[
+    uuid(4a250e01-61ea-400b-a27d-bf3744bcc9f5),
+    version(1.0)
+]
+library MsSpellCheckLib
+{
+    importlib("stdole2.tlb");
+    [
+        uuid(7ab36653-1796-484b-bdfa-e74f1db7c1dc)
+    ]
+    coclass SpellCheckerFactory
+    {
+        [default] interface ISpellCheckerFactory;
+        interface IUserDictionariesRegistrar;
+    }
+}
