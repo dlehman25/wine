@@ -5824,9 +5824,9 @@ static void test_redirect(int port)
 {
     char buf[4000], expect_url[INTERNET_MAX_URL_LENGTH];
     char *large_buf, *large_expect;
+    DWORD size, expect_size;
     INTERNET_BUFFERSW ib;
     test_request_t req;
-    DWORD size;
     BOOL ret;
     int c;
 
@@ -5937,26 +5937,27 @@ if (0)
 }
     skip_receive_notification_tests = FALSE;
 
-    size = 64*1024; /* 8192 * 1024 ok */
-    sprintf(buf, "/redirect/%u", size);
+    expect_size = size = 2048;
+    c = sprintf(expect_url, "http://localhost:%u/echo_request?", port);
+    large_expect = malloc(size + 1);
+    memcpy(large_expect, expect_url, c);
+    memset(large_expect + c, 'x', size - c);
+    large_expect[size] = 0;
+
+    sprintf(buf, "/redirect/%u", size - c);
     open_simple_request(&req, "localhost", port, "GET", buf);
 
     ret = HttpSendRequestA(req.request, NULL, 0, NULL, 0);
     ok(ret, "HttpSendRequest failed: %u\n", GetLastError());
 
-    c = sprintf(buf, "http://localhost:%u/echo_request?", port);
-    large_expect = malloc(c + size + 1);
-    memcpy(large_expect, buf, c);
-    memset(large_expect + c, 'x', size);
-    large_expect[c + size] = 0;
-
-    size += c + 1;
+    size++;
     large_buf = malloc(size);
     memset(large_buf, 0, size);
 
     ret = InternetQueryOptionA(req.request, INTERNET_OPTION_URL, large_buf, &size);
     ok(ret, "failed gle %u\n", GetLastError());
-    ok(size == strlen(large_expect), "got %zu\n", size);
+    ok(size == strlen(large_expect), "got %u\n", size);
+    ok(size == expect_size, "got %u\n", size);
     ok(!memcmp(large_buf, large_expect, size), "failed\n");
     test_status_code(req.request, 200);
 
