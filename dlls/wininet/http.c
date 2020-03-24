@@ -6031,10 +6031,10 @@ static void HTTP_clear_response_headers( http_request_t *request )
 static DWORD HTTP_GetResponseHeaders(http_request_t *request, INT *len)
 {
     INT cbreaks = 0;
-    WCHAR buffer[MAX_REPLY_LEN];
-    DWORD buflen = MAX_REPLY_LEN;
+    WCHAR buffer[sizeof("Location: ") + INTERNET_MAX_URL_LENGTH];
+    DWORD buflen = ARRAY_SIZE(buffer);
     INT  rc = 0;
-    char bufferA[MAX_REPLY_LEN];
+    char bufferA[ARRAY_SIZE(buffer)];
     LPWSTR status_code = NULL, status_text = NULL;
     DWORD res = ERROR_HTTP_INVALID_SERVER_RESPONSE;
     BOOL codeHundred = FALSE;
@@ -6052,14 +6052,14 @@ static DWORD HTTP_GetResponseHeaders(http_request_t *request, INT *len)
         /*
          * We should first receive 'HTTP/1.x nnn OK' where nnn is the status code.
          */
-        buflen = MAX_REPLY_LEN;
+        buflen = sizeof(bufferA);
         if ((res = read_line(request, bufferA, &buflen)))
             goto lend;
 
         if (!buflen) goto lend;
 
         rc += buflen;
-        MultiByteToWideChar( CP_ACP, 0, bufferA, buflen, buffer, MAX_REPLY_LEN );
+        MultiByteToWideChar( CP_ACP, 0, bufferA, buflen, buffer, ARRAY_SIZE(buffer) );
         /* check is this a status code line? */
         if (!wcsncmp(buffer, g_szHttp1_0, 4))
         {
@@ -6114,7 +6114,7 @@ static DWORD HTTP_GetResponseHeaders(http_request_t *request, INT *len)
     /* Parse each response line */
     do
     {
-        buflen = MAX_REPLY_LEN;
+        buflen = sizeof(bufferA);
         if (!read_line(request, bufferA, &buflen) && buflen)
         {
             LPWSTR * pFieldAndValue;
@@ -6122,7 +6122,7 @@ static DWORD HTTP_GetResponseHeaders(http_request_t *request, INT *len)
             TRACE("got line %s, now interpreting\n", debugstr_a(bufferA));
 
             if (!bufferA[0]) break;
-            MultiByteToWideChar( CP_ACP, 0, bufferA, buflen, buffer, MAX_REPLY_LEN );
+            MultiByteToWideChar( CP_ACP, 0, bufferA, buflen, buffer, ARRAY_SIZE(buffer) );
 
             pFieldAndValue = HTTP_InterpretHttpHeader(buffer);
             if (pFieldAndValue)
