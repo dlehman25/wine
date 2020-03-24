@@ -336,8 +336,9 @@ static void _test_request_flags(unsigned line, HINTERNET req, DWORD exflags, BOO
         ok_(__FILE__,line)(flags == exflags, "flags = %x, expected %x\n", flags, exflags);
 }
 
-#define test_request_url(a,b) _test_request_url(__LINE__,a,b)
-static void _test_request_url(unsigned line, HINTERNET req, const char *expected_url)
+#define test_request_url(a,b) _test_request_url(__LINE__,a,b,FALSE)
+#define test_request_url_todo(a,b) _test_request_url(__LINE__,a,b,TRUE)
+static void _test_request_url(unsigned line, HINTERNET req, const char *expected_url, BOOL is_todo)
 {
     char buf[INTERNET_MAX_URL_LENGTH];
     DWORD size = sizeof(buf);
@@ -345,8 +346,10 @@ static void _test_request_url(unsigned line, HINTERNET req, const char *expected
 
     res = InternetQueryOptionA(req, INTERNET_OPTION_URL, buf, &size);
     ok_(__FILE__,line)(res, "InternetQueryOptionA(INTERNET_OPTION_URL) failed: %u\n", GetLastError());
+    todo_wine_if(is_todo) {
     ok_(__FILE__,line)(size == strlen(expected_url), "size = %u\n", size);
     ok_(__FILE__,line)(!strcmp(buf, expected_url), "unexpected URL %s, expected %s\n", buf, expected_url);
+    }
 }
 
 #define test_http_version(a) _test_http_version(__LINE__,a)
@@ -5801,6 +5804,7 @@ static void test_redirect(int port)
     char buf[4000], expect_url[INTERNET_MAX_URL_LENGTH];
     INTERNET_BUFFERSW ib;
     test_request_t req;
+    int c;
 
     if(!is_ie7plus)
         return;
@@ -5901,6 +5905,55 @@ static void test_redirect(int port)
     sprintf(expect_url, "http://localhost:%u/socket", port);
     test_request_url(req.request, expect_url);
     test_status_code(req.request, 302);
+
+    close_connection();
+    close_async_handle(req.session, 2);
+
+    trace("Testing redirecting to long url...\n");
+
+    open_socket_request(port, &req, NULL);
+
+    SET_OPTIONAL(INTERNET_STATUS_COOKIE_SENT);
+    SET_EXPECT(INTERNET_STATUS_REDIRECT);
+    SET_EXPECT(INTERNET_STATUS_SENDING_REQUEST);
+    SET_EXPECT(INTERNET_STATUS_REQUEST_SENT);
+
+    c = sprintf(expect_url, "http://localhost:%u/", port);
+    memset(expect_url + c, 'x', INTERNET_MAX_URL_LENGTH - c - 1);
+    expect_url[INTERNET_MAX_URL_LENGTH-1] = 0;
+
+    sprintf(buf, "HTTP/1.1 302 Found\r\n"
+                 "Server: winetest\r\n"
+                 "Location: %s\r\n"
+                 "Connection: keep-alive\r\n"
+                 "Content-Length: 0\r\n"
+                 "\r\n", expect_url);
+    server_send_string(buf);
+
+    sprintf(buf, "GET /%s HTTP/1.1", expect_url + c);
+    todo_wine server_read_request(buf);
+
+    CHECK_NOTIFIED(INTERNET_STATUS_SENDING_REQUEST);
+
+    test_request_url_todo(req.request, expect_url);
+
+    SET_EXPECT(INTERNET_STATUS_REQUEST_COMPLETE);
+
+    server_send_string("HTTP/1.1 200 OK\r\n"
+                       "Server: winetest\r\n"
+                       "Content-Length: 3\r\n"
+                       "\r\n"
+                       "xxx");
+
+    WaitForSingleObject(complete_event, INFINITE);
+
+    CLEAR_NOTIFIED(INTERNET_STATUS_COOKIE_SENT);
+    CHECK_NOTIFIED(INTERNET_STATUS_REQUEST_SENT);
+    CHECK_NOTIFIED(INTERNET_STATUS_REDIRECT);
+    CHECK_NOTIFIED(INTERNET_STATUS_REQUEST_COMPLETE);
+    ok(req_error == ERROR_SUCCESS, "expected ERROR_SUCCESS, got %u\n", req_error);
+
+    test_status_code(req.request, 200);
 
     close_connection();
     close_async_handle(req.session, 2);
