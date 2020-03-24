@@ -6080,6 +6080,8 @@ static void test_http_connection(void)
         return;
     }
 
+if (0)
+{
     test_basic_request(si.port, "GET", "/test1");
     test_proxy_indirect(si.port);
     test_proxy_direct(si.port);
@@ -6119,11 +6121,14 @@ static void test_http_connection(void)
     test_http_read(si.port);
     test_connection_break(si.port);
     test_long_url(si.port);
+}
     test_redirect(si.port);
+if (0)
+{
     test_persistent_connection(si.port);
     test_remove_dot_segments(si.port);
     test_large_content(si.port);
-
+}
     /* send the basic request again to shutdown the server thread */
     test_basic_request(si.port, "GET", "/quit");
 
@@ -7732,6 +7737,8 @@ START_TEST(http)
     }
 
     init_events();
+if (0)
+{
     init_status_tests();
     test_InternetCloseHandle();
     InternetReadFile_test(INTERNET_FLAG_ASYNC, &test_data[0]);
@@ -7752,7 +7759,10 @@ START_TEST(http)
     InternetLockRequestFile_test();
     InternetOpenUrlA_test();
     HttpHeaders_test();
+}
     test_http_connection();
+if (0)
+{
     test_user_agent_header();
     test_bogus_accept_types_array();
     InternetReadFile_chunked_test();
@@ -7762,5 +7772,6 @@ START_TEST(http)
     test_default_service_port();
     test_concurrent_header_access();
     test_cert_string();
+}
     free_events();
 }
