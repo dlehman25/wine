@@ -336,9 +336,8 @@ static void _test_request_flags(unsigned line, HINTERNET req, DWORD exflags, BOO
         ok_(__FILE__,line)(flags == exflags, "flags = %x, expected %x\n", flags, exflags);
 }
 
-#define test_request_url(a,b) _test_request_url(__LINE__,a,b,FALSE)
-#define test_request_url_todo(a,b) _test_request_url(__LINE__,a,b,TRUE)
-static void _test_request_url(unsigned line, HINTERNET req, const char *expected_url, BOOL is_todo)
+#define test_request_url(a,b) _test_request_url(__LINE__,a,b)
+static void _test_request_url(unsigned line, HINTERNET req, const char *expected_url)
 {
     char buf[INTERNET_MAX_URL_LENGTH];
     DWORD size = sizeof(buf);
@@ -346,10 +345,8 @@ static void _test_request_url(unsigned line, HINTERNET req, const char *expected
 
     res = InternetQueryOptionA(req, INTERNET_OPTION_URL, buf, &size);
     ok_(__FILE__,line)(res, "InternetQueryOptionA(INTERNET_OPTION_URL) failed: %u\n", GetLastError());
-    todo_wine_if(is_todo) {
     ok_(__FILE__,line)(size == strlen(expected_url), "size = %u\n", size);
     ok_(__FILE__,line)(!strcmp(buf, expected_url), "unexpected URL %s, expected %s\n", buf, expected_url);
-    }
 }
 
 #define test_http_version(a) _test_http_version(__LINE__,a)
@@ -5931,11 +5928,11 @@ static void test_redirect(int port)
     server_send_string(buf);
 
     sprintf(buf, "GET /%s HTTP/1.1", expect_url + c);
-    todo_wine server_read_request(buf);
+    server_read_request(buf);
 
     CHECK_NOTIFIED(INTERNET_STATUS_SENDING_REQUEST);
 
-    test_request_url_todo(req.request, expect_url);
+    test_request_url(req.request, expect_url);
 
     SET_EXPECT(INTERNET_STATUS_REQUEST_COMPLETE);
 
