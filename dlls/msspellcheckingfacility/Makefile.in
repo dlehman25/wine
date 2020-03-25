@@ -4,3 +4,5 @@ EXTRADLLFLAGS = -mno-cygwin
 
 C_SRCS = \
 	main.c
+
+IDL_SRCS = spellcheck_classes.idl
