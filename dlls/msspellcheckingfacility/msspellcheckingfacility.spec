@@ -1,8 +1,8 @@
-1 stub DllCanUnloadNow
+@ stdcall -private DllCanUnloadNow()
 2 stub DllGetActivationFactory
-3 stub DllGetClassObject
-4 stub DllRegisterServer
-5 stub DllUnregisterServer
+@ stdcall -private DllGetClassObject(ptr ptr ptr)
+@ stdcall -private DllRegisterServer()
+@ stdcall -private DllUnregisterServer()
 6 stub SpellerCheck
 7 stub SpellerCloseLex
 8 stub SpellerGetOptions
