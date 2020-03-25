@@ -22,9 +22,13 @@
 
 #include "windef.h"
 #include "winbase.h"
+#include "objbase.h"
+#include "rpcproxy.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(msspell);
+
+static HINSTANCE msspell_instance;
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
 {
@@ -36,8 +40,45 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
             return FALSE;    /* prefer native version */
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(instance);
+            msspell_instance = instance;
             break;
     }
 
     return TRUE;
+}
+
+/***********************************************************************
+ *		DllGetClassObject
+ */
+HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
+{
+    FIXME("Unknown object %s (iface %s)\n", debugstr_guid(rclsid), debugstr_guid(riid));
+    return CLASS_E_CLASSNOTAVAILABLE;
+}
+
+/***********************************************************************
+ *          DllCanUnloadNow
+ */
+HRESULT WINAPI DllCanUnloadNow(void)
+{
+    TRACE("\n");
+    return S_FALSE;
+}
+
+/***********************************************************************
+ *          DllRegisterServer
+ */
+HRESULT WINAPI DllRegisterServer(void)
+{
+    TRACE("()\n");
+    return __wine_register_resources(msspell_instance);
+}
+
+/***********************************************************************
+ *          DllUnregisterServer
+ */
+HRESULT WINAPI DllUnregisterServer(void)
+{
+    TRACE("()\n");
+    return __wine_unregister_resources(msspell_instance);
 }
