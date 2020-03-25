@@ -18,17 +18,76 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define COBJMACROS
 #include <stdarg.h>
 
+#include "initguid.h"
 #include "windef.h"
 #include "winbase.h"
 #include "objbase.h"
+#include "spellcheck.h"
 #include "rpcproxy.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(msspell);
 
 static HINSTANCE msspell_instance;
+
+static HRESULT WINAPI SpellCheckerFactory_CreateInstance(IClassFactory *iface, IUnknown *outer,
+                                                         REFIID riid, void **ppv)
+{
+    FIXME("(%p %s %p)\n", outer, debugstr_guid(riid), ppv);
+    *ppv = NULL;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID riid, void **ppv)
+{
+    if (!ppv)
+        return E_POINTER;
+
+    *ppv = NULL;
+    if (IsEqualGUID(&IID_IUnknown, riid) ||
+        IsEqualGUID(&IID_IClassFactory, riid))
+    {
+        TRACE("(%p)->(%s %p)\n", iface, debugstr_guid(riid), ppv);
+        *ppv = iface;
+
+        IUnknown_AddRef((IUnknown*)*ppv);
+        return S_OK;
+    }
+
+    WARN("(%p)->(%s %p)\n", iface, debugstr_guid(riid), ppv);
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI ClassFactory_AddRef(IClassFactory *iface)
+{
+    TRACE("(%p)\n", iface);
+    return 2;
+}
+
+static ULONG WINAPI ClassFactory_Release(IClassFactory *iface)
+{
+    TRACE("(%p)\n", iface);
+    return 1;
+}
+
+static HRESULT WINAPI ClassFactory_LockServer(IClassFactory *iface, BOOL fLock)
+{
+    TRACE("(%p)->(%x)\n", iface, fLock);
+    return S_OK;
+}
+
+static const IClassFactoryVtbl SCFactoryVtbl = {
+    ClassFactory_QueryInterface,
+    ClassFactory_AddRef,
+    ClassFactory_Release,
+    SpellCheckerFactory_CreateInstance,
+    ClassFactory_LockServer
+};
+
+static IClassFactory SCFactory = { &SCFactoryVtbl };
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
 {
@@ -52,6 +111,11 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
  */
 HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 {
+    if(IsEqualGUID(&CLSID_SpellCheckerFactory, rclsid)) {
+        TRACE("(CLSID_SpellCheckerFactory %s %p)\n", debugstr_guid(riid), ppv);
+        return IClassFactory_QueryInterface(&SCFactory, riid, ppv);
+    }
+
     FIXME("Unknown object %s (iface %s)\n", debugstr_guid(rclsid), debugstr_guid(riid));
     return CLASS_E_CLASSNOTAVAILABLE;
 }
