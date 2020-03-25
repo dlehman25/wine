@@ -36,7 +36,12 @@
 static void test_factory(void)
 {
     ISpellCheckerFactory *factory;
+    ISpellChecker *checker;
+    IEnumString *langs;
+    BOOL supported;
+    LPOLESTR lang;
     HRESULT hr;
+    ULONG num;
 
     factory = NULL;
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
@@ -46,8 +51,39 @@ static void test_factory(void)
     ok(!!factory, "got NULL\n");
     }
 
-    if (factory)
-        ISpellCheckerFactory_Release(factory);
+    if (!factory)
+        return;
+
+    hr = ISpellCheckerFactory_get_SupportedLanguages(factory, &langs);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!langs, "got NULL\n");
+
+    if (!langs)
+        goto done;
+
+    num = 0;
+    while ((hr = IEnumString_Next(langs, 1, &lang, NULL)) == S_OK)
+    {
+        ++num;
+        supported = -1;
+        hr = ISpellCheckerFactory_IsSupported(factory, lang, &supported);
+        ok(SUCCEEDED(hr), "%ls: got 0x%x\n", lang, hr);
+        ok(supported == TRUE, "%ls: not supported\n", lang);
+        CoTaskMemFree(lang);
+    }
+    IEnumString_Release(langs);
+
+    ok(num, "no languages supported\n");
+
+    checker = NULL;
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!checker, "got NULL\n");
+
+    ISpellChecker_Release(checker);
+
+done:
+    ISpellCheckerFactory_Release(factory);
 }
 
 START_TEST(msspell)
