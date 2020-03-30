@@ -18,6 +18,14 @@
 
 import "oaidl.idl";
 
+typedef [v1_enum] enum WORDLIST_TYPE
+{
+    WORDLIST_TYPE_IGNORE      = 0,
+    WORDLIST_TYPE_ADD         = 1,
+    WORDLIST_TYPE_EXCLUDE     = 2,
+    WORDLIST_TYPE_AUTOCORRECT = 3
+} WORDLIST_TYPE;
+
 [
     object,
     uuid(b7c82d61-fbe8-4b47-9b27-6c0d2e0de0a3),

@@ -639,6 +639,7 @@ SOURCES = \
 	softpub.h \
 	spatialaudioclient.idl \
 	spellcheck.idl \
+	spellcheckprovider.idl \
 	sperror.h \
 	sql.h \
 	sqlext.h \
