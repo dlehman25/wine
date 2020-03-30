@@ -46,12 +46,6 @@ static void test_factory(void)
     factory = NULL;
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
                           &IID_ISpellCheckerFactory, (void**)&factory);
-    ok(hr == S_OK || hr == REGDB_E_CLASSNOTREG /* winxp/win2k8 */, "got 0x%x\n", hr);
-    if (hr != S_OK)
-    {
-        win_skip("SpellCheckerFactory not supported on this platform\n");
-        return;
-    }
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!factory, "got NULL\n");
 
@@ -92,7 +86,21 @@ done:
 
 START_TEST(msspell)
 {
+    ISpellCheckerFactory *factory;
+    HRESULT hr;
+
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    factory = NULL;
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    ok(hr == S_OK || hr == REGDB_E_CLASSNOTREG /* winxp/win2k8 */, "got 0x%x\n", hr);
+    if (hr != S_OK)
+    {
+        win_skip("SpellCheckerFactory not supported on this platform\n");
+        return;
+    }
+    ISpellCheckerFactory_Release(factory);
 
     test_factory();
     CoUninitialize();
