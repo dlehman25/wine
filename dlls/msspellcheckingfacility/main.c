@@ -28,17 +28,117 @@
 #include "spellcheck.h"
 #include "rpcproxy.h"
 #include "wine/debug.h"
+#include "wine/heap.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(msspell);
 
 static HINSTANCE msspell_instance;
 
+typedef struct
+{
+    ISpellCheckerFactory ISpellCheckerFactory_iface;
+    LONG ref;
+} SpellCheckerFactoryImpl;
+
+static inline SpellCheckerFactoryImpl *impl_from_ISpellCheckerFactory(ISpellCheckerFactory *iface)
+{
+    return CONTAINING_RECORD(iface, SpellCheckerFactoryImpl, ISpellCheckerFactory_iface);
+}
+
+static HRESULT WINAPI SpellCheckerFactory_QueryInterface(ISpellCheckerFactory *iface,
+                        REFIID riid,
+                        void **ppvObject)
+{
+    SpellCheckerFactoryImpl *This = impl_from_ISpellCheckerFactory(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualGUID(riid, &IID_IUnknown) ||
+        IsEqualGUID(riid, &IID_ISpellCheckerFactory))
+    {
+        *ppvObject = &This->ISpellCheckerFactory_iface;
+        ISpellCheckerFactory_AddRef(iface);
+        return S_OK;
+    }
+
+    *ppvObject = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI SpellCheckerFactory_AddRef(ISpellCheckerFactory *iface)
+{
+    SpellCheckerFactoryImpl *This = impl_from_ISpellCheckerFactory(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI SpellCheckerFactory_Release(ISpellCheckerFactory *iface)
+{
+    SpellCheckerFactoryImpl *This = impl_from_ISpellCheckerFactory(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI SpellCheckerFactory_get_SupportedLanguages(ISpellCheckerFactory *iface,
+                        IEnumString **enumstr)
+{
+    FIXME("(%p %p)\n", iface, enumstr);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckerFactory_IsSupported(ISpellCheckerFactory *iface,
+                        LPCWSTR lang, BOOL *supported)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(lang), supported);
+    *supported = FALSE;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckerFactory_CreateSpellChecker(ISpellCheckerFactory *iface,
+                        LPCWSTR lang, ISpellChecker **checker)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(lang), checker);
+    *checker = NULL;
+    return E_NOTIMPL;
+}
+
+static const ISpellCheckerFactoryVtbl SpellCheckerFactoryVtbl =
+{
+    SpellCheckerFactory_QueryInterface,
+    SpellCheckerFactory_AddRef,
+    SpellCheckerFactory_Release,
+    SpellCheckerFactory_get_SupportedLanguages,
+    SpellCheckerFactory_IsSupported,
+    SpellCheckerFactory_CreateSpellChecker
+};
+
 static HRESULT WINAPI SpellCheckerFactory_CreateInstance(IClassFactory *iface, IUnknown *outer,
                                                          REFIID riid, void **ppv)
 {
-    FIXME("(%p %s %p)\n", outer, debugstr_guid(riid), ppv);
+    HRESULT hr;
+    SpellCheckerFactoryImpl *This;
+
+    TRACE("(%p %s %p)\n", outer, debugstr_guid(riid), ppv);
+
     *ppv = NULL;
-    return E_NOTIMPL;
+    if (outer)
+        return CLASS_E_NOAGGREGATION;
+
+    This = heap_alloc(sizeof(*This));
+    if (!This)
+        return E_OUTOFMEMORY;
+
+    This->ISpellCheckerFactory_iface.lpVtbl = &SpellCheckerFactoryVtbl;
+    This->ref = 1;
+
+    hr = SpellCheckerFactory_QueryInterface(&This->ISpellCheckerFactory_iface, riid, ppv);
+    SpellCheckerFactory_Release(&This->ISpellCheckerFactory_iface);
+    return hr;
 }
 
 static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID riid, void **ppv)
