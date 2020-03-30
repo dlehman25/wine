@@ -212,23 +212,28 @@ done:
 
 START_TEST(msspell)
 {
+    static const DWORD init[] = { COINIT_MULTITHREADED, COINIT_APARTMENTTHREADED };
     ISpellCheckerFactory *factory;
     HRESULT hr;
+    int i;
 
-    CoInitializeEx(NULL, COINIT_MULTITHREADED);
-
-    factory = NULL;
-    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
-                          &IID_ISpellCheckerFactory, (void**)&factory);
-    ok(hr == S_OK || hr == REGDB_E_CLASSNOTREG /* winxp/win2k8 */, "got 0x%x\n", hr);
-    if (hr != S_OK)
+    for (i = 0; i < ARRAY_SIZE(init); i++)
     {
-        win_skip("SpellCheckerFactory not supported on this platform\n");
-        return;
-    }
-    ISpellCheckerFactory_Release(factory);
+        CoInitializeEx(NULL, init[i]);
 
-    test_factory();
-    test_spellchecker();
-    CoUninitialize();
+        factory = NULL;
+        hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                              &IID_ISpellCheckerFactory, (void**)&factory);
+        ok(hr == S_OK || hr == REGDB_E_CLASSNOTREG /* winxp/win2k8 */, "got 0x%x\n", hr);
+        if (hr != S_OK)
+        {
+            win_skip("SpellCheckerFactory not supported on this platform\n");
+            return;
+        }
+        ISpellCheckerFactory_Release(factory);
+
+        test_factory();
+        test_spellchecker();
+        CoUninitialize();
+    }
 }
