@@ -84,6 +84,132 @@ done:
     ISpellCheckerFactory_Release(factory);
 }
 
+static void test_spellchecker(void)
+{
+    static const WCHAR *bad = L"hello worlld";
+    ULONG start, len, nsuggestions;
+    ISpellCheckerFactory *factory;
+    IEnumSpellingError *errors;
+    LPWSTR id, replace, suggestion;
+    IEnumString *suggestions;
+    CORRECTIVE_ACTION action;
+    ISpellChecker *checker;
+    ISpellingError *err;
+    WCHAR word[32];
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    checker = NULL;
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    if (!checker)
+        goto done;
+
+    id = NULL;
+    hr = ISpellChecker_get_Id(checker, &id);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!wcscmp(id, L"MsSpell"), "got '%s'\n", wine_dbgstr_w(id));
+    CoTaskMemFree(id);
+
+    /* Check */
+
+    /* no errors */
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, L"hello world", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_FALSE, "got 0x%x\n", hr);
+    ok(!err, "got %p\n", err);
+    IEnumSpellingError_Release(errors);
+
+    /* with an error */
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, bad, &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    /* first error */
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!err, "got NULL\n");
+
+    action = 42;
+    hr = ISpellingError_get_CorrectiveAction(err, &action);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(action == CORRECTIVE_ACTION_GET_SUGGESTIONS, "got %d\n", action);
+
+    len = 0;
+    hr = ISpellingError_get_Length(err, &len);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(len == 6, "got %u\n", len);
+
+    start = 0;
+    hr = ISpellingError_get_StartIndex(err, &start);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(start == 6, "got %u\n", start);
+
+    replace = NULL;
+    hr = ISpellingError_get_Replacement(err, &replace);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!wcscmp(replace, L""), "got '%s'\n", wine_dbgstr_w(replace));
+    CoTaskMemFree(replace);
+    ISpellingError_Release(err);
+
+    /* no more errors */
+    err = (void*)0xdeadbeef;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!err, "got %p\n", err);
+    IEnumSpellingError_Release(errors);
+
+    /* Suggest */
+    memcpy(word, &bad[start], len * sizeof(WCHAR));
+    word[len] = 0;
+    suggestions = NULL;
+    hr = ISpellChecker_Suggest(checker, word, &suggestions);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!suggestions, "got NULL\n");
+
+    nsuggestions = 0;
+    suggestion = NULL;
+    while (SUCCEEDED(IEnumString_Next(suggestions, 1, &suggestion, NULL)) && suggestion)
+    {
+        /* not sure exact suggestions and ordering are important - just that there are some*/
+        ++nsuggestions;
+        CoTaskMemFree(suggestion);
+    }
+    ok(nsuggestions, "no suggestions found\n");
+    IEnumString_Release(suggestions);
+
+    /* Ignore */
+    hr = ISpellChecker_Ignore(checker, word);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, bad, &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_FALSE, "got 0x%x\n", hr);
+    ok(!err, "got %p\n", err);
+    IEnumSpellingError_Release(errors);
+
+    ISpellChecker_Release(checker);
+
+done:
+    ISpellCheckerFactory_Release(factory);
+}
+
 START_TEST(msspell)
 {
     ISpellCheckerFactory *factory;
@@ -103,5 +229,6 @@ START_TEST(msspell)
     ISpellCheckerFactory_Release(factory);
 
     test_factory();
+    test_spellchecker();
     CoUninitialize();
 }
