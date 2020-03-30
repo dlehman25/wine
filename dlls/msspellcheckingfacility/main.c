@@ -140,6 +140,7 @@ static HRESULT WINAPI SpellCheckerFactory_CreateInstance(IClassFactory *iface, I
     SpellCheckerFactory_Release(&This->ISpellCheckerFactory_iface);
     return hr;
 }
+static IMarshal *pUnkFTMarshal; /* TODO */
 
 static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID riid, void **ppv)
 {
@@ -154,6 +155,14 @@ static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID r
         *ppv = iface;
 
         IUnknown_AddRef((IUnknown*)*ppv);
+        return S_OK;
+    }
+
+    if (IsEqualGUID(&IID_IMarshal, riid))
+    {
+        HRESULT hr;
+        hr = CoCreateFreeThreadedMarshaler((IUnknown *)iface, &pUnkFTMarshal);
+        hr = IUnknown_QueryInterface(pUnkFTMarshal, riid, ppv);
         return S_OK;
     }
 
