@@ -1,0 +1,60 @@
+/*
+ * Copyright (C) 2020 Daniel Lehman
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+import "spellcheck.idl";
+
+[
+    object,
+    uuid(73e976e0-8ed4-4eb1-80d7-1be0a16b0c38),
+    pointer_default(unique)
+]
+interface ISpellCheckProvider : IUnknown
+{
+    [propget] HRESULT LanguageTag([out, retval] LPWSTR*);
+    HRESULT Check([in] LPCWSTR, [out, retval] IEnumSpellingError**);
+    HRESULT Suggest([in] LPCWSTR, [out, retval] IEnumString**);
+    HRESULT GetOptionValue([in] LPCWSTR, [out, retval] BYTE*);
+    HRESULT SetOptionValue([in] LPCWSTR, [in] BYTE);
+    [propget] HRESULT OptionIds([out, retval] IEnumString**);
+    [propget] HRESULT Id([out, retval] LPWSTR*);
+    [propget] HRESULT LocalizedName([out, retval] LPWSTR*);
+    HRESULT GetOptionDescription([in] LPCWSTR, [out, retval] IOptionDescription**);
+    HRESULT InitializedWordlist([in] WORDLIST_TYPE, [in] IEnumString*);
+}
+
+[
+    object,
+    uuid(0c58f8de-8e94-479e-9717-70c42c4ad2c3),
+    pointer_default(unique)
+]
+interface IComprehensiveSpellCheckProvider : IUnknown
+{
+    HRESULT ComprehensiveCheck([in] LPCWSTR, [out, retval] IEnumSpellingError**);
+}
+
+[
+    object,
+    uuid(9f671e11-77d6-4c92-aefb-615215e3a4be),
+    pointer_default(unique)
+]
+interface ISpellCheckProviderFactory : IUnknown
+{
+    [propget] HRESULT SupportedLanguages([out, retval] IEnumString**);
+    HRESULT IsSupported([in] LPCWSTR, [out, retval] BOOL*);
+    HRESULT CreateSpellCheckProvider([in] LPCWSTR, [out, retval] ISpellCheckProvider**);
+}
