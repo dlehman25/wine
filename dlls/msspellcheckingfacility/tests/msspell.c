@@ -55,9 +55,12 @@ static void test_factory(void)
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!factory, "got NULL\n");
 
+    langs = NULL;
+    todo_wine {
     hr = ISpellCheckerFactory_get_SupportedLanguages(factory, &langs);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!langs, "got NULL\n");
+    }
 
     if (!langs)
         goto done;
