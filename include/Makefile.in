@@ -717,6 +717,7 @@ SOURCES = \
 	specstrings.h \
 	specstrings_strict.h \
 	spellcheck.idl \
+	spellcheckprovider.idl \
 	sperror.h \
 	sql.h \
 	sqlext.h \
