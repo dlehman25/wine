@@ -84,7 +84,7 @@ done:
     ISpellCheckerFactory_Release(factory);
 }
 
-static void test_spellchecker(DWORD init)
+static void test_spellchecker(void)
 {
     static const WCHAR *bad = L"hello worlld";
     ULONG start, len, nsuggestions;
@@ -109,8 +109,7 @@ static void test_spellchecker(DWORD init)
     }
 
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, NULL, &checker);
-    ok((init == COINIT_MULTITHREADED && hr == E_POINTER) ||
-       (init == COINIT_APARTMENTTHREADED && hr == 0x800706f4), "got %x for %d\n", hr, init);
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
 
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"foobar-lang", &checker);
     ok(hr == E_INVALIDARG, "got %x\n", hr);
@@ -119,19 +118,21 @@ static void test_spellchecker(DWORD init)
     ok(hr == E_INVALIDARG, "got %x\n", hr);
 
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ISpellChecker_Release(checker);
 
     checker = NULL;
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     if (!checker)
         goto done;
 
     id = NULL;
     hr = ISpellChecker_get_Id(checker, &id);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    if (!id)
+        goto done;
     ok(!wcscmp(id, L"MsSpell"), "got '%s'\n", wine_dbgstr_w(id));
     CoTaskMemFree(id);
 
@@ -224,9 +225,8 @@ static void test_spellchecker(DWORD init)
     ok(!err, "got %p\n", err);
     IEnumSpellingError_Release(errors);
 
-    ISpellChecker_Release(checker);
-
 done:
+    if (checker) ISpellChecker_Release(checker);
     ISpellCheckerFactory_Release(factory);
 }
 
@@ -253,7 +253,7 @@ START_TEST(msspell)
         ISpellCheckerFactory_Release(factory);
 
         test_factory();
-        test_spellchecker(init[i]);
+        test_spellchecker();
         CoUninitialize();
     }
 }
