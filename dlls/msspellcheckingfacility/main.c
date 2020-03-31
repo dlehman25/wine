@@ -40,10 +40,172 @@ typedef struct
     LONG ref;
 } SpellCheckerFactoryImpl;
 
+typedef struct
+{
+    ISpellChecker ISpellChecker_iface;
+    LONG ref;
+} SpellCheckerImpl;
+
 static inline SpellCheckerFactoryImpl *impl_from_ISpellCheckerFactory(ISpellCheckerFactory *iface)
 {
     return CONTAINING_RECORD(iface, SpellCheckerFactoryImpl, ISpellCheckerFactory_iface);
 }
+
+static inline SpellCheckerImpl *impl_from_ISpellChecker(ISpellChecker *iface)
+{
+    return CONTAINING_RECORD(iface, SpellCheckerImpl, ISpellChecker_iface);
+}
+
+static HRESULT WINAPI SpellChecker_QueryInterface(ISpellChecker *iface,
+                        REFIID riid,
+                        void **ppvObject)
+{
+    SpellCheckerImpl *This = impl_from_ISpellChecker(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualGUID(riid, &IID_IUnknown) ||
+        IsEqualGUID(riid, &IID_ISpellChecker))
+    {
+        *ppvObject = &This->ISpellChecker_iface;
+        ISpellChecker_AddRef(iface);
+        return S_OK;
+    }
+
+    *ppvObject = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI SpellChecker_AddRef(ISpellChecker *iface)
+{
+    SpellCheckerImpl *This = impl_from_ISpellChecker(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI SpellChecker_Release(ISpellChecker *iface)
+{
+    SpellCheckerImpl *This = impl_from_ISpellChecker(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI SpellChecker_get_LanguageTag(ISpellChecker *iface,
+                        LPWSTR *tag)
+{
+    FIXME("(%p %p)\n", iface, tag);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_Check(ISpellChecker *iface, LPCWSTR text,
+                        IEnumSpellingError **errors)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(text), errors);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_Suggest(ISpellChecker *iface, LPCWSTR word,
+                        IEnumString **suggestions)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(word), suggestions);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_Add(ISpellChecker *iface, LPCWSTR word)
+{
+    FIXME("(%p %s)\n", iface, debugstr_w(word));
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_Ignore(ISpellChecker *iface, LPCWSTR word)
+{
+    FIXME("(%p %s)\n", iface, debugstr_w(word));
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_AutoCorrect(ISpellChecker *iface, LPCWSTR from, LPCWSTR to)
+{
+    FIXME("(%p %s %s)\n", iface, debugstr_w(from), debugstr_w(to));
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_GetOptionValue(ISpellChecker *iface, LPCWSTR option,
+                        BYTE *value)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(option), value);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_get_OptionIds(ISpellChecker *iface, IEnumString **ids)
+{
+    FIXME("(%p %p)\n", iface, ids);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_get_Id(ISpellChecker *iface, LPWSTR *id)
+{
+    FIXME("(%p %p)\n", iface, id);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_get_LocalizedName(ISpellChecker *iface, LPWSTR *name)
+{
+    FIXME("(%p %p)\n", iface, name);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_add_SpellCheckerChanged(ISpellChecker *iface,
+                        ISpellCheckerChangedEventHandler *handler, DWORD *cookie)
+{
+    FIXME("(%p %p %p)\n", iface, handler, cookie);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_remove_SpellCheckerChanged(ISpellChecker *iface, DWORD cookie)
+{
+    FIXME("(%p %x)\n", iface, cookie);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_GetOptionDescription(ISpellChecker *iface, LPCWSTR option,
+                        IOptionDescription **description)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(option), description);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellChecker_ComprehensiveCheck(ISpellChecker *iface, LPCWSTR text,
+                        IEnumSpellingError **error)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(text), error);
+    return E_NOTIMPL;
+}
+
+static const ISpellCheckerVtbl SpellCheckerVtbl =
+{
+    SpellChecker_QueryInterface,
+    SpellChecker_AddRef,
+    SpellChecker_Release,
+    SpellChecker_get_LanguageTag,
+    SpellChecker_Check,
+    SpellChecker_Suggest,
+    SpellChecker_Add,
+    SpellChecker_Ignore,
+    SpellChecker_AutoCorrect,
+    SpellChecker_GetOptionValue,
+    SpellChecker_get_OptionIds,
+    SpellChecker_get_Id,
+    SpellChecker_get_LocalizedName,
+    SpellChecker_add_SpellCheckerChanged,
+    SpellChecker_remove_SpellCheckerChanged,
+    SpellChecker_GetOptionDescription,
+    SpellChecker_ComprehensiveCheck
+};
 
 static HRESULT WINAPI SpellCheckerFactory_QueryInterface(ISpellCheckerFactory *iface,
                         REFIID riid,
@@ -102,9 +264,29 @@ static HRESULT WINAPI SpellCheckerFactory_IsSupported(ISpellCheckerFactory *ifac
 static HRESULT WINAPI SpellCheckerFactory_CreateSpellChecker(ISpellCheckerFactory *iface,
                         LPCWSTR lang, ISpellChecker **checker)
 {
-    FIXME("(%p %s %p)\n", iface, debugstr_w(lang), checker);
-    *checker = NULL;
-    return E_NOTIMPL;
+    SpellCheckerImpl *obj;
+
+    TRACE("(%p %s %p)\n", iface, debugstr_w(lang), checker);
+
+    if (!lang)
+        return E_POINTER;
+
+    if (wcsicmp(L"en-us", lang))
+    {
+        *checker = NULL;
+        WARN("unsupported lang %s\n", debugstr_w(lang));
+        return E_INVALIDARG;
+    }
+
+    obj = heap_alloc(sizeof(*obj));
+    if (!obj)
+        return E_OUTOFMEMORY;
+
+    obj->ISpellChecker_iface.lpVtbl = &SpellCheckerVtbl;
+    obj->ref = 1;
+
+    *checker = &obj->ISpellChecker_iface;
+    return S_OK;
 }
 
 static const ISpellCheckerFactoryVtbl SpellCheckerFactoryVtbl =
