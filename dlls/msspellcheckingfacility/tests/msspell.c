@@ -84,7 +84,7 @@ done:
     ISpellCheckerFactory_Release(factory);
 }
 
-static void test_spellchecker(void)
+static void test_spellchecker(DWORD init)
 {
     static const WCHAR *bad = L"hello worlld";
     ULONG start, len, nsuggestions;
@@ -101,6 +101,26 @@ static void test_spellchecker(void)
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
                           &IID_ISpellCheckerFactory, (void**)&factory);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    if (0) /* crash on Windows */
+    {
+        hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", NULL);
+        hr = ISpellCheckerFactory_CreateSpellChecker(NULL, L"en-US", &checker);
+    }
+
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, NULL, &checker);
+    ok((init == COINIT_MULTITHREADED && hr == E_POINTER) ||
+       (init == COINIT_APARTMENTTHREADED && hr == 0x800706f4), "got %x for %d\n", hr, init);
+
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"foobar-lang", &checker);
+    ok(hr == E_INVALIDARG, "got %x\n", hr);
+
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"tr-TR", &checker);
+    ok(hr == E_INVALIDARG, "got %x\n", hr);
+
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ISpellChecker_Release(checker);
 
     checker = NULL;
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
@@ -233,7 +253,7 @@ START_TEST(msspell)
         ISpellCheckerFactory_Release(factory);
 
         test_factory();
-        test_spellchecker();
+        test_spellchecker(init[i]);
         CoUninitialize();
     }
 }
