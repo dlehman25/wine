@@ -136,8 +136,9 @@ static void test_spellchecker(void)
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"foobar-lang", &checker);
     ok(hr == E_INVALIDARG, "got %x\n", hr);
 
+    /* valid locale that may or may not be installed */
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"tr-TR", &checker);
-    ok(hr == E_INVALIDARG, "got %x\n", hr);
+    ok(SUCCEEDED(hr) || hr == E_INVALIDARG, "got %x\n", hr);
 
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
