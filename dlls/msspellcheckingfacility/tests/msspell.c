@@ -247,6 +247,66 @@ done:
     ISpellCheckerFactory_Release(factory);
 }
 
+static void test_suggestions(void)
+{
+    static const struct test { LPCWSTR word; LPCWSTR suggestions[4]; } tests[] =
+    {
+        { L"ssi",       { L"si",        L"s\xed",       L"as\xed"   } },
+        { L"nacion",    { L"naciones",  L"noci\xf3n",   L"naci\xf3" } }
+    };
+    ISpellCheckerFactory *factory;
+    IEnumString *suggestions;
+    ISpellChecker *checker;
+    int i, j, nsug, found;
+    LPWSTR suggestion;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    checker = NULL;
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"es-ES", &checker);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    if (!checker)
+        goto done;
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++)
+    {
+        const struct test *test = &tests[i];
+
+        suggestions = NULL;
+        hr = ISpellChecker_Suggest(checker, test->word, &suggestions);
+        ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+        for (nsug = 0; test->suggestions[nsug]; nsug++) {}
+
+        found = 0;
+        suggestion = NULL;
+        while (SUCCEEDED(IEnumString_Next(suggestions, 1, &suggestion, NULL)) && suggestion)
+        {
+            for (j = 0; j < nsug; j++)
+            {
+                if (!wcscmp(test->suggestions[j], suggestion))
+                {
+                    found++;
+                    break;
+                }
+            }
+            CoTaskMemFree(suggestion);
+            suggestion = NULL;
+        }
+        ok(found == nsug, "expected %d, got %d\n", nsug, found);
+        IEnumString_Release(suggestions);
+    }
+
+done:
+    if (checker) ISpellChecker_Release(checker);
+    ISpellCheckerFactory_Release(factory);
+
+}
+
 START_TEST(msspell)
 {
     static const DWORD init[] = { COINIT_MULTITHREADED, COINIT_APARTMENTTHREADED };
@@ -271,6 +331,7 @@ START_TEST(msspell)
 
         test_factory();
         test_spellchecker();
+        test_suggestions();
         CoUninitialize();
     }
 }
