@@ -128,6 +128,11 @@ static void test_spellchecker(void)
     if (!checker)
         goto done;
 
+    if (0) /* crash on Windows */
+    {
+        hr = ISpellChecker_get_Id(NULL, &id);
+        hr = ISpellChecker_get_Id(checker, NULL);
+    }
     id = NULL;
     hr = ISpellChecker_get_Id(checker, &id);
     todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
