@@ -33,9 +33,10 @@
 #include "initguid.h"
 #include "spellcheck.h"
 
-static void test_factory(void)
+static void test_factory(DWORD model)
 {
     ISpellCheckerFactory *factory;
+    IMarshal *marsh, *stdmarsh;
     ISpellChecker *checker;
     IEnumString *langs;
     BOOL supported;
@@ -77,6 +78,27 @@ static void test_factory(void)
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!checker, "got NULL\n");
+
+    if (model == COINIT_APARTMENTTHREADED)
+    {
+        marsh = NULL;
+        hr = ISpellChecker_QueryInterface(checker, &IID_IMarshal, (void**)&marsh);
+        ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+        stdmarsh = NULL;
+        hr = CoGetStandardMarshal(&IID_ISpellChecker, (IUnknown *)checker, MSHCTX_INPROC,
+                                  NULL, MSHLFLAGS_NORMAL, &stdmarsh);
+        ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+        ok(stdmarsh == marsh, "expected %p, got %p\n", stdmarsh, marsh);
+
+        IMarshal_Release(stdmarsh);
+        IMarshal_Release(marsh);
+    }
+    else
+    {
+        hr = ISpellChecker_QueryInterface(checker, &IID_IMarshal, (void**)&marsh);
+        ok(hr == E_NOINTERFACE, "got 0x%x\n", hr);
+    }
 
     ISpellChecker_Release(checker);
 
@@ -329,7 +351,7 @@ START_TEST(msspell)
         }
         ISpellCheckerFactory_Release(factory);
 
-        test_factory();
+        test_factory(init[i]);
         test_spellchecker();
         test_suggestions();
         CoUninitialize();
