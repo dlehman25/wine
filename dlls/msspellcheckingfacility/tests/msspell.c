@@ -222,6 +222,7 @@ static void test_spellchecker(void)
         /* not sure exact suggestions and ordering are important - just that there are some*/
         ++nsuggestions;
         CoTaskMemFree(suggestion);
+        suggestion = NULL;
     }
     ok(nsuggestions, "no suggestions found\n");
     IEnumString_Release(suggestions);
