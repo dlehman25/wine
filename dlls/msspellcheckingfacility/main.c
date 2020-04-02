@@ -322,10 +322,11 @@ static HRESULT WINAPI SpellCheckerFactory_CreateInstance(IClassFactory *iface, I
     SpellCheckerFactory_Release(&This->ISpellCheckerFactory_iface);
     return hr;
 }
-static IMarshal *pUnkFTMarshal; /* TODO */
 
 static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID riid, void **ppv)
 {
+    HRESULT hr;
+
     if (!ppv)
         return E_POINTER;
 
@@ -339,13 +340,22 @@ static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID r
         IUnknown_AddRef((IUnknown*)*ppv);
         return S_OK;
     }
-
-    if (IsEqualGUID(&IID_IMarshal, riid))
+    else if (IsEqualGUID(&IID_IMarshal, riid))
     {
-        HRESULT hr;
-        hr = CoCreateFreeThreadedMarshaler((IUnknown *)iface, &pUnkFTMarshal);
-        hr = IUnknown_QueryInterface(pUnkFTMarshal, riid, ppv);
-        return S_OK;
+        static IUnknown *SCFactoryMarshal;
+
+        if (!SCFactoryMarshal)
+        {
+            IUnknown *marshal;
+            hr = CoCreateFreeThreadedMarshaler((IUnknown *)iface, &marshal);
+            if (FAILED(hr))
+                return hr;
+            if (InterlockedCompareExchangePointer((void**)&SCFactoryMarshal, marshal, NULL))
+                IUnknown_Release(marshal);
+        }
+
+        hr = IUnknown_QueryInterface(SCFactoryMarshal, riid, ppv);
+        return hr;
     }
 
     WARN("(%p)->(%s %p)\n", iface, debugstr_guid(riid), ppv);
