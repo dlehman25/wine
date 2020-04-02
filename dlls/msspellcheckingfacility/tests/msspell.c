@@ -290,7 +290,12 @@ static void test_suggestions(void)
 
     checker = NULL;
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"es-ES", &checker);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    todo_wine ok(SUCCEEDED(hr) || broken(hr == E_INVALIDARG) /* w1064 */, "got 0x%x\n", hr);
+    if (hr == E_INVALIDARG)
+    {
+        win_skip("es-ES locale not supported on this platform\n");
+        return;
+    }
 
     if (!checker)
         goto done;
