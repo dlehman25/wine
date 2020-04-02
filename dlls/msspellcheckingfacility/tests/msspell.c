@@ -87,10 +87,10 @@ done:
 static void test_spellchecker(void)
 {
     static const WCHAR *bad = L"hello worlld";
+    LPWSTR id, lang, replace, suggestion;
     ULONG start, len, nsuggestions;
     ISpellCheckerFactory *factory;
     IEnumSpellingError *errors;
-    LPWSTR id, replace, suggestion;
     IEnumString *suggestions;
     CORRECTIVE_ACTION action;
     ISpellChecker *checker;
@@ -135,6 +135,17 @@ static void test_spellchecker(void)
         goto done;
     ok(!wcscmp(id, L"MsSpell"), "got '%s'\n", wine_dbgstr_w(id));
     CoTaskMemFree(id);
+
+    if (0) /* crash on Windows */
+    {
+        hr = ISpellChecker_get_LanguageTag(NULL, &lang);
+        hr = ISpellChecker_get_LanguageTag(checker, NULL);
+    }
+    lang = NULL;
+    hr = ISpellChecker_get_LanguageTag(checker, &lang);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!wcscmp(lang, L"en-US"), "got '%s'\n", wine_dbgstr_w(lang));
+    CoTaskMemFree(lang);
 
     /* Check */
 
