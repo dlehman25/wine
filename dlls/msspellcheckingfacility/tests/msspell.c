@@ -325,7 +325,7 @@ static void test_suggestions(void)
             CoTaskMemFree(suggestion);
             suggestion = NULL;
         }
-        ok(found == nsug, "expected %d, got %d\n", nsug, found);
+        ok(found == nsug || broken(!found) /* w8 */, "expected %d, got %d\n", nsug, found);
         IEnumString_Release(suggestions);
     }
 
