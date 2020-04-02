@@ -267,7 +267,7 @@ static void test_suggestions(void)
 
     checker = NULL;
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"es-ES", &checker);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     if (!checker)
         goto done;
