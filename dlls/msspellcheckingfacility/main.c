@@ -30,6 +30,8 @@
 #include "wine/debug.h"
 #include "wine/heap.h"
 
+extern HRESULT WINAPI MSC_DllGetClassObject(REFCLSID, REFIID, void **) DECLSPEC_HIDDEN;
+
 WINE_DEFAULT_DEBUG_CHANNEL(msspell);
 
 static HINSTANCE msspell_instance;
@@ -342,20 +344,22 @@ static HRESULT WINAPI ClassFactory_QueryInterface(IClassFactory *iface, REFIID r
     }
     else if (IsEqualGUID(&IID_IMarshal, riid))
     {
-        static IUnknown *SCFactoryMarshal;
+        static IMarshal *SCFactoryMarshal;
+        IMarshal *marshal;
 
         if (!SCFactoryMarshal)
         {
-            IUnknown *marshal;
-            hr = CoCreateFreeThreadedMarshaler((IUnknown *)iface, &marshal);
+            hr = CoGetStandardMarshal(riid, (IUnknown *)iface, MSHCTX_INPROC, NULL,
+                                      MSHLFLAGS_NORMAL, &marshal);
             if (FAILED(hr))
                 return hr;
             if (InterlockedCompareExchangePointer((void**)&SCFactoryMarshal, marshal, NULL))
-                IUnknown_Release(marshal);
+                IMarshal_Release(marshal);
         }
 
-        hr = IUnknown_QueryInterface(SCFactoryMarshal, riid, ppv);
-        return hr;
+        *ppv = SCFactoryMarshal;
+        IMarshal_AddRef(SCFactoryMarshal);
+        return S_OK;
     }
 
     WARN("(%p)->(%s %p)\n", iface, debugstr_guid(riid), ppv);
@@ -416,6 +420,9 @@ HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
         TRACE("(CLSID_SpellCheckerFactory %s %p)\n", debugstr_guid(riid), ppv);
         return IClassFactory_QueryInterface(&SCFactory, riid, ppv);
     }
+
+    if (SUCCEEDED(MSC_DllGetClassObject(rclsid, riid, ppv)))
+        return S_OK;
 
     FIXME("Unknown object %s (iface %s)\n", debugstr_guid(rclsid), debugstr_guid(riid));
     return CLASS_E_CLASSNOTAVAILABLE;
