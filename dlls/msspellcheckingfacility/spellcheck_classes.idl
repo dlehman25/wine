@@ -16,11 +16,21 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#pragma makedep proxy
 #pragma makedep register
+
+#include "spellcheck.idl"
+
+[
+    helpstring("SpellChecker ProxyStub Factory"),
+    threading(both),
+    uuid(8e018a9d-2415-4677-bf08-794ea61f94bb)
+]
+coclass PSFactoryBuffer { interface IPSFactoryBuffer; }
 
 [
     helpstring("Microsoft Spell Checker Factory Class"),
-    uuid(7ab36653-1796-484b-bdfa-e74f1db7c1dc),
-    threading(free)
+    threading(free),
+    uuid(7ab36653-1796-484b-bdfa-e74f1db7c1dc)
 ]
-coclass SpellCheckerFactory {}
+coclass SpellCheckerFactory { interface ISpellCheckerFactory; interface IUserDictionariesRegistrar; }

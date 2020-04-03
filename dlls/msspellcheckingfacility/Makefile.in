@@ -1,5 +1,5 @@
 MODULE    = msspellcheckingfacility.dll
-IMPORTS   = ole32
+IMPORTS   = ole32 rpcrt4
 
 EXTRADLLFLAGS = -mno-cygwin
 
@@ -7,3 +7,6 @@ C_SRCS = \
 	main.c
 
 IDL_SRCS = spellcheck_classes.idl
+
+dlldata_EXTRADEFS = -DENTRY_PREFIX=MSC_ -DPROXY_DELEGATION -DWINE_REGISTER_DLL \
+	    -DPROXY_CLSID_IS="{0x8E018A9D,0x2415,0x4677,{0xBF,0x08,0x79,0x4E,0xA6,0x1F,0x94,0xBB}}"

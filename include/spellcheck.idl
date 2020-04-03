@@ -123,12 +123,6 @@ interface ISpellCheckerFactory : IUnknown
 library MsSpellCheckLib
 {
     importlib("stdole2.tlb");
-    [
-        uuid(7ab36653-1796-484b-bdfa-e74f1db7c1dc)
-    ]
-    coclass SpellCheckerFactory
-    {
-        [default] interface ISpellCheckerFactory;
-        interface IUserDictionariesRegistrar;
-    }
 }
+
+cpp_quote("DEFINE_GUID(CLSID_SpellCheckerFactory, 0x7ab36653, 0x1796, 0x484b, 0xbd, 0xfa, 0xe7, 0x4f, 0x1d, 0xb7, 0xc1, 0xdc);")
