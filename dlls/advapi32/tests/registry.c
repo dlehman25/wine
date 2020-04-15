@@ -4132,11 +4132,50 @@ static void test_EnumDynamicTimeZoneInformation(void)
     RegCloseKey(key);
 }
 
+
+
+static void test_cache(void)
+{
+    DWORD index;
+    LSTATUS status;
+    HKEY key, key2, subkey;
+    WCHAR keyname[128];
+
+if (0)
+{
+    status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+            KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+}
+    status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "Software\\Microsoft\\Windows NT", 0,
+            KEY_ENUMERATE_SUB_KEYS, &key2);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+    status = RegOpenKeyExA(key2, "CurrentVersion\\Time Zones", 0,
+            KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+    index = 0;
+    while (!(status = RegEnumKeyW(key, index, keyname, ARRAY_SIZE(keyname))))
+    {
+        subkey = NULL;
+        status = RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
+        printf("%d %ls\n", index, keyname);
+
+        RegCloseKey(subkey);
+        index++;
+    }
+    RegCloseKey(key);
+    RegCloseKey(key2);
+}
+
 START_TEST(registry)
 {
     /* Load pointers for functions that are not available in all Windows versions */
     InitFunctionPtrs();
 
+    test_cache();
+    return;
     setup_main_key();
     check_user_privs();
     test_set_value();
