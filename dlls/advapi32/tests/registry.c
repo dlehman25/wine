@@ -4143,16 +4143,16 @@ static void test_cache(void)
 
 if (0)
 {
-    status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-            "Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
             KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
 }
-    status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-            "Software\\Microsoft\\Windows NT", 0,
+    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+            L"Software\\Microsoft\\Windows NT", 0,
             KEY_ENUMERATE_SUB_KEYS, &key2);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
-    status = RegOpenKeyExA(key2, "CurrentVersion\\Time Zones", 0,
+    status = RegOpenKeyExW(key2, L"CurrentVersion\\Time Zones", 0,
             KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
     index = 0;
