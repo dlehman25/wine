@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "wine/test.h"
+#include "wine/heap.h"
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -4132,7 +4133,89 @@ static void test_EnumDynamicTimeZoneInformation(void)
     RegCloseKey(key);
 }
 
+/* server/registry.c */
+struct key_value
+{
+    UNICODE_STRING    name;
+    DWORD             type;
+    DWORD             len;
+    BYTE              data[1];
+};
 
+struct key
+{
+    UNICODE_STRING    name;
+    struct key       *parent;
+    int               last_subkey;
+    int               nb_subkeys;
+    struct key      **subkeys;
+    int               last_value;
+    int               nb_values;
+    struct key_value *values;
+};
+
+static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
+{
+    USHORT i = 0, len = path->Length / sizeof(WCHAR);
+
+    if (!token->Buffer)
+        token->MaximumLength = path->MaximumLength;
+    else
+    {
+        i = token->Buffer - path->Buffer;
+        i += token->Length / sizeof(WCHAR);
+        while (i < len && path->Buffer[i] == '\\') i++;
+        if (i == len)
+            return NULL;
+    }
+    token->Buffer = path->Buffer + i;
+    while (i < len && path->Buffer[i] != '\\') i++;
+    token->Length = (path->Buffer + i - token->Buffer) * sizeof(WCHAR);
+    return token;
+}
+
+static struct key *rc_new_key(struct key *parent, const UNICODE_STRING *name)
+{
+    struct key *key;
+
+    if (!(key = heap_alloc_zero(sizeof(*key))))
+        return NULL;
+
+    if (RtlDuplicateUnicodeString(1, name, &key->name))
+    {
+        heap_free(key);
+        return NULL;
+    }
+
+    key->parent = parent;
+    printf("%p -> %s\n", key, wine_dbgstr_wn(key->name.Buffer, key->name.Length / 2));
+
+    return key;
+}
+
+/* name is already validated */
+static BOOL rc_new_key_recursive(LPCWSTR name)
+{
+    UNICODE_STRING path, token = {0};
+
+    RtlInitUnicodeString(&path, name);
+    while (get_path_token(&path, &token))
+    {
+        if (0) printf("token %s\n", wine_dbgstr_wn(token.Buffer, token.Length/sizeof(WCHAR)));
+        rc_new_key(NULL, &token);
+    }
+    return FALSE;
+}
+
+static BOOL rc_cache_key(HKEY hkey)
+{
+    return FALSE;
+}
+
+static BOOL rc_uncache_key(HKEY hkey)
+{
+    return FALSE;
+}
 
 static void test_cache(void)
 {
@@ -4141,6 +4224,11 @@ static void test_cache(void)
     HKEY key, key2, subkey;
     WCHAR keyname[128];
     WCHAR name[32];
+
+    {
+        rc_new_key_recursive(L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
+        return;
+    }
 
 if (0)
 {
@@ -4157,6 +4245,8 @@ if (0)
             KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
     index = 0;
+
+    rc_cache_key(key);
     while (!(status = RegEnumKeyW(key, index, keyname, ARRAY_SIZE(keyname))))
     {
         subkey = NULL;
@@ -4172,6 +4262,8 @@ if (0)
         RegCloseKey(subkey);
         index++;
     }
+    rc_uncache_key(key);
+
     RegCloseKey(key);
     RegCloseKey(key2);
 }
