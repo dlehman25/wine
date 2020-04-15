@@ -4136,10 +4136,11 @@ static void test_EnumDynamicTimeZoneInformation(void)
 
 static void test_cache(void)
 {
-    DWORD index;
     LSTATUS status;
+    DWORD index, size;
     HKEY key, key2, subkey;
     WCHAR keyname[128];
+    WCHAR name[32];
 
 if (0)
 {
@@ -4161,6 +4162,12 @@ if (0)
         subkey = NULL;
         status = RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
         printf("%d %ls\n", index, keyname);
+
+        size = sizeof(name);
+        memset(name, 0, sizeof(name));
+        status = pRegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ, NULL, name, &size);
+        ok(status == ERROR_SUCCESS, "status %d name %s\n", status, wine_dbgstr_w(name));
+        printf("%u %ls\n", index, name);
 
         RegCloseKey(subkey);
         index++;
