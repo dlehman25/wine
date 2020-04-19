@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include "wine/test.h"
 #include "wine/heap.h"
+#include "wine/rbtree.h"
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -4141,6 +4142,10 @@ static void test_EnumDynamicTimeZoneInformation(void)
     - mainly intended for mostly read keys
 - don't cache if recently modified?
 - handle volatile?
+- what about multiple opens?
+- close key always round-trip?
+    - cache handles? limit?
+- recycle keys?
 */
 
 /* server/registry.c */
@@ -4154,6 +4159,7 @@ struct key_value
 
 struct key
 {
+    DWORD             ref;
     UNICODE_STRING    name;
     struct key       *parent;
     int               last_subkey;
@@ -4164,6 +4170,22 @@ struct key
     struct key_value *values;
     DWORD64           modif;
 };
+
+struct hkey_to_key
+{
+    struct wine_rb_entry entry;
+    HKEY hkey;
+    struct key *key;
+};
+
+/*
+static int hkey_to_key_cmp(const void *key, const struct wine_rb_entry *entry)
+{
+    const HKEY left = key;
+    const HKEY right = WINE_RB_ENTRY_VALUE(entry, HKEY, hkey);
+    return HandleToLong(left) - HandleToLong(right);
+}
+*/
 
 static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
 {
@@ -4394,6 +4416,77 @@ static BOOL rc_uncache_key(HKEY hkey)
     return FALSE;
 }
 
+LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
+                                                  REGSAM access, PHKEY retkey)
+{
+    LSTATUS status;
+
+    /* TODO
+    if (rc_open_key(hkey, name, options, access, retkey))
+        return STATUS_SUCCESS;
+    */
+
+    status = RegOpenKeyExW(hkey, name, options, access, retkey);
+
+    /*
+    if (ststus == STATUS_SUCCESS)
+        rc_put_key(hkey, name, options, access, *retkey);
+    */
+
+    return status;
+}
+
+LSTATUS WINAPI rc_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
+                                LPDWORD reserved, LPWSTR class, LPDWORD class_len, FILETIME *ft)
+{
+    LSTATUS status;
+
+    /* TODO
+    const BOOL use_cache = !reserved && !class && !class_len && !ft;
+    if (use_cache && rc_enum_key(hkey, index, name, name_len))
+        return STATUS_SUCCESS;
+    */
+
+    status = RegEnumKeyExW(hkey, index, name, name_len, reserved, class, class_len, ft);
+
+    /*
+    if (use_cache && status == STATUS_SUCCESS)
+        rc_enum_put_key(hkey, index, name, name_len);
+    */
+    return status;
+}
+
+LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
+                               DWORD flags, LPDWORD type, PVOID data, LPDWORD data_len)
+{
+    LSTATUS status;
+
+    /* TODO
+    if (rc_get_value(hkey, subkey, value, flags, type, data, data_len))
+        return STATUS_SUCCESS;
+    */
+
+    status = RegGetValueW(hkey, subkey, value, flags, type, data, data_len);
+
+    /*
+    if (status == STATUS_SUCCESS)
+        rc_put_value(hkey, subkey, value, flags, type, data, data_len);
+    */
+
+    return status;
+}
+
+LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegCloseKey(HKEY hkey)
+{
+    LSTATUS status;
+
+    /* TODO
+    rc_close_key(hkey)) ???
+    */
+    status = RegCloseKey(hkey);
+    return status;
+}
+
 static void test_cache(void)
 {
     LSTATUS status;
@@ -4401,6 +4494,21 @@ static void test_cache(void)
     HKEY key, key2, subkey;
     WCHAR keyname[128];
     WCHAR name[32];
+
+    {
+        LSTATUS status;
+
+        status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+        ok(status == ERROR_SUCCESS, "got %d\n", status);
+        status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key2);
+        ok(status == ERROR_SUCCESS, "got %d\n", status);
+        printf("%p %p\n", key, key2);
+        return;
+    }
 
     {
         struct key *hklm;
