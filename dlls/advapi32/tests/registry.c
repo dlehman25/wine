@@ -4370,6 +4370,20 @@ static void dump_path(const struct key *key, const struct key *base, FILE *f)
     fprintf(f, "%s", wine_dbgstr_wn(key->name.Buffer, key->name.Length/2));
 }
 
+static void dump_key(const struct key *key, int depth)
+{
+    int i;
+
+    for (i = 0; i < depth; i++)
+        printf(" ");
+    printf("%s keys %d/%d values %d/%d %lu\n",
+        wine_dbgstr_wn(key->name.Buffer, key->name.Length/2),
+        key->last_subkey+1, key->nb_subkeys,
+        key->last_value+1, key->nb_values, key->modif);
+    for (i = 0; i <= key->last_subkey; i++)
+        dump_key(key->subkeys[i], depth+4);
+}
+
 static BOOL rc_cache_key(HKEY hkey)
 {
     return FALSE;
@@ -4402,7 +4416,8 @@ static void test_cache(void)
         RtlInitUnicodeString(&hklm_name, L"Machine");
         hklm = create_key_recursive(root, &hklm_name, current_time);
 
-        dump_path(hklm, NULL, stderr);
+        if (0) dump_path(hklm, NULL, stderr);
+        dump_key(root, 0);
         return;
     }
 
