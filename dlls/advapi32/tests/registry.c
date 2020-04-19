@@ -4406,10 +4406,14 @@ static void test_cache(void)
         struct key *hklm;
         struct key *root;
         struct key *tz;
+        struct key *ms;
         DWORD64 current_time;
         UNICODE_STRING root_name;
         UNICODE_STRING hklm_name;
         UNICODE_STRING tz_name;
+        UNICODE_STRING ms_name;
+        UNICODE_STRING token;
+        int index;
 
         current_time = 42;
         RtlInitUnicodeString(&root_name, L"\\Registry\\");
@@ -4423,6 +4427,10 @@ static void test_cache(void)
 
         if (0) dump_path(hklm, NULL, stderr);
         dump_key(root, 0);
+
+        RtlInitUnicodeString(&ms_name, L"Software\\Microsoft");
+        ms = open_key_prefix(hklm, &ms_name, &token, &index);
+        printf("ms %p index %d\n", ms, index);
         return;
     }
 
