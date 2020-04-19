@@ -4133,6 +4133,16 @@ static void test_EnumDynamicTimeZoneInformation(void)
     RegCloseKey(key);
 }
 
+/*
+- only caching successful retrievals
+    - need to worry about wow64 and links?
+    - already handled on server
+- read-write locks
+    - mainly intended for mostly read keys
+- don't cache if recently modified?
+- handle volatile?
+*/
+
 /* server/registry.c */
 struct key_value
 {
@@ -4174,6 +4184,51 @@ static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING
     return token;
 }
 
+/* find the named child of a given key and return its index */
+static struct key *find_subkey(const struct key *key, const UNICODE_STRING *name, int *index)
+{
+    int i, min, max, res;
+    USHORT len;
+
+    min = 0;
+    max = key->last_subkey;
+    while (min <= max)
+    {
+        i = (min + max) / 2;
+        len = min(key->subkeys[i]->name.Length, name->Length);
+        res = _memicmp(key->subkeys[i]->name.Buffer, name->Buffer, len);
+        if (!res) res = key->subkeys[i]->name.Length - name->Length;
+        if (!res)
+        {
+            *index = i;
+            return key->subkeys[i];
+        }
+        if (res > 0) max = i - 1;
+        else min = i + 1;
+    }
+    *index = min;  /* this is where we should insert it */
+    return NULL;
+}
+
+/* open a key until we find an element that doesn't exist */
+/* helper for open_key and create_key */
+static struct key *open_key_prefix(struct key *key, const UNICODE_STRING *name,
+                                   UNICODE_STRING *token, int *index)
+{
+    struct key *subkey;
+
+    token->Buffer = NULL;
+    if (!get_path_token(name, token)) return NULL;
+    while (token->Length)
+    {
+        if (!(subkey = find_subkey(key, token, index)))
+            break;
+        key = subkey;
+        get_path_token(name, token);
+    }
+    return key;
+}
+
 static struct key *rc_new_key(struct key *parent, const UNICODE_STRING *name)
 {
     struct key *key;
@@ -4194,17 +4249,28 @@ static struct key *rc_new_key(struct key *parent, const UNICODE_STRING *name)
 }
 
 /* name is already validated */
-static BOOL rc_new_key_recursive(LPCWSTR name)
+static struct key *rc_new_key_recursive(LPCWSTR name)
 {
     UNICODE_STRING path, token = {0};
+    struct key *key = NULL;
 
     RtlInitUnicodeString(&path, name);
     while (get_path_token(&path, &token))
     {
         if (0) printf("token %s\n", wine_dbgstr_wn(token.Buffer, token.Length/sizeof(WCHAR)));
-        rc_new_key(NULL, &token);
+        key = rc_new_key(key, &token);
     }
-    return FALSE;
+    return key;
+}
+
+static void dump_path(const struct key *key, const struct key *base, FILE *f)
+{
+    if (key->parent && key->parent != base)
+    {
+        dump_path(key->parent, base, f);
+        fprintf(f, "\\\\");
+    }
+    fprintf(f, "%s", wine_dbgstr_wn(key->name.Buffer, key->name.Length/2));
 }
 
 static BOOL rc_cache_key(HKEY hkey)
@@ -4226,7 +4292,19 @@ static void test_cache(void)
     WCHAR name[32];
 
     {
-        rc_new_key_recursive(L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
+        struct key *tzkey;
+
+        tzkey = rc_new_key_recursive(L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
+        dump_path(tzkey, NULL, stderr);
+        fprintf(stderr, "\n");
+        if (0)
+        {
+            UNICODE_STRING name, token;
+            int index;
+
+            RtlInitUnicodeString(&name, L"Software\\Microsoft");
+            open_key_prefix(NULL, &name, &token, &index);
+        }
         return;
     }
 
