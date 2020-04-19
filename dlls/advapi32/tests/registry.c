@@ -4162,6 +4162,7 @@ struct key
     int               last_value;
     int               nb_values;
     struct key_value *values;
+    DWORD64           modif;
 };
 
 static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
@@ -4176,7 +4177,10 @@ static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING
         i += token->Length / sizeof(WCHAR);
         while (i < len && path->Buffer[i] == '\\') i++;
         if (i == len)
+        {
+            token->Length = 0;
             return NULL;
+        }
     }
     token->Buffer = path->Buffer + i;
     while (i < len && path->Buffer[i] != '\\') i++;
@@ -4229,7 +4233,7 @@ static struct key *open_key_prefix(struct key *key, const UNICODE_STRING *name,
     return key;
 }
 
-static struct key *rc_new_key(struct key *parent, const UNICODE_STRING *name)
+static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
 {
     struct key *key;
 
@@ -4242,9 +4246,99 @@ static struct key *rc_new_key(struct key *parent, const UNICODE_STRING *name)
         return NULL;
     }
 
-    key->parent = parent;
+    key->last_subkey = -1;
+    key->last_value  = -1;
+    key->modif = modif;
     printf("%p -> %s\n", key, wine_dbgstr_wn(key->name.Buffer, key->name.Length / 2));
 
+    return key;
+}
+
+static int grow_subkeys(struct key *key)
+{
+    struct key **new_subkeys;
+    int nb_subkeys;
+
+    if (key->nb_subkeys)
+    {
+        nb_subkeys = key->nb_subkeys + (key->nb_subkeys / 2);
+        if (!(new_subkeys = heap_realloc(key->subkeys, nb_subkeys * sizeof(*new_subkeys))))
+            return 0;
+    }
+    else
+    {
+        nb_subkeys = 8; /* MIN_SUBKEYS */
+        if (!(new_subkeys = heap_alloc(nb_subkeys * sizeof(*new_subkeys))))
+            return 0;
+    }
+    key->subkeys    = new_subkeys;
+    key->nb_subkeys = nb_subkeys;
+    return 1;
+}
+
+static struct key *alloc_subkey(struct key *parent, const UNICODE_STRING *name,
+                                int index, DWORD64 modif)
+{
+    struct key *key;
+    int i;
+
+    if ((parent->last_subkey + 1 == parent->nb_subkeys) &&
+        !grow_subkeys(parent))
+        return NULL;
+
+    if (!(key = rc_new_key(name, modif)))
+        return NULL;
+
+    key->parent = parent;
+    for (i = ++parent->last_subkey; i > index; i--)
+        parent->subkeys[i] = parent->subkeys[i-1];
+    parent->subkeys[index] = key;
+
+    return key;
+}
+
+static void free_subkey(struct key *key, int index)
+{
+}
+
+static struct key *create_key_recursive(struct key *key, const UNICODE_STRING *name,
+                                        DWORD64 modif)
+{
+    int index;
+    struct key *base;
+    struct key *subkey;
+    UNICODE_STRING token;
+
+    token.Buffer = NULL;
+    if (!get_path_token(name, &token))
+        return NULL;
+
+    while (token.Length)
+    {
+        if (!(subkey = find_subkey(key, &token, &index)))
+            break;
+        get_path_token(name, &token);
+    }
+
+    if (token.Length)
+    {
+        if (!(key = alloc_subkey(key, &token, index, modif)))
+            return NULL;
+        base = key;
+        for (;;)
+        {
+            get_path_token(name, &token);
+            if (!token.Length)
+                break;
+            if (!(key = alloc_subkey(key, &token, 0, modif)))
+            {
+                free_subkey(base, index);
+                return NULL;
+            }
+        }
+    }
+
+    /* TODO grab_object(key) */
     return key;
 }
 
@@ -4252,13 +4346,16 @@ static struct key *rc_new_key(struct key *parent, const UNICODE_STRING *name)
 static struct key *rc_new_key_recursive(LPCWSTR name)
 {
     UNICODE_STRING path, token = {0};
+    struct key *parent = NULL;
     struct key *key = NULL;
 
     RtlInitUnicodeString(&path, name);
     while (get_path_token(&path, &token))
     {
         if (0) printf("token %s\n", wine_dbgstr_wn(token.Buffer, token.Length/sizeof(WCHAR)));
-        key = rc_new_key(key, &token);
+        key = rc_new_key(&token, 0);
+        key->parent = parent;
+        parent = key;
     }
     return key;
 }
@@ -4290,6 +4387,24 @@ static void test_cache(void)
     HKEY key, key2, subkey;
     WCHAR keyname[128];
     WCHAR name[32];
+
+    {
+        struct key *hklm;
+        struct key *root;
+        DWORD64 current_time;
+        UNICODE_STRING root_name;
+        UNICODE_STRING hklm_name;
+
+        current_time = 42;
+        RtlInitUnicodeString(&root_name, L"\\Registry\\");
+        root = rc_new_key(&root_name, current_time);
+
+        RtlInitUnicodeString(&hklm_name, L"Machine");
+        hklm = create_key_recursive(root, &hklm_name, current_time);
+
+        dump_path(hklm, NULL, stderr);
+        return;
+    }
 
     {
         struct key *tzkey;
