@@ -4433,7 +4433,10 @@ static BOOL WINAPI DECLSPEC_HOTPATCH rc_open_key(HKEY hkey, LPCWSTR name, DWORD 
 
     RtlInitUnicodeString(&us_name, name);
     if (!(key = open_key_prefix(map->key, &us_name, &token, &index)))
-        return FALSE;
+        return FALSE; /* invalid path */
+
+    if (token.Length)
+        return FALSE; /* not found */
 
     if (!key->hkey)
         return FALSE; /* no hkey opened for this specific path */
