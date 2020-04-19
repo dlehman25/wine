@@ -4144,10 +4144,13 @@ static void test_EnumDynamicTimeZoneInformation(void)
     - mainly intended for mostly read keys
 - don't cache if recently modified?
 - handle volatile?
-- what about multiple opens?
+- what about multiple opens? refcount?
 - close key always round-trip?
     - cache handles? limit?
+    - would want to avoid case where cache limit
+      is reached and start round-trips to close handles 
 - recycle keys?
+- what if key deleted while cached?
 */
 
 /* server/registry.c */
@@ -4529,15 +4532,31 @@ LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     return status;
 }
 
-LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegCloseKey(HKEY hkey)
+static BOOL rc_close_key(HKEY hkey)
 {
-    LSTATUS status;
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
 
-    /* TODO
-    rc_close_key(hkey)) ???
-    */
-    status = RegCloseKey(hkey);
-    return status;
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return FALSE; /* not cached */
+
+if (0)
+{
+    /* TODO: what if more than one? refcount? */
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    if (map->key->hkey == hkey)
+        return TRUE;
+}
+
+    return TRUE;
+}
+
+LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
+{
+    if (rc_close_key(hkey))
+        return STATUS_SUCCESS;
+
+    return RegCloseKey(hkey);
 }
 
 static void test_cache(void)
@@ -4602,6 +4621,9 @@ static void test_cache(void)
         ok(status == ERROR_SUCCESS, "got %d\n", status);
         printf("%p %p\n", key, key2);
         dump_key(root, 0);
+
+        rc_RegCloseKey(key2);
+        rc_RegCloseKey(key);
         return;
     }
 
