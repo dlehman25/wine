@@ -22,6 +22,8 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include "ntstatus.h"
+#define WIN32_NO_STATUS
 #include "wine/test.h"
 #include "wine/heap.h"
 #include "wine/rbtree.h"
@@ -4169,6 +4171,7 @@ struct key
     int               nb_values;
     struct key_value *values;
     DWORD64           modif;
+    HKEY              hkey;
 };
 
 struct hkey_to_key
@@ -4178,14 +4181,12 @@ struct hkey_to_key
     struct key *key;
 };
 
-/*
 static int hkey_to_key_cmp(const void *key, const struct wine_rb_entry *entry)
 {
-    const HKEY left = key;
-    const HKEY right = WINE_RB_ENTRY_VALUE(entry, HKEY, hkey);
-    return HandleToLong(left) - HandleToLong(right);
+    const struct hkey_to_key *map = WINE_RB_ENTRY_VALUE(entry, struct hkey_to_key, entry);
+    return HandleToLong(key) - HandleToLong(map->hkey);
 }
-*/
+static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
 
 static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
 {
@@ -4416,15 +4417,40 @@ static BOOL rc_uncache_key(HKEY hkey)
     return FALSE;
 }
 
+static BOOL WINAPI DECLSPEC_HOTPATCH rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
+                                                 REGSAM access, PHKEY retkey)
+{
+    UNICODE_STRING us_name, token;
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+    struct key *key;
+    int index;
+
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return FALSE;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+
+    RtlInitUnicodeString(&us_name, name);
+    if (!(key = open_key_prefix(map->key, &us_name, &token, &index)))
+        return FALSE;
+
+    if (!key->hkey)
+        return FALSE; /* no hkey opened for this specific path */
+
+    /* TODO: options, access */
+    *retkey = key->hkey;
+    return TRUE;
+}
+
+
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                   REGSAM access, PHKEY retkey)
 {
     LSTATUS status;
 
-    /* TODO
     if (rc_open_key(hkey, name, options, access, retkey))
         return STATUS_SUCCESS;
-    */
 
     status = RegOpenKeyExW(hkey, name, options, access, retkey);
 
