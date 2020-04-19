@@ -4417,8 +4417,8 @@ static BOOL rc_uncache_key(HKEY hkey)
     return FALSE;
 }
 
-static BOOL WINAPI DECLSPEC_HOTPATCH rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
-                                                 REGSAM access, PHKEY retkey)
+static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
+                               REGSAM access, PHKEY retkey)
 {
     UNICODE_STRING us_name, token;
     struct wine_rb_entry *node;
@@ -4446,6 +4446,32 @@ static BOOL WINAPI DECLSPEC_HOTPATCH rc_open_key(HKEY hkey, LPCWSTR name, DWORD 
     return TRUE;
 }
 
+static void WINAPI rc_put_key(HKEY root, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
+{
+    UNICODE_STRING us_name;
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+    struct key *key;
+
+    if (!(node = wine_rb_get(&hkey_to_key, root)))
+        return; /* removed in meantime (TODO: race condition, locking) */
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+
+    RtlInitUnicodeString(&us_name, name);
+    if (!(key = create_key_recursive(map->key, &us_name, 0 /* TODO */)))
+        return;
+
+    if (!(node = heap_alloc(sizeof(*map))))
+        return;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    map->hkey = hkey;
+    map->key = key;
+    wine_rb_put(&hkey_to_key, hkey, &map->entry);
+    key->hkey = hkey; /* TODO: race condition, could already exist */
+    return;
+}
 
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                   REGSAM access, PHKEY retkey)
@@ -4457,10 +4483,8 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD
 
     status = RegOpenKeyExW(hkey, name, options, access, retkey);
 
-    /*
-    if (ststus == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
         rc_put_key(hkey, name, options, access, *retkey);
-    */
 
     return status;
 }
@@ -4526,20 +4550,6 @@ static void test_cache(void)
 
     {
         LSTATUS status;
-
-        status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
-        ok(status == ERROR_SUCCESS, "got %d\n", status);
-        status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key2);
-        ok(status == ERROR_SUCCESS, "got %d\n", status);
-        printf("%p %p\n", key, key2);
-        return;
-    }
-
-    {
         struct key *hklm;
         struct key *root;
         struct key *tz;
@@ -4551,6 +4561,8 @@ static void test_cache(void)
         UNICODE_STRING ms_name;
         UNICODE_STRING token;
         int index;
+        struct wine_rb_entry *node;
+        struct hkey_to_key *map;
 
         current_time = 42;
         RtlInitUnicodeString(&root_name, L"\\Registry\\");
@@ -4559,8 +4571,19 @@ static void test_cache(void)
         RtlInitUnicodeString(&hklm_name, L"Machine");
         hklm = create_key_recursive(root, &hklm_name, current_time);
 
-        RtlInitUnicodeString(&tz_name, L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
-        tz = create_key_recursive(hklm, &tz_name, current_time);
+        node = heap_alloc(sizeof(*map));
+        map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+        map->hkey = HKEY_LOCAL_MACHINE;
+        map->key = hklm;
+        wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
+        printf("put: %p -> %p node %p map %p\n", map->hkey, map->key, node, map);
+    
+        if (0)
+        {
+            RtlInitUnicodeString(&tz_name,
+                L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
+            tz = create_key_recursive(hklm, &tz_name, current_time);
+        }
 
         if (0) dump_path(hklm, NULL, stderr);
         dump_key(root, 0);
@@ -4568,6 +4591,17 @@ static void test_cache(void)
         RtlInitUnicodeString(&ms_name, L"Software\\Microsoft");
         ms = open_key_prefix(hklm, &ms_name, &token, &index);
         printf("ms %p index %d\n", ms, index);
+        
+        status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+        ok(status == ERROR_SUCCESS, "got %d\n", status);
+        status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key2);
+        ok(status == ERROR_SUCCESS, "got %d\n", status);
+        printf("%p %p\n", key, key2);
+        dump_key(root, 0);
         return;
     }
 
