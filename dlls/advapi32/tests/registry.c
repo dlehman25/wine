@@ -4405,9 +4405,11 @@ static void test_cache(void)
     {
         struct key *hklm;
         struct key *root;
+        struct key *tz;
         DWORD64 current_time;
         UNICODE_STRING root_name;
         UNICODE_STRING hklm_name;
+        UNICODE_STRING tz_name;
 
         current_time = 42;
         RtlInitUnicodeString(&root_name, L"\\Registry\\");
@@ -4415,6 +4417,9 @@ static void test_cache(void)
 
         RtlInitUnicodeString(&hklm_name, L"Machine");
         hklm = create_key_recursive(root, &hklm_name, current_time);
+
+        RtlInitUnicodeString(&tz_name, L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
+        tz = create_key_recursive(hklm, &tz_name, current_time);
 
         if (0) dump_path(hklm, NULL, stderr);
         dump_key(root, 0);
