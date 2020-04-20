@@ -4564,22 +4564,107 @@ LSTATUS WINAPI rc_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD nam
     return status;
 }
 
+/* find the named value of a given key and return its index in the array */
+static struct key_value *find_value(const struct key *key, const UNICODE_STRING *name,
+                                    int *index)
+{
+    int i, min, max, res;
+    USHORT len;
+
+    min = 0;
+    max = key->last_value;
+    while (min <= max)
+    {
+        i = (min + max) / 2;
+        len = min(key->values[i].name.Length, name->Length);
+        res = _memicmp(key->values[i].name.Buffer, name->Buffer, len);
+        if (!res) res = key->values[i].name.Length - name->Length;
+        if (!res)
+        {
+            *index = i;
+            return &key->values[i];
+        }
+        if (res > 0) max = i - 1;
+        else min = i + 1;
+    }
+    *index = min;  /* this is where we should insert it */
+    return NULL;
+}
+
+static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
+                         DWORD flags, DWORD *type, void *data, DWORD *data_len)
+{
+    UNICODE_STRING name, token;
+    struct key_value *key_value;
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+    struct key *key;
+    int index;
+
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return FALSE;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+
+    RtlInitUnicodeString(&name, subkey);
+    if (!(key = open_key_prefix(map->key, &name, &token, &index)))
+        return FALSE; /* invalid path */
+
+    RtlInitUnicodeString(&name, value);
+    if (!(key_value = find_value(key, &name, &index)))
+        return FALSE;
+
+    if (key_value->len > *data_len)
+        return FALSE; /* TODO: STATUS_BUFFER_OVERFLOW */
+
+    memcpy(data, key_value->data, key_value->len);
+    *type = key_value->type;
+    *data_len = key_value->len;
+    return TRUE;
+}
+
+static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
+                         DWORD flags, DWORD type, const void *data, DWORD data_len)
+{
+    UNICODE_STRING name, token;
+    struct key_value *key_value;
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+    struct key *key;
+    int index;
+
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return FALSE;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+
+    RtlInitUnicodeString(&name, subkey);
+    if (!(key = open_key_prefix(map->key, &name, &token, &index)))
+        return;
+
+    RtlInitUnicodeString(&name, value);
+    if ((key_value = find_value(key, &name, &index)))
+    {
+        /* already exists */
+        if (key_value->type == type &&
+            key_value->len == data_len &&
+            !memcmp(key_value->data, data, data_len))
+            return; /* identical to existing data */
+    }
+}
+
 LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
-                               DWORD flags, LPDWORD type, PVOID data, LPDWORD data_len)
+                               DWORD flags, DWORD *type, void *data, DWORD *data_len)
 {
     LSTATUS status;
 
-    /* TODO
     if (rc_get_value(hkey, subkey, value, flags, type, data, data_len))
         return STATUS_SUCCESS;
-    */
 
     status = RegGetValueW(hkey, subkey, value, flags, type, data, data_len);
 
-    /*
     if (status == STATUS_SUCCESS)
-        rc_put_value(hkey, subkey, value, flags, type, data, data_len);
-    */
+        rc_put_value(hkey, subkey, value, flags, *type, data, *data_len);
 
     return status;
 }
@@ -4687,13 +4772,19 @@ static void test_cache(void)
 
                 subkey = NULL;
                 status = rc_RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
-                rc_RegCloseKey(subkey);
+        
+                size = sizeof(name);
+                memset(name, 0, sizeof(name));
+                status = rc_RegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ,
+                                         NULL, name, &size);
+                ok(status == ERROR_SUCCESS, "status %d name %s\n", status, wine_dbgstr_w(name));
 
+                rc_RegCloseKey(subkey);
                 index++;
                 size = ARRAY_SIZE(keyname);
             }
             e = GetTickCount64();
-            printf("%u: %I64u\n", nloops, e - s);
+            if (0) printf("%u: %I64u\n", nloops, e - s);
         }
         if (0) dump_key(root, 0);
 
