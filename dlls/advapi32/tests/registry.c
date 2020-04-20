@@ -4151,6 +4151,10 @@ static void test_EnumDynamicTimeZoneInformation(void)
       is reached and start round-trips to close handles 
 - recycle keys?
 - what if key deleted while cached?
+- read ahead with enum key?
+- can't fetch last modified time - extra round-trip
+    - add to wineserver message?
+    - use client-side (last cached)
 */
 
 /* server/registry.c */
@@ -4280,6 +4284,7 @@ static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
     return key;
 }
 
+/* TODO: we might skip some indices - should take into account */
 static int grow_subkeys(struct key *key)
 {
     struct key **new_subkeys;
@@ -4492,23 +4497,67 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD
     return status;
 }
 
+static BOOL rc_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
+{
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+    struct key *key;
+
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return FALSE; /* removed in meantime (TODO: race condition, locking) */
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    if (!map->key->subkeys)
+        return FALSE; /* none cached yet */
+
+    if (index > map->key->last_subkey)
+        return FALSE; /* this not cached yet */
+    /* TODO: if we know we have all entries: ERROR_MORE_DATA */
+
+    key = map->key->subkeys[index];
+    if (!key)
+        return FALSE; /* this specific one not cached (unlikely but possibly skip entries) */
+
+    if (key->name.Length + sizeof(WCHAR) > (*name_len) * sizeof(WCHAR))
+        return FALSE; /* TODO: ERROR_MORE_DATA */
+
+    *name_len = key->name.Length / sizeof(WCHAR) + 1;
+    memcpy(name, key->name.Buffer, key->name.Length);
+    name[*name_len - 1] = 0;
+    return TRUE;
+}
+
+static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
+{
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+    UNICODE_STRING us_name;
+   
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return; /* removed in meantime (TODO: race condition, locking) */
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+
+    us_name.Buffer = name;
+    us_name.Length = name_len * sizeof(WCHAR);
+    us_name.MaximumLength = name_len * sizeof(WCHAR) + sizeof(WCHAR);
+    alloc_subkey(map->key, &us_name, index, 0 /* TODO modif */);
+}
+
 LSTATUS WINAPI rc_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
                                 LPDWORD reserved, LPWSTR class, LPDWORD class_len, FILETIME *ft)
 {
     LSTATUS status;
 
-    /* TODO
     const BOOL use_cache = !reserved && !class && !class_len && !ft;
     if (use_cache && rc_enum_key(hkey, index, name, name_len))
         return STATUS_SUCCESS;
-    */
 
     status = RegEnumKeyExW(hkey, index, name, name_len, reserved, class, class_len, ft);
 
-    /*
     if (use_cache && status == STATUS_SUCCESS)
-        rc_enum_put_key(hkey, index, name, name_len);
-    */
+        rc_enum_put_key(hkey, index, name, *name_len);
+
     return status;
 }
 
@@ -4620,6 +4669,15 @@ static void test_cache(void)
                     KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key2);
         ok(status == ERROR_SUCCESS, "got %d\n", status);
         printf("%p %p\n", key, key2);
+
+        index = 0;
+        size = ARRAY_SIZE(keyname);
+        while (!(status = rc_RegEnumKeyExW(key, index, keyname, &size, NULL, NULL, NULL, NULL)))
+        {
+            if (0) printf("%d: %ls\n", index, keyname);
+            index++;
+            size = ARRAY_SIZE(keyname);
+        }
         dump_key(root, 0);
 
         rc_RegCloseKey(key2);
