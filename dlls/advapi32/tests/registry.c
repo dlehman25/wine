@@ -4611,10 +4611,11 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
 static void test_cache(void)
 {
     LSTATUS status;
-    DWORD index, size;
+    DWORD index, size, nloops;
     HKEY key, key2, subkey;
     WCHAR keyname[128];
     WCHAR name[32];
+    DWORD64 s, e;
 
     {
         LSTATUS status;
@@ -4670,15 +4671,23 @@ static void test_cache(void)
         ok(status == ERROR_SUCCESS, "got %d\n", status);
         printf("%p %p\n", key, key2);
 
-        index = 0;
-        size = ARRAY_SIZE(keyname);
-        while (!(status = rc_RegEnumKeyExW(key, index, keyname, &size, NULL, NULL, NULL, NULL)))
+        nloops = 2;
+        while (nloops--)
         {
-            if (0) printf("%d: %ls\n", index, keyname);
-            index++;
+            s = GetTickCount64();
+            index = 0;
             size = ARRAY_SIZE(keyname);
+            while (!(status = rc_RegEnumKeyExW(key, index, keyname, &size,
+                                               NULL, NULL, NULL, NULL)))
+            {
+                if (0 && nloops == 1) printf("%d: %ls\n", index, keyname);
+                index++;
+                size = ARRAY_SIZE(keyname);
+            }
+            e = GetTickCount64();
+            printf("%u: %I64u\n", nloops, e - s);
         }
-        dump_key(root, 0);
+        if (0) dump_key(root, 0);
 
         rc_RegCloseKey(key2);
         rc_RegCloseKey(key);
