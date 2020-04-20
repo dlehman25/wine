@@ -4456,10 +4456,11 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
 
 static void WINAPI rc_put_key(HKEY root, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
 {
-    UNICODE_STRING us_name;
+    UNICODE_STRING us_name, token;
     struct wine_rb_entry *node;
     struct hkey_to_key *map;
     struct key *key;
+    int index;
 
     if (!(node = wine_rb_get(&hkey_to_key, root)))
         return; /* removed in meantime (TODO: race condition, locking) */
@@ -4467,8 +4468,13 @@ static void WINAPI rc_put_key(HKEY root, LPCWSTR name, DWORD options, REGSAM acc
     map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
 
     RtlInitUnicodeString(&us_name, name);
-    if (!(key = create_key_recursive(map->key, &us_name, 0 /* TODO */)))
-        return;
+    if ((key = open_key_prefix(map->key, &us_name, &token, &index)))
+    { }
+    else
+    {
+        if (!(key = create_key_recursive(map->key, &us_name, 0 /* TODO */)))
+            return;
+    }
 
     if (!(node = heap_alloc(sizeof(*map))))
         return;
@@ -4478,7 +4484,6 @@ static void WINAPI rc_put_key(HKEY root, LPCWSTR name, DWORD options, REGSAM acc
     map->key = key;
     wine_rb_put(&hkey_to_key, hkey, &map->entry);
     key->hkey = hkey; /* TODO: race condition, could already exist */
-    return;
 }
 
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
@@ -4681,6 +4686,11 @@ static void test_cache(void)
                                                NULL, NULL, NULL, NULL)))
             {
                 if (0 && nloops == 1) printf("%d: %ls\n", index, keyname);
+
+                subkey = NULL;
+                status = rc_RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
+                rc_RegCloseKey(subkey);
+
                 index++;
                 size = ARRAY_SIZE(keyname);
             }
