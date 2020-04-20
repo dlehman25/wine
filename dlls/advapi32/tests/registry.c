@@ -4407,10 +4407,10 @@ static void dump_key(const struct key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s keys %d/%d values %d/%d %lu\n",
+    printf("%s keys %d/%d values %d/%d %p %lu\n",
         wine_dbgstr_wn(key->name.Buffer, key->name.Length/2),
         key->last_subkey+1, key->nb_subkeys,
-        key->last_value+1, key->nb_values, key->modif);
+        key->last_value+1, key->nb_values, key->hkey, key->modif);
     for (i = 0; i <= key->last_subkey; i++)
         dump_key(key->subkeys[i], depth+4);
 }
