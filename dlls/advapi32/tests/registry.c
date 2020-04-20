@@ -4279,8 +4279,6 @@ static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
     key->last_subkey = -1;
     key->last_value  = -1;
     key->modif = modif;
-    printf("%p -> %s\n", key, wine_dbgstr_wn(key->name.Buffer, key->name.Length / 2));
-
     return key;
 }
 
