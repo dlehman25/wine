@@ -38,6 +38,10 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(thread);
 
+static inline void **fls_addr_from_index(void *fls_slots, DWORD index)
+{
+    return (void **)((BYTE *)fls_slots + sizeof(LIST_ENTRY)) + index;
+}
 
 /***********************************************************************
  * Threads
@@ -903,6 +907,19 @@ static void init_fiber_context( struct fiber_data *fiber )
 #endif
 }
 
+typedef void WINAPI (*FLS_LOCK_FUNCTION)(void *);
+
+static void lock_fls_section(void)
+{
+    if (NtCurrentTeb()->Peb->FlsCallback)
+        ((FLS_LOCK_FUNCTION)NtCurrentTeb()->Peb->FlsCallback[0])(NULL);
+}
+
+static void unlock_fls_section(void)
+{
+    if (NtCurrentTeb()->Peb->FlsCallback)
+        ((FLS_LOCK_FUNCTION)NtCurrentTeb()->Peb->FlsCallback[1])(NULL);
+}
 
 /***********************************************************************
  *           CreateFiber   (kernelbase.@)
@@ -1010,7 +1027,16 @@ void WINAPI DECLSPEC_HOTPATCH DeleteFiber( LPVOID fiber_ptr )
         RtlExitUserThread( 1 );
     }
     RtlFreeUserStack( fiber->stack_allocation );
-    HeapFree( GetProcessHeap(), 0, fiber->fls_slots );
+
+    if (fiber->fls_slots)
+    {
+        lock_fls_section();
+        RemoveEntryList( (LIST_ENTRY *)fiber->fls_slots );
+        unlock_fls_section();
+
+        HeapFree( GetProcessHeap(), 0, fiber->fls_slots );
+    }
+
     HeapFree( GetProcessHeap(), 0, fiber );
 }
 
@@ -1031,6 +1057,19 @@ void WINAPI DECLSPEC_HOTPATCH SwitchToFiber( LPVOID fiber )
 {
     struct fiber_data *new_fiber = fiber;
     struct fiber_data *current_fiber = NtCurrentTeb()->Tib.u.FiberData;
+
+    if (!new_fiber->fls_slots)
+    {
+        TEB *teb = NtCurrentTeb();
+        PEB *peb = teb->Peb;
+
+        new_fiber->fls_slots = RtlAllocateHeap( GetProcessHeap(), HEAP_ZERO_MEMORY,
+                sizeof(LIST_ENTRY) + 8 * sizeof(peb->FlsBitmapBits) * sizeof(void*) );
+
+        lock_fls_section();
+        InsertTailList(&peb->FlsListHead, (LIST_ENTRY *)new_fiber->fls_slots);
+        unlock_fls_section();
+    }
 
     current_fiber->except      = NtCurrentTeb()->Tib.ExceptionList;
     current_fiber->stack_limit = NtCurrentTeb()->Tib.StackLimit;
@@ -1057,9 +1096,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH FlsAlloc( PFLS_CALLBACK_FUNCTION callback )
     PEB * const peb = NtCurrentTeb()->Peb;
 
     RtlAcquirePebLock();
-    if (!peb->FlsCallback &&
-        !(peb->FlsCallback = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY,
-                                        8 * sizeof(peb->FlsBitmapBits) * sizeof(void*) )))
+    if (!peb->FlsCallback)
     {
         SetLastError( ERROR_NOT_ENOUGH_MEMORY );
         index = FLS_OUT_OF_INDEXES;
@@ -1069,9 +1106,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH FlsAlloc( PFLS_CALLBACK_FUNCTION callback )
         index = RtlFindClearBitsAndSet( peb->FlsBitmap, 1, 1 );
         if (index != ~0U)
         {
-            if (!NtCurrentTeb()->FlsSlots &&
-                !(NtCurrentTeb()->FlsSlots = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY,
-                                                        8 * sizeof(peb->FlsBitmapBits) * sizeof(void*) )))
+            if (!NtCurrentTeb()->FlsSlots)
             {
                 RtlClearBits( peb->FlsBitmap, index, 1 );
                 index = FLS_OUT_OF_INDEXES;
@@ -1079,8 +1114,8 @@ DWORD WINAPI DECLSPEC_HOTPATCH FlsAlloc( PFLS_CALLBACK_FUNCTION callback )
             }
             else
             {
-                NtCurrentTeb()->FlsSlots[index] = 0; /* clear the value */
-                peb->FlsCallback[index] = callback;
+                *fls_addr_from_index(NtCurrentTeb()->FlsSlots, index) = NULL; /* clear the value */
+                peb->FlsCallback[index + 2] = callback;
             }
         }
         else SetLastError( ERROR_NO_MORE_ITEMS );
@@ -1104,7 +1139,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH FlsFree( DWORD index )
     {
         /* FIXME: call Fls callback */
         /* FIXME: add equivalent of ThreadZeroTlsCell here */
-        if (NtCurrentTeb()->FlsSlots) NtCurrentTeb()->FlsSlots[index] = 0;
+        if (NtCurrentTeb()->FlsSlots) *fls_addr_from_index(NtCurrentTeb()->FlsSlots, index) = NULL;
     }
     else SetLastError( ERROR_INVALID_PARAMETER );
     RtlReleasePebLock();
@@ -1123,7 +1158,7 @@ PVOID WINAPI DECLSPEC_HOTPATCH FlsGetValue( DWORD index )
         return NULL;
     }
     SetLastError( ERROR_SUCCESS );
-    return NtCurrentTeb()->FlsSlots[index];
+    return *fls_addr_from_index(NtCurrentTeb()->FlsSlots, index);
 }
 
 
@@ -1137,14 +1172,12 @@ BOOL WINAPI DECLSPEC_HOTPATCH FlsSetValue( DWORD index, PVOID data )
         SetLastError( ERROR_INVALID_PARAMETER );
         return FALSE;
     }
-    if (!NtCurrentTeb()->FlsSlots &&
-        !(NtCurrentTeb()->FlsSlots = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY,
-                                        8 * sizeof(NtCurrentTeb()->Peb->FlsBitmapBits) * sizeof(void*) )))
+    if (!NtCurrentTeb()->FlsSlots)
     {
         SetLastError( ERROR_NOT_ENOUGH_MEMORY );
         return FALSE;
     }
-    NtCurrentTeb()->FlsSlots[index] = data;
+    *fls_addr_from_index(NtCurrentTeb()->FlsSlots, index) = data;
     return TRUE;
 }
 
