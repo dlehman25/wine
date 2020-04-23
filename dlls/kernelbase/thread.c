@@ -1095,7 +1095,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH FlsAlloc( PFLS_CALLBACK_FUNCTION callback )
     DWORD index;
     PEB * const peb = NtCurrentTeb()->Peb;
 
-    RtlAcquirePebLock();
+    lock_fls_section();
     if (!peb->FlsCallback)
     {
         SetLastError( ERROR_NOT_ENOUGH_MEMORY );
@@ -1120,7 +1120,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH FlsAlloc( PFLS_CALLBACK_FUNCTION callback )
         }
         else SetLastError( ERROR_NO_MORE_ITEMS );
     }
-    RtlReleasePebLock();
+    unlock_fls_section();
     return index;
 }
 
@@ -1132,7 +1132,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH FlsFree( DWORD index )
 {
     BOOL ret;
 
-    RtlAcquirePebLock();
+    lock_fls_section();
     ret = RtlAreBitsSet( NtCurrentTeb()->Peb->FlsBitmap, index, 1 );
     if (ret) RtlClearBits( NtCurrentTeb()->Peb->FlsBitmap, index, 1 );
     if (ret)
@@ -1142,7 +1142,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH FlsFree( DWORD index )
         if (NtCurrentTeb()->FlsSlots) *fls_addr_from_index(NtCurrentTeb()->FlsSlots, index) = NULL;
     }
     else SetLastError( ERROR_INVALID_PARAMETER );
-    RtlReleasePebLock();
+    unlock_fls_section();
     return ret;
 }
 
