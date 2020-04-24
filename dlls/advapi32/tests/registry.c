@@ -4163,7 +4163,7 @@ struct key_value
     UNICODE_STRING    name;
     DWORD             type;
     DWORD             len;
-    BYTE              data[1];
+    BYTE             *data;
 };
 
 struct key
@@ -4623,6 +4623,53 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     return TRUE;
 }
 
+static int grow_values( struct key *key )
+{
+    struct key_value *new_val;
+    int nb_values;
+
+    if (key->nb_values)
+    {
+        nb_values = key->nb_values + (key->nb_values / 2);
+        if (!(new_val = heap_realloc(key->values, nb_values * sizeof(*new_val))))
+            return 0;
+    }
+    else
+    {
+        nb_values = 8; /* MIN_VALUES */
+        if (!(new_val = heap_alloc(nb_values * sizeof(*new_val))))
+            return 0;
+    }
+    key->values = new_val;
+    key->nb_values = nb_values;
+    return 1;
+}
+
+static struct key_value *rc_insert_value(struct key *key, const UNICODE_STRING *name, int index)
+{
+    struct key_value *value;
+    UNICODE_STRING new_name;
+    int i;
+
+    /* TODO: STATUS_NAME_TOO_LONG? wouldn't be here if server returned it */
+
+    if ((key->last_value + 1 == key->nb_values) &&
+        !grow_values(key))
+        return NULL;
+
+    if (RtlDuplicateUnicodeString(1, name, &new_name))
+        return NULL;
+
+    for (i = ++key->last_value; i > index; i--)
+        key->values[i] = key->values[i-1];
+
+    value = &key->values[index];
+    value->name = new_name;
+    value->len  = 0;
+    value->data = NULL;
+    return value;
+}
+
 static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
                          DWORD flags, DWORD type, const void *data, DWORD data_len)
 {
@@ -4631,10 +4678,11 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     struct wine_rb_entry *node;
     struct hkey_to_key *map;
     struct key *key;
+    void *ptr;
     int index;
 
     if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return FALSE;
+        return;
 
     map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
 
@@ -4651,12 +4699,36 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
             !memcmp(key_value->data, data, data_len))
             return; /* identical to existing data */
     }
+
+    ptr = NULL;
+    if (data_len && !(ptr = heap_alloc(data_len)))
+        return;
+
+    memcpy(ptr, data, data_len);
+    if (!key_value)
+    {
+        if (!(key_value = rc_insert_value(key, &name, index)))
+        {
+            heap_free(ptr);
+            return;
+        }
+    }
+    else
+        heap_free(key_value->data);
+
+    key_value->type = type;
+    key_value->len  = data_len;
+    key_value->data = ptr;
 }
 
 LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
                                DWORD flags, DWORD *type, void *data, DWORD *data_len)
 {
     LSTATUS status;
+    DWORD dummy_type;
+
+    if (!type)
+        type = &dummy_type;
 
     if (rc_get_value(hkey, subkey, value, flags, type, data, data_len))
         return STATUS_SUCCESS;
