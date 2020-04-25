@@ -4181,6 +4181,7 @@ struct key
     struct key_value *values;
     DWORD64           modif;
     HKEY              hkey;
+    /* BOOL cacheable; // this key and below can be cached */
 };
 
 struct hkey_to_key
@@ -4278,6 +4279,7 @@ static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
         return NULL;
     }
 
+    key->ref = 1;
     key->last_subkey = -1;
     key->last_value  = -1;
     key->modif = modif;
@@ -4878,9 +4880,18 @@ static int rc_delete_key(struct key *key, int recurse)
     return 0;
 }
 
+static inline void rc_addref_key(struct key *key)
+{
+    ++key->ref;
+}
+
 static void rc_release_key(struct key *key)
 {
-
+    if (--key->ref)
+        return;
+    /* TODO: hkey */
+    RtlFreeUnicodeString(&key->name);
+    heap_free(key);
 }
 
 static struct key *rc_enable_cache(void)
