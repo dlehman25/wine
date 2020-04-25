@@ -4157,6 +4157,8 @@ static void test_EnumDynamicTimeZoneInformation(void)
     - use client-side (last cached)
 */
 
+WINE_DEFAULT_DEBUG_CHANNEL(registry);
+
 /* server/registry.c */
 struct key_value
 {
@@ -4859,6 +4861,7 @@ static int rc_delete_key(struct key *key, int recurse)
             wine_rb_remove(&hkey_to_key, node);
             heap_free(map);
         }
+        /* TODO: free name */
         heap_free(key); /* TODO: release_object(key); */
         return 0;        
     }
@@ -4875,29 +4878,52 @@ static int rc_delete_key(struct key *key, int recurse)
     return 0;
 }
 
+static void rc_release_key(struct key *key)
+{
+
+}
+
 static struct key *rc_enable_cache(void)
 {
     struct key *hklm;
     DWORD64 current_time;
-    UNICODE_STRING hklm_name;
-    UNICODE_STRING root_name;
+    UNICODE_STRING name;
     struct wine_rb_entry *node;
     struct hkey_to_key *map;
 
-    current_time = 42; /* TODO */
-    RtlInitUnicodeString(&root_name, L"\\Registry\\");
-    rc_root = rc_new_key(&root_name, current_time);
+    if (rc_root)
+    {
+        TRACE("registry cache already enabled\n");
+        return rc_root;
+    }
 
-    RtlInitUnicodeString(&hklm_name, L"Machine");
-    hklm = create_key_recursive(rc_root, &hklm_name, current_time);
-        
-    node = heap_alloc(sizeof(*map));
+    current_time = GetTickCount64();
+    RtlInitUnicodeString(&name, L"\\Registry\\");
+    rc_root = rc_new_key(&name, current_time);
+
+    /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
+    RtlInitUnicodeString(&name, L"Machine");
+    if (!(hklm = create_key_recursive(rc_root, &name, current_time)))
+        goto error;
+
+    if (!(node = heap_alloc(sizeof(*map))))
+        goto error;
+
     map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
     map->hkey = HKEY_LOCAL_MACHINE;
     map->key = hklm;
     wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
+
     if (0) dump_path(hklm, NULL, stderr);
+    TRACE("registry cache enabled\n");
     return rc_root;
+
+error:
+    WARN("failed to enable registry cache\n");
+    if (hklm) rc_release_key(hklm);
+    if (rc_root) rc_release_key(rc_root);
+    rc_root = NULL;
+    return NULL;
 }
 
 static void rc_disable_cache(void)
