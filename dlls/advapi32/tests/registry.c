@@ -4330,6 +4330,8 @@ static void free_subkey(struct key *parent, int index)
 {
     struct key *key;
     int i, nb_subkeys;
+    struct hkey_to_key *map;
+    struct wine_rb_entry *node;
 
     key = parent->subkeys[index];
     for (i = index; i < parent->last_subkey; i++)
@@ -4338,6 +4340,12 @@ static void free_subkey(struct key *parent, int index)
     /* key->flags |= KEY_DELETED; TODO */
     key->parent = NULL;
     /* TODO: release_object(key); */
+    if ((node = wine_rb_get(&hkey_to_key, key->hkey)))
+    {
+        map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+        wine_rb_remove(&hkey_to_key, node);
+        heap_free(map);
+    }
 
     nb_subkeys = parent->nb_subkeys;
     if (nb_subkeys > 8 /* MIN_SUBKEYS */ && parent->last_subkey < nb_subkeys / 2)
@@ -4814,6 +4822,29 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
+static int rc_delete_key(struct key *key, int recurse)
+{
+    int index;
+    struct key *parent = key->parent;
+
+    /* can delete root, unlike main registry */
+    while (recurse && (key->last_subkey >= 0))
+        if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
+            return -1;
+
+    for (index = 0; index < parent->last_subkey; index++)
+        if (parent->subkeys[index] == key)
+            break;
+
+    /* can only delete key with no subkeys */
+    if (key->last_subkey >= 0)
+        return -1;
+
+    free_subkey(parent, index);
+    return 0;
+}
+
+static struct key *rc_root;
 static struct key *rc_enable_cache(void)
 {
     DWORD64 current_time;
@@ -4821,7 +4852,16 @@ static struct key *rc_enable_cache(void)
 
     current_time = 42; /* TODO */
     RtlInitUnicodeString(&root_name, L"\\Registry\\");
-    return rc_new_key(&root_name, current_time);
+    return rc_root = rc_new_key(&root_name, current_time);
+}
+
+static void rc_disable_cache(void)
+{
+    if (rc_root)
+    {
+        rc_delete_key(rc_root, TRUE);
+        rc_root = NULL;
+    }
 }
 
 static void test_cache(void)
@@ -4836,8 +4876,8 @@ static void test_cache(void)
     {
         LSTATUS status;
         struct key *hklm;
-        struct key *root;
         struct key *ms;
+        struct key *root;
         DWORD64 current_time;
         UNICODE_STRING hklm_name;
         UNICODE_STRING ms_name;
@@ -4875,7 +4915,8 @@ static void test_cache(void)
         ok(status == ERROR_SUCCESS, "got %d\n", status);
         printf("%p %p\n", key, key2);
 
-        nloops = 2;
+        if (0) rc_disable_cache();
+        nloops = 100;
         while (nloops--)
         {
             s = GetTickCount64();
