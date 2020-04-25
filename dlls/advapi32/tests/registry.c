@@ -4842,6 +4842,8 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
 }
 
 static struct key *rc_root;
+static SRWLOCK rc_lock = SRWLOCK_INIT;
+
 static int rc_delete_key(struct key *key, int recurse)
 {
     int index;
@@ -4902,9 +4904,11 @@ static struct key *rc_enable_cache(void)
     struct wine_rb_entry *node;
     struct hkey_to_key *map;
 
+    AcquireSRWLockExclusive(&rc_lock);
     if (rc_root)
     {
         TRACE("registry cache already enabled\n");
+        ReleaseSRWLockExclusive(&rc_lock);
         return rc_root;
     }
 
@@ -4927,6 +4931,7 @@ static struct key *rc_enable_cache(void)
 
     if (0) dump_path(hklm, NULL, stderr);
     TRACE("registry cache enabled\n");
+    ReleaseSRWLockExclusive(&rc_lock);
     return rc_root;
 
 error:
@@ -4934,6 +4939,7 @@ error:
     if (hklm) rc_release_key(hklm);
     if (rc_root) rc_release_key(rc_root);
     rc_root = NULL;
+    ReleaseSRWLockExclusive(&rc_lock);
     return NULL;
 }
 
