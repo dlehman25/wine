@@ -4200,6 +4200,33 @@ static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
 static struct key *rc_root;
 static SRWLOCK rc_lock = SRWLOCK_INIT;
 
+static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
+{
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+
+    if (!(node = heap_alloc(sizeof(*map))))
+        return FALSE;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    map->hkey = hkey;
+    map->key = key;
+    wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
+    return TRUE;
+}
+
+static inline struct key *rc_key_for_hkey(HKEY hkey)
+{
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return NULL;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    return map->key;
+}
+
 static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
 {
     USHORT i = 0, len = path->Length / sizeof(WCHAR);
@@ -4502,29 +4529,33 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
                                REGSAM access, PHKEY retkey)
 {
     UNICODE_STRING us_name, token;
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
-    struct key *key;
+    struct key *root, *key;
     int index;
 
-    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return FALSE;
+    AcquireSRWLockShared(&rc_lock);
+    if (!rc_root)
+        goto not_cached;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    if (!(root = rc_key_for_hkey(hkey)))
+        goto not_cached;
 
     RtlInitUnicodeString(&us_name, name);
-    if (!(key = open_key_prefix(map->key, &us_name, &token, &index)))
-        return FALSE; /* invalid path */
+    if (!(key = open_key_prefix(root, &us_name, &token, &index)))
+        goto not_cached; /* invalid path */
 
     if (token.Length)
-        return FALSE; /* not found */
+        goto not_cached; /* not found */
 
     if (!key->hkey)
-        return FALSE; /* no hkey opened for this specific path */
+        goto not_cached; /* no hkey opened for this specific path */
 
     /* TODO: options, access */
     *retkey = key->hkey;
     return TRUE;
+
+not_cached:
+    ReleaseSRWLockShared(&rc_lock);
+    return FALSE;
 }
 
 static void WINAPI rc_put_key(HKEY root, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
@@ -4893,21 +4924,6 @@ static void rc_release_key(struct key *key)
     /* TODO: hkey */
     RtlFreeUnicodeString(&key->name);
     heap_free(key);
-}
-
-static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
-{
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
-
-    if (!(node = heap_alloc(sizeof(*map))))
-        return FALSE;
-
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-    map->hkey = hkey;
-    map->key = key;
-    wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
-    return TRUE;
 }
 
 static struct key *rc_enable_cache(void)
