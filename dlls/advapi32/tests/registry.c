@@ -4512,11 +4512,17 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
 
 static BOOL rc_cache_init(void)
 {
+    static const struct { const WCHAR *name; HKEY hkey; } map[] =
+    {
+        { L"HKLM", HKEY_LOCAL_MACHINE },
+    };
+    UNICODE_STRING path, token;
     WCHAR *keys, *key, *end;
+    HKEY hroot, hkeyrc;
     DWORD size, len;
-    HKEY hkeyrc;
     LSTATUS status;
     BOOL ret;
+    int i;
 
     if (RegOpenKeyW(HKEY_CURRENT_USER, L"Software\\Wine\\RegistryCache", &hkeyrc))
         return FALSE;
@@ -4524,28 +4530,64 @@ static BOOL rc_cache_init(void)
     keys = NULL;
     ret = FALSE;
     size = 0;
-    if ((status = pRegGetValueW(hkeyrc, NULL, L"Cacheable", RRF_RT_REG_MULTI_SZ, NULL, NULL, &size)))
+    if ((status = pRegGetValueW(hkeyrc, NULL, L"Cacheable", RRF_RT_REG_MULTI_SZ,
+                                NULL, NULL, &size)))
         goto done;
 
     if (!(keys = heap_alloc(size)))
         goto done;
 
-    if ((status = pRegGetValueW(hkeyrc, NULL, L"Cacheable", RRF_RT_REG_MULTI_SZ, NULL, keys, &size)))
+    if ((status = pRegGetValueW(hkeyrc, NULL, L"Cacheable", RRF_RT_REG_MULTI_SZ,
+                                NULL, keys, &size)))
         goto done;
+
+    /* TODO: if (!rc_enable_cache())
+        goto done; */
 
     /* TODO: deal with duplicates or nested here? */
     end = keys + size / sizeof(*keys);
     key = keys;
     while ((key < end) && (len = lstrlenW(key)))
     {
-        printf("key %u %s\n", len, wine_dbgstr_wn(key, len));
-        /* TODO:
-        root = first_token(key)
-        rc_cache_key(root, path);
-        */
+        RtlInitUnicodeString(&token, NULL); 
+        RtlInitUnicodeString(&path, key);
+        if (!get_path_token(&path, &token))
+        {
+            WARN("cannot cache %s\n", wine_dbgstr_wn(key, len));
+            key += len;
+            key++;
+            continue;
+        }
+
+        for (i = 0; i < ARRAY_SIZE(map); i++)
+        {
+            if (!memcmp(token.Buffer, map[i].name, token.Length)) /* TODO ?? */
+            {
+                hroot = map[i].hkey;
+                break;
+            }
+        }
+
+        if (i == ARRAY_SIZE(map))
+        {
+            WARN("cannot cache %s\n", wine_dbgstr_wn(key, len));
+            key += len;
+            key++;
+            continue;
+        }
+
+        key += token.Length/2;
+        key++;
+        len -= token.Length/2;
+        len--;
+        if (!rc_cache_key(hroot, key))
+            WARN("cannot cache %s\n", wine_dbgstr_wn(key, len));
+
         key += len;
         key++;
     }
+
+    /* TODO: if none successfully cached, disable it */
 
     ret = TRUE;
     /* fall-through */
