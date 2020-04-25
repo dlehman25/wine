@@ -4525,6 +4525,20 @@ static BOOL rc_cache_init(void)
     return FALSE;
 }
 
+static inline void rc_addref_key(struct key *key)
+{
+    ++key->ref;
+}
+
+static void rc_release_key(struct key *key)
+{
+    if (--key->ref)
+        return;
+    /* TODO: hkey */
+    RtlFreeUnicodeString(&key->name);
+    heap_free(key);
+}
+
 static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
                                REGSAM access, PHKEY retkey)
 {
@@ -4550,6 +4564,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
         goto not_cached; /* no hkey opened for this specific path */
 
     /* TODO: options, access */
+    rc_addref_key(key);
     *retkey = key->hkey;
     return TRUE;
 
@@ -4910,20 +4925,6 @@ static int rc_delete_key(struct key *key, int recurse)
 
     free_subkey(parent, index);
     return 0;
-}
-
-static inline void rc_addref_key(struct key *key)
-{
-    ++key->ref;
-}
-
-static void rc_release_key(struct key *key)
-{
-    if (--key->ref)
-        return;
-    /* TODO: hkey */
-    RtlFreeUnicodeString(&key->name);
-    heap_free(key);
 }
 
 static struct key *rc_enable_cache(void)
