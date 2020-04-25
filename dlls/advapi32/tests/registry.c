@@ -4197,6 +4197,8 @@ static int hkey_to_key_cmp(const void *key, const struct wine_rb_entry *entry)
     return HandleToLong(key) - HandleToLong(map->hkey);
 }
 static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
+static struct key *rc_root;
+static SRWLOCK rc_lock = SRWLOCK_INIT;
 
 static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
 {
@@ -4841,9 +4843,6 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
-static struct key *rc_root;
-static SRWLOCK rc_lock = SRWLOCK_INIT;
-
 static int rc_delete_key(struct key *key, int recurse)
 {
     int index;
@@ -4896,13 +4895,26 @@ static void rc_release_key(struct key *key)
     heap_free(key);
 }
 
+static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
+{
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+
+    if (!(node = heap_alloc(sizeof(*map))))
+        return FALSE;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    map->hkey = hkey;
+    map->key = key;
+    wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
+    return TRUE;
+}
+
 static struct key *rc_enable_cache(void)
 {
     struct key *hklm;
     DWORD64 current_time;
     UNICODE_STRING name;
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
 
     AcquireSRWLockExclusive(&rc_lock);
     if (rc_root)
@@ -4921,13 +4933,8 @@ static struct key *rc_enable_cache(void)
     if (!(hklm = create_key_recursive(rc_root, &name, current_time)))
         goto error;
 
-    if (!(node = heap_alloc(sizeof(*map))))
+    if (!rc_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
         goto error;
-
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-    map->hkey = HKEY_LOCAL_MACHINE;
-    map->key = hklm;
-    wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
 
     if (0) dump_path(hklm, NULL, stderr);
     TRACE("registry cache enabled\n");
