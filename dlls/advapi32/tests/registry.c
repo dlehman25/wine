@@ -4339,13 +4339,13 @@ static void free_subkey(struct key *parent, int index)
     parent->last_subkey--;
     /* key->flags |= KEY_DELETED; TODO */
     key->parent = NULL;
-    /* TODO: release_object(key); */
     if ((node = wine_rb_get(&hkey_to_key, key->hkey)))
     {
         map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
         wine_rb_remove(&hkey_to_key, node);
         heap_free(map);
     }
+    heap_free(key); /* TODO: release_object(key); */
 
     nb_subkeys = parent->nb_subkeys;
     if (nb_subkeys > 8 /* MIN_SUBKEYS */ && parent->last_subkey < nb_subkeys / 2)
@@ -4822,15 +4822,31 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
+static struct key *rc_root;
 static int rc_delete_key(struct key *key, int recurse)
 {
     int index;
+    struct hkey_to_key *map;
+    struct wine_rb_entry *node;
     struct key *parent = key->parent;
 
     /* can delete root, unlike main registry */
     while (recurse && (key->last_subkey >= 0))
         if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
             return -1;
+
+    /* TODO? */
+    if (key == rc_root)
+    {
+        if ((node = wine_rb_get(&hkey_to_key, key->hkey)))
+        {
+            map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+            wine_rb_remove(&hkey_to_key, node);
+            heap_free(map);
+        }
+        heap_free(key); /* TODO: release_object(key); */
+        return 0;        
+    }
 
     for (index = 0; index < parent->last_subkey; index++)
         if (parent->subkeys[index] == key)
@@ -4844,7 +4860,6 @@ static int rc_delete_key(struct key *key, int recurse)
     return 0;
 }
 
-static struct key *rc_root;
 static struct key *rc_enable_cache(void)
 {
     DWORD64 current_time;
@@ -4888,6 +4903,8 @@ static void test_cache(void)
 
         current_time = 42; /* TODO */
         root = rc_enable_cache();
+        if (0) rc_disable_cache();
+
         RtlInitUnicodeString(&hklm_name, L"Machine");
         hklm = create_key_recursive(root, &hklm_name, current_time);
 
