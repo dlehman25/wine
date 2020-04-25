@@ -4814,6 +4814,16 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
+static struct key *rc_enable_cache(void)
+{
+    DWORD64 current_time;
+    UNICODE_STRING root_name;
+
+    current_time = 42; /* TODO */
+    RtlInitUnicodeString(&root_name, L"\\Registry\\");
+    return rc_new_key(&root_name, current_time);
+}
+
 static void test_cache(void)
 {
     LSTATUS status;
@@ -4829,7 +4839,6 @@ static void test_cache(void)
         struct key *root;
         struct key *ms;
         DWORD64 current_time;
-        UNICODE_STRING root_name;
         UNICODE_STRING hklm_name;
         UNICODE_STRING ms_name;
         UNICODE_STRING token;
@@ -4837,10 +4846,8 @@ static void test_cache(void)
         struct wine_rb_entry *node;
         struct hkey_to_key *map;
 
-        current_time = 42;
-        RtlInitUnicodeString(&root_name, L"\\Registry\\");
-        root = rc_new_key(&root_name, current_time);
-
+        current_time = 42; /* TODO */
+        root = rc_enable_cache();
         RtlInitUnicodeString(&hklm_name, L"Machine");
         hklm = create_key_recursive(root, &hklm_name, current_time);
 
