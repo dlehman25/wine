@@ -4512,12 +4512,48 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
 
 static BOOL rc_cache_init(void)
 {
-    /*
-    fetch list of keys to cache from registry
-    for each path, cache key
-    deal with duplicates or related here?
-    */
-    return FALSE;
+    WCHAR *keys, *key, *end;
+    DWORD size, len;
+    HKEY hkeyrc;
+    LSTATUS status;
+    BOOL ret;
+
+    if (RegOpenKeyW(HKEY_CURRENT_USER, L"Software\\Wine\\RegistryCache", &hkeyrc))
+        return FALSE;
+
+    keys = NULL;
+    ret = FALSE;
+    size = 0;
+    if ((status = pRegGetValueW(hkeyrc, NULL, L"Cacheable", RRF_RT_REG_MULTI_SZ, NULL, NULL, &size)))
+        goto done;
+
+    if (!(keys = heap_alloc(size)))
+        goto done;
+
+    if ((status = pRegGetValueW(hkeyrc, NULL, L"Cacheable", RRF_RT_REG_MULTI_SZ, NULL, keys, &size)))
+        goto done;
+
+    /* TODO: deal with duplicates or nested here? */
+    end = keys + size / sizeof(*keys);
+    key = keys;
+    while ((key < end) && (len = lstrlenW(key)))
+    {
+        printf("key %u %s\n", len, wine_dbgstr_wn(key, len));
+        /* TODO:
+        root = first_token(key)
+        rc_cache_key(root, path);
+        */
+        key += len;
+        key++;
+    }
+
+    ret = TRUE;
+    /* fall-through */
+
+done:
+    heap_free(keys);
+    RegCloseKey(hkeyrc);
+    return ret;
 }
 
 static inline void rc_addref_key(struct key *key)
@@ -4988,6 +5024,7 @@ static void test_cache(void)
         int index;
         void *cookie;
 
+rc_cache_init(); return;
         root = rc_enable_cache();
         if (0) rc_disable_cache();
 
