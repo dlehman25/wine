@@ -4535,6 +4535,7 @@ static void rc_release_key(struct key *key)
     if (--key->ref)
         return;
     /* TODO: hkey */
+    /* TODO: leave cached for now in case reopen */
     RtlFreeUnicodeString(&key->name);
     heap_free(key);
 }
@@ -4864,21 +4865,22 @@ LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 
 static BOOL rc_close_key(HKEY hkey)
 {
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
+    struct key *key;
 
-    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return FALSE; /* not cached */
+    AcquireSRWLockExclusive(&rc_lock);
+    if (!rc_root)
+        goto not_cached;
 
-if (0)
-{
-    /* TODO: what if more than one? refcount? */
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-    if (map->key->hkey == hkey)
-        return TRUE;
-}
+    if (!(key = rc_key_for_hkey(hkey)))
+        goto not_cached;
 
+    if (0) rc_release_key(key); /* TODO: delete, release, ...? */
+    ReleaseSRWLockExclusive(&rc_lock);
     return TRUE;
+
+not_cached:
+    ReleaseSRWLockExclusive(&rc_lock);
+    return FALSE;
 }
 
 LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
