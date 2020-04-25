@@ -4573,36 +4573,36 @@ not_cached:
     return FALSE;
 }
 
-static void WINAPI rc_put_key(HKEY root, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
+static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
 {
     UNICODE_STRING us_name, token;
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
-    struct key *key;
+    struct key *root, *key;
     int index;
 
-    if (!(node = wine_rb_get(&hkey_to_key, root)))
-        return; /* removed in meantime (TODO: race condition, locking) */
+    key = NULL;
+    AcquireSRWLockExclusive(&rc_lock);
+    if (!rc_root)
+        goto not_cacheable;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    /* TODO: already cached? another thread beat us to it? */
+
+    if (!(root = rc_key_for_hkey(hroot)))
+        goto not_cacheable;
 
     RtlInitUnicodeString(&us_name, name);
-    if ((key = open_key_prefix(map->key, &us_name, &token, &index)))
-    { }
-    else
-    {
-        if (!(key = create_key_recursive(map->key, &us_name, 0 /* TODO */)))
-            return;
-    }
+    if (!(key = open_key_prefix(root, &us_name, &token, &index)) &&
+        !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
+        goto not_cacheable;
 
-    if (!(node = heap_alloc(sizeof(*map))))
-        return;
+    if (rc_map_hkey_to_key(hkey, key))
+        goto not_cacheable;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-    map->hkey = hkey;
-    map->key = key;
-    wine_rb_put(&hkey_to_key, hkey, &map->entry);
-    key->hkey = hkey; /* TODO: race condition, could already exist */
+    ReleaseSRWLockExclusive(&rc_lock);
+    return;
+
+not_cacheable:
+    if (0) { if (key) rc_release_key(key); } /* TODO */
+    ReleaseSRWLockExclusive(&rc_lock);
 }
 
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
