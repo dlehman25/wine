@@ -4423,6 +4423,26 @@ static void dump_path(const struct key *key, const struct key *base, FILE *f)
     fprintf(f, "%s", wine_dbgstr_wn(key->name.Buffer, key->name.Length/2));
 }
 
+static void dump_value(const struct key_value *value, int depth)
+{
+    int i;
+
+    for (i = 0; i < depth; i++)
+        printf(" ");
+    printf("%02x %02x %s ", value->type, value->len,
+           wine_dbgstr_wn(value->name.Buffer, value->name.Length/sizeof(WCHAR)));
+    switch (value->type)
+    {
+        case REG_DWORD:
+            printf("0x%x (%d)\n", *((DWORD*)value->data), *((DWORD*)value->data));
+            break;
+        case REG_SZ:
+            printf("%s", wine_dbgstr_wn((LPCWSTR)value->data, value->len/sizeof(WCHAR)-1));
+            break;
+    }
+    printf("\n");
+}
+
 static void dump_key(const struct key *key, int depth)
 {
     int i;
@@ -4435,6 +4455,8 @@ static void dump_key(const struct key *key, int depth)
         key->last_value+1, key->nb_values, key->hkey, key->modif);
     for (i = 0; i <= key->last_subkey; i++)
         dump_key(key->subkeys[i], depth+4);
+    for (i = 0; i <= key->last_value; i++)
+        dump_value(&key->values[i], depth);
 }
 
 static BOOL rc_cache_key(HKEY hkey)
@@ -4882,7 +4904,7 @@ static void test_cache(void)
             e = GetTickCount64();
             if (0) printf("%u: %I64u\n", nloops, e - s);
         }
-        if (0) dump_key(root, 0);
+        if (1) dump_key(root, 0);
 
         rc_RegCloseKey(key2);
         rc_RegCloseKey(key);
