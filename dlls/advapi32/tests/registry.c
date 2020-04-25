@@ -4563,7 +4563,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (!key->hkey)
         goto not_cached; /* no hkey opened for this specific path */
 
-    /* TODO: options, access */
+    /* TODO: options, access - can we update later?  cache with different key? */
     rc_addref_key(key);
     *retkey = key->hkey;
     return TRUE;
