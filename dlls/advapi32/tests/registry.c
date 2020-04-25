@@ -4827,12 +4827,10 @@ static void test_cache(void)
         LSTATUS status;
         struct key *hklm;
         struct key *root;
-        struct key *tz;
         struct key *ms;
         DWORD64 current_time;
         UNICODE_STRING root_name;
         UNICODE_STRING hklm_name;
-        UNICODE_STRING tz_name;
         UNICODE_STRING ms_name;
         UNICODE_STRING token;
         int index;
@@ -4853,13 +4851,6 @@ static void test_cache(void)
         wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
         printf("put: %p -> %p node %p map %p\n", map->hkey, map->key, node, map);
     
-        if (0)
-        {
-            RtlInitUnicodeString(&tz_name,
-                L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
-            tz = create_key_recursive(hklm, &tz_name, current_time);
-        }
-
         if (0) dump_path(hklm, NULL, stderr);
         dump_key(root, 0);
 
