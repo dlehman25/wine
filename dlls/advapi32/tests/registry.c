@@ -4510,11 +4510,6 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
     return NULL;
 }
 
-static BOOL rc_uncache_key(HKEY hkey)
-{
-    return FALSE;
-}
-
 static BOOL rc_cache_init(void)
 {
     /*
@@ -5094,7 +5089,6 @@ if (0)
         RegCloseKey(subkey);
         index++;
     }
-    rc_uncache_key(key);
 
     RegCloseKey(key);
     RegCloseKey(key2);
