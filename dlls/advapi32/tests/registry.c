@@ -4326,8 +4326,32 @@ static struct key *alloc_subkey(struct key *parent, const UNICODE_STRING *name,
     return key;
 }
 
-static void free_subkey(struct key *key, int index)
+static void free_subkey(struct key *parent, int index)
 {
+    struct key *key;
+    int i, nb_subkeys;
+
+    key = parent->subkeys[index];
+    for (i = index; i < parent->last_subkey; i++)
+        parent->subkeys[i] = parent->subkeys[i+1];
+    parent->last_subkey--;
+    /* key->flags |= KEY_DELETED; TODO */
+    key->parent = NULL;
+    /* TODO: release_object(key); */
+
+    nb_subkeys = parent->nb_subkeys;
+    if (nb_subkeys > 8 /* MIN_SUBKEYS */ && parent->last_subkey < nb_subkeys / 2)
+    {
+        struct key **new_subkeys;
+
+        nb_subkeys -= nb_subkeys / 3;
+        if (nb_subkeys < 8 /* MIN_SUBKEYS */) nb_subkeys = 8;
+        if (!(new_subkeys = heap_realloc(parent->subkeys, nb_subkeys * sizeof(*new_subkeys))))
+            return;
+
+        parent->subkeys = new_subkeys;
+        parent->nb_subkeys = nb_subkeys;
+    }
 }
 
 static struct key *create_key_recursive(struct key *key, const UNICODE_STRING *name,
