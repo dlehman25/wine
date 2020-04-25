@@ -4467,13 +4467,28 @@ static void dump_key(const struct key *key, int depth)
         dump_value(&key->values[i], depth);
 }
 
-static BOOL rc_cache_key(HKEY hkey)
+static void *rc_cache_key(HKEY special, LPCWSTR path)
 {
-    return FALSE;
+    /*
+    bail if cache not enabled (or just enable here?)
+    create root key if needed
+    cache key
+    */
+    return NULL;
 }
 
 static BOOL rc_uncache_key(HKEY hkey)
 {
+    return FALSE;
+}
+
+static BOOL rc_cache_init(void)
+{
+    /*
+    fetch list of keys to cache from registry
+    for each path, cache key
+    deal with duplicates or related here?
+    */
     return FALSE;
 }
 
@@ -4862,12 +4877,27 @@ static int rc_delete_key(struct key *key, int recurse)
 
 static struct key *rc_enable_cache(void)
 {
+    struct key *hklm;
     DWORD64 current_time;
+    UNICODE_STRING hklm_name;
     UNICODE_STRING root_name;
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
 
     current_time = 42; /* TODO */
     RtlInitUnicodeString(&root_name, L"\\Registry\\");
-    return rc_root = rc_new_key(&root_name, current_time);
+    rc_root = rc_new_key(&root_name, current_time);
+
+    RtlInitUnicodeString(&hklm_name, L"Machine");
+    hklm = create_key_recursive(rc_root, &hklm_name, current_time);
+        
+    node = heap_alloc(sizeof(*map));
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    map->hkey = HKEY_LOCAL_MACHINE;
+    map->key = hklm;
+    wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
+    if (0) dump_path(hklm, NULL, stderr);
+    return rc_root;
 }
 
 static void rc_disable_cache(void)
@@ -4890,38 +4920,18 @@ static void test_cache(void)
 
     {
         LSTATUS status;
-        struct key *hklm;
-        struct key *ms;
         struct key *root;
-        DWORD64 current_time;
-        UNICODE_STRING hklm_name;
-        UNICODE_STRING ms_name;
-        UNICODE_STRING token;
         int index;
-        struct wine_rb_entry *node;
-        struct hkey_to_key *map;
+        void *cookie;
 
-        current_time = 42; /* TODO */
         root = rc_enable_cache();
         if (0) rc_disable_cache();
 
-        RtlInitUnicodeString(&hklm_name, L"Machine");
-        hklm = create_key_recursive(root, &hklm_name, current_time);
+        cookie = rc_cache_key(HKEY_LOCAL_MACHINE,
+            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones"); 
+        /* now anything at Time Zones and under is cached  */
 
-        node = heap_alloc(sizeof(*map));
-        map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-        map->hkey = HKEY_LOCAL_MACHINE;
-        map->key = hklm;
-        wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
-        printf("put: %p -> %p node %p map %p\n", map->hkey, map->key, node, map);
-    
-        if (0) dump_path(hklm, NULL, stderr);
         dump_key(root, 0);
-
-        RtlInitUnicodeString(&ms_name, L"Software\\Microsoft");
-        ms = open_key_prefix(hklm, &ms_name, &token, &index);
-        printf("ms %p index %d\n", ms, index);
-        
         status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                     L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                     KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
@@ -4933,7 +4943,7 @@ static void test_cache(void)
         printf("%p %p\n", key, key2);
 
         if (0) rc_disable_cache();
-        nloops = 100;
+        nloops = 2;
         while (nloops--)
         {
             s = GetTickCount64();
@@ -5000,7 +5010,6 @@ if (0)
     ok(status == ERROR_SUCCESS, "got %d\n", status);
     index = 0;
 
-    rc_cache_key(key);
     while (!(status = RegEnumKeyW(key, index, keyname, ARRAY_SIZE(keyname))))
     {
         subkey = NULL;
