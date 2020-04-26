@@ -4807,31 +4807,37 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 {
     UNICODE_STRING name, token;
     struct key_value *key_value;
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
-    struct key *key;
+    struct key *root, *key;
     int index;
 
-    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return FALSE;
+    AcquireSRWLockShared(&rc_lock);
+    if (!rc_root)
+        goto not_cached;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    if (!(root = rc_key_for_hkey(hkey)))
+        goto not_cached;
 
     RtlInitUnicodeString(&name, subkey);
-    if (!(key = open_key_prefix(map->key, &name, &token, &index)))
-        return FALSE; /* invalid path */
+    if (!(key = open_key_prefix(root, &name, &token, &index)))
+        goto not_cached; /* invalid path */
 
     RtlInitUnicodeString(&name, value);
     if (!(key_value = find_value(key, &name, &index)))
-        return FALSE;
+        goto not_cached;
 
     if (key_value->len > *data_len)
-        return FALSE; /* TODO: STATUS_BUFFER_OVERFLOW */
+        goto not_cached; /* TODO: STATUS_BUFFER_OVERFLOW */
 
     memcpy(data, key_value->data, key_value->len);
     *type = key_value->type;
     *data_len = key_value->len;
+
+    ReleaseSRWLockShared(&rc_lock);
     return TRUE;
+
+not_cached:
+    ReleaseSRWLockShared(&rc_lock);
+    return FALSE;
 }
 
 static int grow_values( struct key *key )
