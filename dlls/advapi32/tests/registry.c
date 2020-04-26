@@ -4697,32 +4697,39 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD
 
 static BOOL rc_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
 {
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
-    struct key *key;
+    struct key *root, *key;
 
-    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return FALSE; /* removed in meantime (TODO: race condition, locking) */
+    AcquireSRWLockShared(&rc_lock);
+    if (!rc_root)
+        goto not_cached;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-    if (!map->key->subkeys)
-        return FALSE; /* none cached yet */
+    if (!(root = rc_key_for_hkey(hkey)))
+        goto not_cached;
 
-    if (index > map->key->last_subkey)
-        return FALSE; /* this not cached yet */
+    if (!root->subkeys)
+        goto not_cached; /* none cached yet */
+
+    if (index > root->last_subkey)
+        goto not_cached; /* this not cached yet */
+
     /* TODO: if we know we have all entries: ERROR_MORE_DATA */
 
-    key = map->key->subkeys[index];
+    key = root->subkeys[index];
     if (!key)
-        return FALSE; /* this specific one not cached (unlikely but possibly skip entries) */
+        goto not_cached; /* this specific one not cached (unlikely but possibly skip entries) */
 
     if (key->name.Length + sizeof(WCHAR) > (*name_len) * sizeof(WCHAR))
-        return FALSE; /* TODO: ERROR_MORE_DATA */
+        goto not_cached; /* TODO: ERROR_MORE_DATA */
 
     *name_len = key->name.Length / sizeof(WCHAR) + 1;
     memcpy(name, key->name.Buffer, key->name.Length);
     name[*name_len - 1] = 0;
+    ReleaseSRWLockShared(&rc_lock);
     return TRUE;
+
+not_cached:
+    ReleaseSRWLockShared(&rc_lock);
+    return FALSE;
 }
 
 static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
@@ -5066,7 +5073,7 @@ static void test_cache(void)
         int index;
         void *cookie;
 
-rc_cache_init(); return;
+        rc_cache_init();
         root = rc_enable_cache();
         if (0) rc_disable_cache();
 
