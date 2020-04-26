@@ -4179,7 +4179,7 @@ struct key
     int               last_value;
     int               nb_values;
     struct key_value *values;
-    DWORD64           modif;
+    DWORD64           modif; /* TODO: needed?  zero if dirty - just have bool? */
     HKEY              hkey;
     /* BOOL cacheable; // this key and below can be cached */
 };
