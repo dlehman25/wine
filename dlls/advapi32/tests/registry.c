@@ -4215,6 +4215,20 @@ static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
     return TRUE;
 }
 
+static inline void rc_unmap_hkey(HKEY hkey)
+{
+    struct wine_rb_entry *node;
+    struct hkey_to_key *map;
+
+    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
+        return;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    wine_rb_remove(&hkey_to_key, node);
+    /* TODO: release_key(map->key) ??? */
+    heap_free(map);
+}
+
 static inline struct key *rc_key_for_hkey(HKEY hkey)
 {
     struct wine_rb_entry *node;
@@ -4363,8 +4377,6 @@ static void free_subkey(struct key *parent, int index)
 {
     struct key *key;
     int i, nb_subkeys;
-    struct hkey_to_key *map;
-    struct wine_rb_entry *node;
 
     key = parent->subkeys[index];
     for (i = index; i < parent->last_subkey; i++)
@@ -4372,12 +4384,8 @@ static void free_subkey(struct key *parent, int index)
     parent->last_subkey--;
     /* key->flags |= KEY_DELETED; TODO */
     key->parent = NULL;
-    if ((node = wine_rb_get(&hkey_to_key, key->hkey)))
-    {
-        map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-        wine_rb_remove(&hkey_to_key, node);
-        heap_free(map);
-    }
+    if (key->hkey)
+        rc_unmap_hkey(key->hkey);
     heap_free(key); /* TODO: release_object(key); */
 
     nb_subkeys = parent->nb_subkeys;
@@ -4993,8 +5001,6 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
 static int rc_delete_key(struct key *key, int recurse)
 {
     int index;
-    struct hkey_to_key *map;
-    struct wine_rb_entry *node;
     struct key *parent = key->parent;
 
     /* can delete root, unlike main registry */
@@ -5005,12 +5011,7 @@ static int rc_delete_key(struct key *key, int recurse)
     /* TODO? */
     if (key == rc_root)
     {
-        if ((node = wine_rb_get(&hkey_to_key, key->hkey)))
-        {
-            map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
-            wine_rb_remove(&hkey_to_key, node);
-            heap_free(map);
-        }
+        rc_unmap_hkey(key->hkey);
         /* TODO: free name */
         heap_free(key); /* TODO: release_object(key); */
         return 0;        
