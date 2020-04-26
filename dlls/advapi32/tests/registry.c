@@ -4734,19 +4734,28 @@ not_cached:
 
 static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
 {
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
     UNICODE_STRING us_name;
+    struct key *key;
    
-    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return; /* removed in meantime (TODO: race condition, locking) */
+    key = NULL;
+    AcquireSRWLockExclusive(&rc_lock);
+    if (!rc_root)
+        goto not_cacheable;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    if (!(key = rc_key_for_hkey(hkey)))
+        goto not_cacheable;
 
     us_name.Buffer = name;
     us_name.Length = name_len * sizeof(WCHAR);
     us_name.MaximumLength = name_len * sizeof(WCHAR) + sizeof(WCHAR);
-    alloc_subkey(map->key, &us_name, index, 0 /* TODO modif */);
+    if (!alloc_subkey(key, &us_name, index, GetTickCount64()))
+        goto not_cacheable;
+    ReleaseSRWLockExclusive(&rc_lock);
+    return;
+
+not_cacheable:
+    if (0) { if (key) rc_release_key(key); } /* TODO */
+    ReleaseSRWLockExclusive(&rc_lock);
 }
 
 LSTATUS WINAPI rc_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
