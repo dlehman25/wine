@@ -4200,6 +4200,22 @@ static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
 static struct key *rc_root;
 static SRWLOCK rc_lock = SRWLOCK_INIT;
 
+static inline struct key *rc_addref_key(struct key *key)
+{
+    ++key->ref;
+    return key;
+}
+
+static void rc_release_key(struct key *key)
+{
+    if (--key->ref)
+        return;
+    /* TODO: hkey */
+    return; /* TODO: leave cached for now in case reopen */
+    RtlFreeUnicodeString(&key->name);
+    heap_free(key);
+}
+
 static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
 {
     struct wine_rb_entry *node;
@@ -4210,7 +4226,7 @@ static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
 
     map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
     map->hkey = hkey;
-    map->key = key;
+    map->key = rc_addref_key(key);
     wine_rb_put(&hkey_to_key, map->hkey, &map->entry);
     return TRUE;
 }
@@ -4225,7 +4241,7 @@ static inline void rc_unmap_hkey(HKEY hkey)
 
     map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
     wine_rb_remove(&hkey_to_key, node);
-    /* TODO: release_key(map->key) ??? */
+    rc_release_key(map->key);
     heap_free(map);
 }
 
@@ -4604,21 +4620,6 @@ done:
     heap_free(keys);
     RegCloseKey(hkeyrc);
     return ret;
-}
-
-static inline void rc_addref_key(struct key *key)
-{
-    ++key->ref;
-}
-
-static void rc_release_key(struct key *key)
-{
-    if (--key->ref)
-        return;
-    /* TODO: hkey */
-    /* TODO: leave cached for now in case reopen */
-    RtlFreeUnicodeString(&key->name);
-    heap_free(key);
 }
 
 static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
