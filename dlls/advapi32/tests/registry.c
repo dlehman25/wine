@@ -4892,20 +4892,21 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 {
     UNICODE_STRING name, token;
     struct key_value *key_value;
-    struct wine_rb_entry *node;
-    struct hkey_to_key *map;
-    struct key *key;
+    struct key *root, *key;
     void *ptr;
     int index;
 
-    if (!(node = wine_rb_get(&hkey_to_key, hkey)))
-        return;
+    key = NULL;
+    AcquireSRWLockExclusive(&rc_lock);
+    if (!rc_root)
+        goto done;
 
-    map = WINE_RB_ENTRY_VALUE(node, struct hkey_to_key, entry);
+    if (!(root = rc_key_for_hkey(hkey)))
+        goto done;
 
     RtlInitUnicodeString(&name, subkey);
-    if (!(key = open_key_prefix(map->key, &name, &token, &index)))
-        return;
+    if (!(key = open_key_prefix(root, &name, &token, &index)))
+        goto done;
 
     RtlInitUnicodeString(&name, value);
     if ((key_value = find_value(key, &name, &index)))
@@ -4914,12 +4915,12 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
         if (key_value->type == type &&
             key_value->len == data_len &&
             !memcmp(key_value->data, data, data_len))
-            return; /* identical to existing data */
+            goto done; /* identical to existing data */
     }
 
     ptr = NULL;
     if (data_len && !(ptr = heap_alloc(data_len)))
-        return;
+        goto done;
 
     memcpy(ptr, data, data_len);
     if (!key_value)
@@ -4927,7 +4928,7 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
         if (!(key_value = rc_insert_value(key, &name, index)))
         {
             heap_free(ptr);
-            return;
+            goto done;
         }
     }
     else
@@ -4936,6 +4937,9 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     key_value->type = type;
     key_value->len  = data_len;
     key_value->data = ptr;
+
+done:
+    ReleaseSRWLockExclusive(&rc_lock);
 }
 
 LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
