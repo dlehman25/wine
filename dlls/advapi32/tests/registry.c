@@ -4200,6 +4200,9 @@ static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
 static struct key *rc_root;
 static SRWLOCK rc_lock = SRWLOCK_INIT;
 
+#define MIN_VALUES  8
+#define MIN_SUBKEYS 8
+
 static inline struct key *rc_addref_key(struct key *key)
 {
     ++key->ref;
@@ -4359,7 +4362,7 @@ static int grow_subkeys(struct key *key)
     }
     else
     {
-        nb_subkeys = 8; /* MIN_SUBKEYS */
+        nb_subkeys = MIN_SUBKEYS;
         if (!(new_subkeys = heap_alloc(nb_subkeys * sizeof(*new_subkeys))))
             return 0;
     }
@@ -4405,12 +4408,12 @@ static void free_subkey(struct key *parent, int index)
     heap_free(key); /* TODO: release_object(key); */
 
     nb_subkeys = parent->nb_subkeys;
-    if (nb_subkeys > 8 /* MIN_SUBKEYS */ && parent->last_subkey < nb_subkeys / 2)
+    if (nb_subkeys > MIN_SUBKEYS && parent->last_subkey < nb_subkeys / 2)
     {
         struct key **new_subkeys;
 
         nb_subkeys -= nb_subkeys / 3;
-        if (nb_subkeys < 8 /* MIN_SUBKEYS */) nb_subkeys = 8;
+        if (nb_subkeys < MIN_SUBKEYS) nb_subkeys = MIN_SUBKEYS;
         if (!(new_subkeys = heap_realloc(parent->subkeys, nb_subkeys * sizeof(*new_subkeys))))
             return;
 
@@ -4862,7 +4865,7 @@ static int grow_values( struct key *key )
     }
     else
     {
-        nb_values = 8; /* MIN_VALUES */
+        nb_values = MIN_VALUES;
         if (!(new_val = heap_alloc(nb_values * sizeof(*new_val))))
             return 0;
     }
