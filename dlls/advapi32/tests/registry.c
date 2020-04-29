@@ -5108,7 +5108,7 @@ static void test_cache(void)
         dump_key(root, 0);
         status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                     L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY /* TODO: */, &key);
         ok(status == ERROR_SUCCESS, "got %d\n", status);
         status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                     L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
@@ -5145,6 +5145,22 @@ static void test_cache(void)
             if (0) printf("%u: %I64u\n", nloops, e - s);
         }
         if (1) dump_key(root, 0);
+
+        {
+            LSTATUS status;
+            HANDLE changed;
+            DWORD index;
+
+            changed = CreateEventA(NULL, TRUE, FALSE, NULL);
+
+            status = RegNotifyChangeKeyValue(key, TRUE,
+                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
+                        REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
+            printf("status %x\n", status);
+
+            index = WaitForSingleObject(changed, INFINITE);
+            printf("index %u\n", index);
+        }
 
         rc_RegCloseKey(key2);
         rc_RegCloseKey(key);
