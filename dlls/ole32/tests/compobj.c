@@ -3443,9 +3443,27 @@ static DWORD WINAPI test_init_spies_proc(void *arg)
     return 0;
 }
 
+static DWORD WINAPI test_init_imbalance_proc(void *arg)
+{
+    HRESULT hr;
+    DWORD flags = arg ? COINIT_MULTITHREADED : COINIT_APARTMENTTHREADED;
+
+    hr = CoRegisterInitializeSpy(&testinitialize, &init_cookies[0]);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hr = CoInitializeEx(NULL, flags);
+    ok(hr == S_OK, "Failed to initialize COM, hr %#x.\n", hr);
+    hr = CoInitializeEx(NULL, flags);
+    ok(hr == S_FALSE, "Failed to initialize COM, hr %#x.\n", hr);
+
+    CoUninitialize();
+    return 0;
+}
+
 static void test_IInitializeSpy(BOOL mt)
 {
     HRESULT hr;
+    HANDLE thread;
 
     if (mt)
     {
@@ -3512,7 +3530,6 @@ static void test_IInitializeSpy(BOOL mt)
 
     if (mt)
     {
-        HANDLE thread;
         thread = CreateThread(NULL, 0, test_init_spies_proc, NULL, 0, NULL);
         ok(thread != NULL, "CreateThread failed: %u\n", GetLastError());
         ok(!WaitForSingleObject(thread, 1000), "wait failed\n");
@@ -3557,6 +3574,24 @@ static void test_IInitializeSpy(BOOL mt)
     revoke_spies_on_uninit = TRUE;
     CoUninitialize();
     CHECK_CALLED(PreUninitialize, 1);
+
+    /* test imbalance of CoInit calls */
+    SET_EXPECT(PreInitialize);
+    SET_EXPECT(PostInitialize);
+    SET_EXPECT(PreUninitialize);
+    SET_EXPECT(PostUninitialize);
+
+    expected_coinit_flags = mt ? COINIT_MULTITHREADED : COINIT_APARTMENTTHREADED;
+    thread = CreateThread(NULL, 0, test_init_imbalance_proc, LongToPtr(mt), 0, NULL);
+    ok(thread != NULL, "CreateThread failed: %u\n", GetLastError());
+    ok(!WaitForSingleObject(thread, 1000), "wait failed\n");
+
+    CHECK_CALLED(PreInitialize, 2);
+    CHECK_CALLED(PostInitialize, 2);
+todo_wine {
+    CHECK_CALLED(PreUninitialize, 2);
+    CHECK_CALLED(PostUninitialize, 2);
+}
 }
 
 static HRESULT g_persistfile_qi_ret;
