@@ -5082,6 +5082,59 @@ static void rc_disable_cache(void)
     }
 }
 
+struct rc_wait_s
+{
+    HKEY hkey;
+    HANDLE event;
+};
+
+static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
+                                      PTP_WAIT wait, TP_WAIT_RESULT result)
+{
+    struct rc_wait_s *args = parm;
+    LSTATUS status;
+
+    status = RegNotifyChangeKeyValue(args->hkey, TRUE,
+                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
+                        REG_NOTIFY_THREAD_AGNOSTIC, args->event, TRUE);
+    SetThreadpoolWait(wait, args->event, NULL);
+}
+
+static void rc_register_wait(HKEY hkey)
+{
+    LSTATUS status;
+    PTP_WAIT wait;
+    PTP_WAIT_CALLBACK callback;
+    HANDLE changed;
+    struct rc_wait_s *rc_wait;
+
+    changed = CreateEventA(NULL, FALSE, FALSE, NULL);
+
+    status = RegNotifyChangeKeyValue(hkey, TRUE,
+                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
+                        REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
+    printf("status %x hkey %p changed %p\n", status, hkey, changed);
+
+    rc_wait = malloc(sizeof(*rc_wait));
+    rc_wait->event = changed;
+    rc_wait->hkey = hkey;
+
+    callback = rc_wait_callback;
+    wait = CreateThreadpoolWait(callback, rc_wait, NULL);
+    SetThreadpoolWait(wait, changed, NULL);
+
+/*
+        WaitForThreadpoolWaitCallbacks(Wait, FALSE);
+
+            SetThreadpoolWait(Wait, NULL, NULL);
+
+            // Close the wait.
+            CloseThreadpoolWait(Wait);
+
+            CloseHandle(hEvent);
+*/
+}
+
 static void test_cache(void)
 {
     LSTATUS status;
@@ -5146,6 +5199,7 @@ static void test_cache(void)
         }
         if (1) dump_key(root, 0);
 
+        if (0)
         {
             LSTATUS status;
             HANDLE changed;
@@ -5161,6 +5215,8 @@ static void test_cache(void)
             index = WaitForSingleObject(changed, INFINITE);
             printf("index %u\n", index);
         }
+        rc_register_wait(key);
+        printf("waiting\n");getchar();
 
         rc_RegCloseKey(key2);
         rc_RegCloseKey(key);
