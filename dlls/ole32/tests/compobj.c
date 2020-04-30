@@ -4015,6 +4015,59 @@ static void test_mta_usage(void)
     test_apt_type(APTTYPE_CURRENT, APTTYPEQUALIFIER_NONE);
 }
 
+#define FLS_TEST_INDEX_COUNT 4096
+
+static DWORD count_fls_slots(void)
+{
+    DWORD i, count;
+    static DWORD fls_indices[FLS_TEST_INDEX_COUNT] = {-1};
+
+    for (i = 0; i < FLS_TEST_INDEX_COUNT; ++i)
+    {
+        if ((fls_indices[i] = FlsAlloc(NULL)) == FLS_OUT_OF_INDEXES)
+            break;
+    }
+    count = i;
+
+    for (i = 0; i < count; ++i)
+        FlsFree(fls_indices[i]);
+
+    return count;
+}
+
+static void test_fls_usage(void)
+{
+    DWORD last, count;
+    HRESULT hr;
+
+    last = count = count_fls_slots();
+
+    hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
+    ok_ole_success(hr, "CoInitializeEx");
+
+    count = count_fls_slots();
+    todo_wine ok(count == last - 1, "should have used 1 slot, %u -> %u\n", last, count);
+    last = count;
+
+    CoUninitialize();
+
+    count = count_fls_slots();
+    ok(count == last, "no slots should be freed, %u -> %u\n", last, count);
+    last = count;
+
+    hr = CoInitializeEx(0, COINIT_MULTITHREADED);
+    ok_ole_success(hr, "CoInitializeEx");
+
+    count = count_fls_slots();
+    ok(count == last, "slot should have been re-used, %u -> %u\n", last, count);
+    last = count;
+
+    CoUninitialize();
+
+    count = count_fls_slots();
+    ok(count == last, "no slots should be freed, %u -> %u\n", last, count);
+}
+
 START_TEST(compobj)
 {
     init_funcs();
@@ -4024,6 +4077,7 @@ START_TEST(compobj)
     lstrcatA(testlib, "\\testlib.dll");
     extract_resource("testlib.dll", "TESTDLL", testlib);
 
+    test_fls_usage(); /* must be first */
     test_ProgIDFromCLSID();
     test_CLSIDFromProgID();
     test_CLSIDFromString();
