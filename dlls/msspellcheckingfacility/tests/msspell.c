@@ -26,6 +26,7 @@
 #include "windef.h"
 #include "winbase.h"
 #include "winuser.h"
+#include "pathcch.h"
 
 #include "wine/test.h"
 #include "wine/heap.h"
@@ -335,6 +336,119 @@ done:
 
 }
 
+static void test_UserDictionariesRegistrar(void)
+{
+    static const WCHAR *worllld = L"worllld\n";
+    WCHAR dicpath[MAX_PATH];
+    IUserDictionariesRegistrar *registrar;
+    ISpellCheckerFactory *factory;
+    IEnumSpellingError *errors;
+    ISpellChecker *checker;
+    ISpellingError *err;
+    HANDLE dic;
+    HRESULT hr;
+    USHORT bom;
+
+    factory = NULL;
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    registrar = NULL;
+    hr = ISpellCheckerFactory_QueryInterface(factory, &IID_IUserDictionariesRegistrar,
+            (void**)&registrar);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    /* spell check before registering */
+    checker = NULL;
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_OK, "got 0x%x\n", hr);
+    ok(!!err, "got %p\n", err);
+    ISpellingError_Release(err);
+    IEnumSpellingError_Release(errors);
+
+    /* create dictionary */
+    GetTempPathW(ARRAY_SIZE(dicpath), dicpath);
+    hr = PathCchAppend(dicpath, ARRAY_SIZE(dicpath), L"new-words.dic");
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    dic = CreateFileW(dicpath, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+    ok(dic != INVALID_HANDLE_VALUE, "failed to create %ls\n", dicpath);
+    bom = 0xfeff;
+    WriteFile(dic, &bom, sizeof(bom), NULL, NULL);
+    WriteFile(dic, worllld, wcslen(worllld) * sizeof(WCHAR), NULL, NULL);
+    CloseHandle(dic);
+
+    /* register */
+    hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, NULL, NULL);
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, dicpath, NULL);
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, NULL, L"en-US");
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+
+    /* adds to HKCU\Software\Microsoft\Spelling\Dictionaries\<locale> MULTI_SZ <path> */
+    hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, dicpath, L"boguslocale");
+    ok(hr == S_OK, "got %x\n", hr);
+    hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, L"boguslocale");
+    ok(hr == S_OK, "got %x\n", hr);
+
+    hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, dicpath, L"en-US");
+    ok(hr == S_OK, "got %x\n", hr);
+
+    /* spell check after registering */
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_FALSE, "got 0x%x\n", hr);
+    ok(!err, "got %p\n", err);
+    IEnumSpellingError_Release(errors);
+
+    /* unregister */
+    hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, NULL, NULL);
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, NULL);
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, NULL, L"en-US");
+    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+
+    hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, L"en-us");
+    ok(hr == S_OK, "got %x\n", hr);
+    hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, L"en-US");
+    ok(hr == S_FALSE, "got %x\n", hr);
+
+    /* spell check after unregistering */
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_OK, "got 0x%x\n", hr);
+    ok(!!err, "got %p\n", err);
+    ISpellingError_Release(err);
+    IEnumSpellingError_Release(errors);
+
+    DeleteFileW(dicpath);
+
+    IUserDictionariesRegistrar_Release(registrar);
+    ISpellCheckerFactory_Release(factory);
+}
+
 START_TEST(msspell)
 {
     static const DWORD init[] = { COINIT_MULTITHREADED, COINIT_APARTMENTTHREADED };
@@ -360,6 +474,7 @@ START_TEST(msspell)
         test_factory(init[i]);
         test_spellchecker();
         test_suggestions();
+        test_UserDictionariesRegistrar();
         CoUninitialize();
     }
 }
