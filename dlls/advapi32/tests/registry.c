@@ -4567,15 +4567,17 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         goto not_cacheable;
 
     RtlInitUnicodeString(&us_name, name);
-    if (!(key = open_key_prefix(root, &us_name, &token, &index)) &&
-        !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
+    if (!(key = open_key_prefix(root, &us_name, &token, &index)))
+        goto not_cacheable;
+
+    if (token.Length && !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
         goto not_cacheable;
 
     access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
     if (access && !rc_check_access(key, &access))
         goto not_cacheable;
 
-    if (rc_map_hkey_to_key(hkey, key)) /* TODO: access */
+    if (!rc_map_hkey_to_key(hkey, key)) /* TODO: access */
         goto not_cacheable;
     
     ReleaseSRWLockExclusive(&rc_lock);
@@ -4645,14 +4647,14 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
     HKEY key;
 
     /* TODO: validate special? */
-
     if ((status = RegOpenKeyExW(special, path, 0,
                         KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY, &key)))
     {
+        WARN("status %x\n", status);
         return NULL;
     }
 
-    /* rc_put_key(special, path, 0, 0, key); */
+    rc_put_key(special, path, 0, 0, key);
     rc_register_wait(key);
     return NULL;
 }
