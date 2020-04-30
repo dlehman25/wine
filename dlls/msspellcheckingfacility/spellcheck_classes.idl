@@ -33,4 +33,8 @@ coclass PSFactoryBuffer { interface IPSFactoryBuffer; }
     threading(free),
     uuid(7ab36653-1796-484b-bdfa-e74f1db7c1dc)
 ]
-coclass SpellCheckerFactory { interface ISpellCheckerFactory; interface IUserDictionariesRegistrar; }
+coclass SpellCheckerFactory
+{
+    [default] interface ISpellCheckerFactory;
+    interface IUserDictionariesRegistrar;
+}
