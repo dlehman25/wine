@@ -1558,12 +1558,15 @@ static void attach_implicitly_loaded_dlls( LPVOID reserved )
     }
 }
 
+/* caller holds fls_section */
 static void call_fls_callbacks(void)
 {
     PFLS_CALLBACK_FUNCTION *fls_callbacks;
+    PFLS_CALLBACK_FUNCTION callback;
     PRTL_BITMAP fls_bitmap;
     void **fls_slot_data;
     DWORD fls_index;
+    void *data;
 
     if ((fls_callbacks = (PFLS_CALLBACK_FUNCTION *)NtCurrentTeb()->Peb->FlsCallback) && NtCurrentTeb()->FlsSlots)
     {
@@ -1575,10 +1578,16 @@ static void call_fls_callbacks(void)
             if (!RtlAreBitsSet( fls_bitmap, fls_index, 1 ))
                 continue;
 
-            if (fls_callbacks[fls_index + 2] && fls_slot_data[fls_index])
-                fls_callbacks[fls_index + 2](fls_slot_data[fls_index]);
-
+            callback = fls_callbacks[fls_index + 2];
+            data = fls_slot_data[fls_index];
             fls_slot_data[fls_index] = NULL;
+
+            if (callback && data)
+            {
+                unlock_fls_section(NULL);
+                callback(data);
+                lock_fls_section(NULL);
+            }
         }
     }
 }
