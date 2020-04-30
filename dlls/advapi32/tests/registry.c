@@ -4553,6 +4553,8 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     int index;
 
     /* TODO: options == access = NULL, hkey is notify */
+    if (options & REG_OPTION_VOLATILE)
+        return; /* don't cache volatile key */
 
     key = NULL;
     AcquireSRWLockExclusive(&rc_lock);
