@@ -4528,6 +4528,24 @@ static void dump_key(const struct key *key, int depth)
         dump_value(&key->values[i], depth);
 }
 
+static unsigned int rc_key_map_access(unsigned int access)
+{
+    if (access & GENERIC_READ)    access |= KEY_READ;
+    if (access & GENERIC_WRITE)   access |= KEY_WRITE;
+    if (access & GENERIC_EXECUTE) access |= KEY_EXECUTE;
+    if (access & GENERIC_ALL)     access |= KEY_ALL_ACCESS;
+    /* filter the WOW64 masks, as they aren't real access bits */
+    return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL |
+                      KEY_WOW64_64KEY | KEY_WOW64_32KEY);
+}
+
+static int rc_check_access(struct key *key, unsigned int *access)
+{
+    if (*access & MAXIMUM_ALLOWED)
+        *access = KEY_ALL_ACCESS; /* rc_key_map_access(GENERIC_ALL) */
+    return 1;
+}
+
 static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
 {
     UNICODE_STRING us_name, token;
@@ -4551,9 +4569,13 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
         goto not_cacheable;
 
-    if (rc_map_hkey_to_key(hkey, key))
+    access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
+    if (access && !rc_check_access(key, &access))
         goto not_cacheable;
 
+    if (rc_map_hkey_to_key(hkey, key)) /* TODO: access */
+        goto not_cacheable;
+    
     ReleaseSRWLockExclusive(&rc_lock);
     return;
 
@@ -4719,24 +4741,6 @@ done:
     heap_free(keys);
     RegCloseKey(hkeyrc);
     return ret;
-}
-
-static unsigned int rc_key_map_access(unsigned int access)
-{
-    if (access & GENERIC_READ)    access |= KEY_READ;
-    if (access & GENERIC_WRITE)   access |= KEY_WRITE;
-    if (access & GENERIC_EXECUTE) access |= KEY_EXECUTE;
-    if (access & GENERIC_ALL)     access |= KEY_ALL_ACCESS;
-    /* filter the WOW64 masks, as they aren't real access bits */
-    return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL |
-                      KEY_WOW64_64KEY | KEY_WOW64_32KEY);
-}
-
-static int rc_check_access(struct key *key, unsigned int *access)
-{
-    if (*access & MAXIMUM_ALLOWED)
-        *access = KEY_ALL_ACCESS; /* rc_key_map_access(GENERIC_ALL) */
-    return 1;
 }
 
 static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
