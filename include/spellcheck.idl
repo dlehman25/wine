@@ -117,6 +117,17 @@ interface ISpellCheckerFactory : IUnknown
 }
 
 [
+    object,
+    uuid(aa176b85-0e12-4844-8e1a-eef1da77f586),
+    pointer_default(unique)
+]
+interface IUserDictionariesRegistrar : IUnknown
+{
+    HRESULT RegisterUserDictionary([in] LPCWSTR, [in] LPCWSTR);
+    HRESULT UnregisterUserDictionary([in] LPCWSTR, [in] LPCWSTR);
+}
+
+[
     uuid(4a250e01-61ea-400b-a27d-bf3744bcc9f5),
     version(1.0)
 ]
