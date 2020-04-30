@@ -1944,6 +1944,25 @@ void leave_apartment( struct oletls *info )
     }
 }
 
+static DWORD cleanup_idx = FLS_OUT_OF_INDEXES;
+static void NTAPI cleanup_com( void *data )
+{
+    struct oletls * info = COM_CurrentInfo();
+
+    if (!info || !info->inits) return;
+
+    WARN("CoInitialize called without matching CoUninitialize (%u)\n", info->inits);
+
+    while (info->inits)
+        CoUninitialize();
+}
+
+static BOOL WINAPI install_cleanup( INIT_ONCE *once, void *param, void **context )
+{
+    cleanup_idx = FlsAlloc(cleanup_com);
+    return cleanup_idx != FLS_OUT_OF_INDEXES;
+}
+
 /******************************************************************************
  *		CoInitialize	[OLE32.@]
  *
@@ -2019,10 +2038,14 @@ HRESULT WINAPI DECLSPEC_HOTPATCH CoInitializeEx(LPVOID lpReserved, DWORD dwCoIni
    */
   if (InterlockedExchangeAdd(&s_COMLockCount,1)==0)
   {
+    static INIT_ONCE install_cleanup_once = INIT_ONCE_STATIC_INIT;
+
     /*
      * Initialize the various COM libraries and data structures.
      */
     TRACE("() - Initializing the COM libraries\n");
+
+    InitOnceExecuteOnce( &install_cleanup_once, install_cleanup, NULL, NULL );
 
     /* we may need to defer this until after apartment initialisation */
     RunningObjectTableImpl_Initialize();
@@ -2043,6 +2066,9 @@ HRESULT WINAPI DECLSPEC_HOTPATCH CoInitializeEx(LPVOID lpReserved, DWORD dwCoIni
       if (cursor->spy) hr = IInitializeSpy_PostInitialize(cursor->spy, hr, dwCoInit, info->inits);
   }
   unlock_init_spies(info);
+
+  if (SUCCEEDED(hr) && (cleanup_idx != FLS_OUT_OF_INDEXES))
+      FlsSetValue(cleanup_idx, (void*)1);
 
   return hr;
 }

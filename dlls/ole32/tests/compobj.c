@@ -3588,10 +3588,8 @@ static void test_IInitializeSpy(BOOL mt)
 
     CHECK_CALLED(PreInitialize, 2);
     CHECK_CALLED(PostInitialize, 2);
-todo_wine {
     CHECK_CALLED(PreUninitialize, 2);
     CHECK_CALLED(PostUninitialize, 2);
-}
 }
 
 static HRESULT g_persistfile_qi_ret;
@@ -4046,7 +4044,7 @@ static void test_fls_usage(void)
     ok_ole_success(hr, "CoInitializeEx");
 
     count = count_fls_slots();
-    todo_wine ok(count == last - 1, "should have used 1 slot, %u -> %u\n", last, count);
+    ok(count == last - 1, "should have used 1 slot, %u -> %u\n", last, count);
     last = count;
 
     CoUninitialize();
