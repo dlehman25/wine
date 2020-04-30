@@ -4721,6 +4721,24 @@ done:
     return ret;
 }
 
+static unsigned int rc_key_map_access(unsigned int access)
+{
+    if (access & GENERIC_READ)    access |= KEY_READ;
+    if (access & GENERIC_WRITE)   access |= KEY_WRITE;
+    if (access & GENERIC_EXECUTE) access |= KEY_EXECUTE;
+    if (access & GENERIC_ALL)     access |= KEY_ALL_ACCESS;
+    /* filter the WOW64 masks, as they aren't real access bits */
+    return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL |
+                      KEY_WOW64_64KEY | KEY_WOW64_32KEY);
+}
+
+static int rc_check_access(struct key *key, unsigned int *access)
+{
+    if (*access & MAXIMUM_ALLOWED)
+        *access = KEY_ALL_ACCESS; /* rc_key_map_access(GENERIC_ALL) */
+    return 1;
+}
+
 static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
                                REGSAM access, PHKEY retkey)
 {
@@ -4745,7 +4763,13 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (!key->hkey)
         goto not_cached; /* no hkey opened for this specific path */
 
-    /* TODO: options, access - can we update later?  cache with different key? */
+    /* TODO: options - can we update later?  cache with different key? */
+
+    /* TODO: find key/access pair? */
+    access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
+    if (access && !rc_check_access(key, &access))
+        goto not_cached;
+
     rc_addref_key(key);
     *retkey = key->hkey;
     return TRUE;
