@@ -2780,6 +2780,25 @@ HRESULT WINAPI CoInitializeWOW(DWORD arg1, DWORD arg2)
     return S_OK;
 }
 
+static DWORD cleanup_idx = FLS_OUT_OF_INDEXES;
+static void NTAPI cleanup_com( void *data )
+{
+    struct oletls * info = COM_CurrentInfo();
+
+    if (!info || !info->inits) return;
+
+    WARN("CoInitialize called without matching CoUninitialize (%u)\n", info->inits);
+
+    while (info->inits)
+        CoUninitialize();
+}
+
+static BOOL WINAPI install_cleanup( INIT_ONCE *once, void *param, void **context )
+{
+    cleanup_idx = FlsAlloc(cleanup_com);
+    return cleanup_idx != FLS_OUT_OF_INDEXES;
+}
+
 /******************************************************************************
  *                    CoInitializeEx    (combase.@)
  */
@@ -2798,7 +2817,11 @@ HRESULT WINAPI DECLSPEC_HOTPATCH CoInitializeEx(void *reserved, DWORD model)
         return hr;
 
     if (InterlockedExchangeAdd(&com_lockcount, 1) == 0)
+    {
+        static INIT_ONCE install_cleanup_once = INIT_ONCE_STATIC_INIT;
         TRACE("Initializing the COM libraries\n");
+        InitOnceExecuteOnce( &install_cleanup_once, install_cleanup, NULL, NULL );
+    }
 
     lock_init_spies(tlsdata);
     LIST_FOR_EACH_ENTRY(cursor, &tlsdata->spies, struct init_spy, entry)
@@ -2815,6 +2838,9 @@ HRESULT WINAPI DECLSPEC_HOTPATCH CoInitializeEx(void *reserved, DWORD model)
         if (cursor->spy) hr = IInitializeSpy_PostInitialize(cursor->spy, hr, model, tlsdata->inits);
     }
     unlock_init_spies(tlsdata);
+
+    if (SUCCEEDED(hr) && (cleanup_idx != FLS_OUT_OF_INDEXES))
+        FlsSetValue(cleanup_idx, (void*)1);
 
     return hr;
 }
