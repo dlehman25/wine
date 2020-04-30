@@ -4181,6 +4181,7 @@ struct key
     struct key_value *values;
     DWORD64           modif; /* TODO: needed?  zero if dirty - just have bool? */
     HKEY              hkey;
+    HKEY              hkeynotify; /* keep this open until freeing key */
     /* BOOL cacheable; // this key and below can be cached */
 };
 
@@ -4527,13 +4528,108 @@ static void dump_key(const struct key *key, int depth)
         dump_value(&key->values[i], depth);
 }
 
+static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
+{
+    UNICODE_STRING us_name, token;
+    struct key *root, *key;
+    int index;
+
+    /* TODO: options == access = NULL, hkey is notify */
+
+    key = NULL;
+    AcquireSRWLockExclusive(&rc_lock);
+    if (!rc_root)
+        goto not_cacheable;
+
+    /* TODO: already cached? another thread beat us to it? */
+
+    if (!(root = rc_key_for_hkey(hroot)))
+        goto not_cacheable;
+
+    RtlInitUnicodeString(&us_name, name);
+    if (!(key = open_key_prefix(root, &us_name, &token, &index)) &&
+        !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
+        goto not_cacheable;
+
+    if (rc_map_hkey_to_key(hkey, key))
+        goto not_cacheable;
+
+    ReleaseSRWLockExclusive(&rc_lock);
+    return;
+
+not_cacheable:
+    if (0) { if (key) rc_release_key(key); } /* TODO */
+    ReleaseSRWLockExclusive(&rc_lock);
+}
+
+struct rc_wait_s
+{
+    HKEY hkey;
+    HANDLE event;
+};
+
+static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
+                                      PTP_WAIT wait, TP_WAIT_RESULT result)
+{
+    struct rc_wait_s *args = parm;
+    LSTATUS status;
+
+    status = RegNotifyChangeKeyValue(args->hkey, TRUE,
+                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
+                        REG_NOTIFY_THREAD_AGNOSTIC, args->event, TRUE);
+    SetThreadpoolWait(wait, args->event, NULL);
+}
+
+static void rc_register_wait(HKEY hkey)
+{
+    LSTATUS status;
+    PTP_WAIT wait;
+    PTP_WAIT_CALLBACK callback;
+    HANDLE changed;
+    struct rc_wait_s *rc_wait;
+
+    changed = CreateEventA(NULL, FALSE, FALSE, NULL);
+
+    status = RegNotifyChangeKeyValue(hkey, TRUE,
+                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
+                        REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
+    printf("status %x hkey %p changed %p\n", status, hkey, changed);
+
+    rc_wait = malloc(sizeof(*rc_wait));
+    rc_wait->event = changed;
+    rc_wait->hkey = hkey;
+
+    callback = rc_wait_callback;
+    wait = CreateThreadpoolWait(callback, rc_wait, NULL);
+    SetThreadpoolWait(wait, changed, NULL);
+
+/*
+        WaitForThreadpoolWaitCallbacks(Wait, FALSE);
+
+            SetThreadpoolWait(Wait, NULL, NULL);
+
+            // Close the wait.
+            CloseThreadpoolWait(Wait);
+
+            CloseHandle(hEvent);
+*/
+}
+
 static void *rc_cache_key(HKEY special, LPCWSTR path)
 {
-    /*
-    bail if cache not enabled (or just enable here?)
-    create root key if needed
-    cache key
-    */
+    LSTATUS status;
+    HKEY key;
+
+    /* TODO: validate special? */
+
+    if ((status = RegOpenKeyExW(special, path, 0,
+                        KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY, &key)))
+    {
+        return NULL;
+    }
+
+    /* rc_put_key(special, path, 0, 0, key); */
+    rc_register_wait(key);
     return NULL;
 }
 
@@ -4657,38 +4753,6 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
 not_cached:
     ReleaseSRWLockShared(&rc_lock);
     return FALSE;
-}
-
-static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
-{
-    UNICODE_STRING us_name, token;
-    struct key *root, *key;
-    int index;
-
-    key = NULL;
-    AcquireSRWLockExclusive(&rc_lock);
-    if (!rc_root)
-        goto not_cacheable;
-
-    /* TODO: already cached? another thread beat us to it? */
-
-    if (!(root = rc_key_for_hkey(hroot)))
-        goto not_cacheable;
-
-    RtlInitUnicodeString(&us_name, name);
-    if (!(key = open_key_prefix(root, &us_name, &token, &index)) &&
-        !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
-        goto not_cacheable;
-
-    if (rc_map_hkey_to_key(hkey, key))
-        goto not_cacheable;
-
-    ReleaseSRWLockExclusive(&rc_lock);
-    return;
-
-not_cacheable:
-    if (0) { if (key) rc_release_key(key); } /* TODO */
-    ReleaseSRWLockExclusive(&rc_lock);
 }
 
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
@@ -5080,59 +5144,6 @@ static void rc_disable_cache(void)
         rc_delete_key(rc_root, TRUE);
         rc_root = NULL;
     }
-}
-
-struct rc_wait_s
-{
-    HKEY hkey;
-    HANDLE event;
-};
-
-static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
-                                      PTP_WAIT wait, TP_WAIT_RESULT result)
-{
-    struct rc_wait_s *args = parm;
-    LSTATUS status;
-
-    status = RegNotifyChangeKeyValue(args->hkey, TRUE,
-                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
-                        REG_NOTIFY_THREAD_AGNOSTIC, args->event, TRUE);
-    SetThreadpoolWait(wait, args->event, NULL);
-}
-
-static void rc_register_wait(HKEY hkey)
-{
-    LSTATUS status;
-    PTP_WAIT wait;
-    PTP_WAIT_CALLBACK callback;
-    HANDLE changed;
-    struct rc_wait_s *rc_wait;
-
-    changed = CreateEventA(NULL, FALSE, FALSE, NULL);
-
-    status = RegNotifyChangeKeyValue(hkey, TRUE,
-                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
-                        REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
-    printf("status %x hkey %p changed %p\n", status, hkey, changed);
-
-    rc_wait = malloc(sizeof(*rc_wait));
-    rc_wait->event = changed;
-    rc_wait->hkey = hkey;
-
-    callback = rc_wait_callback;
-    wait = CreateThreadpoolWait(callback, rc_wait, NULL);
-    SetThreadpoolWait(wait, changed, NULL);
-
-/*
-        WaitForThreadpoolWaitCallbacks(Wait, FALSE);
-
-            SetThreadpoolWait(Wait, NULL, NULL);
-
-            // Close the wait.
-            CloseThreadpoolWait(Wait);
-
-            CloseHandle(hEvent);
-*/
 }
 
 static void test_cache(void)
