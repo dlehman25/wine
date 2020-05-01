@@ -690,7 +690,8 @@ START_TEST(msspell)
         test_suggestions();
         test_UserDictionariesRegistrar();
         if (init[i] == COINIT_MULTITHREADED)
-            test_SpellCheckerChangedEventHandler();
+            /* adds to default.exc, breaks repeat tests */
+            if (0) test_SpellCheckerChangedEventHandler();
         CoUninitialize();
     }
 }
