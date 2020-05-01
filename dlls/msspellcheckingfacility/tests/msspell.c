@@ -416,9 +416,8 @@ static void test_UserDictionariesRegistrar(void)
     IEnumSpellingError *errors;
     ISpellChecker *checker;
     ISpellingError *err;
-    HANDLE dic;
     HRESULT hr;
-    USHORT bom;
+    FILE *dic;
 
     factory = NULL;
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
@@ -452,12 +451,10 @@ static void test_UserDictionariesRegistrar(void)
     hr = PathCchAppend(dicpath, ARRAY_SIZE(dicpath), L"new-words.dic");
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
-    dic = CreateFileW(dicpath, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-    ok(dic != INVALID_HANDLE_VALUE, "failed to create %ls\n", dicpath);
-    bom = 0xfeff;
-    WriteFile(dic, &bom, sizeof(bom), NULL, NULL);
-    WriteFile(dic, worllld, wcslen(worllld) * sizeof(WCHAR), NULL, NULL);
-    CloseHandle(dic);
+    dic = _wfopen(dicpath, L"wt,ccs=utf-16le");
+    ok(!!dic, "failed to create %ls\n", dicpath);
+    fwprintf(dic, L"%s\n", worllld);
+    fclose(dic);
 
     /* register */
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, NULL, NULL);
