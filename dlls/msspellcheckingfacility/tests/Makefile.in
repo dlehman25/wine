@@ -1,5 +1,5 @@
 TESTDLL   = msspellcheckingfacility.dll
-IMPORTS   = kernelbase ole32
+IMPORTS   = kernelbase ole32 shell32
 
 C_SRCS = \
 	msspell.c
