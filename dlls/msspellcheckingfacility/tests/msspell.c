@@ -132,7 +132,7 @@ static void test_spellchecker(void)
     }
 
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, NULL, &checker);
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
 
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"foobar-lang", &checker);
     ok(hr == E_INVALIDARG, "got %x\n", hr);
@@ -390,11 +390,11 @@ static void test_UserDictionariesRegistrar(void)
 
     /* register */
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, NULL, NULL);
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, dicpath, NULL);
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, NULL, L"en-US");
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
 
     /* adds to HKCU\Software\Microsoft\Spelling\Dictionaries\<locale> MULTI_SZ <path> */
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, dicpath, L"boguslocale");
@@ -419,11 +419,11 @@ static void test_UserDictionariesRegistrar(void)
 
     /* unregister */
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, NULL, NULL);
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, NULL);
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, NULL, L"en-US");
-    ok(hr == E_POINTER || hr == 0x800706f4 /* apartment */, "got %x\n", hr);
+    ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
 
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, L"en-us");
     ok(hr == S_OK, "got %x\n", hr);
