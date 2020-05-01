@@ -96,6 +96,16 @@ interface ISpellChecker : IUnknown
 
 [
     object,
+    uuid(e7ed1c71-87f7-4378-a840-c9200dacee47),
+    pointer_default(unique)
+]
+interface ISpellChecker2 : ISpellChecker
+{
+    HRESULT Remove([in] LPCWSTR);
+}
+
+[
+    object,
     uuid(0b83a5b0-792f-4eab-9799-acf52c5ed08a),
     pointer_default(unique)
 ]

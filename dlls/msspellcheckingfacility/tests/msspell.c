@@ -271,6 +271,77 @@ done:
     ISpellCheckerFactory_Release(factory);
 }
 
+static void test_SpellChecker_AddRemove(void)
+{
+    ISpellCheckerFactory *factory;
+    IEnumSpellingError *errors;
+    ISpellChecker2 *checker2;
+    ISpellChecker *checker;
+    ISpellingError *err;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    checker = NULL;
+    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    hr = ISpellChecker_QueryInterface(checker, &IID_ISpellChecker2, (void**)&checker2);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    /* spell check before adding */
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_OK, "got 0x%x\n", hr);
+    ok(!!err, "got %p\n", err);
+    ISpellingError_Release(err);
+    IEnumSpellingError_Release(errors);
+
+    /* add word to %APPDATA%/Microsoft/Spelling/<lang>/default.dic */
+    hr = ISpellChecker2_Add(checker2, L"worllld");
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    /* spell check after */
+    errors = NULL;
+    hr = ISpellChecker2_Check(checker2, L"hello worllld", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_FALSE, "got 0x%x\n", hr);
+    ok(!err, "got %p\n", err);
+    IEnumSpellingError_Release(errors);
+
+    /* remove word */
+    hr = ISpellChecker2_Remove(checker2, L"worllld");
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    /* spell check after */
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    err = NULL;
+    hr = IEnumSpellingError_Next(errors, &err);
+    ok(hr == S_OK, "got 0x%x\n", hr);
+    ok(!!err, "got %p\n", err);
+    ISpellingError_Release(err);
+    IEnumSpellingError_Release(errors);
+
+    ISpellChecker2_Release(checker2);
+    ISpellChecker_Release(checker);
+    ISpellCheckerFactory_Release(factory);
+}
+
 static void test_suggestions(void)
 {
     static const struct test { LPCWSTR word; LPCWSTR suggestions[4]; } tests[] =
@@ -473,6 +544,7 @@ START_TEST(msspell)
 
         test_factory(init[i]);
         test_spellchecker();
+        test_SpellChecker_AddRemove();
         test_suggestions();
         test_UserDictionariesRegistrar();
         CoUninitialize();
