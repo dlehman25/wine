@@ -4663,7 +4663,7 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
 
     rc_put_key(special, path, 0, access, key);
     rc_register_wait(key);
-    return NULL;
+    return key;
 }
 
 static struct key *rc_enable_cache(void)
