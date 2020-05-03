@@ -4320,8 +4320,8 @@ static struct key *find_subkey(const struct key *key, const UNICODE_STRING *name
 
 /* open a key until we find an element that doesn't exist */
 /* helper for open_key and create_key */
-static struct key *open_key_prefix(struct key *key, const UNICODE_STRING *name,
-                                   UNICODE_STRING *token, int *index)
+static struct key *rc_open_key_prefix(struct key *key, const UNICODE_STRING *name,
+                                      UNICODE_STRING *token, int *index)
 {
     struct key *subkey;
 
@@ -4558,7 +4558,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         goto not_cacheable;
 
     RtlInitUnicodeString(&us_name, name);
-    if (!(key = open_key_prefix(root, &us_name, &token, &index)))
+    if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
         goto not_cacheable;
 
     if (token.Length && !(key = rc_create_key_recursive(root, &us_name)))
@@ -4840,7 +4840,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
         goto not_cached;
 
     RtlInitUnicodeString(&us_name, name);
-    if (!(key = open_key_prefix(root, &us_name, &token, &index)))
+    if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
         goto not_cached; /* invalid path */
 
     if (token.Length)
@@ -5005,7 +5005,7 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
         goto not_cached;
 
     RtlInitUnicodeString(&name, subkey);
-    if (!(key = open_key_prefix(root, &name, &token, &index)))
+    if (!(key = rc_open_key_prefix(root, &name, &token, &index)))
         goto not_cached; /* invalid path */
 
     RtlInitUnicodeString(&name, value);
@@ -5092,7 +5092,7 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
         goto done;
 
     RtlInitUnicodeString(&name, subkey);
-    if (!(key = open_key_prefix(root, &name, &token, &index)))
+    if (!(key = rc_open_key_prefix(root, &name, &token, &index)))
         goto done;
 
     RtlInitUnicodeString(&name, value);
