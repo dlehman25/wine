@@ -5160,7 +5160,7 @@ static BOOL rc_close_key(HKEY hkey)
     if (!(key = rc_key_for_hkey(hkey)))
         goto not_cached;
 
-    if (0) rc_release_key(key); /* TODO: delete, release, ...? */
+    rc_release_key(key);
     LeaveCriticalSection(&rc_lock);
     return TRUE;
 
