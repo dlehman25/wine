@@ -4430,7 +4430,7 @@ static void free_subkey(struct key *parent, int index)
     }
 }
 
-static struct key *create_key_recursive(struct key *key, const UNICODE_STRING *name,
+static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING *name,
                                         DWORD64 modif)
 {
     int index;
@@ -4468,24 +4468,6 @@ static struct key *create_key_recursive(struct key *key, const UNICODE_STRING *n
     }
 
     /* TODO grab_object(key) */
-    return key;
-}
-
-/* name is already validated */
-static struct key *rc_new_key_recursive(LPCWSTR name)
-{
-    UNICODE_STRING path, token = {0};
-    struct key *parent = NULL;
-    struct key *key = NULL;
-
-    RtlInitUnicodeString(&path, name);
-    while (get_path_token(&path, &token))
-    {
-        if (0) printf("token %s\n", wine_dbgstr_wn(token.Buffer, token.Length/sizeof(WCHAR)));
-        key = rc_new_key(&token, 0);
-        key->parent = parent;
-        parent = key;
-    }
     return key;
 }
 
@@ -4577,7 +4559,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (!(key = open_key_prefix(root, &us_name, &token, &index)))
         goto not_cacheable;
 
-    if (token.Length && !(key = create_key_recursive(root, &us_name, 0 /* TODO */)))
+    if (token.Length && !(key = rc_create_key_recursive(root, &us_name, 0 /* TODO */)))
         goto not_cacheable;
 
     access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
@@ -4687,7 +4669,7 @@ static struct key *rc_enable_cache(void)
 
     /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
     RtlInitUnicodeString(&name, L"Machine");
-    if (!(hklm = create_key_recursive(rc_root, &name, current_time)))
+    if (!(hklm = rc_create_key_recursive(rc_root, &name, current_time)))
         goto error;
 
     if (!rc_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
