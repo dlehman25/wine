@@ -5187,140 +5187,53 @@ static void test_cache(void)
 {
     LSTATUS status;
     DWORD index, size, nloops;
-    HKEY key, key2, subkey;
+    HKEY key, subkey;
     WCHAR keyname[128];
     WCHAR name[32];
     DWORD64 s, e;
 
+    rc_cache_init();
+
+    /* make sure this is in the registry:
+    HKCU\Software\\Wine\\RegistryCache
+    "Cacheable"=str(7):"HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\0"
+    */
+
+    status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY, &key);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+
+    nloops = 2;
+    while (nloops--)
     {
-        LSTATUS status;
-        int index;
-        void *cookie;
-
-        rc_cache_init();
-
-        /* make sure this is in the registry:
-        HKCU\Software\\Wine\\RegistryCache
-        "Cacheable"=str(7):"HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\0"
-        */
-        if (0)  cookie = rc_cache_key(HKEY_LOCAL_MACHINE,
-            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
-        /* now anything at Time Zones and under is cached  */
-
-        status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY /* TODO: */, &key);
-        ok(status == ERROR_SUCCESS, "got %d\n", status);
-        status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                    KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key2);
-        ok(status == ERROR_SUCCESS, "got %d\n", status);
-        printf("%p %p\n", key, key2);
-
-        if (0) rc_disable_cache();
-        nloops = 2;
-        while (nloops--)
+        s = GetTickCount64();
+        index = 0;
+        size = ARRAY_SIZE(keyname);
+        while (!(status = rc_RegEnumKeyExW(key, index, keyname, &size,
+                                           NULL, NULL, NULL, NULL)))
         {
-            s = GetTickCount64();
-            index = 0;
+            if (0 && nloops == 1) printf("%d: %ls\n", index, keyname);
+
+            subkey = NULL;
+            status = rc_RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
+
+            size = sizeof(name);
+            memset(name, 0, sizeof(name));
+            status = rc_RegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ,
+                                     NULL, name, &size);
+            ok(status == ERROR_SUCCESS, "status %d name %s\n", status, wine_dbgstr_w(name));
+
+            rc_RegCloseKey(subkey);
+            index++;
             size = ARRAY_SIZE(keyname);
-            while (!(status = rc_RegEnumKeyExW(key, index, keyname, &size,
-                                               NULL, NULL, NULL, NULL)))
-            {
-                if (0 && nloops == 1) printf("%d: %ls\n", index, keyname);
-
-                subkey = NULL;
-                status = rc_RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
-        
-                size = sizeof(name);
-                memset(name, 0, sizeof(name));
-                status = rc_RegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ,
-                                         NULL, name, &size);
-                ok(status == ERROR_SUCCESS, "status %d name %s\n", status, wine_dbgstr_w(name));
-
-                rc_RegCloseKey(subkey);
-                index++;
-                size = ARRAY_SIZE(keyname);
-            }
-            e = GetTickCount64();
-            if (0) printf("%u: %I64u\n", nloops, e - s);
         }
-
-        if (0)
-        {
-            LSTATUS status;
-            HANDLE changed;
-            DWORD index;
-
-            changed = CreateEventA(NULL, TRUE, FALSE, NULL);
-
-            status = RegNotifyChangeKeyValue(key, TRUE,
-                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
-                        REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
-            printf("status %x\n", status);
-
-            index = WaitForSingleObject(changed, INFINITE);
-            printf("index %u\n", index);
-        }
-        rc_register_wait(key);
-        printf("waiting\n");getchar();
-
-        rc_RegCloseKey(key2);
-        rc_RegCloseKey(key);
-        return;
+        e = GetTickCount64();
+        if (0) printf("%u: %I64u\n", nloops, e - s);
     }
 
-    {
-        struct key *tzkey;
-
-        tzkey = rc_new_key_recursive(L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
-        dump_path(tzkey, NULL, stderr);
-        fprintf(stderr, "\n");
-        if (0)
-        {
-            UNICODE_STRING name, token;
-            int index;
-
-            RtlInitUnicodeString(&name, L"Software\\Microsoft");
-            open_key_prefix(NULL, &name, &token, &index);
-        }
-        return;
-    }
-
-if (0)
-{
-    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-            KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
-    ok(status == ERROR_SUCCESS, "got %d\n", status);
-}
-    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-            L"Software\\Microsoft\\Windows NT", 0,
-            KEY_ENUMERATE_SUB_KEYS, &key2);
-    ok(status == ERROR_SUCCESS, "got %d\n", status);
-    status = RegOpenKeyExW(key2, L"CurrentVersion\\Time Zones", 0,
-            KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
-    ok(status == ERROR_SUCCESS, "got %d\n", status);
-    index = 0;
-
-    while (!(status = RegEnumKeyW(key, index, keyname, ARRAY_SIZE(keyname))))
-    {
-        subkey = NULL;
-        status = RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
-        printf("%d %ls\n", index, keyname);
-
-        size = sizeof(name);
-        memset(name, 0, sizeof(name));
-        status = pRegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ, NULL, name, &size);
-        ok(status == ERROR_SUCCESS, "status %d name %s\n", status, wine_dbgstr_w(name));
-        printf("%u %ls\n", index, name);
-
-        RegCloseKey(subkey);
-        index++;
-    }
-
-    RegCloseKey(key);
-    RegCloseKey(key2);
+    rc_RegCloseKey(key);
+    return;
 }
 
 START_TEST(registry)
