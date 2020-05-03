@@ -4629,10 +4629,22 @@ struct rc_wait_s
 /* hkey is notify key */
 static BOOL rc_invalidate_key(HKEY hkey)
 {
-    FIXME("stub %p\n", hkey);
+    struct key *key;
+
     EnterCriticalSection(&rc_lock);
+    if (!rc_root)
+        goto error;
+
+    if (!(key = rc_key_for_hkey(hkey)))
+        goto error;
+    /* TODO: key->.... delete or just set flags? */
+
     LeaveCriticalSection(&rc_lock);
     return TRUE;
+
+error:
+    LeaveCriticalSection(&rc_lock);
+    return FALSE;
 }
 
 static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
