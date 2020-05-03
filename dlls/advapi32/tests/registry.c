@@ -4180,6 +4180,7 @@ struct key
     int               nb_values;
     struct key_value *values;
     DWORD             options;
+    DWORD             access;
     DWORD64           modif; /* TODO: needed?  zero if dirty - just have bool? */
     HKEY              hkey;
     HKEY              hkeynotify; /* keep this open until freeing key */
@@ -4521,6 +4522,8 @@ static void dump_key(const struct key *key, int depth)
 
 static unsigned int rc_key_map_access(unsigned int access)
 {
+    if (access & MAXIMUM_ALLOWED)
+        return KEY_ALL_ACCESS;
     if (access & GENERIC_READ)    access |= KEY_READ;
     if (access & GENERIC_WRITE)   access |= KEY_WRITE;
     if (access & GENERIC_EXECUTE) access |= KEY_EXECUTE;
@@ -4528,13 +4531,6 @@ static unsigned int rc_key_map_access(unsigned int access)
     /* filter the WOW64 masks, as they aren't real access bits */
     return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL |
                       KEY_WOW64_64KEY | KEY_WOW64_32KEY);
-}
-
-static int rc_check_access(struct key *key, unsigned int *access)
-{
-    if (*access & MAXIMUM_ALLOWED)
-        *access = KEY_ALL_ACCESS; /* rc_key_map_access(GENERIC_ALL) */
-    return 1;
 }
 
 static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
@@ -4565,12 +4561,13 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         goto not_cacheable;
 
     access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
-    if (access && !rc_check_access(key, &access))
+    if (!access)
         goto not_cacheable;
 
+    key->access = access; /* access per-handle? */
     key->options = options;
     key->hkey = hkey; /* TODO */
-    if (!rc_map_hkey_to_key(hkey, key)) /* TODO: access */
+    if (!rc_map_hkey_to_key(hkey, key))
         goto not_cacheable;
     
     LeaveCriticalSection(&rc_lock);
@@ -4852,9 +4849,8 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (key->options != options)
         goto not_cached; /* different symlink, wow64 */
 
-    /* TODO: find key/access pair? */
     access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
-    if (access && !rc_check_access(key, &access))
+    if (key->access != access)
         goto not_cached;
 
     rc_addref_key(key);
