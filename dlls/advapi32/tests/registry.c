@@ -4597,7 +4597,7 @@ static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm
     SetThreadpoolWait(wait, args->event, NULL);
 }
 
-static void rc_register_wait(HKEY hkey)
+static LSTATUS rc_register_wait(HKEY hkey)
 {
     LSTATUS status;
     PTP_WAIT wait;
@@ -4619,6 +4619,8 @@ static void rc_register_wait(HKEY hkey)
     callback = rc_wait_callback;
     wait = CreateThreadpoolWait(callback, rc_wait, NULL);
     SetThreadpoolWait(wait, changed, NULL);
+
+    return status;
 
 /*
         WaitForThreadpoolWaitCallbacks(Wait, FALSE);
@@ -4656,7 +4658,15 @@ static HKEY rc_cache_key(HKEY special, LPCWSTR path)
         RegCloseKey(key);
         return NULL;
     }
-    rc_register_wait(key);
+
+    if ((status = rc_register_wait(key)))
+    {
+        /* TODO: remove key */
+        WARN("failed to register wait for key %p %s\n", special, wine_dbgstr_w(path));
+        RegCloseKey(key);
+        return NULL;
+    }
+
     return key;
 }
 
