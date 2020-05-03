@@ -4605,33 +4605,31 @@ static LSTATUS rc_register_wait(HKEY hkey)
     HANDLE changed;
     struct rc_wait_s *rc_wait;
 
-    changed = CreateEventA(NULL, FALSE, FALSE, NULL);
+    if (!(changed = CreateEventA(NULL, FALSE, FALSE, NULL))) /* TODO: CloseHandle */
+        return ERROR_OUTOFMEMORY; /* TODO */
 
     status = RegNotifyChangeKeyValue(hkey, TRUE,
                         REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
                         REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
-    printf("status %x hkey %p changed %p\n", status, hkey, changed);
+    if (status)
+        goto failed;
 
-    rc_wait = malloc(sizeof(*rc_wait));
+    status = ERROR_OUTOFMEMORY;
+    if (!(rc_wait = malloc(sizeof(*rc_wait))))
+        goto failed;
+
     rc_wait->event = changed;
     rc_wait->hkey = hkey;
 
     callback = rc_wait_callback;
-    wait = CreateThreadpoolWait(callback, rc_wait, NULL);
+    if (!(wait = CreateThreadpoolWait(callback, rc_wait, NULL))) /* TODO: CloseThreadpoolWait */
+        goto failed;
     SetThreadpoolWait(wait, changed, NULL);
 
+    return ERROR_SUCCESS;
+
+failed:
     return status;
-
-/*
-        WaitForThreadpoolWaitCallbacks(Wait, FALSE);
-
-            SetThreadpoolWait(Wait, NULL, NULL);
-
-            // Close the wait.
-            CloseThreadpoolWait(Wait);
-
-            CloseHandle(hEvent);
-*/
 }
 
 static HKEY rc_cache_key(HKEY special, LPCWSTR path)
