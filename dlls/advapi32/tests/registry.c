@@ -4199,7 +4199,14 @@ static int hkey_to_key_cmp(const void *key, const struct wine_rb_entry *entry)
 }
 static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
 static struct key *rc_root;
-static SRWLOCK rc_lock = SRWLOCK_INIT;
+static CRITICAL_SECTION rc_lock;
+static CRITICAL_SECTION_DEBUG rc_lock_debug =
+{
+    0, 0, &rc_lock,
+    { &rc_lock_debug.ProcessLocksList, &rc_lock_debug.ProcessLocksList },
+      0, 0, { (DWORD_PTR)(__FILE__ ": ios_static_lock") }
+};
+static CRITICAL_SECTION rc_lock = { &rc_lock_debug, -1, 0, 0, 0, 0 };
 
 #define MIN_VALUES  8
 #define MIN_SUBKEYS 8
@@ -4557,7 +4564,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         return; /* don't cache volatile key */
 
     key = NULL;
-    AcquireSRWLockExclusive(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto not_cacheable;
 
@@ -4580,12 +4587,12 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (!rc_map_hkey_to_key(hkey, key)) /* TODO: access */
         goto not_cacheable;
     
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return;
 
 not_cacheable:
     if (0) { if (key) rc_release_key(key); } /* TODO */
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
 }
 
 struct rc_wait_s
@@ -4665,11 +4672,11 @@ static struct key *rc_enable_cache(void)
     DWORD64 current_time;
     UNICODE_STRING name;
 
-    AcquireSRWLockExclusive(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (rc_root)
     {
         TRACE("registry cache already enabled\n");
-        ReleaseSRWLockExclusive(&rc_lock);
+        LeaveCriticalSection(&rc_lock);
         return rc_root;
     }
 
@@ -4687,7 +4694,7 @@ static struct key *rc_enable_cache(void)
 
     if (0) dump_path(hklm, NULL, stderr);
     TRACE("registry cache enabled\n");
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return rc_root;
 
 error:
@@ -4695,7 +4702,7 @@ error:
     if (hklm) rc_release_key(hklm);
     if (rc_root) rc_release_key(rc_root);
     rc_root = NULL;
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return NULL;
 }
 
@@ -4839,7 +4846,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     struct key *root, *key;
     int index;
 
-    AcquireSRWLockShared(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto not_cached;
 
@@ -4868,7 +4875,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     return TRUE;
 
 not_cached:
-    ReleaseSRWLockShared(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return FALSE;
 }
 
@@ -4892,7 +4899,7 @@ static BOOL rc_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
 {
     struct key *root, *key;
 
-    AcquireSRWLockShared(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto not_cached;
 
@@ -4917,11 +4924,11 @@ static BOOL rc_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
     *name_len = key->name.Length / sizeof(WCHAR) + 1;
     memcpy(name, key->name.Buffer, key->name.Length);
     name[*name_len - 1] = 0;
-    ReleaseSRWLockShared(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return TRUE;
 
 not_cached:
-    ReleaseSRWLockShared(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return FALSE;
 }
 
@@ -4931,7 +4938,7 @@ static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
     struct key *key;
    
     key = NULL;
-    AcquireSRWLockExclusive(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto not_cacheable;
 
@@ -4943,12 +4950,12 @@ static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
     us_name.MaximumLength = name_len * sizeof(WCHAR) + sizeof(WCHAR);
     if (!alloc_subkey(key, &us_name, index, GetTickCount64()))
         goto not_cacheable;
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return;
 
 not_cacheable:
     if (0) { if (key) rc_release_key(key); } /* TODO */
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
 }
 
 LSTATUS WINAPI rc_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
@@ -5003,7 +5010,7 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     struct key *root, *key;
     int index;
 
-    AcquireSRWLockShared(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto not_cached;
 
@@ -5025,11 +5032,11 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     *type = key_value->type;
     *data_len = key_value->len;
 
-    ReleaseSRWLockShared(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return TRUE;
 
 not_cached:
-    ReleaseSRWLockShared(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return FALSE;
 }
 
@@ -5090,7 +5097,7 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     int index;
 
     key = NULL;
-    AcquireSRWLockExclusive(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto done;
 
@@ -5132,7 +5139,7 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     key_value->data = ptr;
 
 done:
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
 }
 
 LSTATUS WINAPI rc_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
@@ -5159,7 +5166,7 @@ static BOOL rc_close_key(HKEY hkey)
 {
     struct key *key;
 
-    AcquireSRWLockExclusive(&rc_lock);
+    EnterCriticalSection(&rc_lock);
     if (!rc_root)
         goto not_cached;
 
@@ -5167,11 +5174,11 @@ static BOOL rc_close_key(HKEY hkey)
         goto not_cached;
 
     if (0) rc_release_key(key); /* TODO: delete, release, ...? */
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return TRUE;
 
 not_cached:
-    ReleaseSRWLockExclusive(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
     return FALSE;
 }
 
