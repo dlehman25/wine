@@ -4179,6 +4179,7 @@ struct key
     int               last_value;
     int               nb_values;
     struct key_value *values;
+    DWORD             options;
     DWORD64           modif; /* TODO: needed?  zero if dirty - just have bool? */
     HKEY              hkey;
     HKEY              hkeynotify; /* keep this open until freeing key */
@@ -4566,6 +4567,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (access && !rc_check_access(key, &access))
         goto not_cacheable;
 
+    key->options = options;
     key->hkey = hkey; /* TODO */
     if (!rc_map_hkey_to_key(hkey, key)) /* TODO: access */
         goto not_cacheable;
@@ -4846,7 +4848,8 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (!key->hkey)
         goto not_cached; /* no hkey opened for this specific path */
 
-    /* TODO: options - can we update later?  cache with different key? */
+    if (key->options != options)
+        goto not_cached; /* different symlink, wow64 */
 
     /* TODO: find key/access pair? */
     access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
