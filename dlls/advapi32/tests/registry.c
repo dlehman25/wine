@@ -4643,18 +4643,18 @@ static void rc_register_wait(HKEY hkey)
 
 static void *rc_cache_key(HKEY special, LPCWSTR path)
 {
+    const DWORD access = KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY;
     LSTATUS status;
     HKEY key;
 
     /* TODO: validate special? */
-    if ((status = RegOpenKeyExW(special, path, 0,
-                        KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY, &key)))
+    if ((status = RegOpenKeyExW(special, path, 0, access, &key)))
     {
         WARN("status %x\n", status);
         return NULL;
     }
 
-    rc_put_key(special, path, 0, 0, key);
+    rc_put_key(special, path, 0, access, key);
     rc_register_wait(key);
     return NULL;
 }
@@ -5193,8 +5193,8 @@ static void test_cache(void)
         int index;
         void *cookie;
 
-        rc_cache_init();
         root = rc_enable_cache();
+        rc_cache_init();
         if (0) rc_disable_cache();
 
         cookie = rc_cache_key(HKEY_LOCAL_MACHINE,
