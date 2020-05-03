@@ -5183,29 +5183,22 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
-static void test_cache(void)
+static DWORD WINAPI test_cache_proc(void *arg)
 {
-    LSTATUS status;
-    DWORD index, size, nloops;
+    DWORD index, size, i, nloops;
     HKEY key, subkey;
     WCHAR keyname[128];
     WCHAR name[32];
+    LSTATUS status;
     DWORD64 s, e;
-
-    rc_cache_init();
-
-    /* make sure this is in the registry:
-    HKCU\Software\\Wine\\RegistryCache
-    "Cacheable"=str(7):"HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\0"
-    */
 
     status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                 L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                 KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY, &key);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
 
-    nloops = 2;
-    while (nloops--)
+    nloops = PtrToLong(arg);
+    for (i = 0; i < nloops; i++)
     {
         s = GetTickCount64();
         index = 0;
@@ -5229,11 +5222,38 @@ static void test_cache(void)
             size = ARRAY_SIZE(keyname);
         }
         e = GetTickCount64();
-        if (0) printf("%u: %I64u\n", nloops, e - s);
+        if (0) printf("tid 0x%x loops %u sum %I64u avg %.3f\n", GetCurrentThreadId(), nloops,
+                      e - s, (double)(e - s)/nloops);
     }
 
     rc_RegCloseKey(key);
-    return;
+
+    return 0;
+}
+
+static void test_cache(void)
+{
+    HANDLE threads[1];
+    DWORD64 s, e;
+    LONG32 nloops;
+    int i;
+
+    rc_cache_init();
+
+    /* make sure this is in the registry:
+    HKCU\Software\\Wine\\RegistryCache
+    "Cacheable"=str(7):"HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\0"
+    */
+    nloops = 1000;
+    s = GetTickCount64();
+    for (i = 0; i < ARRAY_SIZE(threads); i++)
+        threads[i] = CreateThread(NULL, 0, test_cache_proc, LongToPtr(nloops), 0, NULL);
+    WaitForMultipleObjects(ARRAY_SIZE(threads), threads, TRUE, INFINITE);
+    e = GetTickCount64();
+    for (i = 0; i < ARRAY_SIZE(threads); i++)
+        CloseHandle(threads[i]);
+
+    printf("# threads %u # loops %u sum %I64u\n", ARRAY_SIZE(threads), nloops, e - s);
 }
 
 START_TEST(registry)
