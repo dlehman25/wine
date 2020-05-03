@@ -5188,7 +5188,7 @@ static DWORD WINAPI test_cache_proc(void *arg)
 
     status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                 L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY, &key);
+                KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
 
     nloops = PtrToLong(arg);
