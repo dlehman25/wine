@@ -4584,6 +4584,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (access && !rc_check_access(key, &access))
         goto not_cacheable;
 
+    key->hkey = hkey; /* TODO */
     if (!rc_map_hkey_to_key(hkey, key)) /* TODO: access */
         goto not_cacheable;
     
