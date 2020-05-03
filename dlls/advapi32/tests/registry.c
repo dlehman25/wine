@@ -5197,7 +5197,11 @@ static void test_cache(void)
         rc_cache_init();
         if (0) rc_disable_cache();
 
-        cookie = rc_cache_key(HKEY_LOCAL_MACHINE,
+        /* make sure this is in the registry:
+        HKCU\Software\\Wine\\RegistryCache
+        "Cacheable"=str(7):"HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\0"
+        */
+        if (0)  cookie = rc_cache_key(HKEY_LOCAL_MACHINE,
             L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones"); 
         /* now anything at Time Zones and under is cached  */
 
