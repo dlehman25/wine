@@ -5007,8 +5007,8 @@ LSTATUS WINAPI rc_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD nam
 }
 
 /* find the named value of a given key and return its index in the array */
-static struct key_value *find_value(const struct key *key, const UNICODE_STRING *name,
-                                    int *index)
+static struct key_value *rc_find_value(const struct key *key, const UNICODE_STRING *name,
+                                       int *index)
 {
     int i, min, max, res;
     USHORT len;
@@ -5053,7 +5053,7 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
         goto not_cached; /* invalid path */
 
     RtlInitUnicodeString(&name, value);
-    if (!(key_value = find_value(key, &name, &index)))
+    if (!(key_value = rc_find_value(key, &name, &index)))
         goto not_cached;
 
     if (key_value->len > *data_len)
@@ -5140,7 +5140,7 @@ static void rc_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
         goto done;
 
     RtlInitUnicodeString(&name, value);
-    if ((key_value = find_value(key, &name, &index)))
+    if ((key_value = rc_find_value(key, &name, &index)))
     {
         /* already exists */
         if (key_value->type == type &&
