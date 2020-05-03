@@ -4579,11 +4579,61 @@ not_cacheable:
     return FALSE;
 }
 
+static int rc_delete_key(struct key *key, int recurse)
+{
+    int index;
+    struct key *parent = key->parent;
+
+    /* can delete root, unlike main registry */
+    while (recurse && (key->last_subkey >= 0))
+        if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
+            return -1;
+
+    /* TODO? */
+    if (key == rc_root)
+    {
+        rc_unmap_hkey(key->hkey);
+        /* TODO: free name */
+        heap_free(key); /* TODO: release_object(key); */
+        return 0;
+    }
+
+    for (index = 0; index < parent->last_subkey; index++)
+        if (parent->subkeys[index] == key)
+            break;
+
+    /* can only delete key with no subkeys */
+    if (key->last_subkey >= 0)
+        return -1;
+
+    free_subkey(parent, index);
+    return 0;
+}
+
+static void rc_disable_cache(void)
+{
+    if (rc_root)
+    {
+        /* TODO: remove notifications */
+        rc_delete_key(rc_root, TRUE);
+        rc_root = NULL;
+    }
+}
+
 struct rc_wait_s
 {
     HKEY hkey;
     HANDLE event;
 };
+
+/* hkey is notify key */
+static BOOL rc_invalidate_key(HKEY hkey)
+{
+    FIXME("stub %p\n", hkey);
+    EnterCriticalSection(&rc_lock);
+    LeaveCriticalSection(&rc_lock);
+    return TRUE;
+}
 
 static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
                                       PTP_WAIT wait, TP_WAIT_RESULT result)
@@ -4591,9 +4641,19 @@ static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm
     struct rc_wait_s *args = parm;
     LSTATUS status;
 
+    /* key or subkey on server was changed */
+    rc_invalidate_key(args->hkey);
+
     status = RegNotifyChangeKeyValue(args->hkey, TRUE,
                         REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
                         REG_NOTIFY_THREAD_AGNOSTIC, args->event, TRUE);
+    if (status)
+    {
+        /* disable caching if we can't be notified of updates */
+        EnterCriticalSection(&rc_lock);
+        rc_disable_cache();
+        LeaveCriticalSection(&rc_lock);
+    }
     SetThreadpoolWait(wait, args->event, NULL);
 }
 
@@ -4708,46 +4768,6 @@ error:
     return NULL;
 }
 
-static int rc_delete_key(struct key *key, int recurse)
-{
-    int index;
-    struct key *parent = key->parent;
-
-    /* can delete root, unlike main registry */
-    while (recurse && (key->last_subkey >= 0))
-        if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
-            return -1;
-
-    /* TODO? */
-    if (key == rc_root)
-    {
-        rc_unmap_hkey(key->hkey);
-        /* TODO: free name */
-        heap_free(key); /* TODO: release_object(key); */
-        return 0;
-    }
-
-    for (index = 0; index < parent->last_subkey; index++)
-        if (parent->subkeys[index] == key)
-            break;
-
-    /* can only delete key with no subkeys */
-    if (key->last_subkey >= 0)
-        return -1;
-
-    free_subkey(parent, index);
-    return 0;
-}
-
-static void rc_disable_cache(void)
-{
-    if (rc_root)
-    {
-        rc_delete_key(rc_root, TRUE);
-        rc_root = NULL;
-    }
-}
-
 static BOOL rc_cache_init(void)
 {
     static const struct { const WCHAR *name; HKEY hkey; } map[] =
@@ -4855,6 +4875,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (!(root = rc_key_for_hkey(hkey)))
         goto not_cached;
 
+    /* TODO: check if key still valid */
     RtlInitUnicodeString(&us_name, name);
     if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
         goto not_cached; /* invalid path */
