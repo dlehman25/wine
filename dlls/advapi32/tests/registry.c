@@ -4637,10 +4637,15 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
     LSTATUS status;
     HKEY key;
 
-    /* TODO: validate special? */
+    if (special != HKEY_LOCAL_MACHINE)
+    {
+        WARN("invalid root %p for key %s\n", special, wine_dbgstr_w(path));
+        return NULL;
+    }
+
     if ((status = RegOpenKeyExW(special, path, 0, access, &key)))
     {
-        WARN("status %x\n", status);
+        WARN("failed to open %p %s (%x)\n", special, wine_dbgstr_w(path), access);
         return NULL;
     }
 
