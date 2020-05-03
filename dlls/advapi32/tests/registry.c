@@ -4431,12 +4431,12 @@ static void free_subkey(struct key *parent, int index)
     }
 }
 
-static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING *name,
-                                        DWORD64 modif)
+static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING *name)
 {
     int index;
     struct key *base;
     struct key *subkey;
+    DWORD64 current_time;
     UNICODE_STRING token;
 
     token.Buffer = NULL;
@@ -4450,9 +4450,10 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
         get_path_token(name, &token);
     }
 
+    current_time = GetTickCount64();
     if (token.Length)
     {
-        if (!(key = alloc_subkey(key, &token, index, modif)))
+        if (!(key = alloc_subkey(key, &token, index, current_time)))
             return NULL;
         base = key;
         for (;;)
@@ -4460,7 +4461,7 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
             get_path_token(name, &token);
             if (!token.Length)
                 break;
-            if (!(key = alloc_subkey(key, &token, 0, modif)))
+            if (!(key = alloc_subkey(key, &token, 0, current_time)))
             {
                 free_subkey(base, index);
                 return NULL;
@@ -4560,7 +4561,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (!(key = open_key_prefix(root, &us_name, &token, &index)))
         goto not_cacheable;
 
-    if (token.Length && !(key = rc_create_key_recursive(root, &us_name, 0 /* TODO */)))
+    if (token.Length && !(key = rc_create_key_recursive(root, &us_name)))
         goto not_cacheable;
 
     access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
@@ -4671,7 +4672,7 @@ static struct key *rc_enable_cache(void)
 
     /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
     RtlInitUnicodeString(&name, L"Machine");
-    if (!(hklm = rc_create_key_recursive(rc_root, &name, current_time)))
+    if (!(hklm = rc_create_key_recursive(rc_root, &name)))
         goto error;
 
     if (!rc_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
