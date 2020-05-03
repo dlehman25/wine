@@ -4533,7 +4533,7 @@ static unsigned int rc_key_map_access(unsigned int access)
                       KEY_WOW64_64KEY | KEY_WOW64_32KEY);
 }
 
-static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
+static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM access, HKEY hkey)
 {
     UNICODE_STRING us_name, token;
     struct key *root, *key;
@@ -4541,7 +4541,7 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
 
     /* TODO: options == access = NULL, hkey is notify */
     if (options & REG_OPTION_VOLATILE)
-        return; /* don't cache volatile key */
+        return FALSE; /* don't cache volatile key */
 
     key = NULL;
     EnterCriticalSection(&rc_lock);
@@ -4571,11 +4571,12 @@ static void WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         goto not_cacheable;
     
     LeaveCriticalSection(&rc_lock);
-    return;
+    return TRUE;
 
 not_cacheable:
     if (0) { if (key) rc_release_key(key); } /* TODO */
     LeaveCriticalSection(&rc_lock);
+    return FALSE;
 }
 
 struct rc_wait_s
@@ -4631,7 +4632,7 @@ static void rc_register_wait(HKEY hkey)
 */
 }
 
-static void *rc_cache_key(HKEY special, LPCWSTR path)
+static HKEY rc_cache_key(HKEY special, LPCWSTR path)
 {
     const DWORD access = KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY;
     LSTATUS status;
@@ -4649,7 +4650,12 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
         return NULL;
     }
 
-    rc_put_key(special, path, 0, access, key);
+    if (!rc_put_key(special, path, 0, access, key))
+    {
+        WARN("failed to cache key %p %s\n", special, wine_dbgstr_w(path));
+        RegCloseKey(key);
+        return NULL;
+    }
     rc_register_wait(key);
     return key;
 }
