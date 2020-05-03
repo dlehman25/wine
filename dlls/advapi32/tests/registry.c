@@ -4942,21 +4942,17 @@ static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
     key = NULL;
     EnterCriticalSection(&rc_lock);
     if (!rc_root)
-        goto not_cacheable;
+        goto done;
 
     if (!(key = rc_key_for_hkey(hkey)))
-        goto not_cacheable;
+        goto done;
 
     us_name.Buffer = name;
     us_name.Length = name_len * sizeof(WCHAR);
     us_name.MaximumLength = name_len * sizeof(WCHAR) + sizeof(WCHAR);
     if (!alloc_subkey(key, &us_name, index, GetTickCount64()))
-        goto not_cacheable;
-    LeaveCriticalSection(&rc_lock);
-    return;
-
-not_cacheable:
-    if (0) { if (key) rc_release_key(key); } /* TODO */
+        WARN("failed to put enum key %p %u %s\n", hkey, index, wine_dbgstr_wn(name, name_len));
+done:
     LeaveCriticalSection(&rc_lock);
 }
 
