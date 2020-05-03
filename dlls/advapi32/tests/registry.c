@@ -4659,6 +4659,86 @@ static void *rc_cache_key(HKEY special, LPCWSTR path)
     return NULL;
 }
 
+static struct key *rc_enable_cache(void)
+{
+    struct key *hklm;
+    DWORD64 current_time;
+    UNICODE_STRING name;
+
+    AcquireSRWLockExclusive(&rc_lock);
+    if (rc_root)
+    {
+        TRACE("registry cache already enabled\n");
+        ReleaseSRWLockExclusive(&rc_lock);
+        return rc_root;
+    }
+
+    current_time = GetTickCount64();
+    RtlInitUnicodeString(&name, L"\\Registry\\");
+    rc_root = rc_new_key(&name, current_time);
+
+    /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
+    RtlInitUnicodeString(&name, L"Machine");
+    if (!(hklm = create_key_recursive(rc_root, &name, current_time)))
+        goto error;
+
+    if (!rc_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
+        goto error;
+
+    if (0) dump_path(hklm, NULL, stderr);
+    TRACE("registry cache enabled\n");
+    ReleaseSRWLockExclusive(&rc_lock);
+    return rc_root;
+
+error:
+    WARN("failed to enable registry cache\n");
+    if (hklm) rc_release_key(hklm);
+    if (rc_root) rc_release_key(rc_root);
+    rc_root = NULL;
+    ReleaseSRWLockExclusive(&rc_lock);
+    return NULL;
+}
+
+static int rc_delete_key(struct key *key, int recurse)
+{
+    int index;
+    struct key *parent = key->parent;
+
+    /* can delete root, unlike main registry */
+    while (recurse && (key->last_subkey >= 0))
+        if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
+            return -1;
+
+    /* TODO? */
+    if (key == rc_root)
+    {
+        rc_unmap_hkey(key->hkey);
+        /* TODO: free name */
+        heap_free(key); /* TODO: release_object(key); */
+        return 0;
+    }
+
+    for (index = 0; index < parent->last_subkey; index++)
+        if (parent->subkeys[index] == key)
+            break;
+
+    /* can only delete key with no subkeys */
+    if (key->last_subkey >= 0)
+        return -1;
+
+    free_subkey(parent, index);
+    return 0;
+}
+
+static void rc_disable_cache(void)
+{
+    if (rc_root)
+    {
+        rc_delete_key(rc_root, TRUE);
+        rc_root = NULL;
+    }
+}
+
 static BOOL rc_cache_init(void)
 {
     static const struct { const WCHAR *name; HKEY hkey; } map[] =
@@ -4666,9 +4746,9 @@ static BOOL rc_cache_init(void)
         { L"HKLM", HKEY_LOCAL_MACHINE },
     };
     UNICODE_STRING path, token;
+    DWORD size, len, ncached;
     WCHAR *keys, *key, *end;
     HKEY hroot, hkeyrc;
-    DWORD size, len;
     LSTATUS status;
     BOOL ret;
     int i;
@@ -4690,10 +4770,11 @@ static BOOL rc_cache_init(void)
                                 NULL, keys, &size)))
         goto done;
 
-    /* TODO: if (!rc_enable_cache())
-        goto done; */
+    if (!rc_enable_cache())
+        goto done;
 
     /* TODO: deal with duplicates or nested here? */
+    ncached = 0;
     end = keys + size / sizeof(*keys);
     key = keys;
     while ((key < end) && (len = lstrlenW(key)))
@@ -4729,14 +4810,18 @@ static BOOL rc_cache_init(void)
         key++;
         len -= token.Length/2;
         len--;
-        if (!rc_cache_key(hroot, key))
+        if (rc_cache_key(hroot, key))
+            ncached++;
+        else
             WARN("cannot cache %s\n", wine_dbgstr_wn(key, len));
 
         key += len;
         key++;
     }
 
-    /* TODO: if none successfully cached, disable it */
+    dump_key(rc_root, 0);
+    if (!ncached)
+        rc_disable_cache();
 
     ret = TRUE;
     /* fall-through */
@@ -5098,86 +5183,6 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
-static int rc_delete_key(struct key *key, int recurse)
-{
-    int index;
-    struct key *parent = key->parent;
-
-    /* can delete root, unlike main registry */
-    while (recurse && (key->last_subkey >= 0))
-        if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
-            return -1;
-
-    /* TODO? */
-    if (key == rc_root)
-    {
-        rc_unmap_hkey(key->hkey);
-        /* TODO: free name */
-        heap_free(key); /* TODO: release_object(key); */
-        return 0;        
-    }
-
-    for (index = 0; index < parent->last_subkey; index++)
-        if (parent->subkeys[index] == key)
-            break;
-
-    /* can only delete key with no subkeys */
-    if (key->last_subkey >= 0)
-        return -1;
-
-    free_subkey(parent, index);
-    return 0;
-}
-
-static struct key *rc_enable_cache(void)
-{
-    struct key *hklm;
-    DWORD64 current_time;
-    UNICODE_STRING name;
-
-    AcquireSRWLockExclusive(&rc_lock);
-    if (rc_root)
-    {
-        TRACE("registry cache already enabled\n");
-        ReleaseSRWLockExclusive(&rc_lock);
-        return rc_root;
-    }
-
-    current_time = GetTickCount64();
-    RtlInitUnicodeString(&name, L"\\Registry\\");
-    rc_root = rc_new_key(&name, current_time);
-
-    /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
-    RtlInitUnicodeString(&name, L"Machine");
-    if (!(hklm = create_key_recursive(rc_root, &name, current_time)))
-        goto error;
-
-    if (!rc_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
-        goto error;
-
-    if (0) dump_path(hklm, NULL, stderr);
-    TRACE("registry cache enabled\n");
-    ReleaseSRWLockExclusive(&rc_lock);
-    return rc_root;
-
-error:
-    WARN("failed to enable registry cache\n");
-    if (hklm) rc_release_key(hklm);
-    if (rc_root) rc_release_key(rc_root);
-    rc_root = NULL;
-    ReleaseSRWLockExclusive(&rc_lock);
-    return NULL;
-}
-
-static void rc_disable_cache(void)
-{
-    if (rc_root)
-    {
-        rc_delete_key(rc_root, TRUE);
-        rc_root = NULL;
-    }
-}
-
 static void test_cache(void)
 {
     LSTATUS status;
@@ -5189,23 +5194,19 @@ static void test_cache(void)
 
     {
         LSTATUS status;
-        struct key *root;
         int index;
         void *cookie;
 
-        root = rc_enable_cache();
         rc_cache_init();
-        if (0) rc_disable_cache();
 
         /* make sure this is in the registry:
         HKCU\Software\\Wine\\RegistryCache
         "Cacheable"=str(7):"HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\0"
         */
         if (0)  cookie = rc_cache_key(HKEY_LOCAL_MACHINE,
-            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones"); 
+            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones");
         /* now anything at Time Zones and under is cached  */
 
-        dump_key(root, 0);
         status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                     L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                     KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY /* TODO: */, &key);
@@ -5244,7 +5245,6 @@ static void test_cache(void)
             e = GetTickCount64();
             if (0) printf("%u: %I64u\n", nloops, e - s);
         }
-        if (1) dump_key(root, 0);
 
         if (0)
         {
