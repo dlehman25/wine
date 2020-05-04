@@ -4140,8 +4140,6 @@ static void test_EnumDynamicTimeZoneInformation(void)
 - only caching successful retrievals
     - need to worry about wow64 and links?
     - already handled on server
-- read-write locks
-    - mainly intended for mostly read keys
 - don't cache if recently modified?
 - handle volatile?
 - what about multiple opens? refcount?
