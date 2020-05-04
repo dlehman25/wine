@@ -35,6 +35,31 @@
 #include "spellcheck.h"
 #include "shlobj.h"
 
+static DWORD count_errors(ISpellChecker *checker, LPCWSTR text)
+{
+    IEnumSpellingError *errors;
+    ISpellingError *err;
+    DWORD nerrs;
+    HRESULT hr;
+
+    errors = NULL;
+    hr = ISpellChecker_Check(checker, text, &errors);
+    ok(hr == S_OK, "got 0x%x\n", hr);
+    ok(!!errors, "got NULL\n");
+
+    nerrs = 0;
+    err = NULL;
+    while ((hr = IEnumSpellingError_Next(errors, &err)) != S_FALSE)
+    {
+        ISpellingError_Release(err);
+        nerrs++;
+        err = NULL;
+    }
+
+    IEnumSpellingError_Release(errors);
+    return nerrs;
+}
+
 static void test_factory(DWORD model)
 {
     ISpellCheckerFactory *factory;
@@ -272,13 +297,60 @@ done:
     ISpellCheckerFactory_Release(factory);
 }
 
+static HANDLE changed;
+static HRESULT WINAPI SpellCheckerChangedEventHandler_QueryInterface(
+                        ISpellCheckerChangedEventHandler *iface, REFIID riid, void **ppv)
+{
+    if (IsEqualGUID(riid, &IID_IUnknown) ||
+        IsEqualGUID(riid, &IID_ISpellCheckerChangedEventHandler))
+    {
+        *ppv = iface;
+        IUnknown_AddRef((IUnknown*)*ppv);
+        return S_OK;
+    }
+
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI SpellCheckerChangedEventHandler_AddRef(
+                        ISpellCheckerChangedEventHandler *iface)
+{
+    return 2;
+}
+
+static ULONG WINAPI SpellCheckerChangedEventHandler_Release(
+                        ISpellCheckerChangedEventHandler *iface)
+{
+    return 1;
+}
+
+static HRESULT WINAPI SpellCheckerChangedEventHandler_Invoke(
+                        ISpellCheckerChangedEventHandler *iface, ISpellChecker *checker)
+{
+    SetEvent(changed);
+    return S_OK;
+}
+
+static const ISpellCheckerChangedEventHandlerVtbl SpellCheckerChangedEventHandlerVtbl =
+{
+    SpellCheckerChangedEventHandler_QueryInterface,
+    SpellCheckerChangedEventHandler_AddRef,
+    SpellCheckerChangedEventHandler_Release,
+    SpellCheckerChangedEventHandler_Invoke
+};
+
+static ISpellCheckerChangedEventHandler SpellCheckerChangedEventHandler =
+{
+    &SpellCheckerChangedEventHandlerVtbl
+};
+
 static void test_SpellChecker_AddRemove(void)
 {
     ISpellCheckerFactory *factory;
-    IEnumSpellingError *errors;
+    DWORD nerrs, cookie, ret;
     ISpellChecker2 *checker2;
     ISpellChecker *checker;
-    ISpellingError *err;
     HRESULT hr;
 
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
@@ -293,49 +365,47 @@ static void test_SpellChecker_AddRemove(void)
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     /* spell check before adding */
-    errors = NULL;
-    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
+    nerrs = count_errors(checker, L"hello worllld");
+    ok(nerrs == 1, "got %u\n", nerrs);
 
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_OK, "got 0x%x\n", hr);
-    ok(!!err, "got %p\n", err);
-    ISpellingError_Release(err);
-    IEnumSpellingError_Release(errors);
+    changed = CreateEventW(NULL, FALSE, FALSE, NULL);
+    ok(!!changed, "failed, gle %u\n", GetLastError());
 
-    /* add word to %APPDATA%/Microsoft/Spelling/<lang>/default.dic */
-    hr = ISpellChecker2_Add(checker2, L"worllld");
+    cookie = 0;
+    hr = ISpellChecker_add_SpellCheckerChanged(checker, &SpellCheckerChangedEventHandler,
+                            &cookie);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(cookie, "got 0\n");
+
+    /* add word to %APPDATA%/Microsoft/Spelling/<lang>/default.dic
+       removes from default.exc if exists */
+    hr = ISpellChecker_Add(checker, L"worllld");
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    /* first addition can be delayed */
+    ret = WaitForSingleObject(changed, 5000);
+    ok(ret == WAIT_OBJECT_0, "got %u\n", ret);
 
     /* spell check after */
-    errors = NULL;
-    hr = ISpellChecker2_Check(checker2, L"hello worllld", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
+    nerrs = count_errors(checker, L"hello worllld");
+    ok(nerrs == 0, "got %u\n", nerrs);
 
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_FALSE, "got 0x%x\n", hr);
-    ok(!err, "got %p\n", err);
-    IEnumSpellingError_Release(errors);
-
+    /* remove from default.dic, add to default.exc */
     hr = ISpellChecker2_Remove(checker2, L"worllld");
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
-    /* spell check after */
-    errors = NULL;
-    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
+    /* first addition to default.exc is delayed */
+    ret = WaitForSingleObject(changed, 5000);
+    ok(ret == WAIT_OBJECT_0, "got %u\n", ret);
 
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_OK, "got 0x%x\n", hr);
-    ok(!!err, "got %p\n", err);
-    ISpellingError_Release(err);
-    IEnumSpellingError_Release(errors);
+    hr = ISpellChecker_remove_SpellCheckerChanged(checker, cookie);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    CloseHandle(changed);
+
+    /* spell check after */
+    nerrs = count_errors(checker, L"hello worllld");
+    ok(nerrs == 1, "got %u\n", nerrs);
 
     ISpellChecker2_Release(checker2);
     ISpellChecker_Release(checker);
@@ -517,133 +587,6 @@ static void test_UserDictionariesRegistrar(void)
     ISpellCheckerFactory_Release(factory);
 }
 
-static HANDLE changed;
-static HRESULT WINAPI SpellCheckerChangedEventHandler_QueryInterface(
-                        ISpellCheckerChangedEventHandler *iface, REFIID riid, void **ppv)
-{
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_ISpellCheckerChangedEventHandler))
-    {
-        *ppv = iface;
-        IUnknown_AddRef((IUnknown*)*ppv);
-        return S_OK;
-    }
-
-    *ppv = NULL;
-    return E_NOINTERFACE;
-}
-
-static ULONG WINAPI SpellCheckerChangedEventHandler_AddRef(
-                        ISpellCheckerChangedEventHandler *iface)
-{
-    return 2;
-}
-
-static ULONG WINAPI SpellCheckerChangedEventHandler_Release(
-                        ISpellCheckerChangedEventHandler *iface)
-{
-    return 1;
-}
-
-static HRESULT WINAPI SpellCheckerChangedEventHandler_Invoke(
-                        ISpellCheckerChangedEventHandler *iface, ISpellChecker *checker)
-{
-    SetEvent(changed);
-    return S_OK;
-}
-
-static const ISpellCheckerChangedEventHandlerVtbl SpellCheckerChangedEventHandlerVtbl =
-{
-    SpellCheckerChangedEventHandler_QueryInterface,
-    SpellCheckerChangedEventHandler_AddRef,
-    SpellCheckerChangedEventHandler_Release,
-    SpellCheckerChangedEventHandler_Invoke
-};
-
-static ISpellCheckerChangedEventHandler SpellCheckerChangedEventHandler =
-{
-    &SpellCheckerChangedEventHandlerVtbl
-};
-
-static void test_SpellCheckerChangedEventHandler(void)
-{
-    ISpellCheckerFactory *factory;
-    IEnumSpellingError *errors;
-    ISpellChecker2 *checker2;
-    ISpellChecker *checker;
-    ISpellingError *err;
-    DWORD cookie, ret;
-    HRESULT hr;
-
-    factory = NULL;
-    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
-                          &IID_ISpellCheckerFactory, (void**)&factory);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    /* spell check before registering */
-    checker = NULL;
-    hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    hr = ISpellChecker_QueryInterface(checker, &IID_ISpellChecker2, (void**)&checker2);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    changed = CreateEventW(NULL, FALSE, FALSE, NULL);
-    ok(!!changed, "failed to create event\n");
-
-    cookie = 0;
-    hr = ISpellChecker_add_SpellCheckerChanged(checker, &SpellCheckerChangedEventHandler,
-                            &cookie);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    /* spell check before adding */
-    errors = NULL;
-    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
-
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_OK, "got 0x%x\n", hr);
-    ok(!!err, "got %p\n", err);
-    ISpellingError_Release(err);
-    IEnumSpellingError_Release(errors);
-
-    ok(!!cookie, "got NULL\n");
-    hr = ISpellChecker_Add(checker, L"worllld");
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    ret = WaitForSingleObject(changed, 5000);
-    ok(ret == WAIT_OBJECT_0, "got %u\n", ret);
-
-    /* spell check after */
-    errors = NULL;
-    hr = ISpellChecker2_Check(checker2, L"hello worllld", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
-
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_FALSE, "got 0x%x\n", hr);
-    ok(!err, "got %p\n", err);
-    IEnumSpellingError_Release(errors);
-
-    hr = ISpellChecker2_Remove(checker2, L"worllld");
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    ret = WaitForSingleObject(changed, 5000);
-    ok(ret == WAIT_OBJECT_0, "got %u\n", ret);
-
-    hr = ISpellChecker_remove_SpellCheckerChanged(checker, cookie);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
-    ISpellChecker2_Release(checker2);
-    ISpellChecker_Release(checker);
-    ISpellCheckerFactory_Release(factory);
-
-    CloseHandle(changed);
-}
-
 START_TEST(msspell)
 {
     static const DWORD init[] = { COINIT_MULTITHREADED, COINIT_APARTMENTTHREADED };
@@ -665,14 +608,13 @@ START_TEST(msspell)
             return;
         }
         ISpellCheckerFactory_Release(factory);
+
         test_factory(init[i]);
         test_spellchecker();
-        if (0) test_SpellChecker_AddRemove();
         test_suggestions();
         test_UserDictionariesRegistrar();
         if (init[i] == COINIT_MULTITHREADED)
-            /* adds to default.exc, breaks repeat tests */
-            if (0) test_SpellCheckerChangedEventHandler();
+            test_SpellChecker_AddRemove();
         CoUninitialize();
     }
 }
