@@ -4432,6 +4432,7 @@ static void free_subkey(struct key *parent, int index)
         parent->subkeys = new_subkeys;
         parent->nb_subkeys = nb_subkeys;
     }
+    /* TODO: free values */
 }
 
 static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING *name)
@@ -4641,6 +4642,54 @@ static void rc_disable_cache(void)
     }
     rc_delete_key(rc_root, TRUE);
     rc_root = NULL;
+}    
+
+static BOOL rc_clear_key_helper(struct key *key)
+{
+    int i;
+
+    /* descend keys */
+    for (i = 0; i <= key->last_subkey; i++)
+    {
+        if (key->subkeys[i])
+        {
+            rc_clear_key_helper(key->subkeys[i]);
+            key->subkeys[i] = NULL;
+        }
+    }
+    /* TODO: heap_free(key->subkeys); only if none have held refs */
+    key->last_subkey = -1;
+    key->nb_subkeys = 0;
+
+    /* free any empty keys */
+
+    /* delete values */
+    for (i = 0; i <= key->last_value; i++)
+    {
+        RtlFreeUnicodeString(&key->values[i].name);
+        heap_free(key->values[i].data);
+    }
+    heap_free(key->values);
+    key->last_value = -1;
+    key->nb_values = 0;
+    key->values = NULL;
+
+    return TRUE;
+}
+
+/* clear keys and values - keeps any keys that have held references */
+static BOOL rc_clear_key(HKEY hkey)
+{
+    struct key *key;
+
+printf("%s: %p\n", __FUNCTION__, hkey);
+    if (!rc_root)
+        return FALSE;
+
+    if (!(key = rc_key_for_hkey(hkey)))
+        return FALSE;
+
+    return rc_clear_key_helper(key);
 }
 
 /* hkey is notify key */
@@ -5352,6 +5401,20 @@ static void test_cache(void)
         CloseHandle(threads[i]);
 
     printf("# threads %u # loops %u sum %I64u\n", ARRAY_SIZE(threads), nloops, e - s);
+
+    dump_key(rc_root, 0);
+    {
+        struct list *head;
+        struct rc_wait_s *wait;
+
+        while ((head = list_head(&rc_waits_list)))
+        {
+            wait = LIST_ENTRY(head, struct rc_wait_s, entry);
+            list_remove(head);
+            rc_clear_key(wait->hkey);
+        }
+    }
+    dump_key(rc_root, 0);
 }
 
 START_TEST(registry)
