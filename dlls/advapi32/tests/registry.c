@@ -4746,7 +4746,7 @@ static HKEY rc_cache_key(HKEY special, LPCWSTR path)
 
 static struct key *rc_enable_cache(void)
 {
-    struct key *hklm;
+    struct key *hklm, *hkcu, *hkcr;
     DWORD64 current_time;
     UNICODE_STRING name;
 
@@ -4762,12 +4762,27 @@ static struct key *rc_enable_cache(void)
     RtlInitUnicodeString(&name, L"\\Registry\\");
     rc_root = rc_new_key(&name, current_time);
 
+    hklm = hkcu = hkcr = NULL;
     /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
     RtlInitUnicodeString(&name, L"Machine");
     if (!(hklm = rc_create_key_recursive(rc_root, &name)))
         goto error;
 
+    /* map HKEY_CURRENT_USER -> \Registry\User\Default */
+    RtlInitUnicodeString(&name, L"User\\Default");
+    if (!(hkcu = rc_create_key_recursive(rc_root, &name)))
+        goto error;
+
+    /* map HKEY_CLASSES_ROOT -> \Registry\Software\Classes\Wow6432Node */
+    RtlInitUnicodeString(&name, L"Software\\Classes\\Wow6432Node");
+    if (!(hkcr = rc_create_key_recursive(rc_root, &name)))
+        goto error;
+
     if (!rc_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
+        goto error;
+    if (!rc_map_hkey_to_key(HKEY_CURRENT_USER, hkcu))
+        goto error;
+    if (!rc_map_hkey_to_key(HKEY_CLASSES_ROOT, hkcr))
         goto error;
 
     if (0) dump_path(hklm, NULL, stderr);
@@ -4777,6 +4792,8 @@ static struct key *rc_enable_cache(void)
 
 error:
     WARN("failed to enable registry cache\n");
+    if (hkcr) rc_release_key(hkcr);
+    if (hkcu) rc_release_key(hkcu);
     if (hklm) rc_release_key(hklm);
     if (rc_root) rc_release_key(rc_root);
     rc_root = NULL;
@@ -4789,6 +4806,8 @@ static BOOL rc_cache_init(void)
     static const struct { const WCHAR *name; HKEY hkey; } map[] =
     {
         { L"HKLM", HKEY_LOCAL_MACHINE },
+        { L"HKCU", HKEY_CURRENT_USER },
+        { L"HKCR", HKEY_CLASSES_ROOT }
     };
     UNICODE_STRING path, token;
     DWORD size, len, ncached;
