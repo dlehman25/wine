@@ -4639,7 +4639,8 @@ static BOOL rc_invalidate_key(HKEY hkey)
 
     if (!(key = rc_key_for_hkey(hkey)))
         goto error;
-    /* TODO: key->.... delete or just set flags? */
+
+    key->invalid = TRUE;
 
     LeaveCriticalSection(&rc_lock);
     return TRUE;
