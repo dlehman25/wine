@@ -4687,7 +4687,7 @@ static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm
     SetThreadpoolWait(wait, args->event, NULL);
 }
 
-static LSTATUS rc_register_wait(HKEY hkey)
+static BOOL rc_register_wait(HKEY hkey)
 {
     LSTATUS status;
     HANDLE changed;
@@ -4695,7 +4695,7 @@ static LSTATUS rc_register_wait(HKEY hkey)
     PTP_WAIT_CALLBACK callback;
 
     if (!(changed = CreateEventA(NULL, FALSE, FALSE, NULL)))
-        return ERROR_OUTOFMEMORY; /* TODO */
+        return FALSE;
 
     rc_wait = NULL;
     status = RegNotifyChangeKeyValue(hkey, TRUE,
@@ -4717,12 +4717,12 @@ static LSTATUS rc_register_wait(HKEY hkey)
     SetThreadpoolWait(rc_wait->wait, changed, NULL);
     list_add_tail(&rc_waits_list, &rc_wait->entry);
 
-    return ERROR_SUCCESS;
+    return TRUE;
 
 failed:
     CloseHandle(changed);
     heap_free(rc_wait);
-    return status;
+    return FALSE;
 }
 
 static HKEY rc_cache_key(HKEY special, LPCWSTR path)
@@ -4750,7 +4750,7 @@ static HKEY rc_cache_key(HKEY special, LPCWSTR path)
         return NULL;
     }
 
-    if ((status = rc_register_wait(key)))
+    if (!rc_register_wait(key))
     {
         /* TODO: remove key */
         WARN("failed to register wait for key %p %s\n", special, wine_dbgstr_w(path));
