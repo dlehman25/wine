@@ -479,7 +479,7 @@ done:
 
 static void test_UserDictionariesRegistrar(void)
 {
-    static const WCHAR *worllld = L"worllld\n";
+    static const WCHAR *helllo = L"helllo\n";
     WCHAR dicpath[MAX_PATH];
     IUserDictionariesRegistrar *registrar;
     ISpellCheckerFactory *factory;
@@ -505,7 +505,7 @@ static void test_UserDictionariesRegistrar(void)
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     errors = NULL;
-    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    hr = ISpellChecker_Check(checker, L"helllo world", &errors);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!errors, "got NULL\n");
 
@@ -523,7 +523,7 @@ static void test_UserDictionariesRegistrar(void)
 
     dic = _wfopen(dicpath, L"wt,ccs=utf-16le");
     ok(!!dic, "failed to create %ls\n", dicpath);
-    fwprintf(dic, L"%s\n", worllld);
+    fwprintf(dic, L"%s\n", helllo);
     fclose(dic);
 
     /* register */
@@ -545,7 +545,7 @@ static void test_UserDictionariesRegistrar(void)
 
     /* spell check after registering */
     errors = NULL;
-    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
+    hr = ISpellChecker_Check(checker, L"helllo world", &errors);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!errors, "got NULL\n");
 
