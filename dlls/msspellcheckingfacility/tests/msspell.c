@@ -172,9 +172,9 @@ static void test_spellchecker(void)
     static const WCHAR *bad = L"hello worlld";
     LPWSTR id, lang, replace, suggestion;
     ULONG start, len, nsuggestions;
+    IEnumString *suggestions, *ids;
     ISpellCheckerFactory *factory;
     IEnumSpellingError *errors;
-    IEnumString *suggestions;
     CORRECTIVE_ACTION action;
     ISpellChecker *checker;
     ISpellingError *err;
@@ -224,6 +224,21 @@ static void test_spellchecker(void)
         goto done;
     ok(!wcscmp(id, L"MsSpell"), "got '%s'\n", wine_dbgstr_w(id));
     CoTaskMemFree(id);
+
+    if (0) /* crash on Windows */
+        hr = ISpellChecker_get_OptionIds(checker, NULL);
+
+    ids = NULL;
+    hr = ISpellChecker_get_OptionIds(checker, &ids);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    id = NULL;
+    while (SUCCEEDED(IEnumString_Next(ids, 1, &id, NULL)) && id)
+    {
+        CoTaskMemFree(id);
+        id = NULL;
+    }
+    IEnumString_Release(ids);
 
     if (0) /* crash on Windows */
     {
