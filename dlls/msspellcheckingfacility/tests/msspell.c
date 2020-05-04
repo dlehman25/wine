@@ -274,14 +274,12 @@ done:
 
 static void test_SpellChecker_AddRemove(void)
 {
-    WCHAR excpath[MAX_PATH], excbakpath[MAX_PATH];
     ISpellCheckerFactory *factory;
     IEnumSpellingError *errors;
     ISpellChecker2 *checker2;
     ISpellChecker *checker;
     ISpellingError *err;
     HRESULT hr;
-    BOOL ret;
 
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
                           &IID_ISpellCheckerFactory, (void**)&factory);
@@ -323,20 +321,6 @@ static void test_SpellChecker_AddRemove(void)
     ok(!err, "got %p\n", err);
     IEnumSpellingError_Release(errors);
 
-    /*
-    removes from default.dic, but permanently adds to default.exc (Win10 1909)
-    which breaks repeated test runs
-    */
-    SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, excpath);
-    hr = PathCchAppend(excpath, ARRAY_SIZE(excpath),
-                       L"\\Microsoft\\Spelling\\en-US\\default.exc");
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    memcpy(excbakpath, excpath, sizeof(excbakpath));
-    hr = PathCchRenameExtension(excbakpath, ARRAY_SIZE(excbakpath), L"exc-bak");
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ret = CopyFileW(excpath, excbakpath, TRUE);
-    ok(ret, "failed to back up %ls -> %ls (gle %u)\n", excpath, excbakpath, GetLastError());
-
     hr = ISpellChecker2_Remove(checker2, L"worllld");
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
@@ -356,9 +340,6 @@ static void test_SpellChecker_AddRemove(void)
     ISpellChecker2_Release(checker2);
     ISpellChecker_Release(checker);
     ISpellCheckerFactory_Release(factory);
-
-    ret = MoveFileExW(excbakpath, excpath, MOVEFILE_REPLACE_EXISTING);
-    ok(ret, "failed to restore %ls -> %ls (gle %u)\n", excbakpath, excpath, GetLastError());
 }
 
 static void test_suggestions(void)
