@@ -4184,6 +4184,7 @@ struct key
     HKEY              hkeynotify; /* keep this open until freeing key */
     /* BOOL cacheable; // this key and below can be cached */
     BOOL              invalid; /* this and subkeys are invalid */
+    /* TODO: or just clear keys/values, forcing recreation? (what about held refs?) */
 };
 
 struct hkey_to_key
