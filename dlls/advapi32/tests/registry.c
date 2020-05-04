@@ -4185,6 +4185,7 @@ struct key
     HKEY              hkey;
     HKEY              hkeynotify; /* keep this open until freeing key */
     /* BOOL cacheable; // this key and below can be cached */
+    BOOL              invalid; /* this and subkeys are invalid */
 };
 
 struct hkey_to_key
@@ -4552,10 +4553,13 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
 
     if (!(root = rc_key_for_hkey(hroot)))
         goto not_cacheable;
+    /* TODO: is invalid(root) */
 
     RtlInitUnicodeString(&us_name, name);
     if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
         goto not_cacheable;
+
+    /* TODO: is invalid? recreate? */
 
     if (token.Length && !(key = rc_create_key_recursive(root, &us_name)))
         goto not_cacheable;
@@ -4873,6 +4877,14 @@ done:
     return ret;
 }
 
+static BOOL rc_is_key_invalid(struct key *key)
+{
+    /* TODO: stop at notify key? */
+    while (key && !key->invalid)
+        key = key->parent;
+    return key && key->invalid ? TRUE : FALSE;
+}
+
 static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
                                REGSAM access, PHKEY retkey)
 {
@@ -4887,7 +4899,6 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (!(root = rc_key_for_hkey(hkey)))
         goto not_cached;
 
-    /* TODO: check if key still valid */
     RtlInitUnicodeString(&us_name, name);
     if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
         goto not_cached; /* invalid path */
@@ -4897,6 +4908,9 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
 
     if (!key->hkey)
         goto not_cached; /* no hkey opened for this specific path */
+
+    if (rc_is_key_invalid(key))
+        goto not_cached;
 
     if (key->options != options)
         goto not_cached; /* different symlink, wow64 */
@@ -4947,11 +4961,15 @@ static BOOL rc_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
     if (index > root->last_subkey)
         goto not_cached; /* this not cached yet */
 
-    /* TODO: if we know we have all entries: ERROR_MORE_DATA */
+    /* TODO: if (rc_is_key_invalid(root)) */
 
+    /* TODO: if we know we have all entries: ERROR_MORE_DATA */
     key = root->subkeys[index];
     if (!key)
         goto not_cached; /* this specific one not cached (unlikely but possibly skip entries) */
+
+    if (rc_is_key_invalid(key))
+        goto not_cached;
 
     if (key->name.Length + sizeof(WCHAR) > (*name_len) * sizeof(WCHAR))
         goto not_cached; /* TODO: ERROR_MORE_DATA */
@@ -5047,10 +5065,14 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 
     if (!(root = rc_key_for_hkey(hkey)))
         goto not_cached;
+    /* TODO: ?? if (rc_is_key_invalid(root)) */
 
     RtlInitUnicodeString(&name, subkey);
     if (!(key = rc_open_key_prefix(root, &name, &token, &index)))
         goto not_cached; /* invalid path */
+
+    if (rc_is_key_invalid(key))
+        goto not_cached;
 
     RtlInitUnicodeString(&name, value);
     if (!(key_value = rc_find_value(key, &name, &index)))
