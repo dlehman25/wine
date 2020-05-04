@@ -27,6 +27,7 @@
 #include "wine/test.h"
 #include "wine/heap.h"
 #include "wine/rbtree.h"
+#include "wine/list.h"
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -4201,6 +4202,7 @@ static int hkey_to_key_cmp(const void *key, const struct wine_rb_entry *entry)
 }
 static struct wine_rb_tree hkey_to_key = { hkey_to_key_cmp };
 static struct key *rc_root;
+static struct list rc_waits_list = LIST_INIT(rc_waits_list);
 static CRITICAL_SECTION rc_lock;
 static CRITICAL_SECTION_DEBUG rc_lock_debug =
 {
@@ -4613,21 +4615,33 @@ static int rc_delete_key(struct key *key, int recurse)
     return 0;
 }
 
-static void rc_disable_cache(void)
-{
-    if (rc_root)
-    {
-        /* TODO: remove notifications */
-        rc_delete_key(rc_root, TRUE);
-        rc_root = NULL;
-    }
-}
-
 struct rc_wait_s
 {
+    struct list entry;
     HKEY hkey;
     HANDLE event;
+    PTP_WAIT wait;
 };
+
+static void rc_disable_cache(void)
+{
+    struct rc_wait_s *wait;
+    struct list *head;
+
+    if (!rc_root)
+        return;
+
+    while ((head = list_head(&rc_waits_list)))
+    {
+        wait = LIST_ENTRY(head, struct rc_wait_s, entry);
+        list_remove(head);
+        CloseThreadpoolWait(wait->wait);
+        CloseHandle(wait->event);
+        heap_free(wait);
+    }
+    rc_delete_key(rc_root, TRUE);
+    rc_root = NULL;
+}
 
 /* hkey is notify key */
 static BOOL rc_invalidate_key(HKEY hkey)
@@ -4676,14 +4690,14 @@ static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm
 static LSTATUS rc_register_wait(HKEY hkey)
 {
     LSTATUS status;
-    PTP_WAIT wait;
-    PTP_WAIT_CALLBACK callback;
     HANDLE changed;
     struct rc_wait_s *rc_wait;
+    PTP_WAIT_CALLBACK callback;
 
-    if (!(changed = CreateEventA(NULL, FALSE, FALSE, NULL))) /* TODO: CloseHandle */
+    if (!(changed = CreateEventA(NULL, FALSE, FALSE, NULL)))
         return ERROR_OUTOFMEMORY; /* TODO */
 
+    rc_wait = NULL;
     status = RegNotifyChangeKeyValue(hkey, TRUE,
                         REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
                         REG_NOTIFY_THREAD_AGNOSTIC, changed, TRUE);
@@ -4698,13 +4712,16 @@ static LSTATUS rc_register_wait(HKEY hkey)
     rc_wait->hkey = hkey;
 
     callback = rc_wait_callback;
-    if (!(wait = CreateThreadpoolWait(callback, rc_wait, NULL))) /* TODO: CloseThreadpoolWait */
+    if (!(rc_wait->wait = CreateThreadpoolWait(callback, rc_wait, NULL)))
         goto failed;
-    SetThreadpoolWait(wait, changed, NULL);
+    SetThreadpoolWait(rc_wait->wait, changed, NULL);
+    list_add_tail(&rc_waits_list, &rc_wait->entry);
 
     return ERROR_SUCCESS;
 
 failed:
+    CloseHandle(changed);
+    heap_free(rc_wait);
     return status;
 }
 
