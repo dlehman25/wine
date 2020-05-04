@@ -35,6 +35,40 @@
 #include "spellcheck.h"
 #include "shlobj.h"
 
+static BOOL dict_contains_word(const WCHAR *name, const WCHAR *word)
+{
+    FILE *dic;
+    BOOL found;
+    HRESULT hr;
+    WCHAR line[128], path[MAX_PATH];
+
+    SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, path);
+    hr = PathCchAppend(path, ARRAY_SIZE(path), L"\\Microsoft\\Spelling\\en-US");
+    if (FAILED(hr))
+        return FALSE;
+    hr = PathCchAppend(path, ARRAY_SIZE(path), name);
+    if (FAILED(hr))
+        return FALSE;
+
+    dic = _wfopen(path, L"rt,ccs=utf-16le");
+    if (!dic)
+        return FALSE;
+
+    found = FALSE;
+    while (fgetws(line, ARRAY_SIZE(line), dic))
+    {
+        line[wcslen(line)-1] = 0; /* \n */
+        if (!wcscmp(line, word))
+        {
+            found = TRUE;
+            break;
+        }
+    }
+
+    fclose(dic);
+    return found;
+}
+
 static DWORD count_errors(ISpellChecker *checker, LPCWSTR text)
 {
     IEnumSpellingError *errors;
@@ -347,10 +381,13 @@ static ISpellCheckerChangedEventHandler SpellCheckerChangedEventHandler =
 
 static void test_SpellChecker_AddRemove(void)
 {
+    const WCHAR *bad_text = L"hello worllld";
+    const WCHAR *bad_word = L"worllld";
     ISpellCheckerFactory *factory;
     DWORD nerrs, cookie, ret;
     ISpellChecker2 *checker2;
     ISpellChecker *checker;
+    BOOL contains;
     HRESULT hr;
 
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
@@ -365,7 +402,7 @@ static void test_SpellChecker_AddRemove(void)
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     /* spell check before adding */
-    nerrs = count_errors(checker, L"hello worllld");
+    nerrs = count_errors(checker, bad_text);
     ok(nerrs == 1, "got %u\n", nerrs);
 
     changed = CreateEventW(NULL, FALSE, FALSE, NULL);
@@ -379,24 +416,32 @@ static void test_SpellChecker_AddRemove(void)
 
     /* add word to %APPDATA%/Microsoft/Spelling/<lang>/default.dic
        removes from default.exc if exists */
-    hr = ISpellChecker_Add(checker, L"worllld");
+    hr = ISpellChecker_Add(checker, bad_word);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     /* first addition can be delayed */
     ret = WaitForSingleObject(changed, 5000);
     ok(ret == WAIT_OBJECT_0, "got %u\n", ret);
 
+    contains = dict_contains_word(L"default.dic", bad_word);
+    ok(contains, "doesn't contain %ls\n", bad_word);
+
     /* spell check after */
-    nerrs = count_errors(checker, L"hello worllld");
+    nerrs = count_errors(checker, bad_word);
     ok(nerrs == 0, "got %u\n", nerrs);
 
     /* remove from default.dic, add to default.exc */
-    hr = ISpellChecker2_Remove(checker2, L"worllld");
+    hr = ISpellChecker2_Remove(checker2, bad_word);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     /* first addition to default.exc is delayed */
     ret = WaitForSingleObject(changed, 5000);
     ok(ret == WAIT_OBJECT_0, "got %u\n", ret);
+
+    contains = dict_contains_word(L"default.dic", bad_word);
+    ok(!contains, "contains %ls\n", bad_word);
+    contains = dict_contains_word(L"default.exc", bad_word);
+    ok(contains, "doesn't contain %ls\n", bad_word);
 
     hr = ISpellChecker_remove_SpellCheckerChanged(checker, cookie);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
@@ -404,7 +449,7 @@ static void test_SpellChecker_AddRemove(void)
     CloseHandle(changed);
 
     /* spell check after */
-    nerrs = count_errors(checker, L"hello worllld");
+    nerrs = count_errors(checker, bad_text);
     ok(nerrs == 1, "got %u\n", nerrs);
 
     ISpellChecker2_Release(checker2);
