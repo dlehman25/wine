@@ -4731,7 +4731,9 @@ static HKEY rc_cache_key(HKEY special, LPCWSTR path)
     LSTATUS status;
     HKEY key;
 
-    if (special != HKEY_LOCAL_MACHINE)
+    if (special != HKEY_LOCAL_MACHINE &&
+        special != HKEY_CURRENT_USER &&
+        special != HKEY_CLASSES_ROOT)
     {
         WARN("invalid root %p for key %s\n", special, wine_dbgstr_w(path));
         return NULL;
