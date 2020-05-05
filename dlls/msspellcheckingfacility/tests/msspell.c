@@ -105,6 +105,8 @@ static void test_factory(DWORD model)
     HRESULT hr;
     ULONG num;
 
+    CoInitializeEx(NULL, model);
+
     factory = NULL;
     hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
                           &IID_ISpellCheckerFactory, (void**)&factory);
@@ -165,6 +167,7 @@ static void test_factory(DWORD model)
 
 done:
     ISpellCheckerFactory_Release(factory);
+    CoUninitialize();
 }
 
 static void test_spellchecker(void)
@@ -649,10 +652,8 @@ static void test_UserDictionariesRegistrar(void)
 
 START_TEST(msspell)
 {
-    static const DWORD init[] = { COINIT_MULTITHREADED, COINIT_APARTMENTTHREADED };
     ISpellCheckerFactory *factory;
     HRESULT hr;
-    int i;
 
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
@@ -674,10 +675,6 @@ START_TEST(msspell)
 
     CoUninitialize();
 
-    for (i = 0; i < ARRAY_SIZE(init); i++)
-    {
-        CoInitializeEx(NULL, init[i]);
-        test_factory(init[i]);
-        CoUninitialize();
-    }
+    test_factory(COINIT_MULTITHREADED);
+    test_factory(COINIT_APARTMENTTHREADED);
 }
