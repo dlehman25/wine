@@ -654,27 +654,30 @@ START_TEST(msspell)
     HRESULT hr;
     int i;
 
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    factory = NULL;
+    hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ISpellCheckerFactory, (void**)&factory);
+    ok(hr == S_OK || hr == REGDB_E_CLASSNOTREG /* winxp/win2k8 */, "got 0x%x\n", hr);
+    if (hr != S_OK)
+    {
+        win_skip("SpellCheckerFactory not supported on this platform\n");
+        return;
+    }
+    ISpellCheckerFactory_Release(factory);
+
+    test_spellchecker();
+    test_suggestions();
+    test_UserDictionariesRegistrar();
+    test_SpellChecker_AddRemove();
+
+    CoUninitialize();
+
     for (i = 0; i < ARRAY_SIZE(init); i++)
     {
         CoInitializeEx(NULL, init[i]);
-
-        factory = NULL;
-        hr = CoCreateInstance(&CLSID_SpellCheckerFactory, NULL, CLSCTX_INPROC_SERVER,
-                              &IID_ISpellCheckerFactory, (void**)&factory);
-        ok(hr == S_OK || hr == REGDB_E_CLASSNOTREG /* winxp/win2k8 */, "got 0x%x\n", hr);
-        if (hr != S_OK)
-        {
-            win_skip("SpellCheckerFactory not supported on this platform\n");
-            return;
-        }
-        ISpellCheckerFactory_Release(factory);
-
         test_factory(init[i]);
-        test_spellchecker();
-        test_suggestions();
-        test_UserDictionariesRegistrar();
-        if (init[i] == COINIT_MULTITHREADED)
-            test_SpellChecker_AddRemove();
         CoUninitialize();
     }
 }
