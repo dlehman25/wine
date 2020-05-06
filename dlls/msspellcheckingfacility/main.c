@@ -57,6 +57,7 @@ typedef struct
 } SpellCheckProviderImpl;
 
 static ISpellCheckProvider *msspell;
+static ISpellCheckProvider *provider;
 
 static inline SpellCheckerFactoryImpl *impl_from_ISpellCheckerFactory(ISpellCheckerFactory *iface)
 {
@@ -647,6 +648,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
             if (FAILED(init_msspell()))
                 return FALSE;
             msspell_instance = instance;
+            provider = msspell;
             break;
     }
 
