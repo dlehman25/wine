@@ -26,3 +26,13 @@ HRESULT WINAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void **obj)
 {
     return E_NOTIMPL;
 }
+
+HRESULT WINAPI DllRegisterServer(void)
+{
+    return E_NOTIMPL;
+}
+
+HRESULT WINAPI DllUnregisterServer(void)
+{
+    return E_NOTIMPL;
+}
