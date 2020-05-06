@@ -2,4 +2,6 @@ TESTDLL   = msspellcheckingfacility.dll
 IMPORTS   = kernelbase ole32 shell32
 
 C_SRCS = \
-	msspell.c
+	msspell.c \
+	testprov.c \
+	testprov.spec
