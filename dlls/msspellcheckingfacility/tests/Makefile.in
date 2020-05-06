@@ -3,5 +3,6 @@ IMPORTS   = kernelbase ole32 shell32
 
 C_SRCS = \
 	msspell.c \
+	provider.c \
 	testprov.c \
 	testprov.spec
