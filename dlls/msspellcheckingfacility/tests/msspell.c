@@ -417,7 +417,11 @@ static void test_SpellChecker_AddRemove(void)
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     hr = ISpellChecker_QueryInterface(checker, &IID_ISpellChecker2, (void**)&checker2);
+    todo_wine
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    if (!checker2)
+        goto done;
 
     /* spell check before adding */
     nerrs = count_errors(checker, bad_text);
@@ -471,6 +475,7 @@ static void test_SpellChecker_AddRemove(void)
     ok(nerrs == 1, "got %u\n", nerrs);
 
     ISpellChecker2_Release(checker2);
+done:
     ISpellChecker_Release(checker);
     ISpellCheckerFactory_Release(factory);
 }
