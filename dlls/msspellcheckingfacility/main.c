@@ -26,6 +26,7 @@
 #include "winbase.h"
 #include "objbase.h"
 #include "spellcheck.h"
+#include "spellcheckprovider.h"
 #include "rpcproxy.h"
 #include "wine/debug.h"
 #include "wine/heap.h"
@@ -48,6 +49,15 @@ typedef struct
     LONG ref;
 } SpellCheckerImpl;
 
+typedef struct
+{
+    ISpellCheckProvider ISpellCheckProvider_iface;
+    IComprehensiveSpellCheckProvider IComprehensiveSpellCheckProvider_iface;
+    LONG ref;
+} SpellCheckProviderImpl;
+
+static ISpellCheckProvider *msspell;
+
 static inline SpellCheckerFactoryImpl *impl_from_ISpellCheckerFactory(ISpellCheckerFactory *iface)
 {
     return CONTAINING_RECORD(iface, SpellCheckerFactoryImpl, ISpellCheckerFactory_iface);
@@ -58,6 +68,216 @@ static inline SpellCheckerImpl *impl_from_ISpellChecker(ISpellChecker *iface)
     return CONTAINING_RECORD(iface, SpellCheckerImpl, ISpellChecker_iface);
 }
 
+static inline SpellCheckProviderImpl *impl_from_ISpellCheckProvider(ISpellCheckProvider *iface)
+{
+    return CONTAINING_RECORD(iface, SpellCheckProviderImpl, ISpellCheckProvider_iface);
+}
+
+static inline SpellCheckProviderImpl *impl_from_IComprehensiveSpellCheckProvider(
+                                            IComprehensiveSpellCheckProvider *iface)
+{
+    return CONTAINING_RECORD(iface, SpellCheckProviderImpl,
+                IComprehensiveSpellCheckProvider_iface);
+}
+
+/**********************************************************************************/
+/* SpellCheckProvider */
+/**********************************************************************************/
+static HRESULT WINAPI SpellCheckProvider_QueryInterface(ISpellCheckProvider *iface,
+                        REFIID riid, void **ppv)
+{
+    SpellCheckProviderImpl *This = impl_from_ISpellCheckProvider(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualGUID(riid, &IID_IUnknown) ||
+        IsEqualGUID(riid, &IID_ISpellCheckProvider))
+    {
+        *ppv = &This->ISpellCheckProvider_iface;
+        ISpellCheckProvider_AddRef(iface);
+        return S_OK;
+    }
+    else if (IsEqualGUID(riid, &IID_IComprehensiveSpellCheckProvider))
+    {
+        *ppv = &This->IComprehensiveSpellCheckProvider_iface;
+        IComprehensiveSpellCheckProvider_AddRef(*ppv);
+        return S_OK;
+    }
+
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI SpellCheckProvider_AddRef(ISpellCheckProvider *iface)
+{
+    SpellCheckProviderImpl *This = impl_from_ISpellCheckProvider(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI SpellCheckProvider_Release(ISpellCheckProvider *iface)
+{
+    SpellCheckProviderImpl *This = impl_from_ISpellCheckProvider(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI SpellCheckProvider_get_LanguageTag(ISpellCheckProvider *iface,
+                        LPWSTR *tag)
+{
+    FIXME("(%p %p)\n", iface, tag);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWSTR text,
+                        IEnumSpellingError **errors)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(text), errors);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_Suggest(ISpellCheckProvider *iface, LPCWSTR word,
+                        IEnumString **suggestions)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(word), suggestions);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_GetOptionValue(ISpellCheckProvider *iface,
+                        LPCWSTR option, BYTE *value)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(option), value);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_SetOptionValue(ISpellCheckProvider *iface,
+                        LPCWSTR option, BYTE value)
+{
+    FIXME("(%p %s %x)\n", iface, debugstr_w(option), value);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_get_OptionIds(ISpellCheckProvider *iface,
+                        IEnumString **ids)
+{
+    FIXME("(%p %p)\n", iface, ids);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_get_Id(ISpellCheckProvider *iface, LPWSTR *id)
+{
+    FIXME("(%p %p)\n", iface, id);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_get_LocalizedName(ISpellCheckProvider *iface,
+                        LPWSTR *name)
+{
+    FIXME("(%p %p)\n", iface, name);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_GetOptionDescription(ISpellCheckProvider *iface,
+                        LPCWSTR option, IOptionDescription **description)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(option), description);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellCheckProvider_InitializeWordlist(ISpellCheckProvider *iface,
+                        WORDLIST_TYPE type, IEnumString *wordlist)
+{
+    FIXME("(%p %d %p)\n", iface, type, wordlist);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ComprehensiveSpellCheckProvider_QueryInterface(
+                        IComprehensiveSpellCheckProvider *iface, REFIID riid, void **ppv)
+{
+    SpellCheckProviderImpl *This = impl_from_IComprehensiveSpellCheckProvider(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualGUID(riid, &IID_IUnknown) ||
+        IsEqualGUID(riid, &IID_ISpellCheckProvider))
+    {
+        *ppv = &This->IComprehensiveSpellCheckProvider_iface;
+        IComprehensiveSpellCheckProvider_AddRef(iface);
+        return S_OK;
+    }
+    else if (IsEqualGUID(riid, &IID_IComprehensiveSpellCheckProvider))
+    {
+        *ppv = &This->IComprehensiveSpellCheckProvider_iface;
+        IComprehensiveSpellCheckProvider_AddRef(*ppv);
+        return S_OK;
+    }
+
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI ComprehensiveSpellCheckProvider_AddRef(
+                        IComprehensiveSpellCheckProvider *iface)
+{
+    SpellCheckProviderImpl *This = impl_from_IComprehensiveSpellCheckProvider(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI ComprehensiveSpellCheckProvider_Release(
+                        IComprehensiveSpellCheckProvider *iface)
+{
+    SpellCheckProviderImpl *This = impl_from_IComprehensiveSpellCheckProvider(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI ComprehensiveSpellCheckProvider_ComprehensiveCheck(
+                            IComprehensiveSpellCheckProvider *iface, LPCWSTR text,
+                            IEnumSpellingError **error)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_w(text), error);
+    return E_NOTIMPL;
+}
+
+static const ISpellCheckProviderVtbl SpellCheckProviderVtbl =
+{
+    SpellCheckProvider_QueryInterface,
+    SpellCheckProvider_AddRef,
+    SpellCheckProvider_Release,
+    SpellCheckProvider_get_LanguageTag,
+    SpellCheckProvider_Check,
+    SpellCheckProvider_Suggest,
+    SpellCheckProvider_GetOptionValue,
+    SpellCheckProvider_SetOptionValue,
+    SpellCheckProvider_get_OptionIds,
+    SpellCheckProvider_get_Id,
+    SpellCheckProvider_get_LocalizedName,
+    SpellCheckProvider_GetOptionDescription,
+    SpellCheckProvider_InitializeWordlist
+};
+
+static const IComprehensiveSpellCheckProviderVtbl ComprehensiveSpellCheckProviderVtbl =
+{
+    ComprehensiveSpellCheckProvider_QueryInterface,
+    ComprehensiveSpellCheckProvider_AddRef,
+    ComprehensiveSpellCheckProvider_Release,
+    ComprehensiveSpellCheckProvider_ComprehensiveCheck
+};
+
+/**********************************************************************************/
+/* SpellChecker */
+/**********************************************************************************/
 static HRESULT WINAPI SpellChecker_QueryInterface(ISpellChecker *iface,
                         REFIID riid,
                         void **ppvObject)
@@ -394,6 +614,26 @@ static const IClassFactoryVtbl SCFactoryVtbl = {
 
 static IClassFactory SCFactory = { &SCFactoryVtbl };
 
+static HRESULT init_msspell(void)
+{
+    SpellCheckProviderImpl *prov;
+    HRESULT hr;
+
+    prov = heap_alloc(sizeof(*prov));
+    if (!prov)
+        return E_OUTOFMEMORY;
+
+    prov->ISpellCheckProvider_iface.lpVtbl = &SpellCheckProviderVtbl;
+    prov->IComprehensiveSpellCheckProvider_iface.lpVtbl = &ComprehensiveSpellCheckProviderVtbl;
+    prov->ref = 1;
+
+    hr = SpellCheckProvider_QueryInterface(&prov->ISpellCheckProvider_iface,
+            &IID_ISpellCheckProvider, (void**)&msspell);
+    SpellCheckProvider_Release(&prov->ISpellCheckProvider_iface);
+
+    return hr;
+}
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
 {
     TRACE("(%p, %u, %p)\n", instance, reason, reserved);
@@ -404,6 +644,8 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
             return FALSE;    /* prefer native version */
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(instance);
+            if (FAILED(init_msspell()))
+                return FALSE;
             msspell_instance = instance;
             break;
     }
