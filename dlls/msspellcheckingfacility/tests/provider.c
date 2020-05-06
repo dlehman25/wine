@@ -33,8 +33,27 @@
 #include "spellcheck.h"
 #include "spellcheckprovider.h"
 
+static void register_provider(const char *func)
+{
+    HANDLE handle;
+    HRESULT (WINAPI *regfunc)(void);
+
+    if (!(handle = LoadLibraryA("testprov.dll")))
+        return;
+
+    regfunc = (void*)GetProcAddress(handle, func);
+    if (regfunc)
+        regfunc();
+
+    FreeLibrary(handle);
+}
+
 START_TEST(provider)
 {
+    register_provider("DllRegisterServer");
+
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
     CoUninitialize();
+
+    register_provider("DllUnregisterServer");
 }
