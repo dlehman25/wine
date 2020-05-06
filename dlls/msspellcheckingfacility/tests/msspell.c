@@ -560,7 +560,11 @@ static void test_UserDictionariesRegistrar(void)
     registrar = NULL;
     hr = ISpellCheckerFactory_QueryInterface(factory, &IID_IUserDictionariesRegistrar,
             (void**)&registrar);
+    todo_wine
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+
+    if (!registrar)
+        goto done;
 
     /* spell check before registering */
     checker = NULL;
@@ -647,6 +651,7 @@ static void test_UserDictionariesRegistrar(void)
     DeleteFileW(dicpath);
 
     IUserDictionariesRegistrar_Release(registrar);
+done:
     ISpellCheckerFactory_Release(factory);
 }
 
