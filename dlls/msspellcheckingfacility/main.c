@@ -131,8 +131,18 @@ static ULONG WINAPI SpellCheckProvider_Release(ISpellCheckProvider *iface)
 static HRESULT WINAPI SpellCheckProvider_get_LanguageTag(ISpellCheckProvider *iface,
                         LPWSTR *tag)
 {
-    FIXME("(%p %p)\n", iface, tag);
-    return E_NOTIMPL;
+    static const WCHAR *enUS = L"en-US";
+    TRACE("(%p %p)\n", iface, tag);
+
+    if (!tag)
+        return E_POINTER;
+
+    *tag = CoTaskMemAlloc((wcslen(enUS)+1) * sizeof(WCHAR));
+    if (!*tag)
+        return E_OUTOFMEMORY;
+
+    wcscpy(*tag, enUS);
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWSTR text,
