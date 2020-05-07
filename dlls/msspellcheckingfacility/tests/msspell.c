@@ -250,7 +250,7 @@ static void test_spellchecker(void)
     }
     lang = NULL;
     hr = ISpellChecker_get_LanguageTag(checker, &lang);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     if (!lang)
         goto done;
     ok(!wcscmp(lang, L"en-US"), "got '%s'\n", wine_dbgstr_w(lang));
@@ -261,7 +261,9 @@ static void test_spellchecker(void)
     /* no errors */
     errors = NULL;
     hr = ISpellChecker_Check(checker, L"hello world", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    if (!errors)
+        goto done;
     ok(!!errors, "got NULL\n");
 
     err = NULL;

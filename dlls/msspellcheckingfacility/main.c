@@ -503,8 +503,8 @@ static ULONG WINAPI SpellChecker_Release(ISpellChecker *iface)
 static HRESULT WINAPI SpellChecker_get_LanguageTag(ISpellChecker *iface,
                         LPWSTR *tag)
 {
-    FIXME("(%p %p)\n", iface, tag);
-    return E_NOTIMPL;
+    TRACE("(%p %p)\n", iface, tag);
+    return ISpellCheckProvider_get_LanguageTag(provider, tag);
 }
 
 static HRESULT WINAPI SpellChecker_Check(ISpellChecker *iface, LPCWSTR text,
