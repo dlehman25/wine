@@ -4361,7 +4361,7 @@ static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
 }
 
 /* TODO: we might skip some indices - should take into account */
-static int grow_subkeys(struct key *key)
+static int rc_grow_subkeys(struct key *key)
 {
     struct key **new_subkeys;
     int nb_subkeys;
@@ -4383,14 +4383,14 @@ static int grow_subkeys(struct key *key)
     return 1;
 }
 
-static struct key *alloc_subkey(struct key *parent, const UNICODE_STRING *name,
-                                int index, DWORD64 modif)
+static struct key *rc_alloc_subkey(struct key *parent, const UNICODE_STRING *name,
+                                   int index, DWORD64 modif)
 {
     struct key *key;
     int i;
 
     if ((parent->last_subkey + 1 == parent->nb_subkeys) &&
-        !grow_subkeys(parent))
+        !rc_grow_subkeys(parent))
         return NULL;
 
     if (!(key = rc_new_key(name, modif)))
@@ -4404,7 +4404,7 @@ static struct key *alloc_subkey(struct key *parent, const UNICODE_STRING *name,
     return key;
 }
 
-static void free_subkey(struct key *parent, int index)
+static void rc_free_subkey(struct key *parent, int index)
 {
     struct key *key;
     int i, nb_subkeys;
@@ -4457,7 +4457,7 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
     current_time = GetTickCount64();
     if (token.Length)
     {
-        if (!(key = alloc_subkey(key, &token, index, current_time)))
+        if (!(key = rc_alloc_subkey(key, &token, index, current_time)))
             return NULL;
         base = key;
         for (;;)
@@ -4465,9 +4465,9 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
             rc_get_path_token(name, &token);
             if (!token.Length)
                 break;
-            if (!(key = alloc_subkey(key, &token, 0, current_time)))
+            if (!(key = rc_alloc_subkey(key, &token, 0, current_time)))
             {
-                free_subkey(base, index);
+                rc_free_subkey(base, index);
                 return NULL;
             }
         }
@@ -4612,7 +4612,7 @@ static int rc_delete_key(struct key *key, int recurse)
     if (key->last_subkey >= 0)
         return -1;
 
-    free_subkey(parent, index);
+    rc_free_subkey(parent, index);
     return 0;
 }
 
@@ -5088,7 +5088,7 @@ static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
     us_name.Buffer = name;
     us_name.Length = name_len * sizeof(WCHAR);
     us_name.MaximumLength = name_len * sizeof(WCHAR) + sizeof(WCHAR);
-    if (!alloc_subkey(key, &us_name, index, GetTickCount64()))
+    if (!rc_alloc_subkey(key, &us_name, index, GetTickCount64()))
         WARN("failed to put enum key %p %u %s\n", hkey, index, wine_dbgstr_wn(name, name_len));
 done:
     LeaveCriticalSection(&rc_lock);
