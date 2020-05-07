@@ -114,11 +114,9 @@ static void test_factory(DWORD model)
     ok(!!factory, "got NULL\n");
 
     langs = NULL;
-    todo_wine {
     hr = ISpellCheckerFactory_get_SupportedLanguages(factory, &langs);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     ok(!!langs, "got NULL\n");
-    }
 
     if (!langs)
         goto done;
@@ -135,7 +133,7 @@ static void test_factory(DWORD model)
     }
     IEnumString_Release(langs);
 
-    ok(num, "no languages supported\n");
+    todo_wine ok(num, "no languages supported\n");
 
     checker = NULL;
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
