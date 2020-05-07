@@ -4477,17 +4477,17 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
     return key;
 }
 
-static void dump_path(const struct key *key, const struct key *base, FILE *f)
+static void rc_dump_path(const struct key *key, const struct key *base, FILE *f)
 {
     if (key->parent && key->parent != base)
     {
-        dump_path(key->parent, base, f);
+        rc_dump_path(key->parent, base, f);
         fprintf(f, "\\\\");
     }
     fprintf(f, "%s", wine_dbgstr_wn(key->name.Buffer, key->name.Length/2));
 }
 
-static void dump_value(const struct key_value *value, int depth)
+static void rc_dump_value(const struct key_value *value, int depth)
 {
     int i;
 
@@ -4507,7 +4507,7 @@ static void dump_value(const struct key_value *value, int depth)
     printf("\n");
 }
 
-static void dump_key(const struct key *key, int depth)
+static void rc_dump_key(const struct key *key, int depth)
 {
     int i;
 
@@ -4518,9 +4518,9 @@ static void dump_key(const struct key *key, int depth)
         key->last_subkey+1, key->nb_subkeys,
         key->last_value+1, key->nb_values, key->hkey, key->modif);
     for (i = 0; i <= key->last_subkey; i++)
-        dump_key(key->subkeys[i], depth+4);
+        rc_dump_key(key->subkeys[i], depth+4);
     for (i = 0; i <= key->last_value; i++)
-        dump_value(&key->values[i], depth);
+        rc_dump_value(&key->values[i], depth);
 }
 
 static unsigned int rc_key_map_access(unsigned int access)
@@ -4853,7 +4853,7 @@ static struct key *rc_enable_cache(void)
     if (!rc_map_hkey_to_key(HKEY_CLASSES_ROOT, hkcr))
         goto error;
 
-    if (0) dump_path(hklm, NULL, stderr);
+    if (0) rc_dump_path(hklm, NULL, stderr);
     TRACE("registry cache enabled\n");
     LeaveCriticalSection(&rc_lock);
     return rc_root;
@@ -4951,7 +4951,7 @@ static BOOL rc_cache_init(void)
         key++;
     }
 
-    dump_key(rc_root, 0);
+    rc_dump_key(rc_root, 0);
     if (!ncached)
         rc_disable_cache();
 
@@ -5402,7 +5402,7 @@ static void test_cache(void)
 
     printf("# threads %u # loops %u sum %I64u\n", ARRAY_SIZE(threads), nloops, e - s);
 
-    dump_key(rc_root, 0);
+    rc_dump_key(rc_root, 0);
     {
         struct list *head;
         struct rc_wait_s *wait;
@@ -5414,7 +5414,7 @@ static void test_cache(void)
             rc_clear_key(wait->hkey);
         }
     }
-    dump_key(rc_root, 0);
+    rc_dump_key(rc_root, 0);
 }
 
 START_TEST(registry)
