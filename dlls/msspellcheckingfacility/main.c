@@ -41,6 +41,7 @@ static HINSTANCE msspell_instance;
 typedef struct
 {
     ISpellCheckerFactory ISpellCheckerFactory_iface;
+    IUserDictionariesRegistrar IUserDictionariesRegistrar_iface;
     LONG ref;
 } SpellCheckerFactoryImpl;
 
@@ -460,6 +461,54 @@ static const IComprehensiveSpellCheckProviderVtbl ComprehensiveSpellCheckProvide
 };
 
 /**********************************************************************************/
+/* UserDictionariesRegistrar */
+/**********************************************************************************/
+static HRESULT WINAPI UserDictionariesRegistrar_QueryInterface(IUserDictionariesRegistrar *iface,
+                        REFIID riid, void **ppv)
+{
+    FIXME("(%p %s %p)\n", iface, debugstr_guid(riid), ppv);
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI UserDictionariesRegistrar_AddRef(IUserDictionariesRegistrar *iface)
+{
+    FIXME("(%p)\n", iface);
+    return 2;
+}
+
+static ULONG WINAPI UserDictionariesRegistrar_Release(IUserDictionariesRegistrar *iface)
+{
+    FIXME("(%p)\n", iface);
+    return 1;
+}
+
+static HRESULT WINAPI UserDictionariesRegistrar_RegisterUserDictionary(
+                        IUserDictionariesRegistrar *iface,
+                        LPCWSTR path, LPCWSTR lang)
+{
+    FIXME("(%p %s %s)\n", iface, debugstr_w(path), debugstr_w(lang));
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI UserDictionariesRegistrar_UnregisterUserDictionary(
+                        IUserDictionariesRegistrar *iface,
+                        LPCWSTR path, LPCWSTR lang)
+{
+    FIXME("(%p %s %s)\n", iface, debugstr_w(path), debugstr_w(lang));
+    return E_NOTIMPL;
+}
+
+static const IUserDictionariesRegistrarVtbl UserDictionariesRegistrarVtbl =
+{
+    UserDictionariesRegistrar_QueryInterface,
+    UserDictionariesRegistrar_AddRef,
+    UserDictionariesRegistrar_Release,
+    UserDictionariesRegistrar_RegisterUserDictionary,
+    UserDictionariesRegistrar_UnregisterUserDictionary
+};
+
+/**********************************************************************************/
 /* SpellChecker */
 /**********************************************************************************/
 static HRESULT WINAPI SpellChecker_QueryInterface(ISpellChecker *iface,
@@ -628,6 +677,12 @@ static HRESULT WINAPI SpellCheckerFactory_QueryInterface(ISpellCheckerFactory *i
         ISpellCheckerFactory_AddRef(iface);
         return S_OK;
     }
+    else if (IsEqualGUID(riid, &IID_IUserDictionariesRegistrar))
+    {
+        *ppvObject = &This->IUserDictionariesRegistrar_iface;
+        IUserDictionariesRegistrar_AddRef(*ppvObject);
+        return S_OK;
+    }
 
     *ppvObject = NULL;
     return E_NOINTERFACE;
@@ -754,6 +809,7 @@ static HRESULT WINAPI SpellCheckerFactory_CreateInstance(IClassFactory *iface, I
         return E_OUTOFMEMORY;
 
     This->ISpellCheckerFactory_iface.lpVtbl = &SpellCheckerFactoryVtbl;
+    This->IUserDictionariesRegistrar_iface.lpVtbl = &UserDictionariesRegistrarVtbl;
     This->ref = 1;
 
     hr = SpellCheckerFactory_QueryInterface(&This->ISpellCheckerFactory_iface, riid, ppv);
