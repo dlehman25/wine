@@ -70,7 +70,6 @@ typedef struct
 typedef struct
 {
     struct list entry;
-    ULONG len;
     WCHAR str[1];
 } EnumString_node;
 
@@ -104,7 +103,7 @@ static inline EnumString *impl_from_IEnumString(IEnumString *iface)
     return CONTAINING_RECORD(iface, EnumString, IEnumString_iface);
 }
 
-static WCHAR *copy_string(const WCHAR *str, ULONG *plen)
+static WCHAR *copy_string(const WCHAR *str)
 {
     ULONG len;
     WCHAR *copy;
@@ -112,10 +111,6 @@ static WCHAR *copy_string(const WCHAR *str, ULONG *plen)
     len = wcslen(str);
     if ((copy = CoTaskMemAlloc((len + 1) * sizeof(WCHAR))))
         memcpy(copy, str, (len + 1) * sizeof(WCHAR));
-    else
-        len = 0;
-
-    if (plen) *plen = len;
     return copy;
 }
 
@@ -182,7 +177,7 @@ static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR 
     while (This->next && count--)
     {
         node = LIST_ENTRY(This->next, EnumString_node, entry);
-        *strings = copy_string(node->str, NULL);
+        *strings = copy_string(node->str);
         if (!*strings)
             break;
         This->next = list_next(&This->strings, This->next);
@@ -237,7 +232,6 @@ static HRESULT EnumString_Add(IEnumString *enumstr, LPCWSTR str)
 
     This = impl_from_IEnumString(enumstr);
     memcpy(node->str, str, len * sizeof(*str));
-    node->len = len;
     node->str[len] = 0;
     list_add_tail(&This->strings, &node->entry);
     return S_OK;
@@ -323,7 +317,7 @@ static HRESULT WINAPI SpellCheckProvider_get_LanguageTag(ISpellCheckProvider *if
     if (!tag)
         return E_POINTER;
 
-    *tag = copy_string(L"en-US", NULL);
+    *tag = copy_string(L"en-US");
     return *tag ? S_OK : E_OUTOFMEMORY;
 }
 
@@ -369,7 +363,7 @@ static HRESULT WINAPI SpellCheckProvider_get_Id(ISpellCheckProvider *iface, LPWS
     if (!id)
         return E_POINTER;
 
-    *id = copy_string(L"MsSpell", NULL);
+    *id = copy_string(L"MsSpell");
     return *id ? S_OK : E_OUTOFMEMORY;
 }
 
