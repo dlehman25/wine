@@ -57,11 +57,14 @@ typedef struct
     LONG ref;
 } SpellCheckProviderImpl;
 
+#define EnumString_EOL ((struct list *)~0)
+
 typedef struct
 {
     IEnumString IEnumString_iface;
     LONG ref;
     struct list strings;
+    struct list *next;
 } EnumString;
 
 typedef struct
@@ -141,12 +144,41 @@ static ULONG WINAPI EnumString_Release(IEnumString *iface)
     return ref;
 }
 
-static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG celt, LPOLESTR *rgelt,
+static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR *strings,
     ULONG *fetched)
 {
-    EnumString *This = impl_from_IEnumString(iface);
-    FIXME("(%p %u %p %p)\n", This, celt, rgelt, fetched);
-    return E_NOTIMPL;
+    EnumString_node *node;
+    EnumString *This;
+    ULONG nfetched;
+
+    This = impl_from_IEnumString(iface);
+    TRACE("(%p %u %p %p)\n", This, count, strings, fetched);
+
+    if (!strings)
+        return E_POINTER;
+
+    if (count > 1 && !fetched)
+        return E_INVALIDARG;
+
+    if (This->next == EnumString_EOL)
+        This->next = list_head(&This->strings);
+
+    nfetched = 0;
+    while (This->next && count--)
+    {
+        node = LIST_ENTRY(This->next, EnumString_node, entry);
+        *strings = CoTaskMemAlloc((node->len + 1) * sizeof(WCHAR));
+        if (!*strings)
+            break;
+        memcpy(*strings, node->str, node->len * sizeof(WCHAR));
+        (*strings)[node->len] = 0;
+
+        This->next = list_next(&This->strings, This->next);
+        strings++;
+        nfetched++;
+    }
+    if (fetched) *fetched = nfetched;
+    return count ? S_FALSE : S_OK;
 }
 
 static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG celt)
@@ -211,6 +243,7 @@ static HRESULT EnumString_Constructor(IEnumString **enumstr, LPCWSTR str)
     This->IEnumString_iface.lpVtbl = &EnumStringVtbl;
     This->ref = 1;
     list_init(&This->strings);
+    This->next = EnumString_EOL;
 
     hr = EnumString_Add(&This->IEnumString_iface, str);
     if (FAILED(hr))
