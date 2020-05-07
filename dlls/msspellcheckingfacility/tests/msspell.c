@@ -220,7 +220,7 @@ static void test_spellchecker(void)
     }
     id = NULL;
     hr = ISpellChecker_get_Id(checker, &id);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     if (!id)
         goto done;
     ok(!wcscmp(id, L"MsSpell"), "got '%s'\n", wine_dbgstr_w(id));
@@ -231,7 +231,9 @@ static void test_spellchecker(void)
 
     ids = NULL;
     hr = ISpellChecker_get_OptionIds(checker, &ids);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    if (!ids)
+        goto done;
 
     id = NULL;
     while (SUCCEEDED(IEnumString_Next(ids, 1, &id, NULL)) && id)
