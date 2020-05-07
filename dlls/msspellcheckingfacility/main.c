@@ -510,8 +510,8 @@ static HRESULT WINAPI SpellChecker_get_LanguageTag(ISpellChecker *iface,
 static HRESULT WINAPI SpellChecker_Check(ISpellChecker *iface, LPCWSTR text,
                         IEnumSpellingError **errors)
 {
-    FIXME("(%p %s %p)\n", iface, debugstr_w(text), errors);
-    return E_NOTIMPL;
+    TRACE("(%p %s %p)\n", iface, debugstr_w(text), errors);
+    return ISpellCheckProvider_Check(provider, text, errors);
 }
 
 static HRESULT WINAPI SpellChecker_Suggest(ISpellChecker *iface, LPCWSTR word,
