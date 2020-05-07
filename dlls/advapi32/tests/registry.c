@@ -4181,8 +4181,6 @@ struct key
     DWORD             options;
     DWORD             access;
     HKEY              hkey;
-    HKEY              hkeynotify; /* keep this open until freeing key */
-    /* BOOL cacheable; // this key and below can be cached */
     /* TODO: or just clear keys/values, forcing recreation? (what about held refs?) */
 };
 
