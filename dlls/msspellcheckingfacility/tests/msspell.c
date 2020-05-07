@@ -231,7 +231,7 @@ static void test_spellchecker(void)
 
     ids = NULL;
     hr = ISpellChecker_get_OptionIds(checker, &ids);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     if (!ids)
         goto done;
 
@@ -251,6 +251,8 @@ static void test_spellchecker(void)
     lang = NULL;
     hr = ISpellChecker_get_LanguageTag(checker, &lang);
     todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    if (!lang)
+        goto done;
     ok(!wcscmp(lang, L"en-US"), "got '%s'\n", wine_dbgstr_w(lang));
     CoTaskMemFree(lang);
 
