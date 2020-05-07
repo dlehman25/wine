@@ -4510,10 +4510,10 @@ static void rc_dump_key(const struct key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s keys %d/%d values %d/%d %p\n",
-        wine_dbgstr_wn(key->name.Buffer, key->name.Length/2),
+    printf("%s keys %d/%d values %d/%d ref %d access 0x%x hkey %p\n",
+        wine_dbgstr_wn(key->name.Buffer, key->name.Length/sizeof(WCHAR)),
         key->last_subkey+1, key->nb_subkeys,
-        key->last_value+1, key->nb_values, key->hkey);
+        key->last_value+1, key->nb_values, key->ref, key->access, key->hkey);
     for (i = 0; i <= key->last_subkey; i++)
         rc_dump_key(key->subkeys[i], depth+4);
     for (i = 0; i <= key->last_value; i++)
