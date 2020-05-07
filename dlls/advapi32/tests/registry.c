@@ -4180,7 +4180,6 @@ struct key
     struct key_value *values;
     DWORD             options;
     DWORD             access;
-    DWORD64           modif; /* TODO: needed?  zero if dirty - just have bool? */
     HKEY              hkey;
     HKEY              hkeynotify; /* keep this open until freeing key */
     /* BOOL cacheable; // this key and below can be cached */
@@ -4339,7 +4338,7 @@ static struct key *rc_open_key_prefix(struct key *key, const UNICODE_STRING *nam
     return key;
 }
 
-static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
+static struct key *rc_new_key(const UNICODE_STRING *name)
 {
     struct key *key;
 
@@ -4355,7 +4354,6 @@ static struct key *rc_new_key(const UNICODE_STRING *name, DWORD64 modif)
     key->ref = 1;
     key->last_subkey = -1;
     key->last_value  = -1;
-    key->modif = modif;
     return key;
 }
 
@@ -4382,8 +4380,7 @@ static int rc_grow_subkeys(struct key *key)
     return 1;
 }
 
-static struct key *rc_alloc_subkey(struct key *parent, const UNICODE_STRING *name,
-                                   int index, DWORD64 modif)
+static struct key *rc_alloc_subkey(struct key *parent, const UNICODE_STRING *name, int index)
 {
     struct key *key;
     int i;
@@ -4392,7 +4389,7 @@ static struct key *rc_alloc_subkey(struct key *parent, const UNICODE_STRING *nam
         !rc_grow_subkeys(parent))
         return NULL;
 
-    if (!(key = rc_new_key(name, modif)))
+    if (!(key = rc_new_key(name)))
         return NULL;
 
     key->parent = parent;
@@ -4439,7 +4436,6 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
     int index;
     struct key *base;
     struct key *subkey;
-    DWORD64 current_time;
     UNICODE_STRING token;
 
     token.Buffer = NULL;
@@ -4453,10 +4449,9 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
         rc_get_path_token(name, &token);
     }
 
-    current_time = GetTickCount64();
     if (token.Length)
     {
-        if (!(key = rc_alloc_subkey(key, &token, index, current_time)))
+        if (!(key = rc_alloc_subkey(key, &token, index)))
             return NULL;
         base = key;
         for (;;)
@@ -4464,7 +4459,7 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
             rc_get_path_token(name, &token);
             if (!token.Length)
                 break;
-            if (!(key = rc_alloc_subkey(key, &token, 0, current_time)))
+            if (!(key = rc_alloc_subkey(key, &token, 0)))
             {
                 rc_free_subkey(base, index);
                 return NULL;
@@ -4512,10 +4507,10 @@ static void rc_dump_key(const struct key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s keys %d/%d values %d/%d %p %lu\n",
+    printf("%s keys %d/%d values %d/%d %p\n",
         wine_dbgstr_wn(key->name.Buffer, key->name.Length/2),
         key->last_subkey+1, key->nb_subkeys,
-        key->last_value+1, key->nb_values, key->hkey, key->modif);
+        key->last_value+1, key->nb_values, key->hkey);
     for (i = 0; i <= key->last_subkey; i++)
         rc_dump_key(key->subkeys[i], depth+4);
     for (i = 0; i <= key->last_value; i++)
@@ -4791,7 +4786,6 @@ static HKEY rc_cache_key(HKEY special, LPCWSTR path)
 static struct key *rc_enable_cache(void)
 {
     struct key *hklm, *hkcu, *hkcr;
-    DWORD64 current_time;
     UNICODE_STRING name;
 
     EnterCriticalSection(&rc_lock);
@@ -4802,9 +4796,8 @@ static struct key *rc_enable_cache(void)
         return rc_root;
     }
 
-    current_time = GetTickCount64();
     RtlInitUnicodeString(&name, L"\\Registry\\");
-    rc_root = rc_new_key(&name, current_time);
+    rc_root = rc_new_key(&name);
 
     hklm = hkcu = hkcr = NULL;
     /* map HKEY_LOCAL_MACHINE -> \Registry\Machine */
@@ -5048,7 +5041,7 @@ static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
     us_name.Buffer = name;
     us_name.Length = name_len * sizeof(WCHAR);
     us_name.MaximumLength = name_len * sizeof(WCHAR) + sizeof(WCHAR);
-    if (!rc_alloc_subkey(key, &us_name, index, GetTickCount64()))
+    if (!rc_alloc_subkey(key, &us_name, index))
         WARN("failed to put enum key %p %u %s\n", hkey, index, wine_dbgstr_wn(name, name_len));
 done:
     LeaveCriticalSection(&rc_lock);
