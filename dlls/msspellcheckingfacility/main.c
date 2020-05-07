@@ -182,12 +182,9 @@ static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR 
     while (This->next && count--)
     {
         node = LIST_ENTRY(This->next, EnumString_node, entry);
-        *strings = CoTaskMemAlloc((node->len + 1) * sizeof(WCHAR));
+        *strings = copy_string(node->str, NULL);
         if (!*strings)
             break;
-        memcpy(*strings, node->str, node->len * sizeof(WCHAR));
-        (*strings)[node->len] = 0;
-
         This->next = list_next(&This->strings, This->next);
         strings++;
         nfetched++;
