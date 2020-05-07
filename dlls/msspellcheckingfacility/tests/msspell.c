@@ -569,9 +569,7 @@ static void test_UserDictionariesRegistrar(void)
     registrar = NULL;
     hr = ISpellCheckerFactory_QueryInterface(factory, &IID_IUserDictionariesRegistrar,
             (void**)&registrar);
-    todo_wine
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-
     if (!registrar)
         goto done;
 
@@ -582,7 +580,9 @@ static void test_UserDictionariesRegistrar(void)
 
     errors = NULL;
     hr = ISpellChecker_Check(checker, L"helllo world", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    if (!errors)
+        goto done;
     ok(!!errors, "got NULL\n");
 
     err = NULL;
