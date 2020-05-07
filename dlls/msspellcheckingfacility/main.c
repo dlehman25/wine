@@ -30,6 +30,7 @@
 #include "rpcproxy.h"
 #include "wine/debug.h"
 #include "wine/heap.h"
+#include "wine/list.h"
 
 extern HRESULT WINAPI MSC_DllGetClassObject(REFCLSID, REFIID, void **) DECLSPEC_HIDDEN;
 
@@ -56,6 +57,19 @@ typedef struct
     LONG ref;
 } SpellCheckProviderImpl;
 
+typedef struct
+{
+    IEnumString IEnumString_iface;
+    LONG ref;
+    struct list strings;
+} EnumString;
+
+typedef struct
+{
+    struct list entry;
+    WCHAR str[1];
+} EnumString_node;
+
 static ISpellCheckProvider *msspell;
 static ISpellCheckProvider *provider;
 
@@ -79,6 +93,132 @@ static inline SpellCheckProviderImpl *impl_from_IComprehensiveSpellCheckProvider
 {
     return CONTAINING_RECORD(iface, SpellCheckProviderImpl,
                 IComprehensiveSpellCheckProvider_iface);
+}
+
+static inline EnumString *impl_from_IEnumString(IEnumString *iface)
+{
+    return CONTAINING_RECORD(iface, EnumString, IEnumString_iface);
+}
+
+/**********************************************************************************/
+/* EnumString */
+/**********************************************************************************/
+static HRESULT WINAPI EnumString_QueryInterface(IEnumString *iface, REFIID riid, LPVOID *ppv)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualIID(riid, &IID_IUnknown) ||
+        IsEqualIID(riid, &IID_IEnumString))
+    {
+        *ppv = &This->IEnumString_iface;
+        IEnumString_AddRef(iface);
+        return S_OK;
+    }
+
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI EnumString_AddRef(IEnumString *iface)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI EnumString_Release(IEnumString *iface)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG celt, LPOLESTR *rgelt,
+    ULONG *fetched)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+    FIXME("(%p %u %p %p)\n", This, celt, rgelt, fetched);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG celt)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+    FIXME("(%p %u)\n", This, celt);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI EnumString_Reset(IEnumString *iface)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+    FIXME("(%p)\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI EnumString_Clone(IEnumString *iface, IEnumString **ppenum)
+{
+    EnumString *This = impl_from_IEnumString(iface);
+    FIXME("(%p %p)\n", This, ppenum);
+    return E_NOTIMPL;
+}
+
+static const IEnumStringVtbl EnumStringVtbl = {
+    EnumString_QueryInterface,
+    EnumString_AddRef,
+    EnumString_Release,
+    EnumString_Next,
+    EnumString_Skip,
+    EnumString_Reset,
+    EnumString_Clone
+};
+
+static HRESULT EnumString_Add(IEnumString *enumstr, LPCWSTR str)
+{
+    EnumString *This;
+    EnumString_node *node;
+    size_t len;
+
+    len = wcslen(str);
+    node = heap_alloc(FIELD_OFFSET(EnumString_node, str[len+1]));
+    if (!node)
+        return E_OUTOFMEMORY;
+
+    This = impl_from_IEnumString(enumstr);
+    memcpy(node->str, str, len * sizeof(*str));
+    node->str[len] = 0;
+    list_add_tail(&This->strings, &node->entry);
+    return S_OK;
+}
+
+static HRESULT EnumString_Constructor(IEnumString **enumstr, LPCWSTR str)
+{
+    EnumString *This;
+    HRESULT hr;
+
+    This = heap_alloc(sizeof(*This));
+    if (!This)
+        return E_OUTOFMEMORY;
+
+    This->IEnumString_iface.lpVtbl = &EnumStringVtbl;
+    This->ref = 1;
+    list_init(&This->strings);
+
+    hr = EnumString_Add(&This->IEnumString_iface, str);
+    if (FAILED(hr))
+    {
+        heap_free(This);
+        return hr;
+    }
+
+    *enumstr = &This->IEnumString_iface;
+    return S_OK;
 }
 
 /**********************************************************************************/
@@ -482,8 +622,19 @@ static ULONG WINAPI SpellCheckerFactory_Release(ISpellCheckerFactory *iface)
 static HRESULT WINAPI SpellCheckerFactory_get_SupportedLanguages(ISpellCheckerFactory *iface,
                         IEnumString **enumstr)
 {
-    FIXME("(%p %p)\n", iface, enumstr);
-    return E_NOTIMPL;
+    LPWSTR lang;
+    HRESULT hr;
+
+    TRACE("(%p %p)\n", iface, enumstr);
+
+    *enumstr = NULL;
+    hr = ISpellCheckProvider_get_LanguageTag(provider, &lang);
+    if (FAILED(hr))
+        return hr;
+
+    hr = EnumString_Constructor(enumstr, lang);
+    CoTaskMemFree(lang);
+    return hr;
 }
 
 static HRESULT WINAPI SpellCheckerFactory_IsSupported(ISpellCheckerFactory *iface,
