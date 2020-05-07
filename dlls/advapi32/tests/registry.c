@@ -4563,7 +4563,7 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (token.Length && !(key = rc_create_key_recursive(root, &us_name)))
         goto not_cacheable;
 
-    access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
+    access = rc_key_map_access(access);
     if (!access)
         goto not_cacheable;
 
@@ -4980,7 +4980,7 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (key->options != options)
         goto not_cached; /* different symlink, wow64 */
 
-    access = rc_key_map_access(access); /* TODO & ~RESERVED_ALL; */
+    access = rc_key_map_access(access);
     if (key->access != access)
         goto not_cached;
 
