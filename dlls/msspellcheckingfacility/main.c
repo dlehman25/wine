@@ -209,7 +209,8 @@ static HRESULT WINAPI EnumString_Clone(IEnumString *iface, IEnumString **ppenum)
     return E_NOTIMPL;
 }
 
-static const IEnumStringVtbl EnumStringVtbl = {
+static const IEnumStringVtbl EnumStringVtbl =
+{
     EnumString_QueryInterface,
     EnumString_AddRef,
     EnumString_Release,
@@ -819,7 +820,8 @@ static HRESULT WINAPI ClassFactory_LockServer(IClassFactory *iface, BOOL fLock)
     return S_OK;
 }
 
-static const IClassFactoryVtbl SCFactoryVtbl = {
+static const IClassFactoryVtbl SCFactoryVtbl =
+{
     ClassFactory_QueryInterface,
     ClassFactory_AddRef,
     ClassFactory_Release,
