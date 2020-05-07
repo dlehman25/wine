@@ -4184,7 +4184,6 @@ struct key
     HKEY              hkey;
     HKEY              hkeynotify; /* keep this open until freeing key */
     /* BOOL cacheable; // this key and below can be cached */
-    BOOL              invalid; /* this and subkeys are invalid */
     /* TODO: or just clear keys/values, forcing recreation? (what about held refs?) */
 };
 
@@ -4555,7 +4554,6 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
 
     if (!(root = rc_key_for_hkey(hroot)))
         goto not_cacheable;
-    /* TODO: is invalid(root) */
 
     RtlInitUnicodeString(&us_name, name);
     if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
@@ -4692,36 +4690,14 @@ printf("%s: %p\n", __FUNCTION__, hkey);
     return rc_clear_key_helper(key);
 }
 
-/* hkey is notify key */
-static BOOL rc_invalidate_key(HKEY hkey)
-{
-    struct key *key;
-
-    EnterCriticalSection(&rc_lock);
-    if (!rc_root)
-        goto error;
-
-    if (!(key = rc_key_for_hkey(hkey)))
-        goto error;
-
-    key->invalid = TRUE;
-
-    LeaveCriticalSection(&rc_lock);
-    return TRUE;
-
-error:
-    LeaveCriticalSection(&rc_lock);
-    return FALSE;
-}
-
 static void CALLBACK rc_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
                                       PTP_WAIT wait, TP_WAIT_RESULT result)
 {
     struct rc_wait_s *args = parm;
     LSTATUS status;
 
-    /* key or subkey on server was changed */
-    rc_invalidate_key(args->hkey);
+    /* key or subkey on server was changed - remove cached values */
+    rc_clear_key(args->hkey);
 
     status = RegNotifyChangeKeyValue(args->hkey, TRUE,
                         REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
@@ -4964,14 +4940,6 @@ done:
     return ret;
 }
 
-static BOOL rc_is_key_invalid(struct key *key)
-{
-    /* TODO: stop at notify key? */
-    while (key && !key->invalid)
-        key = key->parent;
-    return key && key->invalid ? TRUE : FALSE;
-}
-
 static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
                                REGSAM access, PHKEY retkey)
 {
@@ -4995,9 +4963,6 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
 
     if (!key->hkey)
         goto not_cached; /* no hkey opened for this specific path */
-
-    if (rc_is_key_invalid(key))
-        goto not_cached;
 
     if (key->options != options)
         goto not_cached; /* different symlink, wow64 */
@@ -5048,15 +5013,10 @@ static BOOL rc_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
     if (index > root->last_subkey)
         goto not_cached; /* this not cached yet */
 
-    /* TODO: if (rc_is_key_invalid(root)) */
-
     /* TODO: if we know we have all entries: ERROR_MORE_DATA */
     key = root->subkeys[index];
     if (!key)
         goto not_cached; /* this specific one not cached (unlikely but possibly skip entries) */
-
-    if (rc_is_key_invalid(key))
-        goto not_cached;
 
     if (key->name.Length + sizeof(WCHAR) > (*name_len) * sizeof(WCHAR))
         goto not_cached; /* TODO: ERROR_MORE_DATA */
@@ -5152,14 +5112,10 @@ static BOOL rc_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 
     if (!(root = rc_key_for_hkey(hkey)))
         goto not_cached;
-    /* TODO: ?? if (rc_is_key_invalid(root)) */
 
     RtlInitUnicodeString(&name, subkey);
     if (!(key = rc_open_key_prefix(root, &name, &token, &index)))
         goto not_cached; /* invalid path */
-
-    if (rc_is_key_invalid(key))
-        goto not_cached;
 
     RtlInitUnicodeString(&name, value);
     if (!(key_value = rc_find_value(key, &name, &index)))
