@@ -237,10 +237,9 @@ static HRESULT EnumString_Add(IEnumString *enumstr, LPCWSTR str)
     return S_OK;
 }
 
-static HRESULT EnumString_Constructor(IEnumString **enumstr, LPCWSTR str)
+static HRESULT EnumString_Constructor(IEnumString **enumstr)
 {
     EnumString *This;
-    HRESULT hr;
 
     This = heap_alloc(sizeof(*This));
     if (!This)
@@ -250,14 +249,6 @@ static HRESULT EnumString_Constructor(IEnumString **enumstr, LPCWSTR str)
     This->ref = 1;
     list_init(&This->strings);
     This->next = EnumString_EOL;
-
-    hr = EnumString_Add(&This->IEnumString_iface, str);
-    if (FAILED(hr))
-    {
-        heap_free(This);
-        return hr;
-    }
-
     *enumstr = &This->IEnumString_iface;
     return S_OK;
 }
@@ -673,7 +664,16 @@ static HRESULT WINAPI SpellCheckerFactory_get_SupportedLanguages(ISpellCheckerFa
     if (FAILED(hr))
         return hr;
 
-    hr = EnumString_Constructor(enumstr, lang);
+    hr = EnumString_Constructor(enumstr);
+    if (SUCCEEDED(hr))
+    {
+        hr = EnumString_Add(*enumstr, lang);
+        if (FAILED(hr))
+        {
+            IEnumString_Release(*enumstr);
+            *enumstr = NULL;
+        }
+    }
     CoTaskMemFree(lang);
     return hr;
 }
