@@ -104,6 +104,21 @@ static inline EnumString *impl_from_IEnumString(IEnumString *iface)
     return CONTAINING_RECORD(iface, EnumString, IEnumString_iface);
 }
 
+static WCHAR *copy_string(const WCHAR *str, ULONG *plen)
+{
+    ULONG len;
+    WCHAR *copy;
+
+    len = wcslen(str);
+    if ((copy = CoTaskMemAlloc((len + 1) * sizeof(WCHAR))))
+        memcpy(copy, str, (len + 1) * sizeof(WCHAR));
+    else
+        len = 0;
+
+    if (plen) *plen = len;
+    return copy;
+}
+
 /**********************************************************************************/
 /* EnumString */
 /**********************************************************************************/
@@ -306,18 +321,13 @@ static ULONG WINAPI SpellCheckProvider_Release(ISpellCheckProvider *iface)
 static HRESULT WINAPI SpellCheckProvider_get_LanguageTag(ISpellCheckProvider *iface,
                         LPWSTR *tag)
 {
-    static const WCHAR *enUS = L"en-US";
     TRACE("(%p %p)\n", iface, tag);
 
     if (!tag)
         return E_POINTER;
 
-    *tag = CoTaskMemAlloc((wcslen(enUS)+1) * sizeof(WCHAR));
-    if (!*tag)
-        return E_OUTOFMEMORY;
-
-    wcscpy(*tag, enUS);
-    return S_OK;
+    *tag = copy_string(L"en-US", NULL);
+    return *tag ? S_OK : E_OUTOFMEMORY;
 }
 
 static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWSTR text,
@@ -357,18 +367,13 @@ static HRESULT WINAPI SpellCheckProvider_get_OptionIds(ISpellCheckProvider *ifac
 
 static HRESULT WINAPI SpellCheckProvider_get_Id(ISpellCheckProvider *iface, LPWSTR *id)
 {
-    static const WCHAR *msspell = L"MsSpell";
     TRACE("(%p %p)\n", iface, id);
 
     if (!id)
         return E_POINTER;
 
-    *id = CoTaskMemAlloc((wcslen(msspell)+1) * sizeof(WCHAR));
-    if (!*id)
-        return E_OUTOFMEMORY;
-
-    wcscpy(*id, msspell);
-    return S_OK;
+    *id = copy_string(L"MsSpell", NULL);
+    return *id ? S_OK : E_OUTOFMEMORY;
 }
 
 static HRESULT WINAPI SpellCheckProvider_get_LocalizedName(ISpellCheckProvider *iface,
