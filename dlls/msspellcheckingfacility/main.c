@@ -675,9 +675,21 @@ static HRESULT WINAPI SpellCheckerFactory_get_SupportedLanguages(ISpellCheckerFa
 static HRESULT WINAPI SpellCheckerFactory_IsSupported(ISpellCheckerFactory *iface,
                         LPCWSTR lang, BOOL *supported)
 {
-    FIXME("(%p %s %p)\n", iface, debugstr_w(lang), supported);
-    *supported = FALSE;
-    return E_NOTIMPL;
+    HRESULT hr;
+    LPWSTR provlang;
+
+    TRACE("(%p %s %p)\n", iface, debugstr_w(lang), supported);
+
+    if (!lang || !supported)
+        return E_POINTER;
+
+    hr = ISpellCheckProvider_get_LanguageTag(provider, &provlang);
+    if (FAILED(hr))
+        return hr;
+
+    *supported = !wcsicmp(provlang, lang);
+    CoTaskMemFree(provlang);
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellCheckerFactory_CreateSpellChecker(ISpellCheckerFactory *iface,
