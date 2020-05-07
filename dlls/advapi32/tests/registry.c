@@ -4743,6 +4743,19 @@ failed:
     return FALSE;
 }
 
+static inline BOOL rc_is_cache_root(HKEY hkey)
+{
+    struct rc_wait_s *wait;
+
+    LIST_FOR_EACH_ENTRY(wait, &rc_waits_list, struct rc_wait_s, entry)
+    {
+        if (wait->hkey == hkey)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 static HKEY rc_cache_key(HKEY special, LPCWSTR path)
 {
     const DWORD access = KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE|KEY_NOTIFY;
