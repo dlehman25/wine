@@ -567,8 +567,8 @@ static HRESULT WINAPI SpellChecker_get_OptionIds(ISpellChecker *iface, IEnumStri
 
 static HRESULT WINAPI SpellChecker_get_Id(ISpellChecker *iface, LPWSTR *id)
 {
-    FIXME("(%p %p)\n", iface, id);
-    return E_NOTIMPL;
+    TRACE("(%p %p)\n", iface, id);
+    return ISpellCheckProvider_get_Id(provider, id);
 }
 
 static HRESULT WINAPI SpellChecker_get_LocalizedName(ISpellChecker *iface, LPWSTR *name)
