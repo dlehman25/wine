@@ -4407,11 +4407,6 @@ static void rc_free_subkey(struct key *parent, int index)
     for (i = index; i < parent->last_subkey; i++)
         parent->subkeys[i] = parent->subkeys[i+1];
     parent->last_subkey--;
-    /* key->flags |= KEY_DELETED; TODO */
-    key->parent = NULL;
-    if (key->hkey)
-        rc_unmap_hkey(key->hkey);
-    heap_free(key); /* TODO: release_object(key); */
 
     nb_subkeys = parent->nb_subkeys;
     if (nb_subkeys > MIN_SUBKEYS && parent->last_subkey < nb_subkeys / 2)
@@ -4426,7 +4421,18 @@ static void rc_free_subkey(struct key *parent, int index)
         parent->subkeys = new_subkeys;
         parent->nb_subkeys = nb_subkeys;
     }
-    /* TODO: free values */
+
+    /* delete values */
+    if (key->hkey)
+        rc_unmap_hkey(key->hkey);
+
+    for (i = 0; i <= key->last_value; i++)
+    {
+        RtlFreeUnicodeString(&key->values[i].name);
+        heap_free(key->values[i].data);
+    }
+    heap_free(key->values);
+    heap_free(key);
 }
 
 static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING *name)
