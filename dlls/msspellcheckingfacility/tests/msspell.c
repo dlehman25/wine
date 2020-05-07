@@ -133,7 +133,7 @@ static void test_factory(DWORD model)
     }
     IEnumString_Release(langs);
 
-    todo_wine ok(num, "no languages supported\n");
+    ok(num, "no languages supported\n");
 
     checker = NULL;
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
