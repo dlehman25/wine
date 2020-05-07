@@ -4608,17 +4608,16 @@ static int rc_delete_key(struct key *key, int recurse)
     int index;
     struct key *parent = key->parent;
 
-    /* can delete root, unlike main registry */
     while (recurse && (key->last_subkey >= 0))
         if (rc_delete_key(key->subkeys[key->last_subkey], TRUE) < 0)
             return -1;
 
-    /* TODO? */
+    /* can delete root, unlike main registry */
     if (key == rc_root)
     {
-        rc_unmap_hkey(key->hkey);
-        /* TODO: free name */
-        heap_free(key); /* TODO: release_object(key); */
+        RtlFreeUnicodeString(&key->name);
+        heap_free(key);
+        rc_root = NULL;
         return 0;
     }
 
