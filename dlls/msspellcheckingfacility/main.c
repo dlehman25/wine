@@ -343,8 +343,8 @@ static HRESULT WINAPI SpellCheckProvider_SetOptionValue(ISpellCheckProvider *ifa
 static HRESULT WINAPI SpellCheckProvider_get_OptionIds(ISpellCheckProvider *iface,
                         IEnumString **ids)
 {
-    FIXME("(%p %p)\n", iface, ids);
-    return E_NOTIMPL;
+    TRACE("(%p %p)\n", iface, ids);
+    return EnumString_Constructor(ids);
 }
 
 static HRESULT WINAPI SpellCheckProvider_get_Id(ISpellCheckProvider *iface, LPWSTR *id)
