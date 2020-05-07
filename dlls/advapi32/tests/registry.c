@@ -5180,7 +5180,7 @@ not_cached:
     return FALSE;
 }
 
-static int grow_values( struct key *key )
+static int rc_grow_values( struct key *key )
 {
     struct key_value *new_val;
     int nb_values;
@@ -5211,7 +5211,7 @@ static struct key_value *rc_insert_value(struct key *key, const UNICODE_STRING *
     /* TODO: STATUS_NAME_TOO_LONG? wouldn't be here if server returned it */
 
     if ((key->last_value + 1 == key->nb_values) &&
-        !grow_values(key))
+        !rc_grow_values(key))
         return NULL;
 
     if (RtlDuplicateUnicodeString(1, name, &new_name))
