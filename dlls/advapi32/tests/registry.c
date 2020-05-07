@@ -4471,8 +4471,7 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
         }
     }
 
-    /* TODO grab_object(key) */
-    return key;
+    return rc_addref_key(key);
 }
 
 static void rc_dump_path(const struct key *key, const struct key *base, FILE *f)
@@ -4577,7 +4576,7 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     return TRUE;
 
 not_cacheable:
-    if (0) { if (key) rc_release_key(key); } /* TODO */
+    if (key) rc_release_key(key);
     LeaveCriticalSection(&rc_lock);
     return FALSE;
 }
