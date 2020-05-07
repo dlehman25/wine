@@ -4582,6 +4582,27 @@ not_cacheable:
     return FALSE;
 }
 
+struct rc_wait_s
+{
+    struct list entry;
+    HKEY hkey;
+    HANDLE event;
+    PTP_WAIT wait;
+};
+
+static inline BOOL rc_is_cache_root(HKEY hkey)
+{
+    struct rc_wait_s *wait;
+
+    LIST_FOR_EACH_ENTRY(wait, &rc_waits_list, struct rc_wait_s, entry)
+    {
+        if (wait->hkey == hkey)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 static int rc_delete_key(struct key *key, int recurse)
 {
     int index;
@@ -4601,6 +4622,10 @@ static int rc_delete_key(struct key *key, int recurse)
         return 0;
     }
 
+    /* cannot delete cache roots */
+    if (key->hkey && rc_is_cache_root(key->hkey))
+        return -1;
+
     for (index = 0; index < parent->last_subkey; index++)
         if (parent->subkeys[index] == key)
             break;
@@ -4612,14 +4637,6 @@ static int rc_delete_key(struct key *key, int recurse)
     rc_free_subkey(parent, index);
     return 0;
 }
-
-struct rc_wait_s
-{
-    struct list entry;
-    HKEY hkey;
-    HANDLE event;
-    PTP_WAIT wait;
-};
 
 static void rc_disable_cache(void)
 {
@@ -4746,19 +4763,6 @@ static BOOL rc_register_wait(HKEY hkey)
 failed:
     CloseHandle(changed);
     heap_free(rc_wait);
-    return FALSE;
-}
-
-static inline BOOL rc_is_cache_root(HKEY hkey)
-{
-    struct rc_wait_s *wait;
-
-    LIST_FOR_EACH_ENTRY(wait, &rc_waits_list, struct rc_wait_s, entry)
-    {
-        if (wait->hkey == hkey)
-            return TRUE;
-    }
-
     return FALSE;
 }
 
