@@ -551,13 +551,13 @@ done:
 
 static void test_UserDictionariesRegistrar(void)
 {
+    static const WCHAR *bad_text = L"helllo world\n";
     static const WCHAR *helllo = L"helllo\n";
     WCHAR dicpath[MAX_PATH];
     IUserDictionariesRegistrar *registrar;
     ISpellCheckerFactory *factory;
-    IEnumSpellingError *errors;
     ISpellChecker *checker;
-    ISpellingError *err;
+    DWORD nerrs;
     HRESULT hr;
     FILE *dic;
 
@@ -578,19 +578,8 @@ static void test_UserDictionariesRegistrar(void)
     hr = ISpellCheckerFactory_CreateSpellChecker(factory, L"en-US", &checker);
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
-    errors = NULL;
-    hr = ISpellChecker_Check(checker, L"helllo world", &errors);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    if (!errors)
-        goto done;
-    ok(!!errors, "got NULL\n");
-
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_OK, "got 0x%x\n", hr);
-    ok(!!err, "got %p\n", err);
-    ISpellingError_Release(err);
-    IEnumSpellingError_Release(errors);
+    nerrs = count_errors(checker, bad_text);
+    ok(nerrs == 1, "got %u\n", nerrs);
 
     /* create dictionary */
     GetTempPathW(ARRAY_SIZE(dicpath), dicpath);
@@ -620,16 +609,8 @@ static void test_UserDictionariesRegistrar(void)
     ok(hr == S_OK, "got %x\n", hr);
 
     /* spell check after registering */
-    errors = NULL;
-    hr = ISpellChecker_Check(checker, L"helllo world", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
-
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_FALSE, "got 0x%x\n", hr);
-    ok(!err, "got %p\n", err);
-    IEnumSpellingError_Release(errors);
+    nerrs = count_errors(checker, bad_text);
+    ok(nerrs == 0, "got %u\n", nerrs);
 
     /* unregister */
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, NULL, NULL);
@@ -645,17 +626,8 @@ static void test_UserDictionariesRegistrar(void)
     ok(hr == S_FALSE, "got %x\n", hr);
 
     /* spell check after unregistering */
-    errors = NULL;
-    hr = ISpellChecker_Check(checker, L"hello worllld", &errors);
-    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
-    ok(!!errors, "got NULL\n");
-
-    err = NULL;
-    hr = IEnumSpellingError_Next(errors, &err);
-    ok(hr == S_OK, "got 0x%x\n", hr);
-    ok(!!err, "got %p\n", err);
-    ISpellingError_Release(err);
-    IEnumSpellingError_Release(errors);
+    nerrs = count_errors(checker, bad_text);
+    ok(nerrs == 1, "got %u\n", nerrs);
 
     DeleteFileW(dicpath);
 
