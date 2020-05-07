@@ -4167,9 +4167,18 @@ struct key_value
     BYTE             *data;
 };
 
+struct key_handle
+{
+    LONG ref;
+    HKEY hkey;
+    DWORD access;
+    struct list entry;
+};
+
 struct key
 {
     DWORD             ref;
+    struct list       handles; /* TODO: instead of ref */
     UNICODE_STRING    name;
     struct key       *parent;
     int               last_subkey;
@@ -4178,9 +4187,9 @@ struct key
     int               last_value;
     int               nb_values;
     struct key_value *values;
-    DWORD             options;
-    DWORD             access;
-    HKEY              hkey;
+    DWORD             options; /* TODO: move??? */
+    DWORD             access; /* TODO: move */
+    HKEY              hkey; /* TODO: move */
     /* TODO: or just clear keys/values, forcing recreation? (what about held refs?) */
 };
 
