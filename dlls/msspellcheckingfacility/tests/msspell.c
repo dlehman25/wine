@@ -591,7 +591,7 @@ static void test_UserDictionariesRegistrar(void)
     ok(!!dic, "failed to create %ls\n", dicpath);
     fwprintf(dic, L"%s\n", helllo);
     fclose(dic);
-
+todo_wine {
     /* register */
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, NULL, NULL);
     ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
@@ -608,11 +608,12 @@ static void test_UserDictionariesRegistrar(void)
 
     hr = IUserDictionariesRegistrar_RegisterUserDictionary(registrar, dicpath, L"en-US");
     ok(hr == S_OK, "got %x\n", hr);
-
+}
     /* spell check after registering */
     nerrs = count_errors(checker, bad_text);
     ok(nerrs == 0, "got %u\n", nerrs);
 
+todo_wine {
     /* unregister */
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, NULL, NULL);
     ok(hr == E_POINTER || hr == HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER), "got %x\n", hr);
