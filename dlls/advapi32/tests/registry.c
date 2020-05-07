@@ -4272,7 +4272,7 @@ static inline struct key *rc_key_for_hkey(HKEY hkey)
     return map->key;
 }
 
-static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
+static UNICODE_STRING *rc_get_path_token(const UNICODE_STRING *path, UNICODE_STRING *token)
 {
     USHORT i = 0, len = path->Length / sizeof(WCHAR);
 
@@ -4296,7 +4296,7 @@ static UNICODE_STRING *get_path_token(const UNICODE_STRING *path, UNICODE_STRING
 }
 
 /* find the named child of a given key and return its index */
-static struct key *find_subkey(const struct key *key, const UNICODE_STRING *name, int *index)
+static struct key *rc_find_subkey(const struct key *key, const UNICODE_STRING *name, int *index)
 {
     int i, min, max, res;
     USHORT len;
@@ -4329,13 +4329,13 @@ static struct key *rc_open_key_prefix(struct key *key, const UNICODE_STRING *nam
     struct key *subkey;
 
     token->Buffer = NULL;
-    if (!get_path_token(name, token)) return NULL;
+    if (!rc_get_path_token(name, token)) return NULL;
     while (token->Length)
     {
-        if (!(subkey = find_subkey(key, token, index)))
+        if (!(subkey = rc_find_subkey(key, token, index)))
             break;
         key = subkey;
-        get_path_token(name, token);
+        rc_get_path_token(name, token);
     }
     return key;
 }
@@ -4444,14 +4444,14 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
     UNICODE_STRING token;
 
     token.Buffer = NULL;
-    if (!get_path_token(name, &token))
+    if (!rc_get_path_token(name, &token))
         return NULL;
 
     while (token.Length)
     {
-        if (!(subkey = find_subkey(key, &token, &index)))
+        if (!(subkey = rc_find_subkey(key, &token, &index)))
             break;
-        get_path_token(name, &token);
+        rc_get_path_token(name, &token);
     }
 
     current_time = GetTickCount64();
@@ -4462,7 +4462,7 @@ static struct key *rc_create_key_recursive(struct key *key, const UNICODE_STRING
         base = key;
         for (;;)
         {
-            get_path_token(name, &token);
+            rc_get_path_token(name, &token);
             if (!token.Length)
                 break;
             if (!(key = alloc_subkey(key, &token, 0, current_time)))
@@ -4913,7 +4913,7 @@ static BOOL rc_cache_init(void)
     {
         RtlInitUnicodeString(&token, NULL); 
         RtlInitUnicodeString(&path, key);
-        if (!get_path_token(&path, &token))
+        if (!rc_get_path_token(&path, &token))
         {
             WARN("cannot cache %s\n", wine_dbgstr_wn(key, len));
             key += len;
