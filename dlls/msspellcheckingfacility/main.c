@@ -357,8 +357,18 @@ static HRESULT WINAPI SpellCheckProvider_get_OptionIds(ISpellCheckProvider *ifac
 
 static HRESULT WINAPI SpellCheckProvider_get_Id(ISpellCheckProvider *iface, LPWSTR *id)
 {
-    FIXME("(%p %p)\n", iface, id);
-    return E_NOTIMPL;
+    static const WCHAR *msspell = L"MsSpell";
+    TRACE("(%p %p)\n", iface, id);
+
+    if (!id)
+        return E_POINTER;
+
+    *id = CoTaskMemAlloc((wcslen(msspell)+1) * sizeof(WCHAR));
+    if (!*id)
+        return E_OUTOFMEMORY;
+
+    wcscpy(*id, msspell);
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellCheckProvider_get_LocalizedName(ISpellCheckProvider *iface,
