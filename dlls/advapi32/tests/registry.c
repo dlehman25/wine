@@ -4695,7 +4695,6 @@ static BOOL rc_clear_key(HKEY hkey)
 {
     struct key *key;
 
-printf("%s: %p\n", __FUNCTION__, hkey);
     if (!rc_root)
         return FALSE;
 
