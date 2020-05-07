@@ -318,7 +318,8 @@ static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWS
                         IEnumSpellingError **errors)
 {
     FIXME("(%p %s %p)\n", iface, debugstr_w(text), errors);
-    return E_NOTIMPL;
+    *errors = NULL;
+    return S_FALSE;
 }
 
 static HRESULT WINAPI SpellCheckProvider_Suggest(ISpellCheckProvider *iface, LPCWSTR word,
