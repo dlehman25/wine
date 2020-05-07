@@ -78,7 +78,8 @@ static DWORD count_errors(ISpellChecker *checker, LPCWSTR text)
 
     errors = NULL;
     hr = ISpellChecker_Check(checker, text, &errors);
-    ok(hr == S_OK, "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    if (hr == S_FALSE) return 0;
     ok(!!errors, "got NULL\n");
 
     nerrs = 0;
@@ -579,7 +580,7 @@ static void test_UserDictionariesRegistrar(void)
     ok(SUCCEEDED(hr), "got 0x%x\n", hr);
 
     nerrs = count_errors(checker, bad_text);
-    ok(nerrs == 1, "got %u\n", nerrs);
+    todo_wine ok(nerrs == 1, "got %u\n", nerrs);
 
     /* create dictionary */
     GetTempPathW(ARRAY_SIZE(dicpath), dicpath);
@@ -624,10 +625,11 @@ static void test_UserDictionariesRegistrar(void)
     ok(hr == S_OK, "got %x\n", hr);
     hr = IUserDictionariesRegistrar_UnregisterUserDictionary(registrar, dicpath, L"en-US");
     ok(hr == S_FALSE, "got %x\n", hr);
+}
 
     /* spell check after unregistering */
     nerrs = count_errors(checker, bad_text);
-    ok(nerrs == 1, "got %u\n", nerrs);
+    todo_wine ok(nerrs == 1, "got %u\n", nerrs);
 
     DeleteFileW(dicpath);
 
