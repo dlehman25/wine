@@ -67,6 +67,7 @@ typedef struct
 typedef struct
 {
     struct list entry;
+    ULONG len;
     WCHAR str[1];
 } EnumString_node;
 
@@ -192,6 +193,7 @@ static HRESULT EnumString_Add(IEnumString *enumstr, LPCWSTR str)
 
     This = impl_from_IEnumString(enumstr);
     memcpy(node->str, str, len * sizeof(*str));
+    node->len = len;
     node->str[len] = 0;
     list_add_tail(&This->strings, &node->entry);
     return S_OK;
