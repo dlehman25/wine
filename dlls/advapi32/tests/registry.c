@@ -4149,6 +4149,9 @@ static void test_EnumDynamicTimeZoneInformation(void)
     - would want to avoid case where cache limit
       is reached and start round-trips to close handles 
 - recycle keys?
+    - potentially many handles opened
+    - holding references in server - prevent deletes?
+    - can we cache values without the keys?
 - what if key deleted while cached?
 - read ahead with enum key?
 - can't fetch last modified time - extra round-trip
