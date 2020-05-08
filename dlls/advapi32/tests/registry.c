@@ -5026,9 +5026,6 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (token.Length)
         goto not_cached; /* not found */
 
-//    if (!key->hkey)
-//        goto not_cached; /* no hkey opened for this specific path */
-
     if (key->options != options)
         goto not_cached; /* different symlink, wow64 */
 
