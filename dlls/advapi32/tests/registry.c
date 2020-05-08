@@ -5368,6 +5368,17 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
 }
 
 /**************************************/
+/*
+Registry cache
+- caches frequently, recently used keys
+- intended for keys that are read (write/delete invalidates)
+- HKCU\Software\Wine\RegistryCache
+    - KeepCached - MULTISZ - keys to keep cached
+    - HandleLimit - DWORD - limit of handles to cache
+    - MemoryLimit - DWORD - memory limit of cache, including overhead (in MB)
+    - Expiration - DWORD - cached keys are closed after this time (in sec)
+    - Threshold - DWORD - keys accessed this number of times are cached
+*/
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                    REGSAM access, PHKEY retkey)
 {
