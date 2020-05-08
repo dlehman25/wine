@@ -5367,6 +5367,30 @@ LSTATUS WINAPI rc_RegCloseKey(HKEY hkey)
     return RegCloseKey(hkey);
 }
 
+/**************************************/
+LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
+                                                   REGSAM access, PHKEY retkey)
+{
+    return RegOpenKeyExW(hkey, name, options, access, retkey);
+}
+
+LSTATUS WINAPI rc2_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
+                                 LPDWORD reserved, LPWSTR class, LPDWORD class_len, FILETIME *ft)
+{
+    return RegEnumKeyExW(hkey, index, name, name_len, reserved, class, class_len, ft);
+}
+
+LSTATUS WINAPI rc2_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
+                                DWORD flags, DWORD *type, void *data, DWORD *data_len)
+{
+    return RegGetValueW(hkey, subkey, value, flags, type, data, data_len);
+}
+
+LSTATUS WINAPI rc2_RegCloseKey(HKEY hkey)
+{
+    return RegCloseKey(hkey);
+}
+
 static DWORD WINAPI test_cache_proc(void *arg)
 {
     DWORD index, size, i, nloops;
@@ -5376,7 +5400,7 @@ static DWORD WINAPI test_cache_proc(void *arg)
     LSTATUS status;
     DWORD64 s, e;
 
-    status = rc_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+    status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                 L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                 KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
@@ -5387,21 +5411,21 @@ static DWORD WINAPI test_cache_proc(void *arg)
         s = GetTickCount64();
         index = 0;
         size = ARRAY_SIZE(keyname);
-        while (!(status = rc_RegEnumKeyExW(key, index, keyname, &size,
+        while (!(status = rc2_RegEnumKeyExW(key, index, keyname, &size,
                                            NULL, NULL, NULL, NULL)))
         {
             if (0 && nloops == 1) printf("%d: %ls\n", index, keyname);
 
             subkey = NULL;
-            status = rc_RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
+            status = rc2_RegOpenKeyExW(key, keyname, 0, KEY_QUERY_VALUE, &subkey);
 
             size = sizeof(name);
             memset(name, 0, sizeof(name));
-            status = rc_RegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ,
+            status = rc2_RegGetValueW(subkey, NULL, L"Std", RRF_RT_REG_SZ,
                                      NULL, name, &size);
             ok(status == ERROR_SUCCESS, "status %d name %s\n", status, wine_dbgstr_w(name));
 
-            rc_RegCloseKey(subkey);
+            rc2_RegCloseKey(subkey);
             index++;
             size = ARRAY_SIZE(keyname);
         }
@@ -5410,7 +5434,7 @@ static DWORD WINAPI test_cache_proc(void *arg)
                       e - s, (double)(e - s)/nloops);
     }
 
-    rc_RegCloseKey(key);
+    rc2_RegCloseKey(key);
 
     return 0;
 }
