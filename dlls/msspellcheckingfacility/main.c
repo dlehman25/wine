@@ -146,12 +146,22 @@ static ULONG WINAPI EnumString_AddRef(IEnumString *iface)
 static ULONG WINAPI EnumString_Release(IEnumString *iface)
 {
     EnumString *This = impl_from_IEnumString(iface);
+    EnumString_node *node;
+    struct list *head;
     ULONG ref;
 
     TRACE("\n");
     ref = InterlockedDecrement(&This->ref);
     if (ref == 0)
+    {
+        while ((head = list_head(&This->strings)))
+        {
+            list_remove(head);
+            node = LIST_ENTRY(head, EnumString_node, entry);
+            heap_free(node);
+        }
         heap_free(This);
+    }
     return ref;
 }
 
