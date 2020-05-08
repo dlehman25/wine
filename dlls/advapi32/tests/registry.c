@@ -4400,6 +4400,7 @@ static struct key *rc_new_key(const UNICODE_STRING *name)
     }
 
     key->ref = 1;
+    list_init(&key->handles);
     key->last_subkey = -1;
     key->last_value  = -1;
     return key;
@@ -4599,8 +4600,6 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (!rc_root)
         goto not_cacheable;
 
-    /* TODO: already cached? another thread beat us to it? */
-
     if (!(root = rc_key_for_hkey(hroot)))
         goto not_cacheable;
 
@@ -4608,28 +4607,35 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (!(key = rc_open_key_prefix(root, &us_name, &token, &index)))
         goto not_cacheable;
 
-    /* TODO: is invalid? recreate? */
+    /* TODO: can we even cache this key (under a registered key?) */
 
     if (token.Length && !(key = rc_create_key_recursive(root, &us_name)))
-        goto not_cacheable;
+        goto not_cacheable; /* not found and can't create */
 
     access = rc_key_map_access(access);
     if (!access)
-        goto not_cacheable;
+        goto not_cacheable; /* TODO ?? but if we're in put, then access is ok */
 
-    /* TODO: race condition - could already be cached as different hkey */
+    /* between open and put, another thread could cache [hkey, access] pair */
+    if ((hkey == rc_hkey_from_access(key, access)))
+        goto not_cacheable; /* already cached other hkey with same access */
+
     if (!rc_put_hkey_access(key, hkey, access))
         goto not_cacheable; /* out of memory adding key */
 
     key->options = options;
     if (!rc_map_hkey_to_key(hkey, key))
         goto not_cacheable;
-    
+
     LeaveCriticalSection(&rc_lock);
     return TRUE;
 
 not_cacheable:
-    if (key) rc_release_key(key);
+    if (key)
+    {
+        rc_remove_hkey_from_key(key, hkey);
+        rc_release_key(key); /* TODO */
+    }
     LeaveCriticalSection(&rc_lock);
     return FALSE;
 }
