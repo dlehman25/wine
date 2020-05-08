@@ -4188,8 +4188,6 @@ struct key
     int               nb_values;
     struct key_value *values;
     DWORD             options; /* TODO: move??? */
-    DWORD             access; /* TODO: move */
-    HKEY              hkey; /* TODO: move */
     /* TODO: or just clear keys/values, forcing recreation? (what about held refs?) */
 };
 
@@ -4234,6 +4232,49 @@ static void rc_release_key(struct key *key)
     return; /* TODO: leave cached for now in case reopen */
     RtlFreeUnicodeString(&key->name);
     heap_free(key);
+}
+
+static inline HKEY rc_hkey_from_access(struct key *key, DWORD access)
+{
+    struct key_handle *handle;
+
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct key_handle, entry)
+    {
+        if (handle->access == access)
+            return handle->hkey; /* TODO: addref(key)?? */            
+    }
+
+    return NULL;
+}
+
+static inline BOOL rc_put_hkey_access(struct key *key, HKEY hkey, DWORD access)
+{
+    struct key_handle *handle;
+
+    if (!(handle = heap_alloc(sizeof(*handle))))
+        return FALSE;
+
+    handle->ref = 1;
+    handle->hkey = hkey;
+    handle->access = access;
+    list_add_tail(&key->handles, &handle->entry);
+    return TRUE;
+}
+
+static inline void rc_remove_hkey_from_key(struct key *key, HKEY hkey)
+{
+    struct key_handle *handle;
+
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct key_handle, entry)
+    {
+        if (handle->hkey == hkey)
+        {
+            /* TODO: release??? */
+            list_remove(&handle->entry);
+            heap_free(handle);
+            return;
+        }
+    }
 }
 
 static inline BOOL rc_map_hkey_to_key(HKEY hkey, struct key *key)
@@ -4432,8 +4473,9 @@ static void rc_free_subkey(struct key *parent, int index)
     }
 
     /* delete values */
-    if (key->hkey)
-        rc_unmap_hkey(key->hkey);
+    /* TODO */
+    // if (key->hkey)
+    //    rc_unmap_hkey(key->hkey);
 
     for (i = 0; i <= key->last_value; i++)
     {
@@ -4519,10 +4561,10 @@ static void rc_dump_key(const struct key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s keys %d/%d values %d/%d ref %d access 0x%x hkey %p\n",
+    printf("%s keys %d/%d values %d/%d ref %d\n",
         wine_dbgstr_wn(key->name.Buffer, key->name.Length/sizeof(WCHAR)),
         key->last_subkey+1, key->nb_subkeys,
-        key->last_value+1, key->nb_values, key->ref, key->access, key->hkey);
+        key->last_value+1, key->nb_values, key->ref);
     for (i = 0; i <= key->last_subkey; i++)
         rc_dump_key(key->subkeys[i], depth+4);
     for (i = 0; i <= key->last_value; i++)
@@ -4575,9 +4617,11 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
     if (!access)
         goto not_cacheable;
 
-    key->access = access; /* access per-handle? */
+    /* TODO: race condition - could already be cached as different hkey */
+    if (!rc_put_hkey_access(key, hkey, access))
+        goto not_cacheable; /* out of memory adding key */
+
     key->options = options;
-    key->hkey = hkey; /* TODO */
     if (!rc_map_hkey_to_key(hkey, key))
         goto not_cacheable;
     
@@ -4630,8 +4674,9 @@ static int rc_delete_key(struct key *key, int recurse)
     }
 
     /* cannot delete cache roots */
-    if (key->hkey && rc_is_cache_root(key->hkey))
-        return -1;
+    /* TODO */
+    //if (key->hkey && rc_is_cache_root(key->hkey))
+    //    return -1;
 
     for (index = 0; index < parent->last_subkey; index++)
         if (parent->subkeys[index] == key)
@@ -4981,18 +5026,18 @@ static BOOL WINAPI rc_open_key(HKEY hkey, LPCWSTR name, DWORD options,
     if (token.Length)
         goto not_cached; /* not found */
 
-    if (!key->hkey)
-        goto not_cached; /* no hkey opened for this specific path */
+//    if (!key->hkey)
+//        goto not_cached; /* no hkey opened for this specific path */
 
     if (key->options != options)
         goto not_cached; /* different symlink, wow64 */
 
     access = rc_key_map_access(access);
-    if (key->access != access)
-        goto not_cached;
+    if (!(hkey = rc_hkey_from_access(key, access)))
+        goto not_cached; /* no hkey cached for this access */
 
     rc_addref_key(key);
-    *retkey = key->hkey;
+    *retkey = hkey;
     return TRUE;
 
 not_cached:
