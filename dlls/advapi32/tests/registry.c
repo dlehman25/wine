@@ -4559,13 +4559,19 @@ static void rc_dump_value(const struct key_value *value, int depth)
 static void rc_dump_key(const struct key *key, int depth)
 {
     int i;
+    struct key_handle *handle;
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s keys %d/%d values %d/%d ref %d\n",
+    printf("%s keys %d/%d values %d/%d ref %d",
         wine_dbgstr_wn(key->name.Buffer, key->name.Length/sizeof(WCHAR)),
         key->last_subkey+1, key->nb_subkeys,
         key->last_value+1, key->nb_values, key->ref);
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct key_handle, entry)
+    {
+        printf(" [%p, 0x%x]", handle->hkey, handle->access);
+    }
+    printf("\n");
     for (i = 0; i <= key->last_subkey; i++)
         rc_dump_key(key->subkeys[i], depth+4);
     for (i = 0; i <= key->last_value; i++)
