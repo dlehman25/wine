@@ -4157,6 +4157,10 @@ static void test_EnumDynamicTimeZoneInformation(void)
 - can't fetch last modified time - extra round-trip
     - add to wineserver message?
     - use client-side (last cached)
+- only cache handles open X number of times?
+    - wouldn't waste handles for one-offs
+    - not too complicated a scheme
+    - might be able to do away with registering keys?
 */
 
 WINE_DEFAULT_DEBUG_CHANNEL(registry);
