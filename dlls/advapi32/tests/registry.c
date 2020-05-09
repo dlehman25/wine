@@ -5507,6 +5507,15 @@ static void rc2_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
     */
 }
 
+static void rc2_delete_key(HKEY hkey, LPCWSTR subkey)
+{
+    /*
+    return if not cached
+
+    delete subkeys, close any references
+    */
+}
+
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                    REGSAM access, PHKEY retkey)
 {
@@ -5563,6 +5572,13 @@ LSTATUS WINAPI rc2_RegCloseKey(HKEY hkey)
         return STATUS_SUCCESS;
 
     return RegCloseKey(hkey);
+}
+
+LSTATUS WINAPI rc2_RegDeleteKeyW(HKEY hkey, LPCWSTR subkey)
+{
+    rc2_delete_key(hkey, subkey);
+
+    return RegDeleteKeyW(hkey, subkey);
 }
 
 static DWORD WINAPI test_cache_proc(void *arg)
