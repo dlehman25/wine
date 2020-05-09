@@ -5379,10 +5379,98 @@ Registry cache
     - Expiration - DWORD - cached keys are closed after this time (in sec)
     - Threshold - DWORD - keys accessed this number of times are cached
 */
+
+static BOOL rc2_cache_init(void)
+{
+    /* disabled if RegistryCache doesn't exist */
+
+    /* fetch settings - create defaults if they don't exist */
+
+    /* create internal structures */
+
+    return FALSE;
+}
+
+static BOOL rc2_cache_term(void)
+{
+    /* bail if disabled */
+
+    /* free internal structures */
+
+    return FALSE;
+}
+
+/* opening key */
+static BOOL WINAPI rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
+                                REGSAM access, PHKEY retkey)
+{
+    /*
+    ignore if volatile
+
+    return if can't resolve path to key
+        // can be invalid or just not seen yet
+
+    if opening for read-only
+        increment times, last used now
+        if was zero, remove from purge list
+        return key if cached with given access, addref // caller holding ref to internal key
+
+    if opening for write/create (non-delete) // don't write-through, catch it on read
+        zero times, last used invalid
+        invalidate key // free values and unrefed subkeys
+
+    if opening for delete // can't delete key with open subkeys
+        zero times, last used invalid
+        delete key // free values, close subkeys
+    */
+
+    return FALSE;
+}
+
+static LSTATUS WINAPI rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
+                                  REGSAM access, HKEY hkey)
+{
+    /* // we only cache success - wineserver has already validated arguments
+    ignore if volatile
+
+    create path to key, if needed
+
+    return if not read-only
+
+    if times read is above threshold
+        ignore if already cached with given access // other thread won
+        if reached handle/memory limit
+            purge unrefed cached keys
+        add to cache with access, addref // first reference
+    */
+
+    return E_NOTIMPL;
+}
+
+static BOOL WINAPI rc2_close_key(HKEY hkey)
+{
+    /*
+    return if not cached
+ 
+    decremeent times
+    if zero, add to possible purge list
+    */
+    return FALSE;
+}
+
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                    REGSAM access, PHKEY retkey)
 {
-    return RegOpenKeyExW(hkey, name, options, access, retkey);
+    LSTATUS status;
+
+    if (rc2_open_key(hkey, name, options, access, retkey))
+        return STATUS_SUCCESS;
+
+    status = RegOpenKeyExW(hkey, name, options, access, retkey);
+    if (status == STATUS_SUCCESS)
+        rc2_put_key(hkey, name, options, access, *retkey);
+
+    return status;
 }
 
 LSTATUS WINAPI rc2_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
@@ -5399,6 +5487,9 @@ LSTATUS WINAPI rc2_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 
 LSTATUS WINAPI rc2_RegCloseKey(HKEY hkey)
 {
+    if (rc2_close_key(hkey))
+        return STATUS_SUCCESS;
+
     return RegCloseKey(hkey);
 }
 
