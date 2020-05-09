@@ -5458,6 +5458,31 @@ static BOOL WINAPI rc2_close_key(HKEY hkey)
     return FALSE;
 }
 
+static BOOL rc2_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
+{
+    /*
+    return if not cached
+
+    return if index not cached // invalid or just not cached
+
+    fill name if enough room
+    */
+    return FALSE;
+}
+
+static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
+{
+    /* // index is valid
+    return if not cached // other thread removed it
+
+     if index already cached // other thread beat us
+        compare new value with cached
+        invalidate key if mismatch
+
+    add to subkeys
+    */
+}
+
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                    REGSAM access, PHKEY retkey)
 {
@@ -5476,7 +5501,17 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWOR
 LSTATUS WINAPI rc2_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD name_len,
                                  LPDWORD reserved, LPWSTR class, LPDWORD class_len, FILETIME *ft)
 {
-    return RegEnumKeyExW(hkey, index, name, name_len, reserved, class, class_len, ft);
+    LSTATUS status;
+
+    const BOOL use_cache = !reserved && !class && !class_len && !ft;
+    if (use_cache && rc2_enum_key(hkey, index, name, name_len))
+        return STATUS_SUCCESS;
+
+    status = RegEnumKeyExW(hkey, index, name, name_len, reserved, class, class_len, ft);
+    if (use_cache && status == STATUS_SUCCESS)
+        rc2_enum_put_key(hkey, index, name, *name_len);
+
+    return status;
 }
 
 LSTATUS WINAPI rc2_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
