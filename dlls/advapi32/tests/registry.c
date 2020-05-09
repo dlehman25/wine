@@ -5373,10 +5373,7 @@ Registry cache
 - caches frequently, recently used keys
 - intended for keys that are read (write/delete invalidates)
 - HKCU\Software\Wine\RegistryCache
-    - KeepCached - MULTISZ - keys to keep cached // what access?
     - HandleLimit - DWORD - limit of handles to cache
-    - MemoryLimit - DWORD - memory limit of cache, including overhead (in MB)
-    - Expiration - DWORD - cached keys are closed after this time (in sec) // needed with limits?
     - Threshold - DWORD - keys accessed this number of times are cached
 */
 
@@ -5406,13 +5403,7 @@ static BOOL rc2_cache_init(void)
 
     /* fetch settings - create defaults if they don't exist */
 
-    /*
-    create internal structures
-        create registry root
-
-    for each KeepCached
-        add open and add to cached
-    */
+    /* create internal structures */
 
     return FALSE;
 }
