@@ -5389,6 +5389,8 @@ static DWORD WINAPI rc2_purge(void *arg)
 static DWORD WINAPI rc2_handle_notification(void *arg)
 {
     /*
+    return if caching disabled
+
     return if not cached
 
     invalidate key
@@ -5422,6 +5424,8 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
                          REGSAM access, PHKEY retkey)
 {
     /*
+    return if caching disabled
+
     ignore if volatile
 
     return if can't resolve path to key
@@ -5433,10 +5437,12 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
         return key if cached with given access, addref // caller holding ref to internal key
             // add to notification
 
+    // or just wait for notification?
     if opening for write/create (non-delete) // don't write-through, catch it on read
         zero times, last used invalid
         invalidate key // free values and unrefed subkeys
 
+    // or just wait for delete call?
     if opening for delete // can't delete key with open subkeys
         zero times, last used invalid
         delete key // free values, close subkeys
@@ -5449,6 +5455,8 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
                            REGSAM access, HKEY hkey)
 {
     /* // we only cache success - wineserver has already validated arguments
+    return if caching disabled
+
     ignore if volatile
 
     create path to key, if needed
@@ -5468,6 +5476,8 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
 static BOOL rc2_close_key(HKEY hkey)
 {
     /*
+    return if caching disabled
+
     return if not cached
  
     decremeent times
@@ -5479,6 +5489,8 @@ static BOOL rc2_close_key(HKEY hkey)
 static BOOL rc2_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
 {
     /*
+    return if caching disabled
+
     return if not cached
 
     return if index not cached // invalid or just not cached
@@ -5491,6 +5503,8 @@ static BOOL rc2_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
 static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
 {
     /* // index is valid
+    return if caching disabled
+
     return if not cached // other thread removed it
 
      if index already cached // other thread beat us
@@ -5505,6 +5519,8 @@ static BOOL rc2_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
                           DWORD flags, DWORD *type, void *data, DWORD *data_len)
 {
     /*
+    return if caching disabled
+
     return if not cached
 
     return for unsupported flags
@@ -5519,6 +5535,8 @@ static void rc2_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
                           DWORD flags, DWORD type, const void *data, DWORD data_len)
 {
     /*
+    return if caching disabled
+
     return if not cached
 
     copy value
@@ -5528,6 +5546,8 @@ static void rc2_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
 static void rc2_delete_key(HKEY hkey, LPCWSTR subkey)
 {
     /*
+    return if caching disabled
+
     return if not cached
 
     delete subkeys, close any references
