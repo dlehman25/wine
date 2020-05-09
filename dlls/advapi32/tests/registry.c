@@ -5483,6 +5483,30 @@ static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len
     */
 }
 
+static BOOL rc2_get_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
+                          DWORD flags, DWORD *type, void *data, DWORD *data_len)
+{
+    /*
+    return if not cached
+
+    return for unsupported flags
+
+    copy type
+    copy value if enough room
+    */
+    return FALSE;
+}
+
+static void rc2_put_value(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
+                          DWORD flags, DWORD type, const void *data, DWORD data_len)
+{
+    /*
+    return if not cached
+
+    copy value
+    */
+}
+
 LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWORD options,
                                                    REGSAM access, PHKEY retkey)
 {
@@ -5517,7 +5541,20 @@ LSTATUS WINAPI rc2_RegEnumKeyExW(HKEY hkey, DWORD index, LPWSTR name, LPDWORD na
 LSTATUS WINAPI rc2_RegGetValueW(HKEY hkey, LPCWSTR subkey, LPCWSTR value,
                                 DWORD flags, DWORD *type, void *data, DWORD *data_len)
 {
-    return RegGetValueW(hkey, subkey, value, flags, type, data, data_len);
+    LSTATUS status;
+    DWORD dummy_type;
+
+    if (!type)
+        type = &dummy_type;
+
+    if (rc2_get_value(hkey, subkey, value, flags, type, data, data_len))
+        return STATUS_SUCCESS;
+
+    status = RegGetValueW(hkey, subkey, value, flags, type, data, data_len);
+    if (status == STATUS_SUCCESS)
+        rc2_put_value(hkey, subkey, value, flags, *type, data, *data_len);
+
+    return status;
 }
 
 LSTATUS WINAPI rc2_RegCloseKey(HKEY hkey)
