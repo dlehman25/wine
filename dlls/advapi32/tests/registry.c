@@ -5373,12 +5373,32 @@ Registry cache
 - caches frequently, recently used keys
 - intended for keys that are read (write/delete invalidates)
 - HKCU\Software\Wine\RegistryCache
-    - KeepCached - MULTISZ - keys to keep cached
+    - KeepCached - MULTISZ - keys to keep cached // what access?
     - HandleLimit - DWORD - limit of handles to cache
     - MemoryLimit - DWORD - memory limit of cache, including overhead (in MB)
-    - Expiration - DWORD - cached keys are closed after this time (in sec)
+    - Expiration - DWORD - cached keys are closed after this time (in sec) // needed with limits?
     - Threshold - DWORD - keys accessed this number of times are cached
 */
+
+static DWORD WINAPI rc2_purge(void *arg)
+{
+    /*
+    for each hkey
+        close key
+    */
+    return 0;
+}
+
+static DWORD WINAPI rc2_handle_notification(void *arg)
+{
+    /*
+    return if not cached
+
+    invalidate key
+    add to notification
+    */
+    return 0;
+}
 
 static BOOL rc2_cache_init(void)
 {
@@ -5386,7 +5406,13 @@ static BOOL rc2_cache_init(void)
 
     /* fetch settings - create defaults if they don't exist */
 
-    /* create internal structures */
+    /*
+    create internal structures
+        create registry root
+
+    for each KeepCached
+        add open and add to cached
+    */
 
     return FALSE;
 }
@@ -5401,8 +5427,8 @@ static BOOL rc2_cache_term(void)
 }
 
 /* opening key */
-static BOOL WINAPI rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
-                                REGSAM access, PHKEY retkey)
+static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
+                         REGSAM access, PHKEY retkey)
 {
     /*
     ignore if volatile
@@ -5414,6 +5440,7 @@ static BOOL WINAPI rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
         increment times, last used now
         if was zero, remove from purge list
         return key if cached with given access, addref // caller holding ref to internal key
+            // add to notification
 
     if opening for write/create (non-delete) // don't write-through, catch it on read
         zero times, last used invalid
@@ -5427,8 +5454,8 @@ static BOOL WINAPI rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     return FALSE;
 }
 
-static LSTATUS WINAPI rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
-                                  REGSAM access, HKEY hkey)
+static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
+                           REGSAM access, HKEY hkey)
 {
     /* // we only cache success - wineserver has already validated arguments
     ignore if volatile
@@ -5447,7 +5474,7 @@ static LSTATUS WINAPI rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
     return E_NOTIMPL;
 }
 
-static BOOL WINAPI rc2_close_key(HKEY hkey)
+static BOOL rc2_close_key(HKEY hkey)
 {
     /*
     return if not cached
