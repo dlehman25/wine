@@ -5407,11 +5407,11 @@ struct rc2_key
     struct list         handles;
     struct rc2_key     *parent;
     struct rc2_key    **subkeys;
-    DWORD               numkeys;
-    DWORD               maxkeys;
+    int                 numkeys;
+    int                 maxkeys;
     struct rc2_value  **values;
-    DWORD               numvalues;
-    DWORD               maxvalues;
+    int                 numvalues;
+    int                 maxvalues;
 };
 
 static DWORD WINAPI rc2_purge(void *arg)
@@ -5521,6 +5521,26 @@ static struct rc2_key *rc2_key_new(const struct rc2_str *str)
 static struct rc2_key *rc2_find_subkey(const struct rc2_key *key, const struct rc2_str *name,
                                        int *index)
 {
+    int i, min, max, res;
+    DWORD len;
+
+    min = 0;
+    max = key->numkeys - 1;
+    while (min <= max)
+    {
+        i = (min + max) / 2;
+        len = min(key->subkeys[i]->name.len, name->len);
+        res = _memicmp(key->subkeys[i]->name.str, name->str, len);
+        if (!res) res = key->subkeys[i]->name.len - name->len;
+        if (!res)
+        {
+            *index = i;
+            return key->subkeys[i];
+        }
+        if (res > 0) max = i - 1;
+        else min = i + 1;
+    }
+    *index = min;  /* this is where we should insert it */
     return NULL;
 }
 
@@ -5541,6 +5561,28 @@ static struct rc2_key *rc2_open_key_prefix(struct rc2_key *key, const struct rc2
         rc2_get_path_token(name, token);
     }
     return key;
+}
+
+static int rc2_grow_subkeys(struct rc2_key *key)
+{
+    struct rc2_key **new_subkeys;
+    int numkeys;
+
+    if (!key->subkeys)
+    {
+        numkeys = MIN_SUBKEYS;
+        if (!(new_subkeys = heap_alloc(numkeys * sizeof(*new_subkeys))))
+            return 0;
+    }
+    else
+    {
+        numkeys = key->numkeys + (key->numkeys / 2);
+        if (!(new_subkeys = heap_realloc(key->subkeys, numkeys * sizeof(*new_subkeys))))
+            return 0;
+    }
+    key->subkeys = new_subkeys;
+    key->numkeys = numkeys;
+    return numkeys;
 }
 
 static struct rc2_key *rc2_alloc_subkey(struct rc2_key *parent, const struct rc2_str *name,
