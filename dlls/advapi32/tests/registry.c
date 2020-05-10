@@ -5438,6 +5438,15 @@ static DWORD WINAPI rc2_handle_notification(void *arg)
 
 static DWORD rc2_handle_limit = 64;
 static DWORD rc2_threshold = 16;
+static CRITICAL_SECTION rc2_lock;
+static CRITICAL_SECTION_DEBUG rc2_lock_debug =
+{
+    0, 0, &rc2_lock,
+    { &rc2_lock_debug.ProcessLocksList, &rc2_lock_debug.ProcessLocksList },
+    0, 0, { (DWORD_PTR)(__FILE__ ": rc2_lock") }
+};
+static CRITICAL_SECTION rc2_lock = { &rc2_lock_debug, -1, 0, 0, 0, 0 };
+struct rc2_key *rc2_root;
 
 static struct rc2_key *rc2_key_from_hkey(HKEY hkey)
 {
