@@ -5483,6 +5483,23 @@ static void rc2_dump_key(const struct rc2_key *key, int depth)
         rc2_dump_key(key->subkeys[i], depth+4);
 }
 
+static struct rc2_str *rc2_get_path_token(const struct rc2_str *path, struct rc2_str *token)
+{
+    DWORD i;
+
+    i = 0;
+    if (token->str)
+    {
+        i = token->str - path->str;
+        i += token->len;
+        while (i < path->len && path->str[i] == '\\') i++;
+    }
+    token->str = path->str + i;
+    while (i < path->len && path->str[i] != '\\') i++;
+    token->len = path->str + i - token->str;
+    return token->len ? token : NULL;
+}
+
 static struct rc2_key *rc2_key_new(const struct rc2_str *str)
 {
     struct rc2_key *key;
