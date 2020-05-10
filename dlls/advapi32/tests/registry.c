@@ -5377,6 +5377,43 @@ Registry cache
     - Threshold - DWORD - keys accessed this number of times are cached
 */
 
+struct rc2_str
+{
+    WCHAR *str;
+    DWORD  len;
+};
+
+struct rc2_value
+{
+    struct rc2_str  name;
+    DWORD           type;
+    DWORD           len;
+    BYTE           *data;
+};
+
+struct r2_handle
+{
+    struct list entry;
+    HKEY        hkey;
+    DWORD       access;
+    DWORD       ref;
+};
+
+struct rc2_key
+{
+    DWORD               ref;
+    DWORD64             updated;
+    struct rc2_str      name;
+    struct list         handles;
+    struct rc2_key     *parent;
+    struct rc2_key    **subkeys;
+    DWORD               numkeys;
+    DWORD               maxkeys;
+    struct rc2_value  **values;
+    DWORD               numvalues;
+    DWORD               maxvalues;
+};
+
 static DWORD WINAPI rc2_purge(void *arg)
 {
     /*
@@ -5397,6 +5434,14 @@ static DWORD WINAPI rc2_handle_notification(void *arg)
     add to notification
     */
     return 0;
+}
+
+static DWORD rc2_handle_limit = 64;
+static DWORD rc2_threshold = 16;
+
+static struct rc2_key *rc2_key_from_hkey(HKEY hkey)
+{
+    return NULL;
 }
 
 static BOOL rc2_cache_init(void)
