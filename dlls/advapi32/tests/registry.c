@@ -5446,13 +5446,44 @@ static struct rc2_key *rc2_key_from_hkey(HKEY hkey)
 
 static BOOL rc2_cache_init(void)
 {
+    DWORD size, value;
+    LSTATUS status;
+    HKEY hkeyrc;
+
     /* disabled if RegistryCache doesn't exist */
+    if (RegOpenKeyW(HKEY_CURRENT_USER, L"Software\\Wine\\RegistryCache", &hkeyrc))
+        return FALSE;
 
     /* fetch settings - create defaults if they don't exist */
+    value = 0;
+    size = sizeof(value);
+    if (!(status = pRegGetValueW(hkeyrc, NULL, L"Threshold", RRF_RT_REG_DWORD,
+                                 NULL, &value, &size)))
+    {
+        rc2_threshold = value;
+    }
+    else if (status == ERROR_FILE_NOT_FOUND)
+    {
+        RegSetValueExW(hkeyrc, L"Threshold", 0, REG_DWORD,
+                       (const BYTE *)&rc2_threshold, sizeof(rc2_threshold));
+    }
+
+    value = 0;
+    size = sizeof(value);
+    if (!(status = pRegGetValueW(hkeyrc, NULL, L"HandleLimit", RRF_RT_REG_DWORD,
+                                 NULL, &value, &size)))
+    {
+        rc2_handle_limit = value;
+    }
+    else if (status == ERROR_FILE_NOT_FOUND)
+    {
+        RegSetValueExW(hkeyrc, L"HandleLimit", 0, REG_DWORD,
+                       (const BYTE *)&rc2_handle_limit, sizeof(rc2_handle_limit));
+    }
 
     /* create internal structures */
-
-    return FALSE;
+    RegCloseKey(hkeyrc);
+    return TRUE;
 }
 
 static BOOL rc2_cache_term(void)
@@ -5718,6 +5749,9 @@ static void test_cache(void)
     DWORD64 s, e;
     LONG32 nloops;
     int i;
+
+    rc2_cache_init();
+    return;
 
     rc_cache_init();
 
