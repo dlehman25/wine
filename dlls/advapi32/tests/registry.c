@@ -5469,6 +5469,20 @@ static inline struct rc2_str *rc2_strdup(struct rc2_str *dst, const struct rc2_s
     return dst;
 }
 
+static void rc2_dump_key(const struct rc2_key *key, int depth)
+{
+    int i;
+
+    for (i = 0; i < depth; i++)
+        printf(" ");
+    printf("%s\n", wine_dbgstr_wn(key->name.str, key->name.len));
+    if (!key->subkeys)
+        return;
+
+    for (i = 0; i < key->numkeys; i++)
+        rc2_dump_key(key->subkeys[i], depth+4);
+}
+
 static struct rc2_key *rc2_key_new(const struct rc2_str *str)
 {
     struct rc2_key *key;
@@ -5531,6 +5545,7 @@ static BOOL rc2_cache_init(void)
     if (!(rc2_root = rc2_key_new(&name)))
         return FALSE;
 
+    rc2_dump_key(rc2_root, 0);
     return TRUE;
 }
 
