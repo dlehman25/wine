@@ -5513,12 +5513,84 @@ static struct rc2_key *rc2_key_new(const struct rc2_str *str)
         return NULL;
     }
 
+    key->ref = 1;
     list_init(&key->handles);
     return key;
 }
 
+static struct rc2_key *rc2_find_subkey(const struct rc2_key *key, const struct rc2_str *name,
+                                       int *index)
+{
+    return NULL;
+}
+
+static struct rc2_key *rc2_open_key_prefix(struct rc2_key *key, const struct rc2_str *name,
+                                           struct rc2_str *token, int *index)
+{
+    struct rc2_key *subkey;
+
+    token->str = NULL;
+    if (!rc2_get_path_token(name, token))
+        return NULL;
+
+    while (token->len)
+    {
+        if (!(subkey = rc2_find_subkey(key, token, index)))
+            break;
+        key = subkey;
+        rc2_get_path_token(name, token);
+    }
+    return key;
+}
+
+static struct rc2_key *rc2_alloc_subkey(struct rc2_key *parent, const struct rc2_str *name,
+                                        int index)
+{
+    return NULL;
+}
+
+static void rc2_free_key_recursive(struct rc2_key *key, int index)
+{
+}
+
+static struct rc2_key *rc2_create_key_recursive(struct rc2_key *key, const struct rc2_str *name)
+{
+    struct rc2_key *base, *subkey;
+    struct rc2_str token;
+    int index;
+
+    if (!(subkey = rc2_open_key_prefix(key, name, &token, &index)))
+        return NULL;
+
+    if (token.len)
+    {
+        if (!(key = rc2_alloc_subkey(key, &token, index)))
+            return NULL;
+        base = key;
+        while (rc2_get_path_token(name, &token))
+        {
+            if (!(key = rc2_alloc_subkey(key, &token, 0)))
+            {
+                rc2_free_key_recursive(base, index);
+                return NULL;
+            }
+        }
+    }
+
+    return key;
+}
+
+static BOOL rc2_cache_term(void)
+{
+    /* bail if disabled */
+
+    /* free internal structures */
+    return FALSE;
+}
+
 static BOOL rc2_cache_init(void)
 {
+    struct rc2_key *hklm;
     struct rc2_str name;
     DWORD size, value;
     LSTATUS status;
@@ -5562,16 +5634,17 @@ static BOOL rc2_cache_init(void)
     if (!(rc2_root = rc2_key_new(&name)))
         return FALSE;
 
+rc2_dump_key(rc2_root, 0);
+
+    rc2_str_init(&name, L"Machine");
+    if (!(hklm = rc2_create_key_recursive(rc2_root, &name)))
+        goto error;
+
     rc2_dump_key(rc2_root, 0);
     return TRUE;
-}
 
-static BOOL rc2_cache_term(void)
-{
-    /* bail if disabled */
-
-    /* free internal structures */
-
+error:
+    rc2_cache_term();
     return FALSE;
 }
 
