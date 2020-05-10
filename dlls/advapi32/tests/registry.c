@@ -5453,8 +5453,42 @@ static struct rc2_key *rc2_key_from_hkey(HKEY hkey)
     return NULL;
 }
 
+static inline void rc2_str_init(struct rc2_str *obj, const WCHAR *str)
+{
+    obj->str = (WCHAR *)str;
+    obj->len = wcslen(str);
+}
+
+static inline struct rc2_str *rc2_strdup(struct rc2_str *dst, const struct rc2_str *src)
+{
+    if (!(dst->str = heap_alloc((src->len + 1) * sizeof(WCHAR))))
+        return NULL;
+    memcpy(dst->str, src->str, src->len * sizeof(WCHAR));
+    dst->str[src->len] = 0;
+    dst->len = src->len;
+    return dst;
+}
+
+static struct rc2_key *rc2_key_new(const struct rc2_str *str)
+{
+    struct rc2_key *key;
+
+    if (!(key = heap_alloc_zero(sizeof(*key))))
+        return NULL;
+
+    if (!rc2_strdup(&key->name, str))
+    {
+        heap_free(key);
+        return NULL;
+    }
+
+    list_init(&key->handles);
+    return key;
+}
+
 static BOOL rc2_cache_init(void)
 {
+    struct rc2_str name;
     DWORD size, value;
     LSTATUS status;
     HKEY hkeyrc;
@@ -5490,8 +5524,13 @@ static BOOL rc2_cache_init(void)
                        (const BYTE *)&rc2_handle_limit, sizeof(rc2_handle_limit));
     }
 
-    /* create internal structures */
     RegCloseKey(hkeyrc);
+
+    /* create internal structures */
+    rc2_str_init(&name, L"\\Registry\\");
+    if (!(rc2_root = rc2_key_new(&name)))
+        return FALSE;
+
     return TRUE;
 }
 
