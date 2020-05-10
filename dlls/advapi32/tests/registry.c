@@ -5570,21 +5570,13 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     return if can't resolve path to key
         // can be invalid or just not seen yet
 
-    if opening for read-only
-        increment times, last used now
-        if was zero, remove from purge list
-        return key if cached with given access, addref // caller holding ref to internal key
-            // add to notification
+    return if opening for read-only
+    // if writing or deleting, we'll be notified later and invalidate
 
-    // or just wait for notification?
-    if opening for write/create (non-delete) // don't write-through, catch it on read
-        zero times, last used invalid
-        invalidate key // free values and unrefed subkeys
-
-    // or just wait for delete call?
-    if opening for delete // can't delete key with open subkeys
-        zero times, last used invalid
-        delete key // free values, close subkeys
+    increment times, last used now
+    if was zero, remove from purge list
+    return key if cached with given access, addref // caller holding ref to internal key
+        // add to notification
     */
 
     return FALSE;
