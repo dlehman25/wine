@@ -5782,6 +5782,10 @@ error:
 static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
                          REGSAM access, PHKEY retkey)
 {
+    struct rc2_key *root, *key;
+    struct rc2_str path, token;
+    int index;
+
     /*
     return if caching disabled
 
@@ -5805,6 +5809,15 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     if (options)
         goto not_cached;
 
+    if (!(root = rc2_key_from_hkey(hroot)))
+        goto not_cached;
+
+    rc2_str_init(&path, name);
+    if (!(key = rc2_open_key_prefix(root, &path, &token, &index)) &&
+        !(key = rc2_create_key_recursive(root, &path)))
+        goto not_cached;
+
+    printf("%s: key %p (%s)\n", __FUNCTION__, key, wine_dbgstr_wn(path.str, path.len));
 
 not_cached:
     LeaveCriticalSection(&rc2_lock);
