@@ -5402,6 +5402,7 @@ struct r2_handle
 struct rc2_key
 {
     DWORD               ref;
+    DWORD               accessed;
     DWORD64             updated;
     struct rc2_str      name;
     struct list         handles;
@@ -5487,6 +5488,17 @@ static inline struct rc2_key *rc2_key_from_hkey(HKEY hkey)
 
     map = WINE_RB_ENTRY_VALUE(node, struct rc2_keymap, entry);
     return map->key;
+}
+
+static inline HKEY rc2_hkey_from_access(struct rc2_key *key, REGSAM access)
+{
+    return NULL;
+}
+
+static inline void rc2_key_addref(struct rc2_key *key)
+{
+    printf("%s: semi-stub\n", __FUNCTION__);
+    key->ref++;
 }
 
 static inline void rc2_str_init(struct rc2_str *obj, const WCHAR *str)
@@ -5802,6 +5814,10 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     return key if cached with given access, addref // caller holding ref to internal key
         // add to notification
     */
+
+    if (!hroot || !name || !retkey)
+        return FALSE;
+
     EnterCriticalSection(&rc2_lock);
     if (!rc2_root)
         goto not_cached;
@@ -5817,7 +5833,17 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
         !(key = rc2_create_key_recursive(root, &path)))
         goto not_cached;
 
+    if (!(*retkey = rc2_hkey_from_access(key, access)))
+    {
+        key->accessed++;
+        goto not_cached;
+    }
+
+    rc2_key_addref(key);
+
     printf("%s: key %p (%s)\n", __FUNCTION__, key, wine_dbgstr_wn(path.str, path.len));
+    LeaveCriticalSection(&rc2_lock);
+    return TRUE;
 
 not_cached:
     LeaveCriticalSection(&rc2_lock);
