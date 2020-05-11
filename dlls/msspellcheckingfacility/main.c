@@ -76,6 +76,12 @@ typedef struct
     WCHAR *replacement;
 } SpellingError;
 
+typedef struct
+{
+    IEnumSpellingError IEnumSpellingError_iface;
+    LONG ref;
+} EnumSpellingError;
+
 #define EnumString_EOL ((struct list *)~0)
 
 typedef struct
@@ -120,6 +126,11 @@ static inline SpellCheckProviderImpl *impl_from_IComprehensiveSpellCheckProvider
 static inline SpellingError *impl_from_ISpellingError(ISpellingError *iface)
 {
     return CONTAINING_RECORD(iface, SpellingError, ISpellingError_iface);
+}
+
+static inline EnumSpellingError *impl_from_IEnumSpellingError(IEnumSpellingError *iface)
+{
+    return CONTAINING_RECORD(iface, EnumSpellingError, IEnumSpellingError_iface);
 }
 
 static inline EnumString *impl_from_IEnumString(IEnumString *iface)
@@ -347,6 +358,75 @@ static HRESULT SpellingError_Constructor(ISpellingError **err)
     This->action = CORRECTIVE_ACTION_NONE;
     This->replacement = NULL;
     *err = &This->ISpellingError_iface;
+    return S_OK;
+}
+
+/**********************************************************************************/
+/* EnumSpellingError */
+/**********************************************************************************/
+static HRESULT WINAPI EnumSpellingError_QueryInterface(IEnumSpellingError *iface, REFIID riid,
+                        LPVOID *ppv)
+{
+    EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualIID(riid, &IID_IUnknown) ||
+        IsEqualIID(riid, &IID_IEnumSpellingError))
+    {
+        *ppv = &This->IEnumSpellingError_iface;
+        IEnumSpellingError_AddRef(iface);
+        return S_OK;
+    }
+
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI EnumSpellingError_AddRef(IEnumSpellingError *iface)
+{
+    EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI EnumSpellingError_Release(IEnumSpellingError *iface)
+{
+    EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI EnumSpellingError_Next(IEnumSpellingError *iface, ISpellingError **err)
+{
+    FIXME("(%p %p)\n", iface, err);
+    return E_NOTIMPL;
+}
+
+static const IEnumSpellingErrorVtbl EnumSpellingErrorVtbl =
+{
+    EnumSpellingError_QueryInterface,
+    EnumSpellingError_AddRef,
+    EnumSpellingError_Release,
+    EnumSpellingError_Next
+};
+
+static HRESULT EnumSpellingError_Constructor(IEnumSpellingError **errors)
+{
+    EnumSpellingError *This;
+
+    This = heap_alloc(sizeof(*This));
+    if (!This)
+        return E_OUTOFMEMORY;
+
+    This->IEnumSpellingError_iface.lpVtbl = &EnumSpellingErrorVtbl;
+    This->ref = 1;
+    *errors = &This->IEnumSpellingError_iface;
     return S_OK;
 }
 
