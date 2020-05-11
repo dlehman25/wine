@@ -262,7 +262,7 @@ static void test_spellchecker(void)
     /* no errors */
     errors = NULL;
     hr = ISpellChecker_Check(checker, L"hello world", &errors);
-    todo_wine ok(SUCCEEDED(hr), "got 0x%x\n", hr);
+    ok(SUCCEEDED(hr), "got 0x%x\n", hr);
     if (!errors)
         goto done;
     ok(!!errors, "got NULL\n");
