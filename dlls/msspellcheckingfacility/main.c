@@ -185,7 +185,7 @@ static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR 
         This->next = list_head(&This->strings);
 
     nfetched = 0;
-    while (This->next && count--)
+    while (count && This->next)
     {
         node = LIST_ENTRY(This->next, EnumString_node, entry);
         *strings = copy_string(node->str);
@@ -194,6 +194,7 @@ static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR 
         This->next = list_next(&This->strings, This->next);
         strings++;
         nfetched++;
+        count--;
     }
     if (fetched) *fetched = nfetched;
     return count ? S_FALSE : S_OK;
@@ -208,7 +209,7 @@ static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG count)
     if (This->next == EnumString_EOL)
         This->next = list_head(&This->strings);
 
-    while (This->next && count)
+    while (count && This->next)
     {
         This->next = list_next(&This->strings, This->next);
         count--;
