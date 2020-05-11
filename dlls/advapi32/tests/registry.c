@@ -5646,7 +5646,7 @@ static BOOL rc2_cache_term(void)
 
 static BOOL rc2_cache_init(void)
 {
-    struct rc2_key *hklm;
+    struct rc2_key *hklm, *hkcu, *hkcr;
     struct rc2_str name;
     DWORD size, value;
     LSTATUS status;
@@ -5690,10 +5690,16 @@ static BOOL rc2_cache_init(void)
     if (!(rc2_root = rc2_key_new(&name)))
         return FALSE;
 
-rc2_dump_key(rc2_root, 0);
-
     rc2_str_init(&name, L"Machine");
     if (!(hklm = rc2_create_key_recursive(rc2_root, &name)))
+        goto error;
+
+    rc2_str_init(&name, L"User\\Default");
+    if (!(hkcu = rc2_create_key_recursive(rc2_root, &name)))
+        goto error;
+
+    rc2_str_init(&name, L"Software\\Classes\\Wow6432Node");
+    if (!(hkcr = rc2_create_key_recursive(rc2_root, &name)))
         goto error;
 
     rc2_dump_key(rc2_root, 0);
