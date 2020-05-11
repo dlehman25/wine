@@ -356,8 +356,15 @@ static HRESULT WINAPI SpellingError_get_CorrectiveAction(ISpellingError *iface,
 
 static HRESULT WINAPI SpellingError_get_Replacement(ISpellingError *iface, LPWSTR *replacement)
 {
-    FIXME("(%p %p)\n", iface, replacement);
-    return E_NOTIMPL;
+    SpellingError *This = impl_from_ISpellingError(iface);
+
+    TRACE("(%p %p)\n", iface, replacement);
+
+    if (!replacement)
+        return E_POINTER;
+
+    *replacement = copy_string(This->replacement ? This->replacement : L"");
+    return *replacement ? S_OK : E_OUTOFMEMORY;
 }
 
 static const ISpellingErrorVtbl SpellingErrorVtbl =
@@ -380,11 +387,13 @@ static HRESULT SpellingError_Constructor(ISpellingError **err, ULONG start, ULON
     if (!This)
         return E_OUTOFMEMORY;
 
-    if (replacement && !(This->replacement = wcsdup(replacement)))
+    if (replacement && !(This->replacement = copy_string(replacement)))
     {
         heap_free(This);
         return E_OUTOFMEMORY;
     }
+    else
+        This->replacement = NULL;
 
     This->ISpellingError_iface.lpVtbl = &SpellingErrorVtbl;
     This->ref = 1;
