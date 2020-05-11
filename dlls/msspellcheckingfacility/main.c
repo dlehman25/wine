@@ -316,14 +316,28 @@ static ULONG WINAPI SpellingError_Release(ISpellingError *iface)
 
 static HRESULT WINAPI SpellingError_get_StartIndex(ISpellingError *iface, ULONG *start)
 {
-    FIXME("(%p %p)\n", iface, start);
-    return E_NOTIMPL;
+    SpellingError *This = impl_from_ISpellingError(iface);
+
+    TRACE("(%p %p)\n", iface, start);
+
+    if (!start)
+        return E_POINTER;
+
+    *start = This->start;
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellingError_get_Length(ISpellingError *iface, ULONG *length)
 {
-    FIXME("(%p %p)\n", iface, length);
-    return E_NOTIMPL;
+    SpellingError *This = impl_from_ISpellingError(iface);
+
+    TRACE("(%p %p)\n", iface, length);
+
+    if (!length)
+        return E_POINTER;
+
+    *length = This->len;
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellingError_get_CorrectiveAction(ISpellingError *iface,
