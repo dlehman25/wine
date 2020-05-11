@@ -5414,6 +5414,13 @@ struct rc2_key
     int                 maxvalues;
 };
 
+struct rc2_keymap
+{
+    struct wine_rb_entry entry;
+    HKEY            hkey;
+    struct rc2_key *key;
+};
+
 static DWORD WINAPI rc2_purge(void *arg)
 {
     /*
@@ -5448,9 +5455,38 @@ static CRITICAL_SECTION_DEBUG rc2_lock_debug =
 static CRITICAL_SECTION rc2_lock = { &rc2_lock_debug, -1, 0, 0, 0, 0 };
 struct rc2_key *rc2_root;
 
-static struct rc2_key *rc2_key_from_hkey(HKEY hkey)
+static int rc2_keymap_cmp(const void *key, const struct wine_rb_entry *entry)
 {
-    return NULL;
+    const struct rc2_keymap *map = WINE_RB_ENTRY_VALUE(entry, struct rc2_keymap, entry);
+    return HandleToLong(key) - HandleToLong(map->hkey);
+}
+static struct wine_rb_tree rc2_hkey_to_key = { rc2_keymap_cmp };
+
+static inline BOOL rc2_map_hkey_to_key(HKEY hkey, struct rc2_key *key)
+{
+    struct wine_rb_entry *node;
+    struct rc2_keymap *map;
+
+    if (!(node = heap_alloc(sizeof(*map))))
+        return FALSE;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct rc2_keymap, entry);
+    map->hkey = hkey;
+    map->key = key;
+    wine_rb_put(&rc2_hkey_to_key, map->hkey, &map->entry);
+    return TRUE;
+}
+
+static inline struct rc2_key *rc2_key_from_hkey(HKEY hkey)
+{
+    struct wine_rb_entry *node;
+    struct rc2_keymap *map;
+
+    if (!(node = wine_rb_get(&rc2_hkey_to_key, hkey)))
+        return NULL;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct rc2_keymap, entry);
+    return map->key;
 }
 
 static inline void rc2_str_init(struct rc2_str *obj, const WCHAR *str)
@@ -5700,6 +5736,13 @@ static BOOL rc2_cache_init(void)
 
     rc2_str_init(&name, L"Software\\Classes\\Wow6432Node");
     if (!(hkcr = rc2_create_key_recursive(rc2_root, &name)))
+        goto error;
+
+    if (!rc2_map_hkey_to_key(HKEY_LOCAL_MACHINE, hklm))
+        goto error;
+    if (!rc2_map_hkey_to_key(HKEY_CURRENT_USER, hkcu))
+        goto error;
+    if (!rc2_map_hkey_to_key(HKEY_CLASSES_ROOT, hkcr))
         goto error;
 
     rc2_dump_key(rc2_root, 0);
