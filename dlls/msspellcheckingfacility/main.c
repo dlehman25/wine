@@ -308,7 +308,6 @@ static ULONG WINAPI SpellingError_Release(ISpellingError *iface)
     if (ref == 0)
     {
         heap_free(This->replacement);
-        list_remove(&This->entry);
         heap_free(This);
     }
     return ref;
@@ -400,7 +399,6 @@ static HRESULT SpellingError_Constructor(ISpellingError **err, ULONG start, ULON
     This->start = start;
     This->len = len;
     This->action = action;
-    list_init(&This->entry);
     *err = &This->ISpellingError_iface;
     return S_OK;
 }
@@ -437,12 +435,22 @@ static ULONG WINAPI EnumSpellingError_AddRef(IEnumSpellingError *iface)
 static ULONG WINAPI EnumSpellingError_Release(IEnumSpellingError *iface)
 {
     EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
+    SpellingError *err;
+    struct list *head;
     ULONG ref;
 
     TRACE("\n");
     ref = InterlockedDecrement(&This->ref);
     if (ref == 0)
+    {
+        while ((head = list_head(&This->errors)))
+        {
+            list_remove(head);
+            err = LIST_ENTRY(head, SpellingError, entry);
+            ISpellingError_Release(&err->ISpellingError_iface);
+        }
         heap_free(This);
+    }
     return ref;
 }
 
