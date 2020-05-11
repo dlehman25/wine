@@ -198,30 +198,7 @@ static BOOL dict_node_insert(dict_node **root, const WCHAR *word)
     }
 }
 
-static BOOL dict_search(const dict_node *root, const WCHAR *word)
-{
-    const dict_node *cur;
-
-    cur = root;
-    while (cur)
-    {
-        if (*word < cur->ch)
-            cur = cur->lt;
-        else if (*word > cur->ch)
-            cur = cur->gt;
-        else
-        {
-            ++word;
-            if (!*word)
-                return cur->eow;
-            cur = cur->eq;
-        }
-    }
-
-    return FALSE;
-}
-
-static BOOL dict_search_n(const dict_node *root, const WCHAR *word, const WCHAR *end)
+static BOOL dict_search(const dict_node *root, const WCHAR *word, const WCHAR *end)
 {
     const dict_node *cur;
 
@@ -790,7 +767,7 @@ static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWS
         while (isalpha(*end) || *end == '\'')
             end++;
 
-        if (!dict_search_n(This->dict, start, end))
+        if (!dict_search(This->dict, start, end))
         {
             hr = EnumSpellingError_Add(*errors, start, end - start,
                                        CORRECTIVE_ACTION_GET_SUGGESTIONS, NULL);
