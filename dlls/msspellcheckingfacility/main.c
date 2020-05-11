@@ -70,16 +70,18 @@ typedef struct
 {
     ISpellingError ISpellingError_iface;
     LONG ref;
-    WCHAR *start;
+    const WCHAR *start;
     ULONG len;
     CORRECTIVE_ACTION action;
     WCHAR *replacement;
+    struct list entry;
 } SpellingError;
 
 typedef struct
 {
     IEnumSpellingError IEnumSpellingError_iface;
     LONG ref;
+    struct list errors;
 } EnumSpellingError;
 
 #define EnumString_EOL ((struct list *)~0)
@@ -218,6 +220,29 @@ static BOOL dict_search(const dict_node *root, const WCHAR *word)
     return FALSE;
 }
 
+static BOOL dict_search_n(const dict_node *root, const WCHAR *word, const WCHAR *end)
+{
+    const dict_node *cur;
+
+    cur = root;
+    while (cur)
+    {
+        if (*word < cur->ch)
+            cur = cur->lt;
+        else if (*word > cur->ch)
+            cur = cur->gt;
+        else
+        {
+            ++word;
+            if (word == end)
+                return cur->eow;
+            cur = cur->eq;
+        }
+    }
+
+    return FALSE;
+}
+
 static void dict_free(dict_node *root)
 {
     dict_node *cur;
@@ -343,7 +368,8 @@ static const ISpellingErrorVtbl SpellingErrorVtbl =
     SpellingError_get_Replacement
 };
 
-static HRESULT SpellingError_Constructor(ISpellingError **err)
+static HRESULT SpellingError_Constructor(ISpellingError **err, LPCWSTR start, ULONG len,
+                                         CORRECTIVE_ACTION action, const WCHAR *replacement)
 {
     SpellingError *This;
 
@@ -351,12 +377,17 @@ static HRESULT SpellingError_Constructor(ISpellingError **err)
     if (!This)
         return E_OUTOFMEMORY;
 
+    if (replacement && !(This->replacement = wcsdup(replacement)))
+    {
+        heap_free(This);
+        return E_OUTOFMEMORY;
+    }
+
     This->ISpellingError_iface.lpVtbl = &SpellingErrorVtbl;
     This->ref = 1;
-    This->start = NULL;
-    This->len = 0;
-    This->action = CORRECTIVE_ACTION_NONE;
-    This->replacement = NULL;
+    This->start = start;
+    This->len = len;
+    This->action = action;
     *err = &This->ISpellingError_iface;
     return S_OK;
 }
@@ -426,7 +457,25 @@ static HRESULT EnumSpellingError_Constructor(IEnumSpellingError **errors)
 
     This->IEnumSpellingError_iface.lpVtbl = &EnumSpellingErrorVtbl;
     This->ref = 1;
+    list_init(&This->errors);
     *errors = &This->IEnumSpellingError_iface;
+    return S_OK;
+}
+
+static HRESULT EnumSpellingError_Add(IEnumSpellingError *iface, LPCWSTR start, ULONG len,
+                                     CORRECTIVE_ACTION action, const WCHAR *replacement)
+{
+    EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
+    ISpellingError *ierr;
+    SpellingError *err;
+    HRESULT hr;
+
+    hr = SpellingError_Constructor(&ierr, start, len, action, replacement);
+    if (FAILED(hr))
+        return hr;
+
+    err = impl_from_ISpellingError(ierr);
+    list_add_tail(&This->errors, &err->entry);
     return S_OK;
 }
 
@@ -698,17 +747,41 @@ static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWS
                         IEnumSpellingError **errors)
 {
     SpellCheckProviderImpl *This = impl_from_ISpellCheckProvider(iface);
+    LPCWSTR start, end;
+    HRESULT hr;
 
     FIXME("(%p %s %p)\n", iface, debugstr_w(text), errors);
 
+    *errors = NULL;
     if (!This->dict)
-    {
-       *errors = NULL;
         return S_FALSE;
+
+    hr = EnumSpellingError_Constructor(errors);
+    if (FAILED(hr))
+        return hr;
+
+    start = text;
+    while (*start)
+    {
+        while (!isalpha(*start))
+            start++;
+        if (!*start) break;
+
+        end = start+1;
+        while (isalpha(*end) || *end == '\'')
+            end++;
+
+        if (!dict_search_n(This->dict, start, end))
+        {
+            hr = EnumSpellingError_Add(*errors, start, end - start,
+                                       CORRECTIVE_ACTION_GET_SUGGESTIONS, NULL);
+            if (FAILED(hr))
+                return hr; /* TODO: free errors? */
+        }
+
+        start = end;
     }
 
-    /* TODO: for each word */
-    dict_search(This->dict, text); /* */
     return S_OK;
 }
 
