@@ -220,8 +220,11 @@ static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG count)
 static HRESULT WINAPI EnumString_Reset(IEnumString *iface)
 {
     EnumString *This = impl_from_IEnumString(iface);
-    FIXME("(%p)\n", This);
-    return E_NOTIMPL;
+
+    TRACE("(%p)\n", This);
+
+    This->next = EnumString_EOL;
+    return S_OK;
 }
 
 static HRESULT WINAPI EnumString_Clone(IEnumString *iface, IEnumString **ppenum)
