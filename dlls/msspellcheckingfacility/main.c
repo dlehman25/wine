@@ -70,7 +70,7 @@ typedef struct
 {
     ISpellingError ISpellingError_iface;
     LONG ref;
-    const WCHAR *start;
+    ULONG start;
     ULONG len;
     CORRECTIVE_ACTION action;
     WCHAR *replacement;
@@ -357,7 +357,7 @@ static const ISpellingErrorVtbl SpellingErrorVtbl =
     SpellingError_get_Replacement
 };
 
-static HRESULT SpellingError_Constructor(ISpellingError **err, LPCWSTR start, ULONG len,
+static HRESULT SpellingError_Constructor(ISpellingError **err, ULONG start, ULONG len,
                                          CORRECTIVE_ACTION action, const WCHAR *replacement)
 {
     SpellingError *This;
@@ -470,7 +470,7 @@ static HRESULT EnumSpellingError_Constructor(IEnumSpellingError **errors)
     return S_OK;
 }
 
-static HRESULT EnumSpellingError_Add(IEnumSpellingError *iface, LPCWSTR start, ULONG len,
+static HRESULT EnumSpellingError_Add(IEnumSpellingError *iface, ULONG start, ULONG len,
                                      CORRECTIVE_ACTION action, const WCHAR *replacement)
 {
     EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
@@ -781,7 +781,7 @@ static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWS
 
         if (!dict_search(This->dict, start, end))
         {
-            hr = EnumSpellingError_Add(*errors, start, end - start,
+            hr = EnumSpellingError_Add(*errors, start - text, end - start,
                                        CORRECTIVE_ACTION_GET_SUGGESTIONS, NULL);
             if (FAILED(hr))
                 return hr; /* TODO: free errors? */
