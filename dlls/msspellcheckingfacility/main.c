@@ -66,6 +66,16 @@ typedef struct
     dict_node *dict;
 } SpellCheckProviderImpl;
 
+typedef struct
+{
+    ISpellingError ISpellingError_iface;
+    LONG ref;
+    WCHAR *start;
+    ULONG len;
+    CORRECTIVE_ACTION action;
+    WCHAR *replacement;
+} SpellingError;
+
 #define EnumString_EOL ((struct list *)~0)
 
 typedef struct
@@ -105,6 +115,11 @@ static inline SpellCheckProviderImpl *impl_from_IComprehensiveSpellCheckProvider
 {
     return CONTAINING_RECORD(iface, SpellCheckProviderImpl,
                 IComprehensiveSpellCheckProvider_iface);
+}
+
+static inline SpellingError *impl_from_ISpellingError(ISpellingError *iface)
+{
+    return CONTAINING_RECORD(iface, SpellingError, ISpellingError_iface);
 }
 
 static inline EnumString *impl_from_IEnumString(IEnumString *iface)
@@ -239,6 +254,100 @@ static void dict_free(dict_node *root)
             cur->lt = NULL;
         }
     }
+}
+
+/**********************************************************************************/
+/* SpellingError */
+/**********************************************************************************/
+static HRESULT WINAPI SpellingError_QueryInterface(ISpellingError *iface, REFIID riid, LPVOID *ppv)
+{
+    SpellingError *This = impl_from_ISpellingError(iface);
+
+    TRACE("IID: %s\n", debugstr_guid(riid));
+
+    if (IsEqualIID(riid, &IID_IUnknown) ||
+        IsEqualIID(riid, &IID_ISpellingError))
+    {
+        *ppv = &This->ISpellingError_iface;
+        ISpellingError_AddRef(iface);
+        return S_OK;
+    }
+
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI SpellingError_AddRef(ISpellingError *iface)
+{
+    SpellingError *This = impl_from_ISpellingError(iface);
+    TRACE("\n");
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI SpellingError_Release(ISpellingError *iface)
+{
+    SpellingError *This = impl_from_ISpellingError(iface);
+    ULONG ref;
+
+    TRACE("\n");
+    ref = InterlockedDecrement(&This->ref);
+    if (ref == 0)
+        heap_free(This);
+    return ref;
+}
+
+static HRESULT WINAPI SpellingError_get_StartIndex(ISpellingError *iface, ULONG *start)
+{
+    FIXME("(%p %p)\n", iface, start);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellingError_get_Length(ISpellingError *iface, ULONG *length)
+{
+    FIXME("(%p %p)\n", iface, length);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellingError_get_CorrectiveAction(ISpellingError *iface,
+                        CORRECTIVE_ACTION *action)
+{
+    FIXME("(%p %p)\n", iface, action);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI SpellingError_get_Replacement(ISpellingError *iface, LPWSTR *replacement)
+{
+    FIXME("(%p %p)\n", iface, replacement);
+    return E_NOTIMPL;
+}
+
+static const ISpellingErrorVtbl SpellingErrorVtbl =
+{
+    SpellingError_QueryInterface,
+    SpellingError_AddRef,
+    SpellingError_Release,
+    SpellingError_get_StartIndex,
+    SpellingError_get_Length,
+    SpellingError_get_CorrectiveAction,
+    SpellingError_get_Replacement
+};
+
+static HRESULT SpellingError_Constructor(ISpellingError **err)
+{
+    SpellingError *This;
+
+    This = heap_alloc(sizeof(*This));
+    if (!This)
+        return E_OUTOFMEMORY;
+
+    This->ISpellingError_iface.lpVtbl = &SpellingErrorVtbl;
+    This->ref = 1;
+    This->start = NULL;
+    This->len = 0;
+    This->action = CORRECTIVE_ACTION_NONE;
+    This->replacement = NULL;
+    *err = &This->ISpellingError_iface;
+    return S_OK;
 }
 
 /**********************************************************************************/
