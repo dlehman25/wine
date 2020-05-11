@@ -77,14 +77,15 @@ typedef struct
     struct list entry;
 } SpellingError;
 
+#define Enum_EOL ((struct list *)~0)
+
 typedef struct
 {
     IEnumSpellingError IEnumSpellingError_iface;
     LONG ref;
     struct list errors;
+    struct list *next;
 } EnumSpellingError;
-
-#define EnumString_EOL ((struct list *)~0)
 
 typedef struct
 {
@@ -435,8 +436,25 @@ static ULONG WINAPI EnumSpellingError_Release(IEnumSpellingError *iface)
 
 static HRESULT WINAPI EnumSpellingError_Next(IEnumSpellingError *iface, ISpellingError **err)
 {
-    FIXME("(%p %p)\n", iface, err);
-    return E_NOTIMPL;
+    EnumSpellingError *This = impl_from_IEnumSpellingError(iface);
+    SpellingError *obj;
+
+    TRACE("(%p %p)\n", iface, err);
+
+    if (!err)
+        return E_POINTER;
+
+    if (This->next == Enum_EOL)
+        This->next = list_head(&This->errors);
+    else
+        This->next = list_next(&This->errors, This->next);
+
+    if (!This->next)
+        return S_FALSE;
+
+    obj = LIST_ENTRY(This->next, SpellingError, entry);
+    *err = &obj->ISpellingError_iface;
+    return S_OK;
 }
 
 static const IEnumSpellingErrorVtbl EnumSpellingErrorVtbl =
@@ -458,6 +476,7 @@ static HRESULT EnumSpellingError_Constructor(IEnumSpellingError **errors)
     This->IEnumSpellingError_iface.lpVtbl = &EnumSpellingErrorVtbl;
     This->ref = 1;
     list_init(&This->errors);
+    This->next = Enum_EOL;
     *errors = &This->IEnumSpellingError_iface;
     return S_OK;
 }
@@ -545,7 +564,7 @@ static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR 
     if (count > 1 && !fetched)
         return E_INVALIDARG;
 
-    if (This->next == EnumString_EOL)
+    if (This->next == Enum_EOL)
         This->next = list_head(&This->strings);
 
     nfetched = 0;
@@ -570,7 +589,7 @@ static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG count)
 
     TRACE("(%p %u)\n", This, count);
 
-    if (This->next == EnumString_EOL)
+    if (This->next == Enum_EOL)
         This->next = list_head(&This->strings);
 
     while (count && This->next)
@@ -588,7 +607,7 @@ static HRESULT WINAPI EnumString_Reset(IEnumString *iface)
 
     TRACE("(%p)\n", This);
 
-    This->next = EnumString_EOL;
+    This->next = Enum_EOL;
     return S_OK;
 }
 
@@ -639,7 +658,7 @@ static HRESULT EnumString_Constructor(IEnumString **enumstr)
     This->IEnumString_iface.lpVtbl = &EnumStringVtbl;
     This->ref = 1;
     list_init(&This->strings);
-    This->next = EnumString_EOL;
+    This->next = Enum_EOL;
     *enumstr = &This->IEnumString_iface;
     return S_OK;
 }
