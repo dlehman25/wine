@@ -329,8 +329,15 @@ static HRESULT WINAPI SpellingError_get_Length(ISpellingError *iface, ULONG *len
 static HRESULT WINAPI SpellingError_get_CorrectiveAction(ISpellingError *iface,
                         CORRECTIVE_ACTION *action)
 {
-    FIXME("(%p %p)\n", iface, action);
-    return E_NOTIMPL;
+    SpellingError *This = impl_from_ISpellingError(iface);
+
+    TRACE("(%p %p)\n", iface, action);
+
+    if (!action)
+        return E_POINTER;
+
+    *action = This->action;
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellingError_get_Replacement(ISpellingError *iface, LPWSTR *replacement)
