@@ -199,11 +199,22 @@ static HRESULT WINAPI EnumString_Next(IEnumString *iface, ULONG count, LPOLESTR 
     return count ? S_FALSE : S_OK;
 }
 
-static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG celt)
+static HRESULT WINAPI EnumString_Skip(IEnumString *iface, ULONG count)
 {
     EnumString *This = impl_from_IEnumString(iface);
-    FIXME("(%p %u)\n", This, celt);
-    return E_NOTIMPL;
+
+    TRACE("(%p %u)\n", This, count);
+
+    if (This->next == EnumString_EOL)
+        This->next = list_head(&This->strings);
+
+    while (This->next && count)
+    {
+        This->next = list_next(&This->strings, This->next);
+        count--;
+    }
+
+    return count ? S_FALSE : S_OK;
 }
 
 static HRESULT WINAPI EnumString_Reset(IEnumString *iface)
