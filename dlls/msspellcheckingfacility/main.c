@@ -51,11 +51,19 @@ typedef struct
     LONG ref;
 } SpellCheckerImpl;
 
+typedef struct dict_node
+{
+    WCHAR ch;
+    BOOL eow;
+    struct dict_node *lt, *eq, *gt;
+} dict_node;
+
 typedef struct
 {
     ISpellCheckProvider ISpellCheckProvider_iface;
     IComprehensiveSpellCheckProvider IComprehensiveSpellCheckProvider_iface;
     LONG ref;
+    dict_node *dict;
 } SpellCheckProviderImpl;
 
 #define EnumString_EOL ((struct list *)~0)
@@ -113,6 +121,124 @@ static WCHAR *copy_string(const WCHAR *str)
     if ((copy = CoTaskMemAlloc((len + 1) * sizeof(WCHAR))))
         memcpy(copy, str, (len + 1) * sizeof(WCHAR));
     return copy;
+}
+
+static dict_node *dict_node_new(WCHAR ch)
+{
+    dict_node *node;
+
+    if (!(node = heap_alloc(sizeof(*node))))
+        return NULL;
+
+    node->ch = ch;
+    node->eow = FALSE;
+    node->lt = node->eq = node->gt = NULL;
+    return node;
+}
+
+static BOOL dict_node_insert(dict_node **root, const WCHAR *word)
+{
+    dict_node *cur, **next;
+
+    if (!*root && !(*root = dict_node_new(*word)))
+        return FALSE;
+
+    cur = *root;
+    next = &cur;
+    for (;;)
+    {
+        if (*word < cur->ch)
+            next = &cur->lt;
+        else if (*word > cur->ch)
+            next = &cur->gt;
+        else
+        {
+            ++word;
+            if (!*word)
+            {
+                cur->eow = TRUE;
+                return TRUE;
+            }
+            next = &cur->eq;
+        }
+
+        if (!*next && !(*next = dict_node_new(*word)))
+            return FALSE;
+
+        cur = *next;
+    }
+}
+
+static BOOL dict_search(const dict_node *root, const WCHAR *word)
+{
+    const dict_node *cur;
+
+    cur = root;
+    while (cur)
+    {
+        if (*word < cur->ch)
+            cur = cur->lt;
+        else if (*word > cur->ch)
+            cur = cur->gt;
+        else
+        {
+            ++word;
+            if (!*word)
+                return cur->eow;
+            cur = cur->eq;
+        }
+    }
+
+    return FALSE;
+}
+
+static void dict_free(dict_node *root)
+{
+    dict_node *cur;
+    dict_node *nxt;
+    dict_node *top; /* stack of nodes to free */
+
+    top = NULL;
+    cur = root;
+    while (cur)
+    {
+        while (cur->lt)
+        {
+            nxt = cur->lt;
+            cur->lt = top; /* use 'lt' member for placing on stack */
+            top = cur;
+            cur = nxt;
+        }
+
+        /* cur->lt is NULL */
+        if (cur->eq)
+        {
+            cur->lt = top;
+            top = cur;
+
+            nxt = cur->eq;
+            cur->eq = NULL;
+            cur = nxt;
+            continue;
+        }
+        else if (cur->gt)
+        {
+            cur->lt = top;
+            top = cur;
+
+            nxt = cur->gt;
+            cur->gt = NULL;
+            cur = nxt;
+            continue;
+        }
+
+        heap_free(cur);
+        if ((cur = top))
+        {
+            top = top->lt;
+            cur->lt = NULL;
+        }
+    }
 }
 
 /**********************************************************************************/
@@ -283,6 +409,43 @@ static HRESULT EnumString_Constructor(IEnumString **enumstr)
 /**********************************************************************************/
 /* SpellCheckProvider */
 /**********************************************************************************/
+#define DICT_MAX_WORD_SIZE 32 /* wc --max-line-length /usr/share/dict/words => 26 */
+
+static HRESULT load_words(const WCHAR *path, BOOL utf16le, IEnumString **enumstr)
+{
+    wchar_t line[DICT_MAX_WORD_SIZE];
+    HRESULT hr;
+    size_t len;
+    FILE *file;
+
+    *enumstr = NULL;
+    hr = EnumString_Constructor(enumstr);
+    if (FAILED(hr))
+        return hr;
+
+    if (!(file = _wfopen(path, utf16le ? L"rt,ccs=utf-16le" : L"rt")))
+        return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+
+    while (fgetws(line, ARRAY_SIZE(line), file))
+    {
+        if (!(len = wcslen(line)))
+            continue;
+
+        line[len-1] = 0; /* \n */
+        hr = EnumString_Add(*enumstr, line);
+        if (FAILED(hr))
+            goto error;
+    }
+    fclose(file);
+    return S_OK;
+
+error:
+    IEnumString_Release(*enumstr);
+    *enumstr = NULL;
+    fclose(file);
+    return hr;
+}
+
 static HRESULT WINAPI SpellCheckProvider_QueryInterface(ISpellCheckProvider *iface,
                         REFIID riid, void **ppv)
 {
@@ -323,7 +486,10 @@ static ULONG WINAPI SpellCheckProvider_Release(ISpellCheckProvider *iface)
     TRACE("\n");
     ref = InterlockedDecrement(&This->ref);
     if (ref == 0)
+    {
+        dict_free(This->dict);
         heap_free(This);
+    }
     return ref;
 }
 
@@ -342,9 +508,19 @@ static HRESULT WINAPI SpellCheckProvider_get_LanguageTag(ISpellCheckProvider *if
 static HRESULT WINAPI SpellCheckProvider_Check(ISpellCheckProvider *iface, LPCWSTR text,
                         IEnumSpellingError **errors)
 {
+    SpellCheckProviderImpl *This = impl_from_ISpellCheckProvider(iface);
+
     FIXME("(%p %s %p)\n", iface, debugstr_w(text), errors);
-    *errors = NULL;
-    return S_FALSE;
+
+    if (!This->dict)
+    {
+       *errors = NULL;
+        return S_FALSE;
+    }
+
+    /* TODO: for each word */
+    dict_search(This->dict, text); /* */
+    return S_OK;
 }
 
 static HRESULT WINAPI SpellCheckProvider_Suggest(ISpellCheckProvider *iface, LPCWSTR word,
@@ -403,8 +579,55 @@ static HRESULT WINAPI SpellCheckProvider_GetOptionDescription(ISpellCheckProvide
 static HRESULT WINAPI SpellCheckProvider_InitializeWordlist(ISpellCheckProvider *iface,
                         WORDLIST_TYPE type, IEnumString *wordlist)
 {
-    FIXME("(%p %d %p)\n", iface, type, wordlist);
-    return E_NOTIMPL;
+    SpellCheckProviderImpl *This = impl_from_ISpellCheckProvider(iface);
+    DWORD i, nlines, nfetched;
+    LPOLESTR *lines;
+    HRESULT hr;
+
+    TRACE("(%p %d %p)\n", iface, type, wordlist);
+
+    IEnumString_Reset(wordlist);
+    nlines = 0;
+    while (IEnumString_Skip(wordlist, 1) != S_FALSE) nlines++;
+
+    if (!(lines = heap_alloc(nlines * sizeof(*lines))))
+        return E_OUTOFMEMORY;
+
+    /* randomizing the strings makes the tree more balanced */
+    IEnumString_Reset(wordlist);
+    nfetched = 0;
+    hr = IEnumString_Next(wordlist, nlines, lines, &nfetched);
+    if (FAILED(hr))
+        goto error;
+
+    hr = S_OK;
+    while (nlines)
+    {
+        i = rand() % nlines;
+        if (!dict_node_insert(&This->dict, lines[i]))
+        {
+            /* on failure, we'll at least keep what we've inserted */
+            hr = E_OUTOFMEMORY;
+            goto error;
+        }
+
+        CoTaskMemFree(lines[i]);
+        if (i != nlines-1)
+        {
+            lines[i] = lines[nlines-1];
+            lines[nlines-1] = NULL;
+        }
+        nlines--;
+    }
+    heap_free(lines);
+
+    return S_OK;
+
+error:
+    for (i = 0; i < nfetched; i++)
+        if (lines[i]) CoTaskMemFree(lines[i]);
+    heap_free(lines);
+    return hr;
 }
 
 static HRESULT WINAPI ComprehensiveSpellCheckProvider_QueryInterface(
@@ -915,7 +1138,9 @@ static IClassFactory SCFactory = { &SCFactoryVtbl };
 
 static HRESULT init_msspell(void)
 {
+    static const WCHAR *linux_words = L"/usr/share/dict/words";
     SpellCheckProviderImpl *prov;
+    IEnumString *words;
     HRESULT hr;
 
     prov = heap_alloc(sizeof(*prov));
@@ -925,6 +1150,22 @@ static HRESULT init_msspell(void)
     prov->ISpellCheckProvider_iface.lpVtbl = &SpellCheckProviderVtbl;
     prov->IComprehensiveSpellCheckProvider_iface.lpVtbl = &ComprehensiveSpellCheckProviderVtbl;
     prov->ref = 1;
+    prov->dict = NULL;
+
+    hr = load_words(linux_words, FALSE, &words);
+    if (SUCCEEDED(hr))
+    {
+        hr = SpellCheckProvider_InitializeWordlist(&prov->ISpellCheckProvider_iface,
+                                                   WORDLIST_TYPE_ADD, words);
+        if (FAILED(hr))
+            WARN("failed to initialize default word list (0x%x)\n", hr);
+
+        IEnumString_Release(words);
+    }
+    else
+        WARN("failed to load linux words %s (0x%x)\n", debugstr_w(linux_words), hr);
+
+    /* TODO: default.dic */
 
     hr = SpellCheckProvider_QueryInterface(&prov->ISpellCheckProvider_iface,
             &IID_ISpellCheckProvider, (void**)&msspell);
