@@ -306,7 +306,11 @@ static ULONG WINAPI SpellingError_Release(ISpellingError *iface)
     TRACE("\n");
     ref = InterlockedDecrement(&This->ref);
     if (ref == 0)
+    {
+        heap_free(This->replacement);
+        list_remove(&This->entry);
         heap_free(This);
+    }
     return ref;
 }
 
@@ -366,6 +370,7 @@ static HRESULT SpellingError_Constructor(ISpellingError **err, LPCWSTR start, UL
     This->start = start;
     This->len = len;
     This->action = action;
+    list_init(&This->entry);
     *err = &This->ISpellingError_iface;
     return S_OK;
 }
