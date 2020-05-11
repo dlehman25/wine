@@ -5475,7 +5475,7 @@ static void rc2_dump_key(const struct rc2_key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s\n", wine_dbgstr_wn(key->name.str, key->name.len));
+    printf("%s ref %d\n", wine_dbgstr_wn(key->name.str, key->name.len), key->ref);
     if (!key->subkeys)
         return;
 
@@ -5730,7 +5730,16 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     return key if cached with given access, addref // caller holding ref to internal key
         // add to notification
     */
+    EnterCriticalSection(&rc2_lock);
+    if (!rc2_root)
+        goto not_cached;
 
+    if (options)
+        goto not_cached;
+
+
+not_cached:
+    LeaveCriticalSection(&rc2_lock);
     return FALSE;
 }
 
@@ -5958,6 +5967,16 @@ static void test_cache(void)
     int i;
 
     rc2_cache_init();
+    {
+    LSTATUS status;
+    HKEY key;
+
+    status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+    printf("key %p status 0x%x\n", key, status);
+    }
     return;
 
     rc_cache_init();
