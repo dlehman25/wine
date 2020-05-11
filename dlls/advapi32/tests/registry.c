@@ -5519,6 +5519,31 @@ static void rc2_dump_key(const struct rc2_key *key, int depth)
         rc2_dump_key(key->subkeys[i], depth+4);
 }
 
+static void rc2_dump_path(const struct rc2_key *key, const struct rc2_key *base, FILE *f)
+{
+    if (key->parent && key->parent != base)
+    {
+        rc2_dump_path(key->parent, base, f);
+        fprintf(f, "\\\\");
+    }
+    fprintf(f, "%s", wine_dbgstr_wn(key->name.str, key->name.len));
+}
+
+static void rc2_cache_dump(void)
+{
+    struct rc2_keymap *map;
+
+    rc2_dump_key(rc2_root, 0);
+
+    printf("hkey map:\n");
+    WINE_RB_FOR_EACH_ENTRY(map, &rc2_hkey_to_key, struct rc2_keymap, entry)
+    {
+        printf("%p: ", map->hkey);
+        rc2_dump_path(map->key, rc2_root, stdout);
+        printf("\n");
+    }
+}
+
 static struct rc2_str *rc2_get_path_token(const struct rc2_str *path, struct rc2_str *token)
 {
     DWORD i;
@@ -5745,7 +5770,7 @@ static BOOL rc2_cache_init(void)
     if (!rc2_map_hkey_to_key(HKEY_CLASSES_ROOT, hkcr))
         goto error;
 
-    rc2_dump_key(rc2_root, 0);
+    rc2_cache_dump();
     return TRUE;
 
 error:
@@ -5814,7 +5839,7 @@ static BOOL rc2_close_key(HKEY hkey)
     return if caching disabled
 
     return if not cached
- 
+
     decremeent times
     if zero, add to possible purge list
     */
