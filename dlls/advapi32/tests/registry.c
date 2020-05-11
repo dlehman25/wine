@@ -5581,14 +5581,28 @@ static int rc2_grow_subkeys(struct rc2_key *key)
             return 0;
     }
     key->subkeys = new_subkeys;
-    key->numkeys = numkeys;
+    key->maxkeys = numkeys;
     return numkeys;
 }
 
 static struct rc2_key *rc2_alloc_subkey(struct rc2_key *parent, const struct rc2_str *name,
                                         int index)
 {
-    return NULL;
+    struct rc2_key *key;
+    int i;
+
+    if ((parent->numkeys == parent->maxkeys) &&
+        !rc2_grow_subkeys(parent))
+        return NULL;
+
+    if (!(key = rc2_key_new(name)))
+        return NULL;
+
+    key->parent = parent;
+    for (i = parent->numkeys++; i > index; i--)
+        parent->subkeys[i] = parent->subkeys[i-1];
+    parent->subkeys[index] = key;
+    return key;
 }
 
 static void rc2_free_key_recursive(struct rc2_key *key, int index)
