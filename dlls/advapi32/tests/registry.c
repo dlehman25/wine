@@ -4630,7 +4630,7 @@ static BOOL WINAPI rc_put_key(HKEY hroot, LPCWSTR name, DWORD options, REGSAM ac
         goto not_cacheable; /* TODO ?? but if we're in put, then access is ok */
 
     /* between open and put, another thread could cache [hkey, access] pair */
-    if ((hkey == rc_hkey_from_access(key, access)))
+    if ((hkey = rc_hkey_from_access(key, access)))
         goto not_cacheable; /* already cached other hkey with same access */
 
     if (!rc_put_hkey_access(key, hkey, access))
