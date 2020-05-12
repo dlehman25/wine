@@ -5495,6 +5495,11 @@ static inline HKEY rc2_hkey_from_access(struct rc2_key *key, REGSAM access)
     return NULL;
 }
 
+static inline BOOL rc2_put_hkey_access(struct rc2_key *key, HKEY hkey, REGSAM access)
+{
+    return NULL;
+}
+
 static inline void rc2_key_addref(struct rc2_key *key)
 {
     printf("%s: semi-stub\n", __FUNCTION__);
@@ -5868,8 +5873,37 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
             purge unrefed cached keys
         add to cache with access, addref // first reference
     */
+    int index;
+    struct rc2_key *root, *key;
+    struct rc2_str path, token;
 
-    return E_NOTIMPL;
+    EnterCriticalSection(&rc2_lock);
+    if (!rc2_root)
+        goto not_cacheable;
+
+    if (options)
+        goto not_cacheable;
+
+    if (!(root = rc2_key_from_hkey(hroot)))
+        goto not_cacheable;
+
+    rc2_str_init(&path, name);
+    if (!(key = rc2_open_key_prefix(root, &path, &token, &index)))
+        goto not_cacheable; /* open_key would have created for tracking accesses */
+
+    if (key->accessed < rc2_threshold)
+        goto not_cacheable;
+
+printf("%d %d\n", key->accessed, rc2_threshold);
+    if (!rc2_put_hkey_access(key, hkey, access))
+        goto not_cacheable;
+
+    LeaveCriticalSection(&rc2_lock);
+    return S_OK;
+    
+not_cacheable:
+    LeaveCriticalSection(&rc2_lock);
+    return E_OUTOFMEMORY;
 }
 
 static BOOL rc2_close_key(HKEY hkey)
@@ -6075,14 +6109,17 @@ static void test_cache(void)
 
     rc2_cache_init();
     {
-    LSTATUS status;
-    HKEY key;
+        LSTATUS status;
+        HKEY key;
 
-    status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
-                KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
-    ok(status == ERROR_SUCCESS, "got %d\n", status);
-    printf("key %p status 0x%x\n", key, status);
+        for (i = 0; i < 20; i++)
+        {
+            status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                        L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                        KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+            ok(status == ERROR_SUCCESS, "got %d\n", status);
+            printf("%d key %p status 0x%x\n", i, key, status);
+        }
     }
     return;
 
