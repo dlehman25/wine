@@ -470,7 +470,10 @@ static HRESULT WINAPI EnumSpellingError_Next(IEnumSpellingError *iface, ISpellin
         This->next = list_next(&This->errors, This->next);
 
     if (!This->next)
+    {
+        *err = NULL;
         return S_FALSE;
+    }
 
     obj = LIST_ENTRY(This->next, SpellingError, entry);
     *err = &obj->ISpellingError_iface;
