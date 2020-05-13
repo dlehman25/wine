@@ -5391,7 +5391,7 @@ struct rc2_value
     BYTE           *data;
 };
 
-struct r2_handle
+struct rc2_handle
 {
     struct list entry;
     HKEY        hkey;
@@ -5492,12 +5492,32 @@ static inline struct rc2_key *rc2_key_from_hkey(HKEY hkey)
 
 static inline HKEY rc2_hkey_from_access(struct rc2_key *key, REGSAM access)
 {
+    struct rc2_handle *handle;
+
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
+    {
+        if (handle->access == access)
+        {
+            ++handle->ref;
+            return handle->hkey;
+        }
+    }
+
     return NULL;
 }
 
 static inline BOOL rc2_put_hkey_access(struct rc2_key *key, HKEY hkey, REGSAM access)
 {
-    return NULL;
+    struct rc2_handle *handle;
+
+    if (!(handle = heap_alloc(sizeof(*handle))))
+        return FALSE;
+
+    handle->hkey = hkey;
+    handle->access = access;
+    handle->ref = 1;
+    list_add_tail(&key->handles, &handle->entry);
+    return TRUE;
 }
 
 static inline void rc2_key_addref(struct rc2_key *key)
@@ -5525,10 +5545,17 @@ static inline struct rc2_str *rc2_strdup(struct rc2_str *dst, const struct rc2_s
 static void rc2_dump_key(const struct rc2_key *key, int depth)
 {
     int i;
+    struct rc2_handle *handle;
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s ref %d\n", wine_dbgstr_wn(key->name.str, key->name.len), key->ref);
+    printf("%s ref %u accessed %u: ", wine_dbgstr_wn(key->name.str, key->name.len),
+        key->ref, key->accessed);
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
+    {
+        printf("[%p 0x%x %u] ", handle->hkey, handle->access, handle->ref);
+    }
+    printf("\n");
     if (!key->subkeys)
         return;
 
@@ -5845,8 +5872,6 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     }
 
     rc2_key_addref(key);
-
-    printf("%s: key %p (%s)\n", __FUNCTION__, key, wine_dbgstr_wn(path.str, path.len));
     LeaveCriticalSection(&rc2_lock);
     return TRUE;
 
@@ -6120,6 +6145,8 @@ static void test_cache(void)
             ok(status == ERROR_SUCCESS, "got %d\n", status);
             printf("%d key %p status 0x%x\n", i, key, status);
         }
+
+        rc2_cache_dump();
     }
     return;
 
