@@ -5716,11 +5716,11 @@ static void rc2_free_key_recursive(struct rc2_key *key, int index)
 
 static struct rc2_key *rc2_create_key_recursive(struct rc2_key *key, const struct rc2_str *name)
 {
-    struct rc2_key *base, *subkey;
+    struct rc2_key *base;
     struct rc2_str token;
     int index;
 
-    if (!(subkey = rc2_open_key_prefix(key, name, &token, &index)))
+    if (!(key = rc2_open_key_prefix(key, name, &token, &index)))
         return NULL;
 
     if (token.len)
