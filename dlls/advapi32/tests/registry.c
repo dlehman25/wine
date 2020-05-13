@@ -6140,7 +6140,20 @@ static void test_cache(void)
                         L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                         KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
             ok(status == ERROR_SUCCESS, "got %d\n", status);
-            printf("%d key %p status 0x%x\n", i, key, status);
+        }
+        for (i = 0; i < 10; i++)
+        {
+            status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                        L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", 0,
+                        KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+            ok(status == ERROR_SUCCESS, "got %d\n", status);
+        }
+        for (i = 0; i < 20; i++)
+        {
+            status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                     L"Software\\Classes\\Interface\\{00000000-0000-0000-C000-000000000046}", 0,
+                     KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+            ok(status == ERROR_SUCCESS, "got %d\n", status);
         }
 
         rc2_cache_dump();
