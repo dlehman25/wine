@@ -5899,11 +5899,10 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
     if (!(key = rc2_create_key_recursive(root, &path)))
         goto not_cached;
 
+    if (!++key->accessed)
+        key->accessed = rc2_threshold;
     if (!(*retkey = rc2_hkey_from_access(key, access)))
-    {
-        key->accessed++;
         goto not_cached;
-    }
 
     LeaveCriticalSection(&rc2_lock);
     return TRUE;
@@ -6184,16 +6183,19 @@ static void test_cache(void)
     rc2_cache_init();
     {
         LSTATUS status;
-        HKEY key;
+        HKEY key, last;
 
+        last = 0;
         for (i = 0; i < 20; i++)
         {
             status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                         L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                         KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
             ok(status == ERROR_SUCCESS, "got %d\n", status);
-            printf("%d: %p\n", i, key);
             rc2_RegCloseKey(key);
+            if (last)
+                ok(last == key, "expected %p, got %p\n", last, key);
+            last = key;
         }
         rc2_cache_dump();
         return;
