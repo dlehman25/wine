@@ -5827,8 +5827,7 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
                          REGSAM access, PHKEY retkey)
 {
     struct rc2_key *root, *key;
-    struct rc2_str path, token;
-    int index;
+    struct rc2_str path;
 
     /*
     return if caching disabled
@@ -5861,8 +5860,7 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
         goto not_cached;
 
     rc2_str_init(&path, name);
-    if (!(key = rc2_open_key_prefix(root, &path, &token, &index)) &&
-        !(key = rc2_create_key_recursive(root, &path)))
+    if (!(key = rc2_create_key_recursive(root, &path)))
         goto not_cached;
 
     if (!(*retkey = rc2_hkey_from_access(key, access)))
@@ -5919,7 +5917,6 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
     if (key->accessed < rc2_threshold)
         goto not_cacheable;
 
-printf("%d %d\n", key->accessed, rc2_threshold);
     if (!rc2_put_hkey_access(key, hkey, access))
         goto not_cacheable;
 
