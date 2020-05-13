@@ -5506,12 +5506,39 @@ static inline HKEY rc2_hkey_from_access(struct rc2_key *key, REGSAM access)
     return NULL;
 }
 
+static inline BOOL rc2_release_hkey_from_key(struct rc2_key *key, HKEY hkey)
+{
+    struct rc2_handle *handle;
+
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
+    {
+        if (handle->hkey == hkey)
+        {
+            if (!--handle->ref)
+            {
+                list_remove(&handle->entry);
+                heap_free(handle);
+            }
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+
+}
+
 static inline BOOL rc2_put_hkey_access(struct rc2_key *key, HKEY hkey, REGSAM access)
 {
     struct rc2_handle *handle;
 
     if (!(handle = heap_alloc(sizeof(*handle))))
         return FALSE;
+
+    if (!rc2_map_hkey_to_key(hkey, key))
+    {
+        heap_free(handle);
+        return FALSE;
+    }
 
     handle->hkey = hkey;
     handle->access = access;
@@ -5542,6 +5569,19 @@ static inline struct rc2_str *rc2_strdup(struct rc2_str *dst, const struct rc2_s
     return dst;
 }
 
+static inline DWORD rc2_get_refcount(const struct rc2_key *key)
+{
+    const struct rc2_handle *handle;
+    DWORD ref;
+
+    ref = key->ref;
+    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
+    {
+        ref += handle->ref;
+    }
+    return ref;
+}
+
 static void rc2_dump_key(const struct rc2_key *key, int depth)
 {
     int i;
@@ -5549,8 +5589,8 @@ static void rc2_dump_key(const struct rc2_key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s ref %u accessed %u: ", wine_dbgstr_wn(key->name.str, key->name.len),
-        key->ref, key->accessed);
+    printf("%s ref %u (%u) accessed %u: ", wine_dbgstr_wn(key->name.str, key->name.len),
+        key->ref, rc2_get_refcount(key), key->accessed);
     LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
     {
         printf("[%p 0x%x %u] ", handle->hkey, handle->access, handle->ref);
@@ -5869,7 +5909,6 @@ static BOOL rc2_open_key(HKEY hroot, LPCWSTR name, DWORD options,
         goto not_cached;
     }
 
-    rc2_key_addref(key);
     LeaveCriticalSection(&rc2_lock);
     return TRUE;
 
@@ -5938,6 +5977,23 @@ static BOOL rc2_close_key(HKEY hkey)
     decremeent times
     if zero, add to possible purge list
     */
+    struct rc2_key *key;
+
+    EnterCriticalSection(&rc2_lock);
+    if (!rc2_root)
+        goto not_cached;
+
+    if (!(key = rc2_key_from_hkey(hkey)))
+        goto not_cached;
+
+    if (!rc2_release_hkey_from_key(key, hkey))
+        goto not_cached;
+
+    LeaveCriticalSection(&rc2_lock);
+    return TRUE;
+
+not_cached:
+    LeaveCriticalSection(&rc2_lock);
     return FALSE;
 }
 
@@ -6140,7 +6196,11 @@ static void test_cache(void)
                         L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
                         KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
             ok(status == ERROR_SUCCESS, "got %d\n", status);
+            printf("%d: %p\n", i, key);
         }
+
+        rc2_cache_dump();
+        return;
         for (i = 0; i < 10; i++)
         {
             status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
