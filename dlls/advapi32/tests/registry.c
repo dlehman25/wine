@@ -5514,11 +5514,7 @@ static inline BOOL rc2_release_hkey_from_key(struct rc2_key *key, HKEY hkey)
     {
         if (handle->hkey == hkey)
         {
-            if (!--handle->ref)
-            {
-                list_remove(&handle->entry);
-                heap_free(handle);
-            }
+            --handle->ref; /* don't free here */
             return TRUE;
         }
     }
@@ -6197,8 +6193,8 @@ static void test_cache(void)
                         KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
             ok(status == ERROR_SUCCESS, "got %d\n", status);
             printf("%d: %p\n", i, key);
+            rc2_RegCloseKey(key);
         }
-
         rc2_cache_dump();
         return;
         for (i = 0; i < 10; i++)
