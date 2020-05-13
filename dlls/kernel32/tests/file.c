@@ -5131,6 +5131,8 @@ static void test_SetFileInformationByHandle(void)
     FILE_BASIC_INFO basicinfo = { {{0}} };
     char tempFileName[MAX_PATH];
     char tempPath[MAX_PATH];
+    char subdir[MAX_PATH];
+    char dir[MAX_PATH];
     LARGE_INTEGER atime;
     HANDLE file;
     BOOL ret;
@@ -5235,6 +5237,39 @@ todo_wine
     ok(ret, "setting FileDispositionInfo failed, error %d\n", GetLastError());
 
     CloseHandle(file);
+
+    /* test directory handling */
+    strcpy(dir, tempPath);
+    strcat(dir, "testdir");
+    ret = CreateDirectoryA(dir, NULL);
+    ok(ret, "CreateDirectoryA failed, got error %u.\n", GetLastError());
+
+    strcpy(subdir, dir);
+    strcat(subdir, "\\testsubdir");
+    ret = CreateDirectoryA(subdir, NULL);
+    ok(ret, "CreateDirectoryA failed, got error %u.\n", GetLastError());
+
+    SetLastError(0xdeadbeef);
+    ret = RemoveDirectoryA(dir);
+    ok(!ret && GetLastError() == ERROR_DIR_NOT_EMPTY, "got %d, error %d\n", ret, GetLastError());
+
+    file = CreateFileA(dir, 0, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, NULL,
+                  OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+
+    dispinfo.DeleteFile = TRUE;
+    ret = pSetFileInformationByHandle(file, FileDispositionInfo, &dispinfo, sizeof(dispinfo));
+    ok(!ret && GetLastError() == ERROR_ACCESS_DENIED, "got %d, error %d\n", ret, GetLastError());
+
+    CloseHandle(file);
+
+    file = CreateFileA(dir, DELETE, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, NULL,
+                  OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    dispinfo.DeleteFile = TRUE;
+    ret = pSetFileInformationByHandle(file, FileDispositionInfo, &dispinfo, sizeof(dispinfo));
+    ok(!ret && GetLastError() == ERROR_DIR_NOT_EMPTY, "got %d, error %d\n", ret, GetLastError());
+
+    RemoveDirectoryA(subdir);
+    RemoveDirectoryA(dir);
 }
 
 static void test_GetFileAttributesExW(void)
