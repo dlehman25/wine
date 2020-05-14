@@ -2910,6 +2910,26 @@ NTSTATUS WINAPI NtSetInformationFile(HANDLE handle, PIO_STATUS_BLOCK io,
             io->u.Status = STATUS_INVALID_PARAMETER_3;
         break;
 
+    case FileDispositionInformationEx:
+        if (len >= sizeof(FILE_DISPOSITION_INFORMATION_EX))
+        {
+            FILE_DISPOSITION_INFORMATION_EX *info = ptr;
+            const ULONG supported = FILE_DISPOSITION_DELETE;
+
+            if (info->Flags & ~supported)
+                WARN( "unsupported flags %x\n", info->Flags );
+
+            SERVER_START_REQ( set_fd_disp_info )
+            {
+                req->handle   = wine_server_obj_handle( handle );
+                req->unlink   = info->Flags & FILE_DISPOSITION_DELETE;
+                io->u.Status  = wine_server_call( req );
+            }
+            SERVER_END_REQ;
+        } else
+            io->u.Status = STATUS_INVALID_PARAMETER_3;
+        break;
+
     case FileRenameInformation:
         if (len >= sizeof(FILE_RENAME_INFORMATION))
         {
