@@ -729,6 +729,15 @@ typedef DWORD (WINAPI *PFE_IMPORT_FUNC)(PBYTE,PVOID,ULONG);
 #define OPEN_ALWAYS             4
 #define TRUNCATE_EXISTING       5
 
+/* File disposition flags
+ */
+#define FILE_DISPOSITION_DO_NOT_DELETE              0x00
+#define FILE_DISPOSITION_DELETE                     0x01
+#define FILE_DISPOSITION_POSIX_SEMANTICS            0x02
+#define FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK  0x04
+#define FILE_DISPOSITION_ON_CLOSE                   0x08
+#define FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE  0x10
+
 /* Standard handle identifiers
  */
 #define STD_INPUT_HANDLE        ((DWORD) -10)
@@ -796,6 +805,7 @@ typedef enum _FILE_INFO_BY_HANDLE_CLASS {
     FileIdInfo,
     FileIdExtdDirectoryInfo,
     FileIdExtdDirectoryRestartInfo,
+    FileDispositionInfoEx,
     MaximumFileInfoByHandlesClass
 } FILE_INFO_BY_HANDLE_CLASS, *PFILE_INFO_BY_HANDLE_CLASS;
 
@@ -856,6 +866,10 @@ typedef struct _FILE_ALLOCATION_INFO {
 typedef struct _FILE_DISPOSITION_INFO {
     BOOLEAN DeleteFile;
 } FILE_DISPOSITION_INFO, *PFILE_DISPOSITION_INFO;
+
+typedef struct _FILE_DISPOSITION_INFO_EX {
+    ULONG Flags;
+} FILE_DISPOSITION_INFO_EX, *PFILE_DISPOSITION_INFO_EX;
 
 typedef struct _FILE_END_OF_FILE_INFO {
     LARGE_INTEGER EndOfFile;

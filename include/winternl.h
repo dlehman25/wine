@@ -487,6 +487,7 @@ typedef enum _FILE_INFORMATION_CLASS {
     FileReplaceCompletionInformation,
     FileHardLinkFullIdInformation,
     FileIdExtdBothDirectoryInformation,
+    FileDispositionInformationEx,
     FileMaximumInformation
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
 
@@ -655,6 +656,10 @@ typedef struct _FILE_NAMES_INFORMATION {
 typedef struct _FILE_DISPOSITION_INFORMATION {
     BOOLEAN DoDeleteFile;
 } FILE_DISPOSITION_INFORMATION, *PFILE_DISPOSITION_INFORMATION;
+
+typedef struct _FILE_DISPOSITION_INFORMATION_EX {
+    ULONG Flags;
+} FILE_DISPOSITION_INFORMATION_EX, *PFILE_DISPOSITION_INFORMATION_EX;
 
 typedef struct _FILE_POSITION_INFORMATION {
     LARGE_INTEGER CurrentByteOffset;
