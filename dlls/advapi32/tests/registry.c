@@ -5951,6 +5951,9 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
     if (key->accessed < rc2_threshold)
         goto not_cacheable;
 
+    if ((hkey != rc2_hkey_from_access(key, access)))
+        goto not_cacheable; /* shouldn't happen, but just in case */
+
     if (!rc2_put_hkey_access(key, hkey, access))
         goto not_cacheable;
 
