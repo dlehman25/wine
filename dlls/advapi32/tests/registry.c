@@ -4971,7 +4971,7 @@ static BOOL rc_cache_init(void)
     key = keys;
     while ((key < end) && (len = lstrlenW(key)))
     {
-        RtlInitUnicodeString(&token, NULL); 
+        RtlInitUnicodeString(&token, NULL);
         RtlInitUnicodeString(&path, key);
         if (!rc_get_path_token(&path, &token))
         {
@@ -5117,7 +5117,7 @@ static void rc_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len)
 {
     UNICODE_STRING us_name;
     struct key *key;
-   
+
     key = NULL;
     EnterCriticalSection(&rc_lock);
     if (!rc_root)
@@ -5405,6 +5405,7 @@ struct rc2_key
     DWORD               accessed;
     DWORD64             updated;
     struct rc2_str      name;
+    struct list         purge_entry;
     struct list         handles;
     struct rc2_key     *parent;
     struct rc2_key    **subkeys;
@@ -5421,15 +5422,6 @@ struct rc2_keymap
     HKEY            hkey;
     struct rc2_key *key;
 };
-
-static DWORD WINAPI rc2_purge(void *arg)
-{
-    /*
-    for each hkey
-        close key
-    */
-    return 0;
-}
 
 static DWORD WINAPI rc2_handle_notification(void *arg)
 {
@@ -5455,6 +5447,7 @@ static CRITICAL_SECTION_DEBUG rc2_lock_debug =
 };
 static CRITICAL_SECTION rc2_lock = { &rc2_lock_debug, -1, 0, 0, 0, 0 };
 struct rc2_key *rc2_root;
+static struct list rc2_to_purge = LIST_INIT( rc2_to_purge );
 
 static int rc2_keymap_cmp(const void *key, const struct wine_rb_entry *entry)
 {
@@ -5548,6 +5541,40 @@ static inline void rc2_key_addref(struct rc2_key *key)
     printf("%s: semi-stub\n", __FUNCTION__);
     key->ref++;
 }
+
+static DWORD WINAPI rc2_purge(void *arg)
+{
+
+    /*
+    for each hkey
+        close key
+    */
+    struct rc2_key *key, *key2;
+    struct list to_purge;
+    DWORD npurged;
+
+    list_init(&to_purge);
+    EnterCriticalSection(&rc2_lock);
+    LIST_FOR_EACH_ENTRY_SAFE(key, key2, &rc2_to_purge, struct rc2_key, purge_entry)
+    {
+        if (!key->ref)
+        {
+            list_remove(&key->purge_entry);
+            list_add_tail(&to_purge, &key->purge_entry);
+        }
+    }
+    LeaveCriticalSection(&rc2_lock);
+
+    npurged = 0;
+    LIST_FOR_EACH_ENTRY_SAFE(key, key2, &to_purge, struct rc2_key, purge_entry)
+    {
+        list_remove(&key->purge_entry);
+        heap_free(key);
+        ++npurged;
+    }
+    return npurged;
+}
+
 
 static inline void rc2_str_init(struct rc2_str *obj, const WCHAR *str)
 {
@@ -5959,7 +5986,7 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
 
     LeaveCriticalSection(&rc2_lock);
     return S_OK;
-    
+
 not_cacheable:
     LeaveCriticalSection(&rc2_lock);
     return E_OUTOFMEMORY;
