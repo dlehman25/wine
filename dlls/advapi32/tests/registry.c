@@ -5622,19 +5622,6 @@ static inline struct rc2_str *rc2_strdup(struct rc2_str *dst, const struct rc2_s
     return dst;
 }
 
-static inline DWORD rc2_get_refcount(const struct rc2_key *key)
-{
-    const struct rc2_handle *handle;
-    DWORD ref;
-
-    ref = key->ref;
-    LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
-    {
-        ref += handle->ref;
-    }
-    return ref;
-}
-
 static void rc2_dump_key(const struct rc2_key *key, int depth)
 {
     int i;
@@ -5642,8 +5629,8 @@ static void rc2_dump_key(const struct rc2_key *key, int depth)
 
     for (i = 0; i < depth; i++)
         printf(" ");
-    printf("%s ref %u (%u) accessed %u: ", wine_dbgstr_wn(key->name.str, key->name.len),
-        key->ref, rc2_get_refcount(key), key->accessed);
+    printf("%s ref %u accessed %u: ", wine_dbgstr_wn(key->name.str, key->name.len),
+        key->ref, key->accessed);
     LIST_FOR_EACH_ENTRY(handle, &key->handles, struct rc2_handle, entry)
     {
         printf("[%p 0x%x %u] ", handle->hkey, handle->access, handle->ref);
