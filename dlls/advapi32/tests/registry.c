@@ -5542,6 +5542,15 @@ static inline void rc2_key_addref(struct rc2_key *key)
     key->ref++;
 }
 
+static void rc2_free_key(struct rc2_key *key)
+{
+    /*
+    close handle
+    free values
+    free subkeys
+    */
+}
+
 static DWORD WINAPI rc2_purge(void *arg)
 {
 
@@ -5569,12 +5578,11 @@ static DWORD WINAPI rc2_purge(void *arg)
     LIST_FOR_EACH_ENTRY_SAFE(key, key2, &to_purge, struct rc2_key, purge_entry)
     {
         list_remove(&key->purge_entry);
-        heap_free(key);
+        rc2_free_key(key);
         ++npurged;
     }
     return npurged;
 }
-
 
 static inline void rc2_str_init(struct rc2_str *obj, const WCHAR *str)
 {
