@@ -5539,7 +5539,15 @@ static inline BOOL rc2_put_hkey_access(struct rc2_key *key, HKEY hkey, REGSAM ac
 static inline void rc2_key_addref(struct rc2_key *key)
 {
     printf("%s: semi-stub\n", __FUNCTION__);
-    key->ref++;
+    if (!key->ref++)
+        if (0) list_remove(&key->purge_entry);
+}
+
+static inline void rc2_key_release(struct rc2_key *key)
+{
+    printf("%s: semi-stub\n", __FUNCTION__);
+    if (!--key->ref)
+        list_add_tail(&rc2_to_purge, &key->purge_entry);
 }
 
 static void rc2_free_key(struct rc2_key *key)
