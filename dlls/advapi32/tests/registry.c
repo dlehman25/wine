@@ -5421,7 +5421,41 @@ struct rc2_keymap
     struct wine_rb_entry entry;
     HKEY            hkey;
     struct rc2_key *key;
+    struct list     wait_entry;
+    HANDLE          event;
+    PTP_WAIT        wait;
 };
+
+static DWORD rc2_handle_limit = 64;
+static DWORD rc2_threshold = 16;
+static CRITICAL_SECTION rc2_lock;
+static CRITICAL_SECTION_DEBUG rc2_lock_debug =
+{
+    0, 0, &rc2_lock,
+    { &rc2_lock_debug.ProcessLocksList, &rc2_lock_debug.ProcessLocksList },
+    0, 0, { (DWORD_PTR)(__FILE__ ": rc2_lock") }
+};
+static CRITICAL_SECTION rc2_lock = { &rc2_lock_debug, -1, 0, 0, 0, 0 };
+struct rc2_key *rc2_root;
+static struct list rc2_to_purge = LIST_INIT( rc2_to_purge );
+static struct list rc2_waits = LIST_INIT( rc2_waits );
+
+static int rc2_keymap_cmp(const void *key, const struct wine_rb_entry *entry)
+{
+    const struct rc2_keymap *map = WINE_RB_ENTRY_VALUE(entry, struct rc2_keymap, entry);
+    return HandleToLong(key) - HandleToLong(map->hkey);
+}
+static struct wine_rb_tree rc2_hkey_to_key = { rc2_keymap_cmp };
+
+static inline struct rc2_keymap *rc2_keymap_for_hkey(HKEY hkey)
+{
+    struct wine_rb_entry *node;
+
+    if (!(node = wine_rb_get(&rc2_hkey_to_key, hkey)))
+        return NULL;
+
+    return WINE_RB_ENTRY_VALUE(node, struct rc2_keymap, entry);
+}
 
 static DWORD WINAPI rc2_handle_notification(void *arg)
 {
@@ -5436,24 +5470,46 @@ static DWORD WINAPI rc2_handle_notification(void *arg)
     return 0;
 }
 
-static BOOL WINAPI rc2_add_notification(HKEY hkey)
+static void CALLBACK rc2_wait_callback(PTP_CALLBACK_INSTANCE instance, void *parm,
+                                       PTP_WAIT wait, TP_WAIT_RESULT result)
 {
-    printf("%s: add notification %p\n", __FUNCTION__, hkey);
-    return TRUE;
+    printf("%s\n", __FUNCTION__);
 }
 
-static DWORD rc2_handle_limit = 64;
-static DWORD rc2_threshold = 16;
-static CRITICAL_SECTION rc2_lock;
-static CRITICAL_SECTION_DEBUG rc2_lock_debug =
+static BOOL WINAPI rc2_add_notification(HKEY hkey)
 {
-    0, 0, &rc2_lock,
-    { &rc2_lock_debug.ProcessLocksList, &rc2_lock_debug.ProcessLocksList },
-    0, 0, { (DWORD_PTR)(__FILE__ ": rc2_lock") }
-};
-static CRITICAL_SECTION rc2_lock = { &rc2_lock_debug, -1, 0, 0, 0, 0 };
-struct rc2_key *rc2_root;
-static struct list rc2_to_purge = LIST_INIT( rc2_to_purge );
+    LSTATUS status;
+    struct rc2_keymap *map;
+    PTP_WAIT_CALLBACK callback;
+
+    if (!(map = rc2_keymap_for_hkey(hkey)))
+        return FALSE;
+
+    if (map->event || map->wait)
+        return FALSE;
+
+    if (!(map->event = CreateEventA(NULL, FALSE, FALSE, NULL)))
+        return FALSE;
+
+    status = RegNotifyChangeKeyValue(hkey, TRUE,
+                        REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|
+                        REG_NOTIFY_THREAD_AGNOSTIC, map->event, TRUE);
+    if (status)
+        goto failed;
+
+    callback = rc2_wait_callback;
+    if (!(map->wait = CreateThreadpoolWait(callback, map, NULL)))
+        goto failed;
+
+    SetThreadpoolWait(map->wait, map->event, NULL);
+    list_add_tail(&rc2_waits, &map->wait_entry);
+    return TRUE;
+
+failed:
+    CloseHandle(map->event);
+    map->event = NULL;
+    return FALSE;
+}
 
 static inline void rc2_key_release(struct rc2_key *key)
 {
@@ -5461,13 +5517,6 @@ static inline void rc2_key_release(struct rc2_key *key)
     if (!--key->ref)
         list_add_tail(&rc2_to_purge, &key->purge_entry);
 }
-
-static int rc2_keymap_cmp(const void *key, const struct wine_rb_entry *entry)
-{
-    const struct rc2_keymap *map = WINE_RB_ENTRY_VALUE(entry, struct rc2_keymap, entry);
-    return HandleToLong(key) - HandleToLong(map->hkey);
-}
-static struct wine_rb_tree rc2_hkey_to_key = { rc2_keymap_cmp };
 
 static inline BOOL rc2_map_hkey_to_key(HKEY hkey, struct rc2_key *key)
 {
@@ -5480,6 +5529,8 @@ static inline BOOL rc2_map_hkey_to_key(HKEY hkey, struct rc2_key *key)
     map = WINE_RB_ENTRY_VALUE(node, struct rc2_keymap, entry);
     map->hkey = hkey;
     map->key = key;
+    map->event = NULL;
+    map->wait = NULL;
     wine_rb_put(&rc2_hkey_to_key, map->hkey, &map->entry);
     return TRUE;
 }
@@ -6004,7 +6055,7 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
     if (!rc2_put_hkey_access(key, hkey, access))
         goto unmap_hkey;
 
-    if (!rc2_handle_notification(hkey))
+    if (!rc2_add_notification(hkey))
         goto remove_handle_from_key;
 
     LeaveCriticalSection(&rc2_lock);
@@ -6121,12 +6172,17 @@ LSTATUS WINAPI DECLSPEC_HOTPATCH rc2_RegOpenKeyExW(HKEY hkey, LPCWSTR name, DWOR
                                                    REGSAM access, PHKEY retkey)
 {
     LSTATUS status;
+    const BOOL try_cache = !options && !(access & KEY_NOTIFY);
 
-    if (rc2_open_key(hkey, name, options, access, retkey))
-        return STATUS_SUCCESS;
+    if (try_cache)
+    {
+        access |= KEY_NOTIFY;
+        if (rc2_open_key(hkey, name, options, access, retkey))
+            return STATUS_SUCCESS;
+    }
 
     status = RegOpenKeyExW(hkey, name, options, access, retkey);
-    if (status == STATUS_SUCCESS)
+    if (try_cache && status == STATUS_SUCCESS)
         rc2_put_key(hkey, name, options, access, *retkey);
 
     return status;
