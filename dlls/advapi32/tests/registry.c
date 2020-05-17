@@ -5436,6 +5436,12 @@ static DWORD WINAPI rc2_handle_notification(void *arg)
     return 0;
 }
 
+static BOOL WINAPI rc2_add_notification(HKEY hkey)
+{
+    printf("%s: add notification %p\n", __FUNCTION__, hkey);
+    return TRUE;
+}
+
 static DWORD rc2_handle_limit = 64;
 static DWORD rc2_threshold = 16;
 static CRITICAL_SECTION rc2_lock;
@@ -5448,6 +5454,13 @@ static CRITICAL_SECTION_DEBUG rc2_lock_debug =
 static CRITICAL_SECTION rc2_lock = { &rc2_lock_debug, -1, 0, 0, 0, 0 };
 struct rc2_key *rc2_root;
 static struct list rc2_to_purge = LIST_INIT( rc2_to_purge );
+
+static inline void rc2_key_release(struct rc2_key *key)
+{
+    printf("%s: semi-stub\n", __FUNCTION__);
+    if (!--key->ref)
+        list_add_tail(&rc2_to_purge, &key->purge_entry);
+}
 
 static int rc2_keymap_cmp(const void *key, const struct wine_rb_entry *entry)
 {
@@ -5469,6 +5482,20 @@ static inline BOOL rc2_map_hkey_to_key(HKEY hkey, struct rc2_key *key)
     map->key = key;
     wine_rb_put(&rc2_hkey_to_key, map->hkey, &map->entry);
     return TRUE;
+}
+
+static inline void rc2_unmap_key(HKEY hkey)
+{
+    struct wine_rb_entry *node;
+    struct rc2_keymap *map;
+
+    if (!(node = wine_rb_get(&rc2_hkey_to_key, hkey)))
+        return;
+
+    map = WINE_RB_ENTRY_VALUE(node, struct rc2_keymap, entry);
+    wine_rb_remove(&rc2_hkey_to_key, node);
+    rc2_key_release(map->key);
+    heap_free(map);
 }
 
 static inline struct rc2_key *rc2_key_from_hkey(HKEY hkey)
@@ -5523,12 +5550,6 @@ static inline BOOL rc2_put_hkey_access(struct rc2_key *key, HKEY hkey, REGSAM ac
     if (!(handle = heap_alloc(sizeof(*handle))))
         return FALSE;
 
-    if (!rc2_map_hkey_to_key(hkey, key))
-    {
-        heap_free(handle);
-        return FALSE;
-    }
-
     handle->hkey = hkey;
     handle->access = access;
     handle->ref = 1;
@@ -5541,13 +5562,6 @@ static inline void rc2_key_addref(struct rc2_key *key)
     printf("%s: semi-stub\n", __FUNCTION__);
     if (!key->ref++)
         if (0) list_remove(&key->purge_entry);
-}
-
-static inline void rc2_key_release(struct rc2_key *key)
-{
-    printf("%s: semi-stub\n", __FUNCTION__);
-    if (!--key->ref)
-        list_add_tail(&rc2_to_purge, &key->purge_entry);
 }
 
 static void rc2_free_key(struct rc2_key *key)
@@ -5979,10 +5993,10 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
 
     EnterCriticalSection(&rc2_lock);
     if (!rc2_root)
-        goto not_cacheable;
+        goto not_cacheable; /* cache disabled */
 
     if (options)
-        goto not_cacheable;
+        goto not_cacheable; /* unsupported */
 
     if (!(root = rc2_key_from_hkey(hroot)))
         goto not_cacheable;
@@ -5992,17 +6006,27 @@ static LSTATUS rc2_put_key(HKEY hroot, LPCWSTR name, DWORD options,
         goto not_cacheable; /* open_key would have created for tracking accesses */
 
     if (key->accessed < rc2_threshold)
-        goto not_cacheable;
+        goto not_cacheable; /* not accessed enough times to cache */
 
-    if ((hkey != rc2_hkey_from_access(key, access)))
-        goto not_cacheable; /* shouldn't happen, but just in case */
+    if (rc2_hkey_from_access(key, access))
+        goto not_cacheable; /* already cached by other thread (should be rare) */
+
+    if (!rc2_map_hkey_to_key(hkey, key))
+        goto not_cacheable;
 
     if (!rc2_put_hkey_access(key, hkey, access))
-        goto not_cacheable;
+        goto unmap_hkey;
+
+    if (!rc2_handle_notification(hkey))
+        goto remove_handle_from_key;
 
     LeaveCriticalSection(&rc2_lock);
     return S_OK;
 
+remove_handle_from_key:
+    rc2_release_hkey_from_key(key, hkey);
+unmap_hkey:
+    rc2_unmap_key(hkey);
 not_cacheable:
     LeaveCriticalSection(&rc2_lock);
     return E_OUTOFMEMORY;
