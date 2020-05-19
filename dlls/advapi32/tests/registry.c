@@ -6111,6 +6111,38 @@ static BOOL rc2_enum_key(HKEY hkey, DWORD index, LPWSTR name, DWORD *name_len)
 
     fill name if enough room
     */
+    struct rc2_key *key;
+
+    if (!hkey || !name || !name_len)
+        return FALSE;
+
+    EnterCriticalSection(&rc2_lock);
+    if (!rc2_root)
+        goto not_cached;
+
+    if (!(key = rc2_key_from_hkey(hkey)))
+        goto not_cached;
+
+    if (!key->subkeys)
+        goto not_cached; /* no subkeys cached */
+
+    if (index >= key->numkeys)
+        goto not_cached; /* invalid index (that we know of) */
+
+    if (!(key = key->subkeys[index]))
+        goto not_cached; /* this specific subkey isn't cached */
+
+    if (key->name.len + 1 > *name_len)
+        goto not_cached; /* ERROR_MORE_DATA, treat as not cached */
+
+    *name_len = key->name.len + 1;
+    memcpy(name, key->name.str, key->name.len * sizeof(WCHAR));
+    name[key->name.len] = 0;
+    LeaveCriticalSection(&rc2_lock);
+    return TRUE;
+
+not_cached:
+    LeaveCriticalSection(&rc2_lock);
     return FALSE;
 }
 
@@ -6366,6 +6398,14 @@ status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
             L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
             KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
 ok(status == ERROR_SUCCESS, "got %d\n", status);
+
+{
+    WCHAR keyname[128] = {0};
+    DWORD index = 0;
+    DWORD size = ARRAY_SIZE(keyname);
+    status = rc2_RegEnumKeyExW(key, index, keyname, &size, NULL, NULL, NULL, NULL);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+}
 rc2_cache_dump();
 printf("cached - waiting\n", __FUNCTION__); getchar();
         return;
