@@ -6310,24 +6310,65 @@ static void test_cache(void)
                 ok(last == key, "expected %p, got %p\n", last, key);
             last = key;
         }
-        rc2_cache_dump();
-        return;
-        for (i = 0; i < 10; i++)
+
+        last = 0;
+        for (i = 0; i < 20; i++)
+        {
+            status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                        L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+                        KEY_ENUMERATE_SUB_KEYS, &key);
+            ok(status == ERROR_SUCCESS, "got %d\n", status);
+            rc2_RegCloseKey(key);
+            if (last)
+                ok(last == key, "expected %p, got %p\n", last, key);
+            last = key;
+        }
+
+        last = 0;
+        for (i = 0; i < 20; i++)
         {
             status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                         L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", 0,
                         KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
             ok(status == ERROR_SUCCESS, "got %d\n", status);
+            rc2_RegCloseKey(key);
+            if (last)
+                ok(last == key, "expected %p, got %p\n", last, key);
+            last = key;
         }
+
+        last = 0;
         for (i = 0; i < 20; i++)
         {
             status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                      L"Software\\Classes\\Interface\\{00000000-0000-0000-C000-000000000046}", 0,
                      KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
             ok(status == ERROR_SUCCESS, "got %d\n", status);
+            rc2_RegCloseKey(key);
+            if (last)
+                ok(last == key, "expected %p, got %p\n", last, key);
+            last = key;
         }
 
-        rc2_cache_dump();
+        last = 0;
+        for (i = 0; i < 20; i++)
+        {
+            status = rc2_RegOpenKeyExW(HKEY_CURRENT_USER, L"Environment", 0,
+                        KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+            ok(status == ERROR_SUCCESS, "got %d\n", status);
+            rc2_RegCloseKey(key);
+            if (last)
+                ok(last == key, "expected %p, got %p\n", last, key);
+            last = key;
+        }
+
+status = rc2_RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+            L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones", 0,
+            KEY_ENUMERATE_SUB_KEYS|KEY_QUERY_VALUE, &key);
+ok(status == ERROR_SUCCESS, "got %d\n", status);
+rc2_cache_dump();
+printf("cached - waiting\n", __FUNCTION__); getchar();
+        return;
     }
     return;
 
