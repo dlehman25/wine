@@ -41,6 +41,13 @@ static inline void * __WINE_ALLOC_SIZE(2) heap_realloc(void *mem, SIZE_T len)
     return HeapReAlloc(GetProcessHeap(), 0, mem, len);
 }
 
+static inline void * __WINE_ALLOC_SIZE(2) heap_realloc_zero(void *mem, SIZE_T len)
+{
+    if (!mem)
+        return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len);
+    return HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, mem, len);
+}
+
 static inline void heap_free(void *mem)
 {
     HeapFree(GetProcessHeap(), 0, mem);

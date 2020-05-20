@@ -5813,10 +5813,11 @@ static int rc2_grow_subkeys(struct rc2_key *key, int min_index)
     numkeys = max(key->numkeys, min_index);
     numkeys += (numkeys / 2);
     numkeys = max(numkeys, MIN_SUBKEYS);
-    if (!(new_subkeys = heap_realloc(key->subkeys, numkeys * sizeof(*new_subkeys))))
+    if (!(new_subkeys = heap_realloc_zero(key->subkeys, numkeys * sizeof(*new_subkeys))))
         return 0;
 
     key->subkeys = new_subkeys;
+    key->numkeys = numkeys;
     key->maxkeys = numkeys;
     return numkeys;
 }
@@ -6170,7 +6171,7 @@ static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len
         goto not_cacheable;
 
     rc2_str_init_len(&obj, name, name_len);
-    if (!(key = rc2_alloc_subkey(key, &obj, index)))
+    if (!rc2_alloc_subkey(key, &obj, index))
         goto not_cacheable;
 
 not_cacheable:
@@ -6420,6 +6421,7 @@ ok(status == ERROR_SUCCESS, "got %d\n", status);
     DWORD index = 10; /* TODO */
     DWORD size = ARRAY_SIZE(keyname);
     status = rc2_RegEnumKeyExW(key, index, keyname, &size, NULL, NULL, NULL, NULL);
+    printf("keyname %ls\n", keyname);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
 }
 rc2_cache_dump();
