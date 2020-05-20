@@ -6170,7 +6170,7 @@ static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len
         goto not_cacheable;
 
     rc2_str_init_len(&obj, name, name_len);
-    if (!rc2_create_key_recursive(key, &obj)) /* TODO: index */
+    if (!(key = rc2_alloc_subkey(key, &obj, index)))
         goto not_cacheable;
 
 not_cacheable:
