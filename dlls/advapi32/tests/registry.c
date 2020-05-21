@@ -6165,8 +6165,9 @@ static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len
 
     add to subkeys
     */
-    struct rc2_key *key;
-    struct rc2_str obj;
+    struct rc2_key *key, *subkey;
+    struct rc2_str obj, token;
+    int found;
 
     EnterCriticalSection(&rc2_lock);
     if (!rc2_root)
@@ -6176,7 +6177,14 @@ static void rc2_enum_put_key(HKEY hkey, DWORD index, LPWSTR name, DWORD name_len
         goto not_cacheable;
 
     rc2_str_init_len(&obj, name, name_len);
-    if (!rc2_create_key_recursive(key, &obj)) /* TODO: index */
+    if (!(subkey = rc2_open_key_prefix(key, &obj, &token, &found)))
+        goto not_cacheable;
+
+    if (index > found)
+        goto not_cacheable;
+
+    if ((key == subkey) && /* TODO: token.len */
+        !(subkey = rc2_alloc_subkey(key, &token, index)))
         goto not_cacheable;
 
 not_cacheable:
@@ -6423,8 +6431,14 @@ ok(status == ERROR_SUCCESS, "got %d\n", status);
 
 {
     WCHAR keyname[128] = {0};
-    DWORD index = 10; /* TODO */
+    DWORD index = 0;
     DWORD size = ARRAY_SIZE(keyname);
+    status = rc2_RegEnumKeyExW(key, index, keyname, &size, NULL, NULL, NULL, NULL);
+    ok(status == ERROR_SUCCESS, "got %d\n", status);
+
+    memset(keyname, 0, sizeof(keyname));
+    index = 10;
+    size = ARRAY_SIZE(keyname);
     status = rc2_RegEnumKeyExW(key, index, keyname, &size, NULL, NULL, NULL, NULL);
     ok(status == ERROR_SUCCESS, "got %d\n", status);
 }
