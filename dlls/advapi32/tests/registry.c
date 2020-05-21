@@ -5805,17 +5805,23 @@ static struct rc2_key *rc2_open_key_prefix(struct rc2_key *key, const struct rc2
     return key;
 }
 
-static int rc2_grow_subkeys(struct rc2_key *key, int min_index)
+static int rc2_grow_subkeys(struct rc2_key *key)
 {
     struct rc2_key **new_subkeys;
     int numkeys;
 
-    numkeys = max(key->numkeys, min_index);
-    numkeys += (numkeys / 2);
-    numkeys = max(numkeys, MIN_SUBKEYS);
-    if (!(new_subkeys = heap_realloc(key->subkeys, numkeys * sizeof(*new_subkeys))))
-        return 0;
-
+    if (!key->subkeys)
+    {
+        numkeys = MIN_SUBKEYS;
+        if (!(new_subkeys = heap_alloc(numkeys * sizeof(*new_subkeys))))
+            return 0;
+    }
+    else
+    {
+        numkeys = key->numkeys + (key->numkeys / 2);
+        if (!(new_subkeys = heap_realloc(key->subkeys, numkeys * sizeof(*new_subkeys))))
+            return 0;
+    }
     key->subkeys = new_subkeys;
     key->maxkeys = numkeys;
     return numkeys;
@@ -5827,8 +5833,8 @@ static struct rc2_key *rc2_alloc_subkey(struct rc2_key *parent, const struct rc2
     struct rc2_key *key;
     int i;
 
-    if ((index > parent->maxkeys || (parent->numkeys == parent->maxkeys)) &&
-        !rc2_grow_subkeys(parent, index))
+    if ((parent->numkeys == parent->maxkeys) &&
+        !rc2_grow_subkeys(parent))
         return NULL;
 
     if (!(key = rc2_key_new(name)))
