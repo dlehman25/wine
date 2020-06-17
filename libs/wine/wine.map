@@ -6,6 +6,7 @@ WINE_1.0
     __wine_main_argv;
     __wine_main_environ;
     __wine_main_wargv;
+    JNI_OnLoad;
     wine_anon_mmap;
     wine_casemap_lower;
     wine_casemap_upper;

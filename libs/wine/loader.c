@@ -54,7 +54,9 @@
 extern char **environ;
 #endif
 
-#ifdef __ANDROID__
+#define WINE_JAVA_CLASS "sharedwine"
+
+#if defined(__ANDROID__) || defined(WINE_JAVA_CLASS)
 #include <jni.h>
 #endif
 
@@ -954,8 +956,7 @@ static void apple_main_thread( void (*init_func)(void) )
 }
 #endif
 
-
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(WINE_JAVA_CLASS)
 
 #ifndef WINE_JAVA_CLASS
 #define WINE_JAVA_CLASS "org/winehq/wine/WineActivity"
