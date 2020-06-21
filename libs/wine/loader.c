@@ -54,7 +54,7 @@
 extern char **environ;
 #endif
 
-#define WINE_JAVA_CLASS "sharedwine"
+#define WINE_JAVA_CLASS "org/winehq/wine/sharedwine"
 
 #if defined(__ANDROID__) || defined(WINE_JAVA_CLASS)
 #include <jni.h>
