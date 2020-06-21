@@ -900,6 +900,7 @@ with_xshape
 with_xshm
 with_xslt
 with_xxf86vm
+with_java_home
 with_wine_tools
 with_wine64
 enable_largefile
@@ -2614,6 +2615,7 @@ Optional Packages:
   --without-xshm          do not use XShm (shared memory extension)
   --without-xslt          do not use XSLT
   --without-xxf86vm       do not use XFree video mode extension
+  --with-java-home=DIR    use Java tools in DIR to build java wrapper
   --with-wine-tools=DIR   use Wine tools from directory DIR
   --with-wine64=DIR       use the 64-bit Wine in DIR for a Wow64 build
   --with-x                use the X Window System
@@ -4228,6 +4230,12 @@ if test "${with_xxf86vm+set}" = set; then :
   withval=$with_xxf86vm; if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_xf86vmode_h=no; ac_cv_header_X11_extensions_xf86vmproto_h=no; fi
 fi
 
+
+
+# Check whether --with-java-home was given.
+if test "${with_java_home+set}" = set; then :
+  withval=$with_java_home;
+fi
 
 
 # Check whether --with-wine-tools was given.
