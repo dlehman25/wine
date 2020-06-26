@@ -96,7 +96,10 @@ extern IMAGE_NT_HEADERS __wine_spec_nt_header;
 
 void     (WINAPI *pDbgUiRemoteBreakin)( void *arg ) = NULL;
 NTSTATUS (WINAPI *pKiUserExceptionDispatcher)(EXCEPTION_RECORD*,CONTEXT*) = NULL;
+NTSTATUS (WINAPI *pLdrGetDllPath)(PCWSTR,ULONG,PWSTR*,PWSTR *) = NULL;
+NTSTATUS (WINAPI *pLdrGetProcedureAddress)(HMODULE,const ANSI_STRING*,ULONG, PVOID*) = NULL;
 void     (WINAPI *pLdrInitializeThunk)(CONTEXT*,void**,ULONG_PTR,ULONG_PTR) = NULL;
+NTSTATUS (WINAPI *pLdrLoadDll)(LPCWSTR,DWORD,const UNICODE_STRING*,HMODULE*) = NULL;
 void     (WINAPI *pRtlUserThreadStart)( PRTL_THREAD_START_ROUTINE entry, void *arg ) = NULL;
 
 static void (CDECL *p__wine_set_unix_funcs)( int version, const struct unix_funcs *funcs );
@@ -835,7 +838,10 @@ static void fixup_ntdll_imports( const IMAGE_NT_HEADERS *nt )
 
     GET_FUNC( DbgUiRemoteBreakin );
     GET_FUNC( KiUserExceptionDispatcher );
+    GET_FUNC( LdrGetDllPath );
+    GET_FUNC( LdrGetProcedureAddress );
     GET_FUNC( LdrInitializeThunk );
+    GET_FUNC( LdrLoadDll );
     GET_FUNC( RtlUserThreadStart );
     GET_FUNC( __wine_set_unix_funcs );
 #undef GET_FUNC

@@ -1300,3 +1300,20 @@ ULONG WINAPI NtGetCurrentProcessorNumber(void)
     /* fallback to the first processor */
     return 0;
 }
+
+NTSTATUS NTDLL_LdrGetDllPath( PCWSTR module, ULONG flags, PWSTR *path, PWSTR *unknown )
+{
+    return pLdrGetDllPath( module, flags, path, unknown );
+}
+
+NTSTATUS NTDLL_LdrGetProcedureAddress( HMODULE module, const ANSI_STRING *name,
+                                       ULONG ord, PVOID *address )
+{
+    return pLdrGetProcedureAddress( module, name, ord, address );
+}
+
+NTSTATUS NTDLL_LdrLoadDll( LPCWSTR path_name, DWORD flags,
+                           const UNICODE_STRING *libname, HMODULE* hModule )
+{
+    return pLdrLoadDll( path_name, flags, libname, hModule );
+}
