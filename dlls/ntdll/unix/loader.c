@@ -1768,6 +1768,34 @@ void __wine_main( int argc, char *argv[], char *envp[] )
     p__wine_set_unix_funcs( NTDLL_UNIXLIB_VERSION, &unix_funcs );
 }
 
+/***********************************************************************
+ *           __wine_main2
+ *
+ */
+void __wine_main2( int argc, char *argv[], char *envp[] )
+{
+    init_paths( argc, argv, envp );
+
+#ifdef RLIMIT_NOFILE
+    set_max_limit( RLIMIT_NOFILE );
+#endif
+#ifdef RLIMIT_AS
+    set_max_limit( RLIMIT_AS );
+#endif
+
+    virtual_init();
+
+    ntdll_module = load_ntdll();
+    fixup_ntdll_imports( &__wine_spec_nt_header );
+
+    init_environment( argc, argv, envp );
+    wine_dll_set_callback( load_builtin_callback );
+
+#ifdef __APPLE__
+    apple_main_thread();
+#endif
+    p__wine_set_unix_funcs( NTDLL_UNIXLIB_VERSION, &unix_funcs );
+}
 
 static int add_area( void *base, size_t size, void *arg )
 {

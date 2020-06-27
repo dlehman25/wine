@@ -19,6 +19,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 }
 
 typedef void (*__wine_main_t)( int argc, char *argv[], char *envp[] );
+typedef void (*__wine_main2_t)( int argc, char *argv[], char *envp[] );
+
+int SharedWineInit(void)
+{
+    char *WineArguments[2];
+    char *cmdline;
+    char **envp;
+    void *ntdll;
+    __wine_main2_t __wine_main2;
+
+    ntdll = dlopen(DLLPATH "/ntdll.so", RTLD_NOW);
+    printf("ntdll %p\n", ntdll);
+    __wine_main2 = (__wine_main2_t)dlsym(ntdll, "__wine_main2");
+    printf("__wine_main2 %p\n", __wine_main2);
+
+    cmdline = strdup("/home/phantom/stuff/wine/64/output/bin/wine64 " DLLPATH "/wineconsole.exe.so");
+    printf("%s\n", cmdline);
+    WineArguments[0] = cmdline;
+    WineArguments[1] = strstr(cmdline, DLLPATH);
+    WineArguments[1][-1] = 0;
+
+    envp = malloc(1 * sizeof(char*));
+    envp[0] = 0;
+    __wine_main2(2, WineArguments, envp);
+    return 0;
+}
 
 int SharedWineInit2(void)
 {
@@ -69,7 +95,7 @@ int SharedWineInit2(void)
     return(0);
 }
 
-int SharedWineInit(void)
+int SharedWineInit3(void)
 {
     char Error[1024]="";
     char *WineArguments[2];
