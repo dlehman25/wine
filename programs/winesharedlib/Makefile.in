@@ -5,7 +5,7 @@ VPATH     = @srcdir@
 MODULE    = winesharedlib.exe
 APPMODE   = -mwindows
 
-EXTRADEFS = -DDLLPATH=\"${exec_prefix}/lib/wine\" -DLIBPATH=\"${exec_prefix}/lib\"
+EXTRADEFS = -DDLLPATH=\"${exec_prefix}/lib64/wine\" -DLIBPATH=\"${exec_prefix}/lib\"
 EXTRALIBS = -ldl -lpthread -lwine
 C_SRCS = \
   winesharedlib.c
