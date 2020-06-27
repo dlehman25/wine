@@ -1818,6 +1818,7 @@ enable_winemenubuilder
 enable_winemine
 enable_winemsibuilder
 enable_winepath
+enable_winesharedlib
 enable_winetest
 enable_winhlp32
 enable_winmgmt
@@ -21436,6 +21437,7 @@ wine_fn_config_makefile programs/winemenubuilder enable_winemenubuilder
 wine_fn_config_makefile programs/winemine enable_winemine
 wine_fn_config_makefile programs/winemsibuilder enable_winemsibuilder
 wine_fn_config_makefile programs/winepath enable_winepath
+wine_fn_config_makefile programs/winesharedlib enable_winesharedlib
 wine_fn_config_makefile programs/winetest enable_winetest
 wine_fn_config_makefile programs/winevdm enable_win16
 wine_fn_config_makefile programs/winhelp.exe16 enable_win16

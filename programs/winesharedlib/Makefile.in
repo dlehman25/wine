@@ -1,0 +1,11 @@
+TOPSRCDIR = @top_srcdir@
+TOPOBJDIR = ../..
+SRCDIR    = @srcdir@
+VPATH     = @srcdir@
+MODULE    = winesharedlib.exe
+APPMODE   = -mwindows
+
+EXTRADEFS = -DDLLPATH=\"${exec_prefix}/lib/wine\" -DLIBPATH=\"${exec_prefix}/lib\"
+EXTRALIBS = -ldl -lpthread -lwine
+C_SRCS = \
+  winesharedlib.c
