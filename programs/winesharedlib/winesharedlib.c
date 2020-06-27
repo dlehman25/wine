@@ -2,24 +2,29 @@
 
 #include <wine/library.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <windows.h>
 #include <winternl.h>
 #include <dlfcn.h>
 #include <setjmp.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 static jmp_buf jmpbuf;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow)
 {
     longjmp( jmpbuf, 1 );
+    return 0;
 }
 
 typedef void (*__wine_main_t)( int argc, char *argv[], char *envp[] );
 
-int SharedWineInit(void)
+int SharedWineInit2(void)
 {
     char *WineArguments[2];
     char *cmdline;
+    char **envp;
     void *ntdll;
     __wine_main_t __wine_main;
 
@@ -28,14 +33,32 @@ int SharedWineInit(void)
     __wine_main = (__wine_main_t)dlsym(ntdll, "__wine_main");
     printf("__wine_main %p\n", __wine_main);
 
-    cmdline = strdup("sharedapp " DLLPATH "/winesharedlib.exe.so");
-    printf("%s\n", cmdline);
-    WineArguments[0] = cmdline;
-    WineArguments[1] = strstr(cmdline, LIBPATH);
-
     if (!setjmp( jmpbuf ))
     {
-        __wine_main(2, WineArguments, NULL);
+        char noexec[] = "WINELOADERNOEXEC=1";
+        if (!fork())
+        {
+            cmdline = strdup("/home/phantom/stuff/wine/64/output/bin/wine64 " DLLPATH "/wineconsole.exe.so");
+            printf("%s\n", cmdline);
+            WineArguments[0] = cmdline;
+            WineArguments[1] = strstr(cmdline, DLLPATH);
+            WineArguments[1][-1] = 0;
+
+            envp = malloc(1 * sizeof(char*));
+            envp[0] = 0;
+
+            __wine_main(2, WineArguments, envp);
+        }
+
+        cmdline = strdup("/home/phantom/stuff/wine/64/output/bin/wine64 " DLLPATH "/winesharedlib.exe.so");
+        printf("%s\n", cmdline);
+        WineArguments[0] = cmdline;
+        WineArguments[1] = strstr(cmdline, DLLPATH);
+        WineArguments[1][-1] = 0;
+        putenv(noexec);
+        envp = malloc(1 * sizeof(char*));
+        envp[0] = 0;
+        __wine_main(2, WineArguments, envp);
         printf( "should not get here\n" );
     }
     NtCurrentTeb()->Tib.ExceptionList = (void *)~0UL;
@@ -46,7 +69,7 @@ int SharedWineInit(void)
     return(0);
 }
 
-int SharedWineInit2(void)
+int SharedWineInit(void)
 {
     char Error[1024]="";
     char *WineArguments[2];
