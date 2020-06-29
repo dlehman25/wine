@@ -21,10 +21,39 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 typedef void (*__wine_main_t)( int argc, char *argv[], char *envp[] );
 typedef void (*__wine_main2_t)( int argc, char *argv[], char *envp[] );
 
-void *WineLoadLibrary(const char *path)
+static NTSTATUS (*NTDLL_LdrGetDllPath)(PCWSTR,ULONG,PWSTR*,PWSTR*);
+static NTSTATUS (*NTDLL_LdrGetProcedureAddress)(HMODULE,const ANSI_STRING*,ULONG, PVOID*);
+static NTSTATUS (*NTDLL_LdrLoadDll)(LPCWSTR,DWORD,const UNICODE_STRING*,HMODULE*);
+
+void *WineLoadLibrary(const char *dll)
 {
-    printf("%s: path %s\n", __FUNCTION__, path);
-    return NULL;
+    /* see dlls/kernelbase/loader.c */
+    WCHAR *load_path, *dummy;
+    UNICODE_STRING str;
+    NTSTATUS status;
+    HMODULE module;
+    USHORT i;
+
+    printf("%s: %s\n", __FUNCTION__, dll);
+
+    /* Rtl functions? */
+    /* TODO: A -> W properly */
+    str.Length = strlen(dll) * sizeof(WCHAR);
+    str.MaximumLength = str.Length + sizeof(WCHAR);
+    str.Buffer = malloc(str.MaximumLength);
+    for (i = 0; i < str.Length / sizeof(WCHAR); i++)
+        str.Buffer[i] = dll[i];
+    str.Buffer[i] = 0;
+
+    printf("%s: NTDLL_LdrGetDllPath %p\n", __FUNCTION__, NTDLL_LdrGetDllPath);
+    status = NTDLL_LdrGetDllPath(str.Buffer, 0, &load_path, &dummy);
+    printf("LdrGetDllPath %x: \n", status);
+    status = NTDLL_LdrLoadDll(load_path, 0, &str, &module);
+    printf("LdrLoadDll %x: \n", status);
+
+    free(str.Buffer);
+
+    return module;
 }
 
 void *WineGetProcAddress(void *handle, const char *path)
@@ -58,6 +87,12 @@ int SharedWineInit(void)
     printf("ntdll %p\n", ntdll);
     __wine_main2 = (__wine_main2_t)dlsym(ntdll, "__wine_main2");
     printf("__wine_main2 %p\n", __wine_main2);
+    NTDLL_LdrGetDllPath = dlsym(ntdll, "NTDLL_LdrGetDllPath");
+    printf("NTDLL_LdrGetDllPath %p\n", NTDLL_LdrGetDllPath);fflush(stdout);
+    NTDLL_LdrLoadDll = dlsym(ntdll, "NTDLL_LdrLoadDll");
+    printf("NTDLL_LdrLoadDll %p\n", NTDLL_LdrLoadDll);fflush(stdout);
+    NTDLL_LdrGetProcedureAddress = dlsym(ntdll, "NTDLL_LdrGetProcedureAddress");
+    printf("NTDLL_LdrGetProcedureAddress %p\n", NTDLL_LdrGetProcedureAddress);fflush(stdout);
 
     cmdline = strdup("/home/phantom/stuff/wine/64/output/bin/wine64 " DLLPATH "/wineconsole.exe.so");
     printf("%s\n", cmdline);
