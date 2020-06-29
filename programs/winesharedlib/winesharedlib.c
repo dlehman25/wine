@@ -21,6 +21,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 typedef void (*__wine_main_t)( int argc, char *argv[], char *envp[] );
 typedef void (*__wine_main2_t)( int argc, char *argv[], char *envp[] );
 
+void *WineLoadLibrary(const char *path)
+{
+    printf("%s: path %s\n", __FUNCTION__, path);
+    return NULL;
+}
+
+void *WineGetProcAddress(void *handle, const char *path)
+{
+    printf("%s: handle %p path %s\n", __FUNCTION__, handle, path);
+    return NULL;
+}
+
+void wine_adopt_thread(void)
+{
+    printf("%s:\n", __FUNCTION__);
+}
+
+int wine_is_thread_adopted(void)
+{
+    printf("%s:\n", __FUNCTION__);
+    return 0;
+}
+
 int SharedWineInit(void)
 {
     char *WineArguments[2];
@@ -28,7 +51,9 @@ int SharedWineInit(void)
     char **envp;
     void *ntdll;
     __wine_main2_t __wine_main2;
+    char shared[] = "WINESHAREDLIB=1";
 
+    putenv(shared);
     ntdll = dlopen(DLLPATH "/ntdll.so", RTLD_NOW);
     printf("ntdll %p\n", ntdll);
     __wine_main2 = (__wine_main2_t)dlsym(ntdll, "__wine_main2");
