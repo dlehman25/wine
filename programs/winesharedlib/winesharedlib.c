@@ -56,10 +56,20 @@ void *WineLoadLibrary(const char *dll)
     return module;
 }
 
-void *WineGetProcAddress(void *handle, const char *path)
+void *WineGetProcAddress(void *handle, const char *name)
 {
-    printf("%s: handle %p path %s\n", __FUNCTION__, handle, path);
-    return NULL;
+    NTSTATUS status;
+    ANSI_STRING str;
+    FARPROC func;
+
+    printf("%s: handle %p name %s\n", __FUNCTION__, handle, name);
+    // RtlInitAnsiString( &str, function )
+    str.Buffer = name;
+    str.Length = strlen(name);
+    str.MaximumLength = str.Length + 1;
+    status = NTDLL_LdrGetProcedureAddress(handle, &str, 0, (void**)&func);
+    printf("%s: status %x name %s -> %p\n", __FUNCTION__, status, name, func);
+    return func;
 }
 
 void wine_adopt_thread(void)
