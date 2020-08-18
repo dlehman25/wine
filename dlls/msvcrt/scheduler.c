@@ -1071,6 +1071,20 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
     CurrentScheduler_ScheduleTask(proc, data);
 }
 
+
+#if _MSVCR_VER >= 120
+typedef struct {
+    const vtable_ptr *vtable;
+} _StructuredTaskCollection;
+
+/* ??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ */
+/* ??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ */
+void __cdecl _StructuredTaskCollection_dtor(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+#endif
+
 #ifdef __ASM_USE_THISCALL_WRAPPER
 
 #define DEFINE_VTBL_WRAPPER(off)            \
