@@ -1072,10 +1072,22 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
 }
 
 
-#if _MSVCR_VER >= 120
+#if _MSVCR_VER >= 110
 typedef struct {
     const vtable_ptr *vtable;
 } _StructuredTaskCollection;
+
+typedef struct {
+    int dummy;
+} _CancellationTokenState;
+
+/* ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z */
+/* ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
+void __thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *this, _CancellationTokenState *state)
+{
+    FIXME("(%p %p) stub\n", this, state);
+}
 
 /* ??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ */
 /* ??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ */
