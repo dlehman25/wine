@@ -106,6 +106,7 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
     };
     int is_dst;
+    int redef_std;
     struct tm dlttm;
     struct tm stdtm;
     struct tm local;
@@ -136,6 +137,9 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
 
     memset(tzi, 0, sizeof(*tzi));
 
+    redef_std = jan1st.tm_gmtoff != dec31st.tm_gmtoff &&
+                !strcmp(jan1st.tm_zone, dec31st.tm_zone);
+
     dlt = std = 0;
     tmp = find_dst_change(start, end, &is_dst);
     if (tmp <= end)
@@ -154,13 +158,7 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
         if (is_dst)
             dlt = tmp;
         else
-        {
-            /* use daylight time for cases where standard time is redefined */
-            if (std)
-                dlt = tmp;
-            else
-                std = tmp;
-        }
+            std = tmp;
     }
 
     if (!dlt) dlt = start;
@@ -196,7 +194,10 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
             tzi->DaylightDate.wDay++;
     }
 
-    tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
+    if (redef_std)
+        tmp = std - tzi->Bias * 60;
+    else
+        tmp = std - tzi->Bias * 60 - tzi->DaylightBias * 60;
     gmtime_r(&tmp, &stdtm);
     tzi->StandardBias = 0;
     tzi->StandardDate.wYear = 0;
