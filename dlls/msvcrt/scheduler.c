@@ -1074,7 +1074,7 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
 
 #if _MSVCR_VER >= 100
 typedef struct {
-    const vtable_ptr *vtable;
+    ULONG_PTR unk[8];
 } _StructuredTaskCollection;
 
 typedef struct {
@@ -1082,7 +1082,7 @@ typedef struct {
 } _CancellationTokenState;
 
 typedef struct {
-    int dummy;
+    ULONG_PTR unk[5];
 } _UnrealizedChore;
 
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */

@@ -174,6 +174,14 @@ struct SchedulerVtbl {
     /* ScheduleTask */
 };
 
+typedef struct {
+    ULONG_PTR unk[8];
+} _StructuredTaskCollection;
+
+typedef struct {
+    ULONG_PTR unk[5];
+} _UnrealizedChore;
+
 static int* (__cdecl *p_errno)(void);
 static int (__cdecl *p_wmemcpy_s)(wchar_t *dest, size_t numberOfElements, const wchar_t *src, size_t count);
 static int (__cdecl *p_wmemmove_s)(wchar_t *dest, size_t numberOfElements, const wchar_t *src, size_t count);
@@ -230,6 +238,8 @@ static Scheduler* (__cdecl *p_Scheduler_Create)(SchedulerPolicy*);
 static Scheduler* (__cdecl *p_CurrentScheduler_Get)(void);
 static void (__cdecl *p_CurrentScheduler_Detach)(void);
 static unsigned int (__cdecl *p_CurrentScheduler_Id)(void);
+
+static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
 
 static int (__cdecl *p__memicmp)(const char*, const char*, size_t);
 static int (__cdecl *p__memicmp_l)(const char*, const char*, size_t,_locale_t);
@@ -318,6 +328,8 @@ static BOOL init(void)
         SET(p_SchedulerPolicy_dtor, "??1SchedulerPolicy@Concurrency@@QEAA@XZ");
         SET(p_Scheduler_Create, "?Create@Scheduler@Concurrency@@SAPEAV12@AEBVSchedulerPolicy@2@@Z");
         SET(p_CurrentScheduler_Get, "?Get@CurrentScheduler@Concurrency@@SAPEAVScheduler@2@XZ");
+
+        SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
     } else {
         SET(pSpinWait_ctor_yield, "??0?$_SpinWait@$00@details@Concurrency@@QAE@P6AXXZ@Z");
         SET(pSpinWait_dtor, "??_F?$_SpinWait@$00@details@Concurrency@@QAEXXZ");
@@ -359,6 +371,8 @@ static BOOL init(void)
         SET(p_SchedulerPolicy_dtor, "??1SchedulerPolicy@Concurrency@@QAE@XZ");
         SET(p_Scheduler_Create, "?Create@Scheduler@Concurrency@@SAPAV12@ABVSchedulerPolicy@2@@Z");
         SET(p_CurrentScheduler_Get, "?Get@CurrentScheduler@Concurrency@@SAPAVScheduler@2@XZ");
+
+        SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
     }
 
     init_thiscall_thunk();
@@ -1106,6 +1120,16 @@ static void test___strncnt(void)
     }
 }
 
+static void test__StructuredTaskCollection(void)
+{
+    _StructuredTaskCollection stc;
+    _UnrealizedChore uc;
+
+    memset(&stc, 0, sizeof(stc));
+    memset(&uc, 0, sizeof(uc));
+    p__StructuredTaskCollection_Schedule(&stc, &uc);
+}
+
 START_TEST(msvcr100)
 {
     if (!init())
@@ -1126,4 +1150,5 @@ START_TEST(msvcr100)
     test__memicmp_l();
     test_setlocale();
     test___strncnt();
+    test__StructuredTaskCollection();
 }
