@@ -1093,6 +1093,13 @@ void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *th
     FIXME("(%p %p) stub\n", this, chore);
 }
 
+/* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z */
+/* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z */
+void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
+{
+    FIXME("(%p %p) stub\n", this, chore);
+}
+
 /* ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z */
 /* ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
