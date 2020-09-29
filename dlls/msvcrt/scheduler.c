@@ -1082,7 +1082,9 @@ typedef struct {
 } _CancellationTokenState;
 
 typedef struct {
-    ULONG_PTR unk[5];
+    ULONG_PTR unk0[2];
+    _StructuredTaskCollection *coll;
+    ULONG_PTR unk1[2];
 } _UnrealizedChore;
 
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */

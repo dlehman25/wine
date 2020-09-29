@@ -179,7 +179,9 @@ typedef struct {
 } _StructuredTaskCollection;
 
 typedef struct {
-    ULONG_PTR unk[5];
+    ULONG_PTR unk0[2];
+    _StructuredTaskCollection *coll;
+    ULONG_PTR unk1[2];
 } _UnrealizedChore;
 
 static int* (__cdecl *p_errno)(void);
@@ -1128,6 +1130,7 @@ static void test__StructuredTaskCollection(void)
     memset(&stc, 0, sizeof(stc));
     memset(&uc, 0, sizeof(uc));
     p__StructuredTaskCollection_Schedule(&stc, &uc);
+    todo_wine ok(uc.coll == &stc, "expected %p, got %p\n", &stc, uc.coll);
 }
 
 START_TEST(msvcr100)
