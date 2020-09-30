@@ -1102,6 +1102,7 @@ void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_Structured
     FIXME("(%p %p) stub\n", this, chore);
 }
 
+#if _MSVCR_VER >= 110
 /* ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z */
 /* ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
@@ -1109,6 +1110,7 @@ void __thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *th
 {
     FIXME("(%p %p) stub\n", this, state);
 }
+#endif
 
 /* ??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ */
 /* ??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ */
