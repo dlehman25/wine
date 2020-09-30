@@ -31,6 +31,52 @@
 
 #include <locale.h>
 
+#define DEFINE_EXPECT(func) \
+    static BOOL expect_ ## func = FALSE, called_ ## func = FALSE
+
+#define SET_EXPECT(func) \
+    expect_ ## func = TRUE
+
+#define CHECK_EXPECT2(func) \
+    do { \
+        ok(expect_ ##func, "unexpected call " #func "\n"); \
+        called_ ## func = TRUE; \
+    }while(0)
+
+#define CHECK_EXPECT(func) \
+    do { \
+        CHECK_EXPECT2(func); \
+        expect_ ## func = FALSE; \
+    }while(0)
+
+#define CHECK_CALLED(func) \
+    do { \
+        ok(called_ ## func, "expected " #func "\n"); \
+        expect_ ## func = called_ ## func = FALSE; \
+    }while(0)
+
+#undef __thiscall
+#ifdef __i386__
+#define __thiscall __stdcall
+#else
+#define __thiscall __cdecl
+#endif
+
+typedef struct {
+    ULONG_PTR unk[8];
+} _StructuredTaskCollection;
+
+struct _UnrealizedChore;
+typedef void (__cdecl *chore_func)(void*);
+typedef void (__cdecl *chore_wrapper_func)(struct _UnrealizedChore*);
+typedef struct _UnrealizedChore{
+    ULONG_PTR unk0[1];
+    chore_func func;
+    _StructuredTaskCollection *coll;
+    chore_wrapper_func wrapper;
+    ULONG_PTR unk1[1];
+} _UnrealizedChore;
+
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static size_t (CDECL *p___strncnt)(const char *str, size_t count);
 
@@ -38,6 +84,8 @@ static unsigned int (CDECL *p_CurrentScheduler_GetNumberOfVirtualProcessors)(voi
 static unsigned int (CDECL *p__CurrentScheduler__GetNumberOfVirtualProcessors)(void);
 static unsigned int (CDECL *p_CurrentScheduler_Id)(void);
 static unsigned int (CDECL *p__CurrentScheduler__Id)(void);
+
+static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -59,6 +107,15 @@ static BOOL init(void)
     SET(p__CurrentScheduler__GetNumberOfVirtualProcessors, "?_GetNumberOfVirtualProcessors@_CurrentScheduler@details@Concurrency@@SAIXZ");
     SET(p_CurrentScheduler_Id, "?Id@CurrentScheduler@Concurrency@@SAIXZ");
     SET(p__CurrentScheduler__Id, "?_Id@_CurrentScheduler@details@Concurrency@@SAIXZ");
+
+    if(sizeof(void*) == 8)
+    {
+        SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
+    }
+    else
+    {
+        SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
+    }
 
     return TRUE;
 }
@@ -146,10 +203,40 @@ static void test___strncnt(void)
     }
 }
 
+DEFINE_EXPECT(chore_func);
+static void *chore_func_arg;
+static void test_chore_func(void *arg)
+{
+    CHECK_EXPECT(chore_func);
+    chore_func_arg = arg;
+}
+
+static void test__StructuredTaskCollection(void)
+{
+    _StructuredTaskCollection stc;
+    _UnrealizedChore uc;
+
+    memset(&stc, 0, sizeof(stc));
+    memset(&uc, 0, sizeof(uc));
+    p__StructuredTaskCollection_Schedule(&stc, &uc);
+    todo_wine ok(uc.coll == &stc, "expected %p, got %p\n", &stc, uc.coll);
+    todo_wine ok(!!uc.wrapper, "expected non-NULL\n");
+
+    if (!uc.wrapper) return;
+
+    uc.func = test_chore_func;
+    SET_EXPECT(chore_func);
+    uc.wrapper(&uc);
+    CHECK_CALLED(chore_func);
+
+    ok(chore_func_arg == &uc, "expected %p, got %p\n", &uc, chore_func_arg);
+}
+
 START_TEST(msvcr110)
 {
     if (!init()) return;
     test_CurrentScheduler(); /* MUST be first (at least among Concurrency tests) */
     test_setlocale();
     test___strncnt();
+    test__StructuredTaskCollection();
 }
