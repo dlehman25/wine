@@ -178,10 +178,15 @@ typedef struct {
     ULONG_PTR unk[8];
 } _StructuredTaskCollection;
 
-typedef struct {
-    ULONG_PTR unk0[2];
+struct _UnrealizedChore;
+typedef void (__cdecl *chore_func)(void*);
+typedef void (__cdecl *chore_wrapper_func)(struct _UnrealizedChore*);
+typedef struct _UnrealizedChore{
+    ULONG_PTR unk0[1];
+    chore_func func;
     _StructuredTaskCollection *coll;
-    ULONG_PTR unk1[2];
+    chore_wrapper_func wrapper;
+    ULONG_PTR unk1[1];
 } _UnrealizedChore;
 
 static int* (__cdecl *p_errno)(void);
@@ -1122,6 +1127,14 @@ static void test___strncnt(void)
     }
 }
 
+DEFINE_EXPECT(chore_func);
+static void *chore_func_arg;
+static void test_chore_func(void *arg)
+{
+    CHECK_EXPECT(chore_func);
+    chore_func_arg = arg;
+}
+
 static void test__StructuredTaskCollection(void)
 {
     _StructuredTaskCollection stc;
@@ -1131,6 +1144,16 @@ static void test__StructuredTaskCollection(void)
     memset(&uc, 0, sizeof(uc));
     p__StructuredTaskCollection_Schedule(&stc, &uc);
     todo_wine ok(uc.coll == &stc, "expected %p, got %p\n", &stc, uc.coll);
+    todo_wine ok(!!uc.wrapper, "expected non-NULL\n");
+
+    if (!uc.wrapper) return;
+
+    uc.func = test_chore_func;
+    SET_EXPECT(chore_func);
+    uc.wrapper(&uc);
+    CHECK_CALLED(chore_func);
+
+    ok(chore_func_arg == &uc, "expected %p, got %p\n", &uc, chore_func_arg);
 }
 
 START_TEST(msvcr100)
