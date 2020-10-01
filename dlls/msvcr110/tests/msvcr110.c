@@ -63,7 +63,13 @@
 #endif
 
 typedef struct {
-    ULONG_PTR unk[8];
+    void *vtable;
+} Context;
+
+typedef struct {
+    ULONG_PTR unk0[3];
+    Context *ctx;
+    ULONG_PTR unk1[7];
 } _StructuredTaskCollection;
 
 struct _UnrealizedChore;
@@ -84,6 +90,8 @@ static unsigned int (CDECL *p_CurrentScheduler_GetNumberOfVirtualProcessors)(voi
 static unsigned int (CDECL *p__CurrentScheduler__GetNumberOfVirtualProcessors)(void);
 static unsigned int (CDECL *p_CurrentScheduler_Id)(void);
 static unsigned int (CDECL *p__CurrentScheduler__Id)(void);
+
+static Context* (__cdecl *p_Context_CurrentContext)(void);
 
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
 
@@ -110,10 +118,14 @@ static BOOL init(void)
 
     if(sizeof(void*) == 8)
     {
+        SET(p_Context_CurrentContext, "?CurrentContext@Context@Concurrency@@SAPEAV12@XZ");
+
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
     }
     else
     {
+        SET(p_Context_CurrentContext, "?CurrentContext@Context@Concurrency@@SAPAV12@XZ");
+
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
     }
 
@@ -215,12 +227,16 @@ static void test__StructuredTaskCollection(void)
 {
     _StructuredTaskCollection stc;
     _UnrealizedChore uc;
+    Context *ctx;
 
     memset(&stc, 0, sizeof(stc));
     memset(&uc, 0, sizeof(uc));
     p__StructuredTaskCollection_Schedule(&stc, &uc);
     todo_wine ok(uc.coll == &stc, "expected %p, got %p\n", &stc, uc.coll);
     todo_wine ok(!!uc.wrapper, "expected non-NULL\n");
+
+    ctx = p_Context_CurrentContext();
+    todo_wine ok(stc.ctx == ctx, "expected %p, got %p\n", ctx, stc.ctx);
 
     if (!uc.wrapper) return;
 
