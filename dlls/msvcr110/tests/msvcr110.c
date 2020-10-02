@@ -279,7 +279,7 @@ static void test__StructuredTaskCollection(void)
 
     ok(chore_func_arg == &uc0, "expected %p, got %p\n", &uc0, chore_func_arg);
     todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
-    todo_wine ok(stc.completed == 1, "expected 0, got %d\n", stc.completed);
+    todo_wine ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
 
     SET_EXPECT(chore_func0);
     SET_EXPECT(chore_func1);
