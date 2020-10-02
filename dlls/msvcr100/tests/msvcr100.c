@@ -177,7 +177,9 @@ struct SchedulerVtbl {
 typedef struct {
     ULONG_PTR unk0[2];
     Context *ctx;
-    ULONG_PTR unk1[7];
+    int scheduled;
+    int completed;
+    ULONG_PTR unk1[6];
 } _StructuredTaskCollection;
 
 struct _UnrealizedChore;
@@ -1148,6 +1150,8 @@ static void test__StructuredTaskCollection(void)
     p__StructuredTaskCollection_Schedule(&stc, &uc);
     todo_wine ok(uc.coll == &stc, "expected %p, got %p\n", &stc, uc.coll);
     todo_wine ok(!!uc.wrapper, "expected non-NULL\n");
+    todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
+    ok(stc.completed == 0, "expected 0, got %d\n", stc.completed);
 
     ctx = p_Context_CurrentContext();
     todo_wine ok(stc.ctx == ctx, "expected %p, got %p\n", ctx, stc.ctx);
@@ -1160,6 +1164,8 @@ static void test__StructuredTaskCollection(void)
     CHECK_CALLED(chore_func);
 
     ok(chore_func_arg == &uc, "expected %p, got %p\n", &uc, chore_func_arg);
+    todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
+    todo_wine ok(stc.completed == 1, "expected 0, got %d\n", stc.completed);
 }
 
 START_TEST(msvcr100)
