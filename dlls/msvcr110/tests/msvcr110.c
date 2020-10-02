@@ -85,6 +85,10 @@ typedef struct _UnrealizedChore{
     ULONG_PTR unk1[1];
 } _UnrealizedChore;
 
+typedef struct {
+    ULONG_PTR unk[16];
+} _CancellationTokenState;
+
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static size_t (CDECL *p___strncnt)(const char *str, size_t count);
 
@@ -95,6 +99,7 @@ static unsigned int (CDECL *p__CurrentScheduler__Id)(void);
 
 static Context* (__cdecl *p_Context_CurrentContext)(void);
 
+static void (__thiscall *p__StructuredTaskCollection_ctor_cts)(_StructuredTaskCollection*,_CancellationTokenState*);
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
@@ -122,12 +127,14 @@ static BOOL init(void)
     {
         SET(p_Context_CurrentContext, "?CurrentContext@Context@Concurrency@@SAPEAV12@XZ");
 
+        SET(p__StructuredTaskCollection_ctor_cts, "??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z");
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
     }
     else
     {
         SET(p_Context_CurrentContext, "?CurrentContext@Context@Concurrency@@SAPAV12@XZ");
 
+        SET(p__StructuredTaskCollection_ctor_cts, "??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z");
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
     }
 
@@ -230,6 +237,10 @@ static void test__StructuredTaskCollection(void)
     _StructuredTaskCollection stc;
     _UnrealizedChore uc;
     Context *ctx;
+
+    memset(&stc, 0, sizeof(stc));
+    p__StructuredTaskCollection_ctor_cts(&stc, NULL);
+    todo_wine ok(stc.completed == INT_MIN, "expected %x, got %x\n", INT_MIN, stc.completed);
 
     memset(&stc, 0, sizeof(stc));
     memset(&uc, 0, sizeof(uc));
