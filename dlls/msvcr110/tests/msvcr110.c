@@ -232,11 +232,18 @@ static void test___strncnt(void)
     }
 }
 
-DEFINE_EXPECT(chore_func);
+DEFINE_EXPECT(chore_func0);
+DEFINE_EXPECT(chore_func1);
 static void *chore_func_arg;
-static void test_chore_func(void *arg)
+static void test_chore_func0(void *arg)
 {
-    CHECK_EXPECT(chore_func);
+    CHECK_EXPECT(chore_func0);
+    chore_func_arg = arg;
+}
+
+static void test_chore_func1(void *arg)
+{
+    CHECK_EXPECT(chore_func1);
     chore_func_arg = arg;
 }
 
@@ -244,7 +251,8 @@ static void test__StructuredTaskCollection(void)
 {
     _StructuredTaskCollection stc;
     _TaskCollectionStatus tcs;
-    _UnrealizedChore uc;
+    _UnrealizedChore uc0;
+    _UnrealizedChore uc1;
     Context *ctx;
 
     memset(&stc, 0, sizeof(stc));
@@ -252,30 +260,33 @@ static void test__StructuredTaskCollection(void)
     todo_wine ok(stc.completed == INT_MIN, "expected %x, got %x\n", INT_MIN, stc.completed);
 
     memset(&stc, 0, sizeof(stc));
-    memset(&uc, 0, sizeof(uc));
-    p__StructuredTaskCollection_Schedule(&stc, &uc);
-    todo_wine ok(uc.coll == &stc, "expected %p, got %p\n", &stc, uc.coll);
-    todo_wine ok(!!uc.wrapper, "expected non-NULL\n");
+    memset(&uc0, 0, sizeof(uc0));
+    p__StructuredTaskCollection_Schedule(&stc, &uc0);
+    todo_wine ok(uc0.coll == &stc, "expected %p, got %p\n", &stc, uc0.coll);
+    todo_wine ok(!!uc0.wrapper, "expected non-NULL\n");
     todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
     ok(stc.completed == 0, "expected 0, got %d\n", stc.completed);
 
     ctx = p_Context_CurrentContext();
     todo_wine ok(stc.ctx == ctx, "expected %p, got %p\n", ctx, stc.ctx);
 
-    if (!uc.wrapper) return;
+    if (!uc0.wrapper) return;
 
-    uc.func = test_chore_func;
-    SET_EXPECT(chore_func);
-    uc.wrapper(&uc);
-    CHECK_CALLED(chore_func);
+    uc0.func = test_chore_func0;
+    SET_EXPECT(chore_func0);
+    uc0.wrapper(&uc0);
+    CHECK_CALLED(chore_func0);
 
-    ok(chore_func_arg == &uc, "expected %p, got %p\n", &uc, chore_func_arg);
+    ok(chore_func_arg == &uc0, "expected %p, got %p\n", &uc0, chore_func_arg);
     todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
     todo_wine ok(stc.completed == 1, "expected 0, got %d\n", stc.completed);
 
-    SET_EXPECT(chore_func);
-    tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc);
-    CHECK_CALLED(chore_func);
+    SET_EXPECT(chore_func0);
+    SET_EXPECT(chore_func1);
+    uc1.func = test_chore_func1;
+    tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc1);
+    CHECK_CALLED(chore_func0);
+    CHECK_CALLED(chore_func1);
     ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
 }
 
