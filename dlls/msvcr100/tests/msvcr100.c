@@ -193,6 +193,11 @@ typedef struct _UnrealizedChore{
     ULONG_PTR unk1[1];
 } _UnrealizedChore;
 
+typedef enum {
+    _NotComplete,
+    _Complete,
+} _TaskCollectionStatus;
+
 static int* (__cdecl *p_errno)(void);
 static int (__cdecl *p_wmemcpy_s)(wchar_t *dest, size_t numberOfElements, const wchar_t *src, size_t count);
 static int (__cdecl *p_wmemmove_s)(wchar_t *dest, size_t numberOfElements, const wchar_t *src, size_t count);
@@ -251,6 +256,7 @@ static void (__cdecl *p_CurrentScheduler_Detach)(void);
 static unsigned int (__cdecl *p_CurrentScheduler_Id)(void);
 
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
+static _TaskCollectionStatus (__stdcall *p__StructuredTaskCollection_RunAndWait__UnrealizedChore)(_StructuredTaskCollection*,_UnrealizedChore*);
 
 static int (__cdecl *p__memicmp)(const char*, const char*, size_t);
 static int (__cdecl *p__memicmp_l)(const char*, const char*, size_t,_locale_t);
@@ -341,6 +347,7 @@ static BOOL init(void)
         SET(p_CurrentScheduler_Get, "?Get@CurrentScheduler@Concurrency@@SAPEAVScheduler@2@XZ");
 
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore, "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z");
     } else {
         SET(pSpinWait_ctor_yield, "??0?$_SpinWait@$00@details@Concurrency@@QAE@P6AXXZ@Z");
         SET(pSpinWait_dtor, "??_F?$_SpinWait@$00@details@Concurrency@@QAEXXZ");
@@ -384,6 +391,7 @@ static BOOL init(void)
         SET(p_CurrentScheduler_Get, "?Get@CurrentScheduler@Concurrency@@SAPAVScheduler@2@XZ");
 
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore, "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z"); 
     }
 
     init_thiscall_thunk();
@@ -1142,6 +1150,7 @@ static void test_chore_func(void *arg)
 static void test__StructuredTaskCollection(void)
 {
     _StructuredTaskCollection stc;
+    _TaskCollectionStatus tcs;
     _UnrealizedChore uc;
     Context *ctx;
 
@@ -1166,6 +1175,11 @@ static void test__StructuredTaskCollection(void)
     ok(chore_func_arg == &uc, "expected %p, got %p\n", &uc, chore_func_arg);
     todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
     todo_wine ok(stc.completed == 1, "expected 0, got %d\n", stc.completed);
+
+    SET_EXPECT(chore_func);
+    tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc);
+    CHECK_CALLED(chore_func);
+    ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
 }
 
 START_TEST(msvcr100)
