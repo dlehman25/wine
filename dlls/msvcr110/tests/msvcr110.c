@@ -89,6 +89,11 @@ typedef struct {
     ULONG_PTR unk[16];
 } _CancellationTokenState;
 
+typedef enum {
+    _NotComplete,
+    _Complete,
+} _TaskCollectionStatus;
+
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static size_t (CDECL *p___strncnt)(const char *str, size_t count);
 
@@ -101,6 +106,7 @@ static Context* (__cdecl *p_Context_CurrentContext)(void);
 
 static void (__thiscall *p__StructuredTaskCollection_ctor_cts)(_StructuredTaskCollection*,_CancellationTokenState*);
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
+static _TaskCollectionStatus (__stdcall *p__StructuredTaskCollection_RunAndWait__UnrealizedChore)(_StructuredTaskCollection*,_UnrealizedChore*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -129,6 +135,7 @@ static BOOL init(void)
 
         SET(p__StructuredTaskCollection_ctor_cts, "??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z");
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore, "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z");
     }
     else
     {
@@ -136,6 +143,7 @@ static BOOL init(void)
 
         SET(p__StructuredTaskCollection_ctor_cts, "??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z");
         SET(p__StructuredTaskCollection_Schedule, "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore, "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z"); 
     }
 
     return TRUE;
@@ -235,6 +243,7 @@ static void test_chore_func(void *arg)
 static void test__StructuredTaskCollection(void)
 {
     _StructuredTaskCollection stc;
+    _TaskCollectionStatus tcs;
     _UnrealizedChore uc;
     Context *ctx;
 
@@ -263,6 +272,11 @@ static void test__StructuredTaskCollection(void)
     ok(chore_func_arg == &uc, "expected %p, got %p\n", &uc, chore_func_arg);
     todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
     todo_wine ok(stc.completed == 1, "expected 0, got %d\n", stc.completed);
+
+    SET_EXPECT(chore_func);
+    tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc);
+    CHECK_CALLED(chore_func);
+    ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
 }
 
 START_TEST(msvcr110)
