@@ -1114,7 +1114,8 @@ void __thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *th
 
 /* ??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ */
 /* ??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ */
-void __cdecl _StructuredTaskCollection_dtor(_StructuredTaskCollection *this)
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_dtor, 4)
+void __thiscall _StructuredTaskCollection_dtor(_StructuredTaskCollection *this)
 {
     FIXME("(%p) stub\n", this);
 }
