@@ -288,6 +288,8 @@ static void test__StructuredTaskCollection(void)
     CHECK_CALLED(chore_func0);
     CHECK_CALLED(chore_func1);
     ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
+    ok(stc.scheduled == 0, "expected 0, got %d\n", stc.scheduled);
+    ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
 }
 
 START_TEST(msvcr110)
