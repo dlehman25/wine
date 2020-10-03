@@ -269,6 +269,7 @@ static Context* (__cdecl *p_Context_CurrentContext)(void);
 static void (__thiscall *p__StructuredTaskCollection_ctor_cts)(_StructuredTaskCollection*,_CancellationTokenState*);
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
 static _TaskCollectionStatus (__stdcall *p__StructuredTaskCollection_RunAndWait__UnrealizedChore)(_StructuredTaskCollection*,_UnrealizedChore*);
+static void (__thiscall *p__StructuredTaskCollection_dtor)(_StructuredTaskCollection*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -351,6 +352,8 @@ static BOOL init(void)
                 "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
         SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore,
                 "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_dtor,
+                "??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ");
     } else {
 #ifdef __arm__
         SET(p_critical_section_ctor,
@@ -422,6 +425,8 @@ static BOOL init(void)
                 "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
         SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore,
                 "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_dtor,
+                "??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ");
 #endif
     }
 
@@ -1197,6 +1202,8 @@ static void test__StructuredTaskCollection(void)
     ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
     ok(stc.scheduled == 0, "expected 0, got %d\n", stc.scheduled);
     ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
+
+    p__StructuredTaskCollection_dtor(&stc);
 }
 
 START_TEST(msvcr120)
