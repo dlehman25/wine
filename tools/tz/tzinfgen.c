@@ -313,6 +313,21 @@ int main(void)
         tz++;
     }
 
+    printf("STRINGTABLE\n{\n");
+    tz = zoneinfo;
+    while (tz->wintz)
+    {
+        char dlt[TIME_ZONE_KEY_SIZE], *p;
+        strcpy(dlt, tz->wintz);
+        p = strstr(dlt,"Standard");
+        if (p)
+            memcpy(p,"Daylight",8);
+        printf("%7d \"%s\"\n", tz->tzid, tz->wintz);
+        printf("%7d \"%s\"\n", tz->tzid+1, dlt);
+        tz++;
+    }
+    printf("}\n");
+
     return 0;
 }
 
