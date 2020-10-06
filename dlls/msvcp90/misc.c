@@ -2871,6 +2871,9 @@ const char* __cdecl _Syserror_map(int err)
 void __cdecl _Throw_C_error(int err)
 {
     const char *msg;
+#if _MSVCP_VER >= 120
+    char buffer[512];
+#endif
     static const int map[] = { EAGAIN, EAGAIN, EBUSY, EINVAL };
 
     TRACE("(%d)\n", err);
@@ -2882,7 +2885,12 @@ void __cdecl _Throw_C_error(int err)
         return;
     }
     msg = _Syserror_map(map[err-1]);
+#if _MSVCP_VER >= 120
+    sprintf(buffer, "%s: %s", msg, msg);
+    throw_exception(EXCEPTION_FAILURE, buffer);
+#else
     throw_exception(EXCEPTION_FAILURE, msg);
+#endif
 }
 
 /* ?_Throw_Cpp_error@std@@YAXH@Z */
