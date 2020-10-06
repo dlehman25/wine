@@ -1718,6 +1718,19 @@ void __cdecl _Throw_C_error(int err)
     msg = _Syserror_map(map[err-1]);
     throw_exception(EXCEPTION_FAILURE, msg);
 }
+
+/* ?_Throw_Cpp_error@std@@YAXH@Z */
+void __cdecl _Throw_Cpp_error(int err)
+{
+    const char *msg;
+    static const int map[] = { EBUSY, EINVAL, ESRCH, ENOMEM, EPERM, EDEADLK, EAGAIN };
+
+    TRACE("(%d)\n", err);
+    if (err < 0 || err > 6)
+        return;
+    msg = _Syserror_map(map[err]);
+    throw_exception(EXCEPTION_FAILURE, msg);
+}
 #endif
 
 #if _MSVCP_VER >= 140

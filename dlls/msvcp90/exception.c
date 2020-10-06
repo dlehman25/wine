@@ -997,14 +997,6 @@ bool __cdecl MSVCP__uncaught_exception(void)
     return __uncaught_exception();
 }
 
-#if _MSVCP_VER >= 110
-/* ?_Throw_Cpp_error@std@@YAXH@Z */
-void __cdecl _Throw_Cpp_error(int err)
-{
-    FIXME("(%d) stub\n", err);
-}
-#endif
-
 #if _MSVCP_VER >= 140
 /* ?_XGetLastError@std@@YAXXZ */
 void __cdecl _XGetLastError(void)
