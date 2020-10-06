@@ -1732,7 +1732,12 @@ void __cdecl _Throw_Cpp_error(int err)
 
     TRACE("(%d)\n", err);
     if (err < 0 || err > 6)
+    {
+#if _MSVCP_VER >= 140
+        abort();
+#endif
         return;
+    }
     msg = _Syserror_map(map[err]);
     throw_exception(EXCEPTION_FAILURE, msg);
 }
