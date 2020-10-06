@@ -1074,18 +1074,48 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
 
 #if _MSVCR_VER >= 100
 typedef struct {
-    ULONG_PTR unk[8];
+    ULONG_PTR unk0[3];
+    Context *ctx;
+    int scheduled;
+    int completed;
+    ULONG_PTR unk1[6];
 } _StructuredTaskCollection;
 
 typedef struct {
     int dummy;
 } _CancellationTokenState;
 
-typedef struct {
-    ULONG_PTR unk0[2];
+struct _UnrealizedChore;
+typedef void (__cdecl *chore_func)(void*);
+typedef void (__cdecl *chore_wrapper_func)(struct _UnrealizedChore*);
+typedef struct _UnrealizedChore{
+    ULONG_PTR unk0;
+    chore_func func;
     _StructuredTaskCollection *coll;
-    ULONG_PTR unk1[2];
+    chore_wrapper_func wrapper;
+    ULONG_PTR unk1;
 } _UnrealizedChore;
+
+static DWORD WINAPI chore_thread_func(void *arg)
+{
+    _UnrealizedChore *chore = arg;
+    chore->wrapper(chore);
+    return 0;
+}
+
+static void __cdecl chore_wrapper(_UnrealizedChore *chore)
+{
+    _StructuredTaskCollection *coll;
+
+    FIXME("(%p) stub\n", chore);
+
+    coll = chore->coll;
+    InterlockedDecrement(&coll->scheduled);
+    if (chore->func)
+        chore->func(chore);
+    InterlockedIncrement(&coll->completed);
+    /* TODO: signal colleciton */
+}
 
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z */
@@ -1093,6 +1123,10 @@ DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule, 8)
 void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
     FIXME("(%p %p) stub\n", this, chore);
+    chore->coll = this;
+    chore->wrapper = chore_wrapper;
+    InterlockedIncrement(&this->scheduled);
+    QueueUserWorkItem(chore_thread_func, chore, WT_EXECUTEDEFAULT);
 }
 
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z */
@@ -1100,6 +1134,10 @@ void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *th
 void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
     FIXME("(%p %p) stub\n", this, chore);
+
+    chore->coll = this;
+    chore_wrapper(chore);
+    /* TODO: wait until all completed */
 }
 
 #if _MSVCR_VER >= 110

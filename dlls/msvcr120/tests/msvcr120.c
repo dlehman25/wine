@@ -1182,15 +1182,13 @@ static void test__StructuredTaskCollection(void)
     memset(&uc0, 0, sizeof(uc0));
     memset(&uc1, 0, sizeof(uc1));
     p__StructuredTaskCollection_Schedule(&stc, &uc0);
-    todo_wine ok(uc0.coll == &stc, "expected %p, got %p\n", &stc, uc0.coll);
-    todo_wine ok(!!uc0.wrapper, "expected non-NULL\n");
-    todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
+    ok(uc0.coll == &stc, "expected %p, got %p\n", &stc, uc0.coll);
+    ok(!!uc0.wrapper, "expected non-NULL\n");
+    ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
     ok(stc.completed == 0, "expected 0, got %d\n", stc.completed);
 
     ctx = p_Context_CurrentContext();
     todo_wine ok(stc.ctx == ctx, "expected %p, got %p\n", ctx, stc.ctx);
-
-    if (!uc0.wrapper) return;
 
     uc0.func = test_chore_func0;
     SET_EXPECT(chore_func0);
@@ -1205,11 +1203,11 @@ static void test__StructuredTaskCollection(void)
     SET_EXPECT(chore_func1);
     uc1.func = test_chore_func1;
     tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc1);
-    CHECK_CALLED(chore_func0);
+    todo_wine CHECK_CALLED(chore_func0);
     CHECK_CALLED(chore_func1);
-    ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
+    todo_wine ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
     ok(stc.scheduled == 0, "expected 0, got %d\n", stc.scheduled);
-    ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
+    todo_wine ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
     ok(!uc1.wrapper, "expected NULL, got %p\n", uc1.wrapper);
 
     p__StructuredTaskCollection_dtor(&stc);
@@ -1223,8 +1221,8 @@ static void test__StructuredTaskCollection(void)
     tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc1);
     e = GetTickCount64();
     CHECK_CALLED(chore_func1);
-    ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
-    ok(e-s >= 1000, "short delay %u\n", e-s);
+    todo_wine ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
+    todo_wine ok(e-s >= 1000, "short delay %u\n", e-s);
     p__StructuredTaskCollection_dtor(&stc);
 }
 
