@@ -1003,6 +1003,12 @@ void __cdecl _Throw_C_error(int err)
 {
     FIXME("(%d) stub\n", err);
 }
+
+/* ?_Throw_Cpp_error@std@@YAXH@Z */
+void __cdecl _Throw_Cpp_error(int err)
+{
+    FIXME("(%d) stub\n", err);
+}
 #endif
 
 #if _MSVCP_VER >= 140
