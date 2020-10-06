@@ -1714,7 +1714,12 @@ void __cdecl _Throw_C_error(int err)
 
     TRACE("(%d)\n", err);
     if (err < 1 || err > 4)
+    {
+#if _MSVCP_VER >= 140
+        abort();
+#endif
         return;
+    }
     msg = _Syserror_map(map[err-1]);
     throw_exception(EXCEPTION_FAILURE, msg);
 }
