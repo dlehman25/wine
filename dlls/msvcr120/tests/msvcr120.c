@@ -1173,6 +1173,7 @@ static void test__StructuredTaskCollection(void)
 
     memset(&stc, 0, sizeof(stc));
     memset(&uc0, 0, sizeof(uc0));
+    memset(&uc1, 0, sizeof(uc1));
     p__StructuredTaskCollection_Schedule(&stc, &uc0);
     todo_wine ok(uc0.coll == &stc, "expected %p, got %p\n", &stc, uc0.coll);
     todo_wine ok(!!uc0.wrapper, "expected non-NULL\n");
@@ -1202,6 +1203,7 @@ static void test__StructuredTaskCollection(void)
     ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
     ok(stc.scheduled == 0, "expected 0, got %d\n", stc.scheduled);
     ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
+    ok(!uc1.wrapper, "expected NULL, got %p\n", uc1.wrapper);
 
     p__StructuredTaskCollection_dtor(&stc);
 }
