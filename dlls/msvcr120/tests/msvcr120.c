@@ -1163,12 +1163,19 @@ static void test_chore_func1(void *arg)
     chore_func_arg = arg;
 }
 
+static void test_chore_func2(void *arg)
+{
+    Sleep(1000);
+    CHECK_EXPECT(chore_func1);
+}
+
 static void test__StructuredTaskCollection(void)
 {
     _StructuredTaskCollection stc;
     _TaskCollectionStatus tcs;
     _UnrealizedChore uc0;
     _UnrealizedChore uc1;
+    ULONGLONG s, e;
     Context *ctx;
 
     memset(&stc, 0, sizeof(stc));
@@ -1205,6 +1212,19 @@ static void test__StructuredTaskCollection(void)
     ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
     ok(!uc1.wrapper, "expected NULL, got %p\n", uc1.wrapper);
 
+    p__StructuredTaskCollection_dtor(&stc);
+
+    memset(&stc, 0, sizeof(stc));
+    memset(&uc1, 0, sizeof(uc1));
+    uc1.func = test_chore_func2;
+    p__StructuredTaskCollection_ctor_cts(&stc, NULL);
+    SET_EXPECT(chore_func1);
+    s = GetTickCount64();
+    tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc1);
+    e = GetTickCount64();
+    CHECK_CALLED(chore_func1);
+    ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
+    ok(e-s >= 1000, "short delay %u\n", e-s);
     p__StructuredTaskCollection_dtor(&stc);
 }
 
