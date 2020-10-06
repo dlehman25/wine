@@ -1624,7 +1624,7 @@
 @ cdecl -arch=win32 ?_Syserror_map@std@@YAPBDH@Z(long) _Syserror_map
 @ cdecl -arch=win64 ?_Syserror_map@std@@YAPEBDH@Z(long) _Syserror_map
 @ cdecl ?_Throw_C_error@std@@YAXH@Z(long) _Throw_C_error
-@ stub ?_Throw_Cpp_error@std@@YAXH@Z
+@ cdecl ?_Throw_Cpp_error@std@@YAXH@Z(long) _Throw_Cpp_error
 @ stub -arch=win32 ?_Throw_future_error@std@@YAXABVerror_code@1@@Z
 @ stub -arch=win64 ?_Throw_future_error@std@@YAXAEBVerror_code@1@@Z
 @ cdecl -arch=arm ?_Tidy@?$_Yarn@D@std@@AAAXXZ(ptr) _Yarn_char__Tidy
