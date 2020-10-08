@@ -3755,6 +3755,26 @@ HKLM,%CurrentVersionNT%\Time Zones\W. Europe Standard Time,"MUI_Dlt",,"@tzres.dl
 HKLM,%CurrentVersionNT%\Time Zones\W. Europe Standard Time,"MUI_Std",,"@tzres.dll,-27696"
 HKLM,%CurrentVersionNT%\Time Zones\W. Europe Standard Time,"Std",,"W. Europe Standard Time"
 HKLM,%CurrentVersionNT%\Time Zones\W. Europe Standard Time,"TZI",1,c4,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,00,00,05,00,03,00,00,00,00,00,00,00,00,00,03,00,00,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time,"Display",,"Asia/Hovd"
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time,"Dlt",,"W. Mongolia Daylight Time"
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time,"MUI_Dlt",,"@tzres.dll,-53953"
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time,"MUI_Std",,"@tzres.dll,-53952"
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time,"Std",,"W. Mongolia Standard Time"
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time,"TZI",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2006",1,5c,fe,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,06,00,05,00,02,00,00,00,00,00,00,00,00,00,03,00,06,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2007",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2008",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2009",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2010",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2011",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2012",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2013",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2014",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2015",1,5c,fe,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,06,00,05,00,00,00,00,00,00,00,00,00,00,00,03,00,06,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2016",1,5c,fe,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,06,00,05,00,00,00,00,00,00,00,00,00,00,00,03,00,06,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"2017",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"FirstEntry",0x10001,"2006"
+HKLM,%CurrentVersionNT%\Time Zones\W. Mongolia Standard Time\Dynamic DST,"LastEntry",0x10001,"2017"
 HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"Display",,"Asia/Tashkent"
 HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"Dlt",,"West Asia Daylight Time"
 HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"MUI_Dlt",,"@tzres.dll,-49665"
