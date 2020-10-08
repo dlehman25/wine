@@ -3761,6 +3761,30 @@ HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"MUI_Dlt",,"@tzres.dl
 HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"MUI_Std",,"@tzres.dll,-49664"
 HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"Std",,"West Asia Standard Time"
 HKLM,%CurrentVersionNT%\Time Zones\West Asia Standard Time,"TZI",1,d4,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time,"Display",,"Asia/Hebron"
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time,"Dlt",,"West Bank Daylight Time"
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time,"MUI_Dlt",,"@tzres.dll,-46161"
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time,"MUI_Std",,"@tzres.dll,-46160"
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time,"Std",,"West Bank Standard Time"
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time,"TZI",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,06,00,05,00,01,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2004",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,05,00,01,00,01,00,00,00,00,00,00,00,00,00,04,00,05,00,03,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2005",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,02,00,01,00,02,00,00,00,00,00,00,00,00,00,04,00,05,00,03,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2006",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,05,00,04,00,00,00,00,00,00,00,00,00,00,00,04,00,06,00,01,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2007",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,04,00,02,00,02,00,00,00,00,00,00,00,00,00,04,00,00,00,01,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2008",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,01,00,01,00,00,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2009",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,05,00,01,00,01,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2010",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,08,00,03,00,02,00,00,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2011",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,08,00,01,00,01,00,00,00,00,00,00,00,00,00,00,00,04,00,05,00,01,00,00,00,01,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2012",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,05,00,03,00,01,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2013",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,09,00,05,00,05,00,00,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2014",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,05,00,04,00,00,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2015",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,05,00,04,00,00,00,00,00,00,00,00,00,00,00,03,00,06,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2016",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,06,00,05,00,01,00,00,00,00,00,00,00,00,00,03,00,06,00,05,00,01,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2017",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,06,00,05,00,01,00,00,00,00,00,00,00,00,00,03,00,06,00,05,00,01,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2018",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,06,00,05,00,01,00,00,00,00,00,00,00,00,00,03,00,06,00,04,00,01,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"2019",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,06,00,05,00,01,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"FirstEntry",0x10001,"2004"
+HKLM,%CurrentVersionNT%\Time Zones\West Bank Standard Time\Dynamic DST,"LastEntry",0x10001,"2019"
 HKLM,%CurrentVersionNT%\Time Zones\West Pacific Standard Time,"Display",,"Pacific/Port_Moresby"
 HKLM,%CurrentVersionNT%\Time Zones\West Pacific Standard Time,"Dlt",,"West Pacific Daylight Time"
 HKLM,%CurrentVersionNT%\Time Zones\West Pacific Standard Time,"MUI_Dlt",,"@tzres.dll,-10225"
