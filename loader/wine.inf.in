@@ -2787,6 +2787,22 @@ HKLM,%CurrentVersionNT%\Time Zones\Aleutian Standard Time\Dynamic DST,"2006",1,5
 HKLM,%CurrentVersionNT%\Time Zones\Aleutian Standard Time\Dynamic DST,"2007",1,58,02,00,00,00,00,00,00,c4,ff,ff,ff,00,00,0b,00,00,00,01,00,02,00,00,00,00,00,00,00,00,00,03,00,00,00,02,00,02,00,00,00,00,00,00,00
 HKLM,%CurrentVersionNT%\Time Zones\Aleutian Standard Time\Dynamic DST,"FirstEntry",0x10001,"2006"
 HKLM,%CurrentVersionNT%\Time Zones\Aleutian Standard Time\Dynamic DST,"LastEntry",0x10001,"2007"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time,"Display",,"Asia/Barnaul"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time,"Dlt",,"Altai Daylight Time"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time,"MUI_Dlt",,"@tzres.dll,-4465"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time,"MUI_Std",,"@tzres.dll,-4464"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time,"Std",,"Altai Standard Time"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time,"TZI",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2010",1,98,fe,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,00,00,05,00,03,00,00,00,00,00,00,00,00,00,03,00,00,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2011",1,98,fe,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,01,00,06,00,01,00,00,00,00,00,00,00,00,00,00,00,03,00,00,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2012",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2013",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2014",1,5c,fe,ff,ff,00,00,00,00,3c,00,00,00,00,00,0c,00,02,00,05,00,00,00,00,00,00,00,00,00,00,00,0a,00,00,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2015",1,98,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2016",1,98,fe,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,01,00,05,00,01,00,00,00,00,00,00,00,00,00,00,00,03,00,00,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"2017",1,5c,fe,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"FirstEntry",0x10001,"2010"
+HKLM,%CurrentVersionNT%\Time Zones\Altai Standard Time\Dynamic DST,"LastEntry",0x10001,"2017"
 HKLM,%CurrentVersionNT%\Time Zones\Arab Standard Time,"Display",,"Asia/Riyadh"
 HKLM,%CurrentVersionNT%\Time Zones\Arab Standard Time,"Dlt",,"Arab Daylight Time"
 HKLM,%CurrentVersionNT%\Time Zones\Arab Standard Time,"MUI_Dlt",,"@tzres.dll,-41969"
