@@ -1196,6 +1196,14 @@ void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_Structured
 }
 
 #if _MSVCR_VER >= 110
+/* ?_Destroy@_CancellationTokenState@details@Concurrency@@EAEXXZ */
+/* ?_Destroy@_CancellationTokenState@details@Concurrency@@EEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_Destroy, 4)
+void __thiscall _CancellationTokenState_Destroy(_CancellationTokenState *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@PAVlocation@3@@Z */
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@PEAVlocation@3@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule_loc, 12)
