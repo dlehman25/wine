@@ -460,9 +460,9 @@
 @ cdecl -arch=win64 ?SetPolicyValue@SchedulerPolicy@Concurrency@@QEAAIW4PolicyElementKey@2@I@Z(ptr long long) SchedulerPolicy_SetPolicyValue
 @ cdecl ?VirtualProcessorId@Context@Concurrency@@SAIXZ() Context_VirtualProcessorId
 @ cdecl ?Yield@Context@Concurrency@@SAXXZ() Context_Yield
-@ stub -arch=arm ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAAXXZ
-@ stub -arch=i386 ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAEXXZ
-@ stub -arch=win64 ?_Abort@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ
+@ cdecl -arch=arm ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAAXXZ(ptr) _StructuredTaskCollection_Abort
+@ thiscall -arch=i386 ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAEXXZ(ptr) _StructuredTaskCollection_Abort
+@ cdecl -arch=win64 ?_Abort@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ(ptr) _StructuredTaskCollection_Abort
 @ cdecl -arch=arm ?_Acquire@_NonReentrantBlockingLock@details@Concurrency@@QAAXXZ(ptr) _ReentrantBlockingLock__Acquire
 @ thiscall -arch=i386 ?_Acquire@_NonReentrantBlockingLock@details@Concurrency@@QAEXXZ(ptr) _ReentrantBlockingLock__Acquire
 @ cdecl -arch=win64 ?_Acquire@_NonReentrantBlockingLock@details@Concurrency@@QEAAXXZ(ptr) _ReentrantBlockingLock__Acquire
@@ -487,18 +487,18 @@
 @ stub -arch=arm ?_Cancel@_CancellationTokenState@details@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?_Cancel@_CancellationTokenState@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?_Cancel@_CancellationTokenState@details@Concurrency@@QEAAXXZ
-@ stub -arch=arm ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAAXXZ
-@ stub -arch=i386 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAEXXZ
-@ stub -arch=win64 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QEAAXXZ
+@ cdecl -arch=arm ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAAXXZ(ptr) _StructuredTaskCollection_Cancel
+@ thiscall -arch=i386 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAEXXZ(ptr) _StructuredTaskCollection_Cancel
+@ cdecl -arch=win64 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QEAAXXZ(ptr) _StructuredTaskCollection_Cancel
 @ stub -arch=arm ?_Cancel@_TaskCollection@details@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?_Cancel@_TaskCollection@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?_Cancel@_TaskCollection@details@Concurrency@@QEAAXXZ
 @ stub -arch=arm ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAAXXZ
 @ stub -arch=i386 ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAEXXZ
 @ stub -arch=win64 ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IEAAXXZ
-@ stub -arch=arm ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAAXXZ
-@ stub -arch=i386 ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ
-@ stub -arch=win64 ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ
+@ cdecl -arch=arm ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAAXXZ(ptr) _StructuredTaskCollection_CleanupToken
+@ thiscall -arch=i386 ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ(ptr) _StructuredTaskCollection_CleanupToken
+@ cdecl -arch=win64 ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ(ptr) _StructuredTaskCollection_CleanupToken
 @ stub -arch=i386 ?_ConcRT_Assert@details@Concurrency@@YAXPBD0H@Z
 @ stub -arch=win64 ?_ConcRT_Assert@details@Concurrency@@YAXPEBD0H@Z
 @ stub -arch=win32 ?_ConcRT_CoreAssert@details@Concurrency@@YAXPBD0H@Z
@@ -544,9 +544,9 @@
 @ stub -arch=arm ?_Invoke@_CancellationTokenRegistration@details@Concurrency@@AAAXXZ
 @ stub -arch=i386 ?_Invoke@_CancellationTokenRegistration@details@Concurrency@@AAEXXZ
 @ stub -arch=win64 ?_Invoke@_CancellationTokenRegistration@details@Concurrency@@AEAAXXZ
-@ stub -arch=arm ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QAA_NXZ
-@ stub -arch=i386 ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QAE_NXZ
-@ stub -arch=win64 ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QEAA_NXZ
+@ cdecl -arch=arm ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QAA_NXZ(ptr) _StructuredTaskCollection_IsCanceling
+@ thiscall -arch=i386 ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QAE_NXZ(ptr) _StructuredTaskCollection_IsCanceling
+@ cdecl -arch=win64 ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QEAA_NXZ(ptr) _StructuredTaskCollection_IsCanceling
 @ stub -arch=arm ?_IsCanceling@_TaskCollection@details@Concurrency@@QAA_NXZ
 @ stub -arch=i386 ?_IsCanceling@_TaskCollection@details@Concurrency@@QAE_NXZ
 @ stub -arch=win64 ?_IsCanceling@_TaskCollection@details@Concurrency@@QEAA_NXZ

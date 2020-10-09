@@ -1091,6 +1091,30 @@ typedef struct {
     int dummy;
 } location;
 
+/* ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAEXXZ */
+/* ?_Abort@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Abort, 4)
+void __thiscall _StructuredTaskCollection_Abort(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAEXXZ */
+/* ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Cancel, 4)
+void __thiscall _StructuredTaskCollection_Cancel(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QAE_NXZ */
+/* ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QEAA_NXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_IsCanceling, 4)
+void __thiscall _StructuredTaskCollection_IsCanceling(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule, 8)
@@ -1121,6 +1145,14 @@ DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
 void __thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *this, _CancellationTokenState *state)
 {
     FIXME("(%p %p) stub\n", this, state);
+}
+
+/* ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ */
+/* ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_CleanupToken, 4)
+void __thiscall _StructuredTaskCollection_CleanupToken(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
 }
 #endif
 
