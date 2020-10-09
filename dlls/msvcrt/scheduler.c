@@ -1087,6 +1087,10 @@ typedef struct {
     ULONG_PTR unk1[2];
 } _UnrealizedChore;
 
+typedef struct {
+    int dummy;
+} location;
+
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule, 8)
@@ -1103,6 +1107,14 @@ void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_Structured
 }
 
 #if _MSVCR_VER >= 110
+/* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@PAVlocation@3@@Z */
+/* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@PEAVlocation@3@@Z */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule_loc, 12)
+void __thiscall _StructuredTaskCollection_Schedule_loc(_StructuredTaskCollection *this, _UnrealizedChore *chore, location *loc)
+{
+    FIXME("(%p %p %p) stub\n", this, chore, loc);
+}
+
 /* ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z */
 /* ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
