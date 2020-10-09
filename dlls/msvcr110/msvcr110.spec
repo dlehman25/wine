@@ -14,9 +14,9 @@
 @ cdecl -arch=arm ??0SchedulerPolicy@Concurrency@@QAA@XZ(ptr) SchedulerPolicy_ctor
 @ thiscall -arch=i386 ??0SchedulerPolicy@Concurrency@@QAE@XZ(ptr) SchedulerPolicy_ctor
 @ cdecl -arch=win64 ??0SchedulerPolicy@Concurrency@@QEAA@XZ(ptr) SchedulerPolicy_ctor
-@ stub -arch=arm ??0_CancellationTokenState@details@Concurrency@@AAA@XZ
-@ stub -arch=i386 ??0_CancellationTokenState@details@Concurrency@@AAE@XZ
-@ stub -arch=win64 ??0_CancellationTokenState@details@Concurrency@@AEAA@XZ
+@ cdecl -arch=arm ??0_CancellationTokenState@details@Concurrency@@AAA@XZ(ptr) _CancellationTokenState_ctor
+@ thiscall -arch=i386 ??0_CancellationTokenState@details@Concurrency@@AAE@XZ(ptr) _CancellationTokenState_ctor
+@ cdecl -arch=win64 ??0_CancellationTokenState@details@Concurrency@@AEAA@XZ(ptr) _CancellationTokenState_ctor
 @ stub -arch=arm ??0_Cancellation_beacon@details@Concurrency@@QAA@XZ
 @ stub -arch=i386 ??0_Cancellation_beacon@details@Concurrency@@QAE@XZ
 @ stub -arch=win64 ??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ
@@ -272,9 +272,9 @@
 @ cdecl -arch=arm ??1SchedulerPolicy@Concurrency@@QAA@XZ(ptr) SchedulerPolicy_dtor
 @ thiscall -arch=i386 ??1SchedulerPolicy@Concurrency@@QAE@XZ(ptr) SchedulerPolicy_dtor
 @ cdecl -arch=win64 ??1SchedulerPolicy@Concurrency@@QEAA@XZ(ptr) SchedulerPolicy_dtor
-@ stub -arch=arm ??1_CancellationTokenState@details@Concurrency@@UAA@XZ
-@ stub -arch=i386 ??1_CancellationTokenState@details@Concurrency@@UAE@XZ
-@ stub -arch=win64 ??1_CancellationTokenState@details@Concurrency@@UEAA@XZ
+@ cdecl -arch=arm ??1_CancellationTokenState@details@Concurrency@@UAA@XZ(ptr) _CancellationTokenState_dtor
+@ thiscall -arch=i386 ??1_CancellationTokenState@details@Concurrency@@UAE@XZ(ptr) _CancellationTokenState_dtor
+@ cdecl -arch=win64 ??1_CancellationTokenState@details@Concurrency@@UEAA@XZ(ptr) _CancellationTokenState_dtor
 @ stub -arch=arm ??1_Cancellation_beacon@details@Concurrency@@QAA@XZ
 @ stub -arch=i386 ??1_Cancellation_beacon@details@Concurrency@@QAE@XZ
 @ stub -arch=win64 ??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ

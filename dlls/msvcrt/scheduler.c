@@ -1091,6 +1091,24 @@ typedef struct {
     int dummy;
 } location;
 
+#if _MSVCR_VER == 110
+/* ??0_CancellationTokenState@details@Concurrency@@AAE@XZ */
+/* ??0_CancellationTokenState@details@Concurrency@@AEAA@XZ */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_ctor, 4)
+void __thiscall _CancellationTokenState_ctor(_CancellationTokenState *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ??1_CancellationTokenState@details@Concurrency@@UAE@XZ */
+/* ??1_CancellationTokenState@details@Concurrency@@UEAA@XZ */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_dtor, 4)
+void __thiscall _CancellationTokenState_dtor(_CancellationTokenState *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+#endif
+
 /* ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAEXXZ */
 /* ?_Abort@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Abort, 4)
