@@ -1082,6 +1082,12 @@ typedef struct {
 } _CancellationTokenState;
 
 typedef struct {
+    int dummy;
+} _CancellationTokenRegistration;
+
+typedef void (__cdecl *_RegisterCallbackProc)(void*);
+
+typedef struct {
     ULONG_PTR unk0[2];
     _StructuredTaskCollection *coll;
     ULONG_PTR unk1[2];
@@ -1106,6 +1112,47 @@ DEFINE_THISCALL_WRAPPER(_CancellationTokenState_dtor, 4)
 void __thiscall _CancellationTokenState_dtor(_CancellationTokenState *this)
 {
     FIXME("(%p) stub\n", this);
+}
+
+/* ?_Cancel@_CancellationTokenState@details@Concurrency@@QAEXXZ */
+/* ?_Cancel@_CancellationTokenState@details@Concurrency@@QEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_Cancel, 4)
+void __thiscall _CancellationTokenState_Cancel(_CancellationTokenState *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z */
+/* ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QEAAXPEAV_CancellationTokenRegistration@23@@Z */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_DeregisterCallback, 8)
+void __thiscall _CancellationTokenState_DeregisterCallback(_CancellationTokenState *this, _CancellationTokenRegistration *reg)
+{
+    FIXME("(%p %p) stub\n", this, reg);
+}
+
+/* ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAEPAV_CancellationTokenRegistration@23@P6AXPAX@Z0H@Z */
+/* ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QEAAPEAV_CancellationTokenRegistration@23@P6AXPEAX@Z0H@Z */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_RegisterCallback, 16)
+_CancellationTokenRegistration *__thiscall _CancellationTokenState_RegisterCallback(_CancellationTokenState *this, _RegisterCallbackProc proc, void *data, int refs)
+{
+    FIXME("(%p %p %p %d) stub\n", this, proc, data, refs);
+    return NULL;
+}
+
+/* ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z */
+/* ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QEAAXPEAV_CancellationTokenRegistration@23@@Z */
+DEFINE_THISCALL_WRAPPER(_CancellationTokenState_RegisterCallback_reg, 8)
+void __thiscall _CancellationTokenState_RegisterCallback_reg(_CancellationTokenState *this, _CancellationTokenRegistration *reg)
+{
+    FIXME("(%p %p) stub\n", this, reg);
+}
+
+/* ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPAV123@XZ */
+/* ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPEAV123@XZ */
+_CancellationTokenState *__cdecl _CancellationTokenState_NewTokenState(void)
+{
+    FIXME("() stub\n");
+    return NULL;
 }
 #endif
 

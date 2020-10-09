@@ -484,9 +484,9 @@
 @ stub -arch=arm ?_AcquireWrite@_ReaderWriterLock@details@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?_AcquireWrite@_ReaderWriterLock@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?_AcquireWrite@_ReaderWriterLock@details@Concurrency@@QEAAXXZ
-@ stub -arch=arm ?_Cancel@_CancellationTokenState@details@Concurrency@@QAAXXZ
-@ stub -arch=i386 ?_Cancel@_CancellationTokenState@details@Concurrency@@QAEXXZ
-@ stub -arch=win64 ?_Cancel@_CancellationTokenState@details@Concurrency@@QEAAXXZ
+@ cdecl -arch=arm ?_Cancel@_CancellationTokenState@details@Concurrency@@QAAXXZ(ptr) _CancellationTokenState_Cancel
+@ thiscall -arch=i386 ?_Cancel@_CancellationTokenState@details@Concurrency@@QAEXXZ(ptr) _CancellationTokenState_Cancel
+@ cdecl -arch=win64 ?_Cancel@_CancellationTokenState@details@Concurrency@@QEAAXXZ(ptr) _CancellationTokenState_Cancel
 @ cdecl -arch=arm ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAAXXZ(ptr) _StructuredTaskCollection_Cancel
 @ thiscall -arch=i386 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAEXXZ(ptr) _StructuredTaskCollection_Cancel
 @ cdecl -arch=win64 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QEAAXXZ(ptr) _StructuredTaskCollection_Cancel
@@ -515,9 +515,9 @@
 @ stub -arch=win64 ?_Copy_str@exception@std@@AEAAXPEBD@Z
 @ cdecl ?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ() msvcr120.?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ
 @ stub ?_Current_node@location@Concurrency@@SA?AV12@XZ
-@ stub -arch=arm ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAAXPAV_CancellationTokenRegistration@23@@Z
-@ stub -arch=i386 ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z
-@ stub -arch=win64 ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QEAAXPEAV_CancellationTokenRegistration@23@@Z
+@ cdecl -arch=arm ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAAXPAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_DeregisterCallback
+@ thiscall -arch=i386 ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_DeregisterCallback
+@ cdecl -arch=win64 ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QEAAXPEAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_DeregisterCallback
 @ stub -arch=arm ?_Destroy@_AsyncTaskCollection@details@Concurrency@@EAAXXZ
 @ stub -arch=i386 ?_Destroy@_AsyncTaskCollection@details@Concurrency@@EAEXXZ
 @ stub -arch=win64 ?_Destroy@_AsyncTaskCollection@details@Concurrency@@EEAAXXZ
@@ -559,8 +559,8 @@
 @ stub -arch=win64 ?_Name_base_internal@type_info@@CAPEBDPEBV1@PEAU__type_info_node@@@Z
 @ stub -arch=win32 ?_NewCollection@_AsyncTaskCollection@details@Concurrency@@SAPAV123@PAV_CancellationTokenState@23@@Z
 @ stub -arch=win64 ?_NewCollection@_AsyncTaskCollection@details@Concurrency@@SAPEAV123@PEAV_CancellationTokenState@23@@Z
-@ stub -arch=win32 ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPAV123@XZ
-@ stub -arch=win64 ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPEAV123@XZ
+@ cdecl -arch=win32 ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPAV123@XZ(ptr) _CancellationTokenState_NewTokenState
+@ cdecl -arch=win64 ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPEAV123@XZ(ptr) _CancellationTokenState_NewTokenState
 @ cdecl -arch=arm ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IAAKXZ(ptr) SpinWait__NumberOfSpins
 @ thiscall -arch=i386 ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IAEKXZ(ptr) SpinWait__NumberOfSpins
 @ cdecl -arch=win64 ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IEAAKXZ(ptr) SpinWait__NumberOfSpins
@@ -571,12 +571,12 @@
 @ cdecl -arch=arm ?_Reference@_Scheduler@details@Concurrency@@QAAIXZ(ptr) _Scheduler__Reference
 @ thiscall -arch=i386 ?_Reference@_Scheduler@details@Concurrency@@QAEIXZ(ptr) _Scheduler__Reference
 @ cdecl -arch=win64 ?_Reference@_Scheduler@details@Concurrency@@QEAAIXZ(ptr) _Scheduler__Reference
-@ stub -arch=arm ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAAPAV_CancellationTokenRegistration@23@P6AXPAX@Z0H@Z
-@ stub -arch=i386 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAEPAV_CancellationTokenRegistration@23@P6AXPAX@Z0H@Z
-@ stub -arch=win64 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QEAAPEAV_CancellationTokenRegistration@23@P6AXPEAX@Z0H@Z
-@ stub -arch=arm ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAAXPAV_CancellationTokenRegistration@23@@Z
-@ stub -arch=i386 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z
-@ stub -arch=win64 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QEAAXPEAV_CancellationTokenRegistration@23@@Z
+@ cdecl -arch=arm ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAAPAV_CancellationTokenRegistration@23@P6AXPAX@Z0H@Z(ptr ptr ptr long) _CancellationTokenState_RegisterCallback
+@ thiscall -arch=i386 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAEPAV_CancellationTokenRegistration@23@P6AXPAX@Z0H@Z(ptr ptr ptr long) _CancellationTokenState_RegisterCallback
+@ cdecl -arch=win64 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QEAAPEAV_CancellationTokenRegistration@23@P6AXPEAX@Z0H@Z(ptr ptr ptr long) _CancellationTokenState_RegisterCallback
+@ cdecl -arch=arm ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAAXPAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_RegisterCallback_reg
+@ thiscall -arch=i386 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_RegisterCallback_reg
+@ cdecl -arch=win64 ?_RegisterCallback@_CancellationTokenState@details@Concurrency@@QEAAXPEAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_RegisterCallback_reg
 @ cdecl -arch=arm ?_Release@_NonReentrantBlockingLock@details@Concurrency@@QAAXXZ(ptr) _ReentrantBlockingLock__Release
 @ thiscall -arch=i386 ?_Release@_NonReentrantBlockingLock@details@Concurrency@@QAEXXZ(ptr) _ReentrantBlockingLock__Release
 @ cdecl -arch=win64 ?_Release@_NonReentrantBlockingLock@details@Concurrency@@QEAAXXZ(ptr) _ReentrantBlockingLock__Release
