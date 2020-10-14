@@ -4018,23 +4018,23 @@ static void test_CreateFile(void)
 
     /*  9*/ { GENERIC_READ, FILE_SHARE_READ,
               GENERIC_READ, FILE_SHARE_READ,
-              TRUNCATE_EXISTING, ERROR_INVALID_PARAMETER },
+              OPEN_EXISTING, 0 },
     /* 10*/ { GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
               GENERIC_WRITE, FILE_SHARE_READ,
-              TRUNCATE_EXISTING, ERROR_SHARING_VIOLATION },
+              OPEN_EXISTING, ERROR_SHARING_VIOLATION },
     /* 11*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
               GENERIC_WRITE, FILE_SHARE_WRITE,
-              TRUNCATE_EXISTING, 0 },
+              OPEN_EXISTING, 0 },
 
     /* 12*/ { GENERIC_READ, FILE_SHARE_READ,
               GENERIC_READ, FILE_SHARE_READ,
-              OPEN_EXISTING, 0 },
+              TRUNCATE_EXISTING, ERROR_INVALID_PARAMETER },
     /* 13*/ { GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
               GENERIC_WRITE, FILE_SHARE_READ,
-              OPEN_EXISTING, ERROR_SHARING_VIOLATION },
+              TRUNCATE_EXISTING, ERROR_SHARING_VIOLATION },
     /* 14*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
               GENERIC_WRITE, FILE_SHARE_WRITE,
-              OPEN_EXISTING, 0 },
+              TRUNCATE_EXISTING, 0 },
     };
     char temp_path[MAX_PATH];
     char file_name[MAX_PATH];
@@ -4143,7 +4143,7 @@ todo_wine_if (i == 1)
 
         SetLastError(0xdeadbeef);
         hfile2 = CreateFileA(file_name, td2[i].access1, td2[i].share1, NULL, td2[i].disposition1, 0, 0);
-todo_wine_if(i == 9)
+todo_wine_if(i == 12)
         ok(GetLastError() == td2[i].error, "%d: expected %d, got %d\n", i, td2[i].error, GetLastError());
         if (td2[i].error && (td2[i].error != ERROR_ALREADY_EXISTS))
             ok(hfile2 == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
