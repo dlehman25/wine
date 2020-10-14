@@ -33,6 +33,28 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(msvcrt);
 
+typedef struct {
+    int dummy;
+} invalid_operation;
+
+/* ??0invalid_operation@Concurrency@@QAE@PBD@Z */
+/* ??0invalid_operation@Concurrency@@QEAA@PEBD@Z */
+DEFINE_THISCALL_WRAPPER(invalid_operation_ctor_str, 8)
+invalid_operation *__thiscall invalid_operation_ctor_str(invalid_operation *this, const char *msg)
+{
+    FIXME("(%p %s) stub\n", this, debugstr_a(msg));
+    return this;
+}
+
+/* ??0invalid_operation@Concurrency@@QAE@XZ */
+/* ??0invalid_operation@Concurrency@@QEAA@XZ */
+DEFINE_THISCALL_WRAPPER(invalid_operation_ctor, 4)
+invalid_operation *__thiscall invalid_operation_ctor(invalid_operation *this)
+{
+    FIXME("(%p) stub\n", this);
+    return this;
+}
+
 static int context_id = -1;
 static int scheduler_id = -1;
 
