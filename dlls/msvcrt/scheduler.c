@@ -1072,7 +1072,6 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
 }
 
 
-#if _MSVCR_VER >= 100
 typedef struct {
     ULONG_PTR unk[8];
 } _StructuredTaskCollection;
@@ -1237,7 +1236,6 @@ void __thiscall _StructuredTaskCollection_dtor(_StructuredTaskCollection *this)
 {
     FIXME("(%p) stub\n", this);
 }
-#endif
 #endif
 
 #ifdef __ASM_USE_THISCALL_WRAPPER
