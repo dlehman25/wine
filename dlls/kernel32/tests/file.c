@@ -3980,61 +3980,23 @@ static void test_CreateFile(void)
     };
     static const struct test_data2
     {
-        DWORD access0, share0,
-              access1, share1,
-              disposition1, error;
+        DWORD disposition, access, share, share2, error;
     } td2[] =
     {
     /* roughly matches dlls/ntdll/tests/file.c minus FILE_SUPERSEDE */
-    /*  0*/ { GENERIC_READ, FILE_SHARE_READ,
-              GENERIC_READ, FILE_SHARE_READ,
-              CREATE_ALWAYS, ERROR_SHARING_VIOLATION },
-    /*  1*/ { GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
-              GENERIC_READ, FILE_SHARE_READ,
-              CREATE_ALWAYS, ERROR_ALREADY_EXISTS },
-    /*  2*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_WRITE,
-              CREATE_ALWAYS, ERROR_ALREADY_EXISTS },
-
-    /*  3*/ { GENERIC_READ, FILE_SHARE_READ,
-              GENERIC_READ, FILE_SHARE_READ,
-              CREATE_NEW, ERROR_FILE_EXISTS },
-    /*  4*/ { GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
-              GENERIC_READ, FILE_SHARE_READ,
-              CREATE_NEW, ERROR_FILE_EXISTS },
-    /*  5*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_WRITE,
-              CREATE_NEW, ERROR_FILE_EXISTS },
-
-    /*  6*/ { GENERIC_READ, FILE_SHARE_READ,
-              GENERIC_READ, FILE_SHARE_READ,
-              OPEN_ALWAYS, ERROR_ALREADY_EXISTS },
-    /*  7*/ { GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
-              GENERIC_READ, FILE_SHARE_READ,
-              OPEN_ALWAYS, ERROR_ALREADY_EXISTS },
-    /*  8*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_WRITE,
-              OPEN_ALWAYS, ERROR_ALREADY_EXISTS },
-
-    /*  9*/ { GENERIC_READ, FILE_SHARE_READ,
-              GENERIC_READ, FILE_SHARE_READ,
-              OPEN_EXISTING, 0 },
-    /* 10*/ { GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_READ,
-              OPEN_EXISTING, ERROR_SHARING_VIOLATION },
-    /* 11*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_WRITE,
-              OPEN_EXISTING, 0 },
-
-    /* 12*/ { GENERIC_READ, FILE_SHARE_READ,
-              GENERIC_READ, FILE_SHARE_READ,
-              TRUNCATE_EXISTING, ERROR_INVALID_PARAMETER },
-    /* 13*/ { GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_READ,
-              TRUNCATE_EXISTING, ERROR_SHARING_VIOLATION },
-    /* 14*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
-              GENERIC_WRITE, FILE_SHARE_WRITE,
-              TRUNCATE_EXISTING, 0 },
+    /*  0 */ { CREATE_ALWAYS, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_SHARING_VIOLATION },
+    /*  1 */ { CREATE_ALWAYS, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_SHARE_READ, ERROR_ALREADY_EXISTS },
+    /*  2 */ { CREATE_ALWAYS, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_ALREADY_EXISTS },
+    /*  3 */ { CREATE_NEW, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_FILE_EXISTS },
+    /*  4 */ { CREATE_NEW, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_FILE_EXISTS },
+    /*  5 */ { OPEN_ALWAYS, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_ALREADY_EXISTS },
+    /*  6 */ { OPEN_ALWAYS, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_ALREADY_EXISTS },
+    /*  7 */ { OPEN_EXISTING, GENERIC_READ, FILE_SHARE_READ, 0, 0 },
+    /*  8 */ { OPEN_EXISTING, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_SHARE_READ, ERROR_SHARING_VIOLATION },
+    /*  9 */ { OPEN_EXISTING, GENERIC_WRITE, FILE_SHARE_WRITE, 0, 0 },
+    /* 10 */ { TRUNCATE_EXISTING, GENERIC_READ, FILE_SHARE_READ, 0, ERROR_INVALID_PARAMETER },
+    /* 11 */ { TRUNCATE_EXISTING, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+    /* 12 */ { TRUNCATE_EXISTING, GENERIC_WRITE, FILE_SHARE_WRITE, 0, 0 },
     };
     char temp_path[MAX_PATH];
     char file_name[MAX_PATH];
@@ -4137,13 +4099,14 @@ todo_wine_if (i == 1)
     for (i = 0; i < ARRAY_SIZE(td2); i++)
     {
         SetLastError(0xdeadbeef);
-        hfile  = CreateFileA(file_name, td2[i].access0, td2[i].share0, NULL, CREATE_NEW, 0, 0);
+        hfile  = CreateFileA(file_name, td2[i].access, td2[i].share, NULL, CREATE_NEW, 0, 0);
         ok(GetLastError() == ERROR_SUCCESS, "%d: expected 0, got %d\n", i, GetLastError());
         ok(hfile != INVALID_HANDLE_VALUE, "%d: CreateFile error %d\n", i, GetLastError());
 
         SetLastError(0xdeadbeef);
-        hfile2 = CreateFileA(file_name, td2[i].access1, td2[i].share1, NULL, td2[i].disposition1, 0, 0);
-todo_wine_if(i == 12)
+        hfile2 = CreateFileA(file_name, td2[i].access, td2[i].share2 ? td2[i].share2 : td2[i].share,
+                             NULL, td2[i].disposition, 0, 0);
+todo_wine_if(i == 10)
         ok(GetLastError() == td2[i].error, "%d: expected %d, got %d\n", i, td2[i].error, GetLastError());
         if (td2[i].error && (td2[i].error != ERROR_ALREADY_EXISTS))
             ok(hfile2 == INVALID_HANDLE_VALUE, "%d: CreateFile should fail\n", i);
