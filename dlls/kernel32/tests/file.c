@@ -4025,6 +4025,16 @@ static void test_CreateFile(void)
     /* 11*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
               GENERIC_WRITE, FILE_SHARE_WRITE,
               TRUNCATE_EXISTING, 0 },
+
+    /* 12*/ { GENERIC_READ, FILE_SHARE_READ,
+              GENERIC_READ, FILE_SHARE_READ,
+              OPEN_EXISTING, 0 },
+    /* 13*/ { GENERIC_WRITE, FILE_SHARE_READ,
+              GENERIC_WRITE, FILE_SHARE_READ,
+              OPEN_EXISTING, ERROR_SHARING_VIOLATION },
+    /* 14*/ { GENERIC_WRITE, FILE_SHARE_WRITE,
+              GENERIC_WRITE, FILE_SHARE_WRITE,
+              OPEN_EXISTING, 0 },
     };
     char temp_path[MAX_PATH];
     char file_name[MAX_PATH];
