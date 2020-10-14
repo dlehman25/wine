@@ -4012,6 +4012,24 @@ static void test_NtCreateFile(void)
     /*17*/{ FILE_SUPERSEDE, FILE_ATTRIBUTE_READONLY, 0, FILE_SUPERSEDED, FILE_ATTRIBUTE_ARCHIVE|FILE_ATTRIBUTE_READONLY, TRUE },
     /*18*/{ FILE_SUPERSEDE, 0, 0, FILE_CREATED, FILE_ATTRIBUTE_ARCHIVE, TRUE }
     };
+    static const struct test_data3
+    {
+        DWORD disposition, access, share, share2, status, result;
+    } td3[] =
+    {
+    /* roughly matches dlls/kernel32/tests/file.c plus FILE_SUPERSEDE */
+    /* FILE_OVERWRITE_IF = CREATE_ALWAYS */
+    /*  0*/{ FILE_OVERWRITE_IF, GENERIC_READ, 0, FILE_SHARE_READ, STATUS_SHARING_VIOLATION },
+    /*  1*/{ FILE_OVERWRITE_IF, GENERIC_READ, FILE_SHARE_READ, 0, STATUS_SHARING_VIOLATION, 1 },
+    /*  2*/{ FILE_OVERWRITE_IF, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_SHARE_READ, 0, FILE_OVERWRITTEN },
+//    /*  3 */ { FILE_OVERWRITE_IF, GENERIC_WRITE, 0, FILE_SHARE_WRITE, ERROR_SHARING_VIOLATION },
+//    /*  4 */ { FILE_OVERWRITE_IF, GENERIC_WRITE, FILE_SHARE_WRITE, 0, ERROR_ALREADY_EXISTS },
+    /* FILE_CREATE = CREATE_NEW */
+    /* FILE_OPEN_IF = OPEN_ALWAYS */
+    /* FILE_OPEN = OPEN_EXISTING */
+    /* FILE_OVERWRITE = TRUNCATE_EXISTING */
+    /* FILE_SUPERSEDE */
+    };
     static const struct test_data2
     {
         DWORD access0, share0,
@@ -4021,7 +4039,6 @@ static void test_NtCreateFile(void)
         DWORD result;
     } td2[] =
     {
-    /* roughly matches dlls/kernel32/tests/file.c plus FILE_SUPERSEDE */
     /*  0*/ { GENERIC_READ, FILE_SHARE_READ,
               GENERIC_READ, FILE_SHARE_READ,
               FILE_OVERWRITE_IF, STATUS_SHARING_VIOLATION },
@@ -4133,6 +4150,7 @@ static void test_NtCreateFile(void)
     SetFileAttributesW(path, FILE_ATTRIBUTE_ARCHIVE);
     DeleteFileW( path );
 
+    /* TODO: remove */
     /* test consecutive calls to NtCreateFile */
     for (i = 0; i < ARRAY_SIZE(td2); i++)
     {
@@ -4150,6 +4168,29 @@ static void test_NtCreateFile(void)
         if (!status)
         {
             ok(io.Information == td2[i].result,"%d: expected %#x got %#lx\n", i, td2[i].result, io.Information);
+            CloseHandle(handle2);
+        }
+
+        CloseHandle(handle);
+        DeleteFileW(path);
+    }
+
+    /* test consecutive calls to NtCreateFile */
+    for (i = 0; i < ARRAY_SIZE(td3); i++)
+    {
+        status = pNtCreateFile(&handle, td3[i].access, &attr, &io, NULL,
+                               FILE_ATTRIBUTE_NORMAL, td3[i].share,
+                               FILE_CREATE, 0, NULL, 0);
+        ok(status == STATUS_SUCCESS, "%d: expected 0 got %#x\n", i, status);
+
+        status = pNtCreateFile(&handle2, td3[i].access, &attr, &io, NULL,
+                               FILE_ATTRIBUTE_NORMAL, td3[i].share2 ? td3[i].share2 : td3[i].share,
+                               td3[i].disposition, 0, NULL, 0);
+
+        ok(status == td3[i].status, "%d: expected %#x got %#x\n", i, td3[i].status, status);
+        if (!status)
+        {
+            ok(io.Information == td3[i].result,"%d: expected %#x got %#lx\n", i, td3[i].result, io.Information);
             CloseHandle(handle2);
         }
 
