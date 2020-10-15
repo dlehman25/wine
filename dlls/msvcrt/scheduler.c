@@ -28,6 +28,7 @@
 #include "msvcrt.h"
 #include "cppexcept.h"
 #include "cxx.h"
+#include "limits.h"
 
 #if _MSVCR_VER >= 100
 
@@ -1109,11 +1110,6 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
     CurrentScheduler_ScheduleTask(proc, data);
 }
 
-
-typedef struct {
-    ULONG_PTR unk[8];
-} _StructuredTaskCollection;
-
 typedef struct {
     int dummy;
 } _CancellationTokenState;
@@ -1121,6 +1117,22 @@ typedef struct {
 typedef struct {
     int dummy;
 } _CancellationTokenRegistration;
+
+typedef struct _TaskCollectionBase {
+    struct _TaskCollectionBase *parent;
+    DWORD depth : 28;
+    DWORD flags : 4;
+    _CancellationTokenState *token;
+    void *context;
+    LONG completed;
+    LONG unpopped;
+    void *exception;
+} _TaskCollectionBase;
+
+typedef struct {
+    _TaskCollectionBase base;
+    void *event;
+} _StructuredTaskCollection;
 
 typedef void (__cdecl *_RegisterCallbackProc)(void*);
 
@@ -1252,9 +1264,23 @@ void __thiscall _StructuredTaskCollection_Schedule_loc(_StructuredTaskCollection
 /* ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z */
 /* ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
-void __thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *this, _CancellationTokenState *state)
+_StructuredTaskCollection *__thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *this, _CancellationTokenState *state)
 {
-    FIXME("(%p %p) stub\n", this, state);
+    FIXME("(%p %p) partial stub\n", this, state);
+
+    if (state)
+        FIXME("state ignored for now\n");
+
+    this->base.parent = NULL;
+    this->base.depth = ~0;
+    this->base.flags = 1;
+    this->base.token = NULL;
+    this->base.context = NULL;
+    this->base.completed = 0;
+    this->base.unpopped = INT_MIN;
+    this->base.exception = NULL;
+    this->event = NULL;
+    return this;
 }
 
 /* ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ */
