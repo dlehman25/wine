@@ -4105,47 +4105,22 @@ static void test_NtCreateFile(void)
     SetFileAttributesW(path, FILE_ATTRIBUTE_ARCHIVE);
     DeleteFileW( path );
 
-    /* TODO: remove */
     /* test consecutive calls to NtCreateFile */
     for (i = 0; i < ARRAY_SIZE(td2); i++)
     {
-        status = pNtCreateFile(&handle, td2[i].access0, &attr, &io, NULL,
-                               FILE_ATTRIBUTE_NORMAL, td2[i].share0,
+        status = pNtCreateFile(&handle, td2[i].access, &attr, &io, NULL,
+                               FILE_ATTRIBUTE_NORMAL, td2[i].share,
                                FILE_CREATE, 0, NULL, 0);
         ok(status == STATUS_SUCCESS, "%d: expected 0 got %#x\n", i, status);
 
-        status = pNtCreateFile(&handle2, td2[i].access1, &attr, &io, NULL,
-                               FILE_ATTRIBUTE_NORMAL, td2[i].share1,
-                               td2[i].disposition1, 0, NULL, 0);
+        status = pNtCreateFile(&handle2, td2[i].access, &attr, &io, NULL,
+                               FILE_ATTRIBUTE_NORMAL, td2[i].share2 ? td2[i].share2 : td2[i].share,
+                               td2[i].disposition, 0, NULL, 0);
 
         ok(status == td2[i].status, "%d: expected %#x got %#x\n", i, td2[i].status, status);
-
         if (!status)
         {
             ok(io.Information == td2[i].result,"%d: expected %#x got %#lx\n", i, td2[i].result, io.Information);
-            CloseHandle(handle2);
-        }
-
-        CloseHandle(handle);
-        DeleteFileW(path);
-    }
-
-    /* test consecutive calls to NtCreateFile */
-    for (i = 0; i < ARRAY_SIZE(td3); i++)
-    {
-        status = pNtCreateFile(&handle, td3[i].access, &attr, &io, NULL,
-                               FILE_ATTRIBUTE_NORMAL, td3[i].share,
-                               FILE_CREATE, 0, NULL, 0);
-        ok(status == STATUS_SUCCESS, "%d: expected 0 got %#x\n", i, status);
-
-        status = pNtCreateFile(&handle2, td3[i].access, &attr, &io, NULL,
-                               FILE_ATTRIBUTE_NORMAL, td3[i].share2 ? td3[i].share2 : td3[i].share,
-                               td3[i].disposition, 0, NULL, 0);
-
-        ok(status == td3[i].status, "%d: expected %#x got %#x\n", i, td3[i].status, status);
-        if (!status)
-        {
-            ok(io.Information == td3[i].result,"%d: expected %#x got %#lx\n", i, td3[i].result, io.Information);
             CloseHandle(handle2);
         }
 
