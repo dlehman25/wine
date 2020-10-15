@@ -28,6 +28,7 @@
 #include "msvcrt.h"
 #include "cppexcept.h"
 #include "cxx.h"
+#include "limits.h"
 
 #if _MSVCR_VER >= 100
 
@@ -1088,17 +1089,35 @@ typedef enum {
 } TaskCollectionStatus;
 
 typedef struct {
-    ULONG_PTR unk[8];
-} _StructuredTaskCollection;
-
-typedef struct {
     int dummy;
 } _CancellationTokenState;
 
+typedef struct _TaskCollectionBase {
+    struct _TaskCollectionBase *parent;
+    DWORD depth : 28;
+    DWORD flags : 4;
+    _CancellationTokenState *token;
+    void *context;
+    volatile LONG completed;
+    LONG unpopped;
+    void *exception;
+} _TaskCollectionBase;
+
 typedef struct {
-    ULONG_PTR unk0[2];
-    _StructuredTaskCollection *coll;
-    ULONG_PTR unk1[2];
+    _TaskCollectionBase base;
+    void *event;
+} _StructuredTaskCollection;
+
+struct _UnrealizedChore;
+typedef void (*__cdecl ChoreFunc)(struct _UnrealizedChore*);
+typedef void (*__cdecl TaskFunc)(void*);
+typedef struct {
+    const vtable_ptr *vtable;
+    TaskFunc task_func;
+    _TaskCollectionBase *coll;
+    ChoreFunc chore_func;
+    BOOL rtowns;
+    BOOL detatched;
 } _UnrealizedChore;
 
 typedef struct {
@@ -1138,20 +1157,54 @@ MSVCRT_bool __thiscall _StructuredTaskCollection_IsCanceling(_StructuredTaskColl
     return FALSE;
 }
 
+static DWORD CALLBACK chore_wrapper(void *arg)
+{
+    /* TODO: exception handling */
+    /* TODO: cancellation */
+    _UnrealizedChore *uc = arg;
+    _TaskCollectionBase *coll = uc->coll;
+    uc->task_func(uc);
+    InterlockedIncrement(&coll->completed);
+    RtlWakeAddressSingle((const void *)&coll->completed);
+    return TRUE;
+}
+
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule, 8)
 void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
-    FIXME("(%p %p) stub\n", this, chore);
+    FIXME("(%p %p) partial stub\n", this, chore);
+
+    if (this->base.unpopped == INT_MIN)
+        this->base.unpopped = 1;
+    else
+        this->base.unpopped++;
+    chore->coll = &this->base;
+    chore->chore_func = (ChoreFunc)chore_wrapper;
+    QueueUserWorkItem(chore_wrapper, chore, WT_EXECUTEDEFAULT);
 }
 
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z */
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z */
 TaskCollectionStatus __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
-    FIXME("(%p %p) stub\n", this, chore);
-    return _NotComplete;
+    LONG completed;
+
+    FIXME("(%p %p) partial stub\n", this, chore);
+
+    if (chore)
+        _StructuredTaskCollection_Schedule(this, chore);
+
+    completed = this->base.completed;
+    while (completed != this->base.unpopped)
+    {
+        RtlWaitOnAddress((const void *)&this->base.completed, &completed, 4, NULL);
+        completed = this->base.completed;
+    }
+    this->base.completed = 0;
+    this->base.unpopped = 0;
+    return _Complete;
 }
 
 #if _MSVCR_VER > 100
@@ -1203,7 +1256,20 @@ void __thiscall _StructuredTaskCollection_Schedule_loc(_StructuredTaskCollection
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
 _StructuredTaskCollection *__thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *this, _CancellationTokenState *state)
 {
-    FIXME("(%p %p) stub\n", this, state);
+    FIXME("(%p %p) partial stub\n", this, state);
+
+    if (state)
+        FIXME("state ignored for now\n");
+
+    this->base.parent = NULL;
+    this->base.depth = ~0;
+    this->base.flags = 1;
+    this->base.token = NULL;
+    this->base.context = NULL;
+    this->base.completed = 0;
+    this->base.unpopped = INT_MIN;
+    this->base.exception = NULL;
+    this->event = NULL;
     return this;
 }
 
