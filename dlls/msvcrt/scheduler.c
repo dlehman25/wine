@@ -94,6 +94,22 @@ typedef struct {
     Context *context;
 } _Context;
 
+typedef void (__cdecl *TaskProc)(void*);
+
+typedef struct {
+    const vtable_ptr *vtable;
+} ScheduleGroupBase;
+#define call_ScheduleGroupBase_ScheduleTask(this, proc) CALL_VTBL_FUNC(this, 0, \
+        void, (ScheduleGroupBase*, TaskProc, void*), (this, proc, arg))
+#define call_ScheduleGroupBase_GetId(this) CALL_VTBL_FUNC(this, 4, \
+        unsigned int, (const ScheduleGroupBase*), (this))
+#define call_ScheduleGroupBase_Reference(this) CALL_VTBL_FUNC(this, 8, \
+        unsigned int, (ScheduleGroupBase*), (this))
+#define call_ScheduleGroupBase_Release(this) CALL_VTBL_FUNC(this, 12, \
+        unsigned int, (ScheduleGroupBase*), (this))
+#define call_ScheduleGroupBase_dtor(this, flags) CALL_VTBL_FUNC(this, 16, \
+        ScheduleGroupBase*, (ScheduleGroupBase*, unsigned int), (this, flags))
+
 union allocator_cache_entry {
     struct _free {
         int depth;
