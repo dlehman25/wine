@@ -1118,6 +1118,12 @@ typedef struct {
     int dummy;
 } _CancellationTokenRegistration;
 
+typedef enum {
+    _NotComplete,
+    _Complete,
+    _Canceled,
+} TaskCollectionStatus;
+
 typedef struct _TaskCollectionBase {
     struct _TaskCollectionBase *parent;
     DWORD depth : 28;
@@ -1274,7 +1280,7 @@ void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *th
 
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z */
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z */
-void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
+TaskCollectionStatus __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
     LONG completed;
 
@@ -1291,6 +1297,8 @@ void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_Structured
     }
     this->base.completed = 0;
     this->base.unpopped = 0;
+
+    return _Complete;
 }
 
 #if _MSVCR_VER >= 110
