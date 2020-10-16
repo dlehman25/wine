@@ -1158,6 +1158,39 @@ typedef struct {
     int dummy;
 } location;
 
+#if _MSVCR_VER > 100
+typedef struct _Cancellation_beacon
+{
+    int dummy;
+} _Cancellation_beacon;
+
+/* ??0_Cancellation_beacon@details@Concurrency@@QAE@XZ */
+/* ??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ */
+DEFINE_THISCALL_WRAPPER(_Cancellation_beacon_ctor, 4)
+_Cancellation_beacon *__thiscall _Cancellation_beacon_ctor(_Cancellation_beacon *this)
+{
+    FIXME("(%p) stub\n", this);
+    return this;
+}
+
+/* ??1_Cancellation_beacon@details@Concurrency@@QAE@XZ */
+/* ??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ */
+DEFINE_THISCALL_WRAPPER(_Cancellation_beacon_dtor, 4)
+void __thiscall _Cancellation_beacon_dtor(_Cancellation_beacon *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ */
+/* ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ */
+DEFINE_THISCALL_WRAPPER(_Cancellation_beacon__Confirm_cancel, 4)
+MSVCRT_bool __thiscall _Cancellation_beacon__Confirm_cancel(_Cancellation_beacon *this)
+{
+    FIXME("(%p) stub\n", this);
+    return FALSE;
+}
+#endif
+
 /* ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAEXXZ */
 /* ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IEAAXXZ */
 DEFINE_THISCALL_WRAPPER(_UnrealizedChore__CheckTaskCollection, 4)

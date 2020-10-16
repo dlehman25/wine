@@ -8,8 +8,8 @@
 @ cdecl -arch=win64 ??0SchedulerPolicy@Concurrency@@QEAA@XZ(ptr) msvcr120.??0SchedulerPolicy@Concurrency@@QEAA@XZ
 @ thiscall -arch=i386 ??0SchedulerPolicy@Concurrency@@QAE@XZ(ptr) msvcr120.??0SchedulerPolicy@Concurrency@@QAE@XZ
 @ varargs -arch=win64 ??0SchedulerPolicy@Concurrency@@QEAA@_KZZ(ptr long) msvcr120.??0SchedulerPolicy@Concurrency@@QEAA@_KZZ
-@ stub -arch=i386 ??0_Cancellation_beacon@details@Concurrency@@QAE@XZ
-@ stub -arch=win64 ??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ
+@ thiscall -arch=i386 ??0_Cancellation_beacon@details@Concurrency@@QAE@XZ(ptr) msvcr120.??0_Cancellation_beacon@details@Concurrency@@QAE@XZ
+@ cdecl -arch=win64 ??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ(ptr) msvcr120.??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ
 @ thiscall -arch=i386 ??0_Concurrent_queue_base_v4@details@Concurrency@@IAE@I@Z(ptr long) msvcp120.??0_Concurrent_queue_base_v4@details@Concurrency@@IAE@I@Z
 @ cdecl -arch=win64 ??0_Concurrent_queue_base_v4@details@Concurrency@@IEAA@_K@Z(ptr long) msvcp120.??0_Concurrent_queue_base_v4@details@Concurrency@@IEAA@_K@Z
 @ stub -arch=i386 ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@ABV_Concurrent_queue_base_v4@12@@Z
@@ -158,8 +158,8 @@
 @ stub -arch=win64 ??0unsupported_os@Concurrency@@QEAA@XZ
 @ thiscall -arch=i386 ??1SchedulerPolicy@Concurrency@@QAE@XZ(ptr) msvcr120.??1SchedulerPolicy@Concurrency@@QAE@XZ
 @ cdecl -arch=win64 ??1SchedulerPolicy@Concurrency@@QEAA@XZ(ptr) msvcr120.??1SchedulerPolicy@Concurrency@@QEAA@XZ
-@ stub -arch=i386 ??1_Cancellation_beacon@details@Concurrency@@QAE@XZ
-@ stub -arch=win64 ??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ
+@ thiscall -arch=i386 ??1_Cancellation_beacon@details@Concurrency@@QAE@XZ(ptr) msvcr120.??1_Cancellation_beacon@details@Concurrency@@QAE@XZ
+@ cdecl -arch=win64 ??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ(ptr) msvcr120.??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ
 @ thiscall -arch=i386 ??1_Concurrent_queue_base_v4@details@Concurrency@@MAE@XZ(ptr) msvcp120.??1_Concurrent_queue_base_v4@details@Concurrency@@MAE@XZ
 @ cdecl -arch=win64 ??1_Concurrent_queue_base_v4@details@Concurrency@@MEAA@XZ(ptr) msvcp120.??1_Concurrent_queue_base_v4@details@Concurrency@@MEAA@XZ
 @ stub -arch=i386 ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@XZ
@@ -325,8 +325,8 @@
 @ stub -arch=win64 ?_ConcRT_CoreAssert@details@Concurrency@@YAXPEBD0H@Z
 @ stub -arch=win32 ?_ConcRT_Trace@details@Concurrency@@YAXHPB_WZZ
 @ stub -arch=win64 ?_ConcRT_Trace@details@Concurrency@@YAXHPEB_WZZ
-@ stub -arch=i386 ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ
-@ stub -arch=win64 ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ
+@ thiscall -arch=i386 ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ(ptr) msvcr120.?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ
+@ cdecl -arch=win64 ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ(ptr) msvcr120.?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ
 @ cdecl ?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ() msvcr120.?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ
 @ stub ?_Current_node@location@Concurrency@@SA?AV12@XZ
 @ stub -arch=i386 ?_Destroy@_AsyncTaskCollection@details@Concurrency@@EAEXXZ
