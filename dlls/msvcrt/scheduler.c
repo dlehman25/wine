@@ -1152,6 +1152,14 @@ typedef struct {
     int dummy;
 } location;
 
+/* ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAEXXZ */
+/* ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_UnrealizedChore__CheckTaskCollection, 4)
+void __thiscall _UnrealizedChore__CheckTaskCollection(_UnrealizedChore *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
 #if _MSVCR_VER == 110
 /* ??0_CancellationTokenState@details@Concurrency@@AAE@XZ */
 /* ??0_CancellationTokenState@details@Concurrency@@AEAA@XZ */

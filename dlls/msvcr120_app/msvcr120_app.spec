@@ -485,9 +485,9 @@
 @ stub -arch=arm ?_Cancel@_TaskCollection@details@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?_Cancel@_TaskCollection@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?_Cancel@_TaskCollection@details@Concurrency@@QEAAXXZ
-@ stub -arch=arm ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAAXXZ
-@ stub -arch=i386 ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAEXXZ
-@ stub -arch=win64 ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IEAAXXZ
+@ cdecl -arch=arm ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAAXXZ(ptr) msvcr120.?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAAXXZ
+@ thiscall -arch=i386 ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAEXXZ(ptr) msvcr120.?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IAEXXZ
+@ cdecl -arch=win64 ?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IEAAXXZ(ptr) msvcr120.?_CheckTaskCollection@_UnrealizedChore@details@Concurrency@@IEAAXXZ
 @ cdecl -arch=arm ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAAXXZ(ptr) msvcr120.?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAAXXZ
 @ thiscall -arch=i386 ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ(ptr) msvcr120.?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ
 @ cdecl -arch=win64 ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ(ptr) msvcr120.?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ
