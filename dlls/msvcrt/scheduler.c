@@ -1124,7 +1124,7 @@ typedef struct _TaskCollectionBase {
     DWORD flags : 4;
     _CancellationTokenState *token;
     void *context;
-    LONG completed;
+    volatile LONG completed;
     LONG unpopped;
     void *exception;
 } _TaskCollectionBase;
@@ -1238,8 +1238,13 @@ void __thiscall _StructuredTaskCollection_IsCanceling(_StructuredTaskCollection 
 static DWORD CALLBACK chore_wrapper(void *arg)
 {
     /* TODO: exception handling */
+    /* TODO: cancellation */
+    LONG completed;
     _UnrealizedChore *uc = arg;
+    _TaskCollectionBase *coll = uc->coll;
     uc->task_func(uc);
+    completed = InterlockedIncrement(&coll->completed);
+    RtlWakeAddressSingle((const void *)&coll->completed);
     return TRUE;
 }
 
@@ -1250,6 +1255,10 @@ void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *th
 {
     FIXME("(%p %p) partial stub\n", this, chore);
 
+    if (this->base.unpopped == INT_MIN)
+        this->base.unpopped = 1;
+    else
+        this->base.unpopped++;
     chore->coll = &this->base;
     chore->chore_func = (ChoreFunc)chore_wrapper;
     QueueUserWorkItem(chore_wrapper, chore, WT_EXECUTEDEFAULT);
@@ -1259,7 +1268,21 @@ void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *th
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z */
 void __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
-    FIXME("(%p %p) stub\n", this, chore);
+    LONG completed;
+
+    FIXME("(%p %p) partial stub\n", this, chore);
+
+    if (chore)
+        _StructuredTaskCollection_Schedule(this, chore);
+
+    completed = this->base.completed;
+    while (completed != this->base.unpopped)
+    {
+        RtlWaitOnAddress((const void *)&this->base.completed, &completed, 4, NULL);
+        completed = this->base.completed;
+    }
+    this->base.completed = 0;
+    this->base.unpopped = 0;
 }
 
 #if _MSVCR_VER >= 110
