@@ -1136,10 +1136,16 @@ typedef struct {
 
 typedef void (__cdecl *_RegisterCallbackProc)(void*);
 
+struct _UnrealizedChore;
+typedef void (*__cdecl ChoreFunc)(struct _UnrealizedChore*);
+typedef void (*__cdecl TaskFunc)(void*);
 typedef struct {
-    ULONG_PTR unk0[2];
-    _StructuredTaskCollection *coll;
-    ULONG_PTR unk1[2];
+    const vtable_ptr *vtable;
+    TaskFunc task_func;
+    _TaskCollectionBase *coll;
+    ChoreFunc chore_func;
+    BOOL rtowns;
+    BOOL detatched;
 } _UnrealizedChore;
 
 typedef struct {
@@ -1229,12 +1235,24 @@ void __thiscall _StructuredTaskCollection_IsCanceling(_StructuredTaskCollection 
     FIXME("(%p) stub\n", this);
 }
 
+static DWORD CALLBACK chore_wrapper(void *arg)
+{
+    /* TODO: exception handling */
+    _UnrealizedChore *uc = arg;
+    uc->task_func(uc);
+    return TRUE;
+}
+
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */
 /* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z */
 DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule, 8)
 void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *this, _UnrealizedChore *chore)
 {
-    FIXME("(%p %p) stub\n", this, chore);
+    FIXME("(%p %p) partial stub\n", this, chore);
+
+    chore->coll = &this->base;
+    chore->chore_func = (ChoreFunc)chore_wrapper;
+    QueueUserWorkItem(chore_wrapper, chore, WT_EXECUTEDEFAULT);
 }
 
 /* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z */
