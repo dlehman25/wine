@@ -168,6 +168,8 @@ static void create_file_test(void)
                             FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_OPEN, FILE_DIRECTORY_FILE, NULL, 0 );
     ok( !status, "open %s failed %x\n", wine_dbgstr_w(nameW.Buffer), status );
 
+if (0)
+{
     U(io).Status = 0xdeadbeef;
     offset.QuadPart = 0;
     status = pNtReadFile( dir, NULL, NULL, NULL, &io, buf, sizeof(buf), &offset, NULL );
@@ -231,13 +233,15 @@ static void create_file_test(void)
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, 0, FILE_SHARE_READ|FILE_SHARE_WRITE,
                             FILE_OPEN_IF, 0, NULL, 0 );
     ok( !status, "open %s failed %x\n", wine_dbgstr_w(nameW.Buffer), status );
+}
     CloseHandle( dir );
 
+printf("waiting\n"); getchar();
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, 0, FILE_SHARE_READ|FILE_SHARE_WRITE,
                             FILE_SUPERSEDE, 0, NULL, 0 );
     ok( status == STATUS_OBJECT_NAME_COLLISION || status == STATUS_ACCESS_DENIED,
         "open %s failed %x\n", wine_dbgstr_w(nameW.Buffer), status );
-
+return;
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, 0, FILE_SHARE_READ|FILE_SHARE_WRITE,
                             FILE_OVERWRITE, 0, NULL, 0 );
     ok( status == STATUS_OBJECT_NAME_COLLISION || status == STATUS_ACCESS_DENIED,
@@ -5161,9 +5165,10 @@ START_TEST(file)
     pNtQueryFullAttributesFile = (void *)GetProcAddress(hntdll, "NtQueryFullAttributesFile");
     pNtFlushBuffersFile = (void *)GetProcAddress(hntdll, "NtFlushBuffersFile");
 
+    create_file_test();
+    return;
     test_read_write();
     test_NtCreateFile();
-    create_file_test();
     open_file_test();
     delete_file_test();
     read_file_test();

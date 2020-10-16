@@ -1630,9 +1630,10 @@ static unsigned int check_sharing( struct fd *fd, unsigned int access, unsigned 
     if ((create == FILE_OVERWRITE_IF || create == FILE_OVERWRITE) &&
         !(existing_sharing & FILE_SHARE_WRITE))
         return STATUS_SHARING_VIOLATION;
-    if ((create == FILE_SUPERSEDE) && !(options & FILE_DIRECTORY_FILE) &&
-        !(existing_sharing & FILE_SHARE_DELETE))
-        return STATUS_SHARING_VIOLATION;
+
+//    if ((create == FILE_SUPERSEDE) && /!(options & FILE_DIRECTORY_FILE) &&
+//        !(existing_sharing & FILE_SHARE_DELETE))
+//        return STATUS_SHARING_VIOLATION;
     return 0;
 }
 
@@ -1961,8 +1962,8 @@ struct fd *open_fd2( struct fd *root, const char *name, int flags, mode_t *mode,
             set_error( STATUS_FILE_IS_A_DIRECTORY );
             goto error;
         }
-        if (S_ISDIR(st.st_mode))
-            options |= FILE_DIRECTORY_FILE;
+        //if (S_ISDIR(st.st_mode))
+        //    options |= FILE_DIRECTORY_FILE;
         if ((err = check_sharing( fd, access, sharing, flags, options, create )))
         {
             set_error( err );
@@ -1982,7 +1983,7 @@ struct fd *open_fd2( struct fd *root, const char *name, int flags, mode_t *mode,
         {
             if (S_ISDIR(st.st_mode))
             {
-                set_error( STATUS_OBJECT_NAME_COLLISION );
+                set_error( STATUS_OBJECT_NAME_COLLISION ); // <--- FILE_SUPERSEDE on dir
                 goto error;
             }
             ftruncate( fd->unix_fd, 0 );
