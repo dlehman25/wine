@@ -31,6 +31,50 @@
 
 #include <locale.h>
 
+#ifdef __i386__
+#include "pshpack1.h"
+struct thiscall_thunk
+{
+    BYTE pop_eax;    /* popl  %eax (ret addr) */
+    BYTE pop_edx;    /* popl  %edx (func) */
+    BYTE pop_ecx;    /* popl  %ecx (this) */
+    BYTE push_eax;   /* pushl %eax */
+    WORD jmp_edx;    /* jmp  *%edx */
+};
+#include "poppack.h"
+
+static ULONG_PTR (WINAPI *call_thiscall_func1)( void *func, void *this );
+
+static void init_thiscall_thunk(void)
+{
+    struct thiscall_thunk *thunk = VirtualAlloc( NULL, sizeof(*thunk),
+            MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+    thunk->pop_eax  = 0x58;   /* popl  %eax */
+    thunk->pop_edx  = 0x5a;   /* popl  %edx */
+    thunk->pop_ecx  = 0x59;   /* popl  %ecx */
+    thunk->push_eax = 0x50;   /* pushl %eax */
+    thunk->jmp_edx  = 0xe2ff; /* jmp  *%edx */
+    call_thiscall_func1 = (void *)thunk;
+}
+
+#define call_func1(func,_this) call_thiscall_func1(func,_this)
+
+#else
+
+#define init_thiscall_thunk()
+#define call_func1(func,_this) func(_this)
+
+#endif /* __i386__ */
+
+#undef __thiscall
+#ifdef __i386__
+#define __thiscall __stdcall
+#else
+#define __thiscall __cdecl
+#endif
+
+typedef unsigned char MSVCRT_bool;
+
 typedef void (*vtable_ptr)(void);
 
 typedef struct {
@@ -40,6 +84,10 @@ typedef struct {
 typedef struct {
     Context *ctx;
 } _Context;
+
+typedef struct {
+    LONG *signal;
+} _Cancellation_beacon;
 
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static size_t (CDECL *p___strncnt)(const char *str, size_t count);
@@ -51,6 +99,10 @@ static unsigned int (CDECL *p__CurrentScheduler__Id)(void);
 
 static Context* (__cdecl *p_Context_CurrentContext)(void);
 static _Context* (__cdecl *p__Context__CurrentContext)(_Context*);
+
+static void (__thiscall *p__Cancellation_beacon_ctor)(_Cancellation_beacon*);
+static void (__thiscall *p__Cancellation_beacon_dtor)(_Cancellation_beacon*);
+static MSVCRT_bool (__thiscall *p__Cancellation_beacon__Confirm_cancel)(_Cancellation_beacon*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -78,12 +130,27 @@ static BOOL init(void)
     if(sizeof(void*) == 8)
     {
         SET(p_Context_CurrentContext, "?CurrentContext@Context@Concurrency@@SAPEAV12@XZ");
+
+        SET(p__Cancellation_beacon_ctor,
+                "??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
+        SET(p__Cancellation_beacon_dtor,
+                "??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ");
     }
     else
     {
         SET(p_Context_CurrentContext, "?CurrentContext@Context@Concurrency@@SAPAV12@XZ");
+
+        SET(p__Cancellation_beacon_ctor,
+                "??0_Cancellation_beacon@details@Concurrency@@QAE@XZ");
+        SET(p__Cancellation_beacon_dtor,
+                "??1_Cancellation_beacon@details@Concurrency@@QAE@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ");
     }
 
+    init_thiscall_thunk();
     return TRUE;
 }
 
@@ -186,6 +253,33 @@ static void test_CurrentContext(void)
     ok(_pctx == &_ctx, "expected %p, got %p\n", &_ctx, _pctx);
 }
 
+static void test__Cancellation_beacon(void)
+{
+    _Cancellation_beacon cb;
+    MSVCRT_bool confirm;
+
+    cb.signal = NULL;
+    call_func1(p__Cancellation_beacon_ctor, &cb);
+    todo_wine ok(!!cb.signal, "got NULL\n");
+    if (!cb.signal) return;
+    ok(*cb.signal == 0, "got %d\n", *cb.signal);
+
+    confirm = call_func1(p__Cancellation_beacon__Confirm_cancel, &cb);
+    ok(!confirm, "got %d\n", confirm);
+    ok(*cb.signal == -1, "got %d\n", *cb.signal);
+
+    confirm = call_func1(p__Cancellation_beacon__Confirm_cancel, &cb);
+    ok(!confirm, "got %d\n", confirm);
+    ok(*cb.signal == -2, "got %d\n", *cb.signal);
+
+    *cb.signal = 42;
+    confirm = call_func1(p__Cancellation_beacon__Confirm_cancel, &cb);
+    ok(!confirm, "got %d\n", confirm);
+    ok(*cb.signal == 41, "got %d\n", *cb.signal);
+
+    call_func1(p__Cancellation_beacon_dtor, &cb);
+}
+
 START_TEST(msvcr110)
 {
     if (!init()) return;
@@ -193,4 +287,5 @@ START_TEST(msvcr110)
     test_setlocale();
     test___strncnt();
     test_CurrentContext();
+    test__Cancellation_beacon();
 }
