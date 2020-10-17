@@ -213,6 +213,10 @@ typedef enum {
     _Complete,
 } _TaskCollectionStatus;
 
+typedef struct {
+    LONG *signal;
+} _Cancellation_beacon;
+
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static struct MSVCRT_lconv* (CDECL *p_localeconv)(void);
 static size_t (CDECL *p_wcstombs_s)(size_t *ret, char* dest, size_t sz, const wchar_t* src, size_t max);
@@ -270,6 +274,10 @@ static void (__thiscall *p__StructuredTaskCollection_ctor_cts)(_StructuredTaskCo
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
 static _TaskCollectionStatus (__stdcall *p__StructuredTaskCollection_RunAndWait__UnrealizedChore)(_StructuredTaskCollection*,_UnrealizedChore*);
 static void (__thiscall *p__StructuredTaskCollection_dtor)(_StructuredTaskCollection*);
+
+static void (__thiscall *p__Cancellation_beacon_ctor)(_Cancellation_beacon*);
+static void (__thiscall *p__Cancellation_beacon_dtor)(_Cancellation_beacon*);
+static MSVCRT_bool (__thiscall *p__Cancellation_beacon__Confirm_cancel)(_Cancellation_beacon*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -354,6 +362,12 @@ static BOOL init(void)
                 "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z");
         SET(p__StructuredTaskCollection_dtor,
                 "??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ");
+        SET(p__Cancellation_beacon_ctor,
+                "??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
+        SET(p__Cancellation_beacon_dtor,
+                "??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ");
     } else {
 #ifdef __arm__
         SET(p_critical_section_ctor,
@@ -386,6 +400,12 @@ static BOOL init(void)
                 "?notify_one@_Condition_variable@details@Concurrency@@QAAXXZ");
         SET(p__Condition_variable_notify_all,
                 "?notify_all@_Condition_variable@details@Concurrency@@QAAXXZ");
+        SET(p__Cancellation_beacon_ctor,
+                "??0_CancellationTokenState@details@Concurrency@@AAA@XZ");
+        SET(p__Cancellation_beacon_dtor,
+                "??1_Cancellation_beacon@details@Concurrency@@QAA@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAA_NXZ");
 #else
         SET(p_critical_section_ctor,
                 "??0critical_section@Concurrency@@QAE@XZ");
@@ -427,6 +447,12 @@ static BOOL init(void)
                 "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z");
         SET(p__StructuredTaskCollection_dtor,
                 "??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ");
+        SET(p__Cancellation_beacon_ctor,
+                "??0_Cancellation_beacon@details@Concurrency@@QAE@XZ");
+        SET(p__Cancellation_beacon_dtor,
+                "??1_Cancellation_beacon@details@Concurrency@@QAE@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ");
 #endif
     }
 
@@ -1228,6 +1254,23 @@ static void test__StructuredTaskCollection(void)
     p__StructuredTaskCollection_dtor(&stc);
 }
 
+static void test__Cancellation_beacon(void)
+{
+    _Cancellation_beacon cb;
+    MSVCRT_bool confirm;
+
+    cb.signal = NULL;
+    p__Cancellation_beacon_ctor(&cb);
+    ok(!!cb.signal, "got NULL\n");
+    ok(!*cb.signal, "got %d\n", *cb.signal);
+
+    confirm = p__Cancellation_beacon__Confirm_cancel(&cb);
+    ok(!confirm, "got %d\n", confirm);
+    ok(*cb.signal == ~0, "got %d\n", *cb.signal);
+
+    p__Cancellation_beacon_dtor(&cb);
+}
+
 START_TEST(msvcr120)
 {
     if (!init()) return;
@@ -1250,4 +1293,5 @@ START_TEST(msvcr120)
     test_nexttoward();
     test_towctrans();
     test__StructuredTaskCollection();
+    test__Cancellation_beacon();
 }
