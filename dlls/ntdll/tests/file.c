@@ -4012,7 +4012,7 @@ static void test_NtCreateFile(void)
     /*17*/{ FILE_SUPERSEDE, FILE_ATTRIBUTE_READONLY, 0, FILE_SUPERSEDED, FILE_ATTRIBUTE_ARCHIVE|FILE_ATTRIBUTE_READONLY, TRUE },
     /*18*/{ FILE_SUPERSEDE, 0, 0, FILE_CREATED, FILE_ATTRIBUTE_ARCHIVE, TRUE }
     };
-    static const struct test_data3
+    static const struct test_data2
     {
         DWORD disposition, access, share, share2, status, result;
     } td2[] =
