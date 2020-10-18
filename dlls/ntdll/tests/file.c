@@ -4117,6 +4117,7 @@ static void test_NtCreateFile(void)
                                FILE_ATTRIBUTE_NORMAL, td2[i].share2 ? td2[i].share2 : td2[i].share,
                                td2[i].disposition, 0, NULL, 0);
 
+        todo_wine_if(i == 24 || i == 26)
         ok(status == td2[i].status, "%d: expected %#x got %#x\n", i, td2[i].status, status);
         if (!status)
         {
