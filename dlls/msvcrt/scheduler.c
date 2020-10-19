@@ -321,6 +321,7 @@ unsigned int __cdecl Context_VirtualProcessorId(void)
     return ctx ? call_Context_GetVirtualProcessorId(ctx) : -1;
 }
 
+#if _MSVCR_VER > 100
 /* ?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ */
 _Context __cdecl _Context__CurrentContext(void)
 {
@@ -330,7 +331,6 @@ _Context __cdecl _Context__CurrentContext(void)
     return ctx;
 }
 
-#if _MSVCR_VER > 100
 /* ?_IsSynchronouslyBlocked@_Context@details@Concurrency@@QBE_NXZ */
 /* ?_IsSynchronouslyBlocked@_Context@details@Concurrency@@QEBA_NXZ */
 DEFINE_THISCALL_WRAPPER(_Context__IsSynchronouslyBlocked, 4)
