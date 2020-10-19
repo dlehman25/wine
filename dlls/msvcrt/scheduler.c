@@ -1161,7 +1161,7 @@ typedef struct {
 #if _MSVCR_VER > 100
 typedef struct _Cancellation_beacon
 {
-    int dummy;
+    volatile LONG *ref;
 } _Cancellation_beacon;
 
 /* ??0_Cancellation_beacon@details@Concurrency@@QAE@XZ */
@@ -1169,7 +1169,9 @@ typedef struct _Cancellation_beacon
 DEFINE_THISCALL_WRAPPER(_Cancellation_beacon_ctor, 4)
 _Cancellation_beacon *__thiscall _Cancellation_beacon_ctor(_Cancellation_beacon *this)
 {
-    FIXME("(%p) stub\n", this);
+    TRACE("(%p)\n", this);
+    this->ref = MSVCRT_operator_new(sizeof(*this->ref));
+    *this->ref = 0;
     return this;
 }
 
@@ -1178,7 +1180,8 @@ _Cancellation_beacon *__thiscall _Cancellation_beacon_ctor(_Cancellation_beacon 
 DEFINE_THISCALL_WRAPPER(_Cancellation_beacon_dtor, 4)
 void __thiscall _Cancellation_beacon_dtor(_Cancellation_beacon *this)
 {
-    FIXME("(%p) stub\n", this);
+    TRACE("(%p)\n", this);
+    MSVCRT_operator_delete(this->ref);
 }
 
 /* ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ */
@@ -1186,7 +1189,8 @@ void __thiscall _Cancellation_beacon_dtor(_Cancellation_beacon *this)
 DEFINE_THISCALL_WRAPPER(_Cancellation_beacon__Confirm_cancel, 4)
 MSVCRT_bool __thiscall _Cancellation_beacon__Confirm_cancel(_Cancellation_beacon *this)
 {
-    FIXME("(%p) stub\n", this);
+    FIXME("(%p) partial stub\n", this);
+    *this->ref = ~0;
     return FALSE;
 }
 #endif
