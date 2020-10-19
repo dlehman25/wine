@@ -513,7 +513,7 @@
 @ stub -arch=arm ?_Copy_str@exception@std@@AAAXPBD@Z
 @ stub -arch=i386 ?_Copy_str@exception@std@@AAEXPBD@Z
 @ stub -arch=win64 ?_Copy_str@exception@std@@AEAAXPEBD@Z
-@ cdecl ?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ() msvcr120.?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ
+@ cdecl ?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ() _Context__CurrentContext
 @ stub ?_Current_node@location@Concurrency@@SA?AV12@XZ
 @ cdecl -arch=arm ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAAXPAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_DeregisterCallback
 @ thiscall -arch=i386 ?_DeregisterCallback@_CancellationTokenState@details@Concurrency@@QAEXPAV_CancellationTokenRegistration@23@@Z(ptr ptr) _CancellationTokenState_DeregisterCallback
