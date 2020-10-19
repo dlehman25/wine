@@ -330,6 +330,17 @@ _Context __cdecl _Context__CurrentContext(void)
     return ctx;
 }
 
+#if _MSVCR_VER > 100
+/* ?_IsSynchronouslyBlocked@_Context@details@Concurrency@@QBE_NXZ */
+/* ?_IsSynchronouslyBlocked@_Context@details@Concurrency@@QEBA_NXZ */
+DEFINE_THISCALL_WRAPPER(_Context__IsSynchronouslyBlocked, 4)
+MSVCRT_bool __thiscall _Context__IsSynchronouslyBlocked(_Context *ctx)
+{
+    FIXME("(%p) stub\n", ctx);
+    return FALSE;
+}
+#endif
+
 DEFINE_THISCALL_WRAPPER(ExternalContextBase_GetId, 4)
 unsigned int __thiscall ExternalContextBase_GetId(const ExternalContextBase *this)
 {
