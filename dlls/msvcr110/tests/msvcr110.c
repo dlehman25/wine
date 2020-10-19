@@ -67,6 +67,10 @@ typedef struct {
 } Context;
 
 typedef struct {
+    Context *ctx;
+} _Context;
+
+typedef struct {
     ULONG_PTR unk0[3];
     Context *ctx;
     int scheduled;
@@ -103,6 +107,7 @@ static unsigned int (CDECL *p_CurrentScheduler_Id)(void);
 static unsigned int (CDECL *p__CurrentScheduler__Id)(void);
 
 static Context* (__cdecl *p_Context_CurrentContext)(void);
+static _Context* (__cdecl *p__Context__CurrentContext)(_Context*);
 
 static void (__thiscall *p__StructuredTaskCollection_ctor_cts)(_StructuredTaskCollection*,_CancellationTokenState*);
 static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
@@ -128,6 +133,8 @@ static BOOL init(void)
     SET(p__CurrentScheduler__GetNumberOfVirtualProcessors, "?_GetNumberOfVirtualProcessors@_CurrentScheduler@details@Concurrency@@SAIXZ");
     SET(p_CurrentScheduler_Id, "?Id@CurrentScheduler@Concurrency@@SAIXZ");
     SET(p__CurrentScheduler__Id, "?_Id@_CurrentScheduler@details@Concurrency@@SAIXZ");
+
+    SET(p__Context__CurrentContext, "?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ");
 
     if(sizeof(void*) == 8)
     {
@@ -292,6 +299,22 @@ static void test__StructuredTaskCollection(void)
     ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
 }
 
+static void test_CurrentContext(void)
+{
+    _Context _ctx, *_pctx;
+    Context *ctx;
+
+    ctx = p_Context_CurrentContext();
+    ok(!!ctx, "got NULL\n");
+
+    if (0) /* crash Windows */
+        p__Context__CurrentContext(NULL);
+
+    _pctx = p__Context__CurrentContext(&_ctx);
+    ok(_ctx.ctx == ctx, "expected %p, got %p\n", ctx, _ctx.ctx);
+    ok(_pctx == &_ctx, "expected %p, got %p\n", &_ctx, _pctx);
+}
+
 START_TEST(msvcr110)
 {
     if (!init()) return;
@@ -299,4 +322,5 @@ START_TEST(msvcr110)
     test_setlocale();
     test___strncnt();
     test__StructuredTaskCollection();
+    test_CurrentContext();
 }
