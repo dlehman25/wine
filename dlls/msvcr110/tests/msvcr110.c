@@ -260,8 +260,7 @@ static void test__Cancellation_beacon(void)
 
     cb.signal = NULL;
     call_func1(p__Cancellation_beacon_ctor, &cb);
-    todo_wine ok(!!cb.signal, "got NULL\n");
-    if (!cb.signal) return;
+    ok(!!cb.signal, "got NULL\n");
     ok(*cb.signal == 0, "got %d\n", *cb.signal);
 
     confirm = call_func1(p__Cancellation_beacon__Confirm_cancel, &cb);

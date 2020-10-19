@@ -1075,7 +1075,7 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
 #if _MSVCR_VER > 100
 typedef struct _Cancellation_beacon
 {
-    int dummy;
+    LONG *ref;
 } _Cancellation_beacon;
 
 /* ??0_Cancellation_beacon@details@Concurrency@@QAE@XZ */
@@ -1083,7 +1083,9 @@ typedef struct _Cancellation_beacon
 DEFINE_THISCALL_WRAPPER(_Cancellation_beacon_ctor, 4)
 _Cancellation_beacon *__thiscall _Cancellation_beacon_ctor(_Cancellation_beacon *this)
 {
-    FIXME("(%p) stub\n", this);
+    TRACE("(%p)\n", this);
+    this->ref = Concurrency_Alloc(sizeof(*this->ref));
+    *this->ref = 0;
     return this;
 }
 
@@ -1092,7 +1094,8 @@ _Cancellation_beacon *__thiscall _Cancellation_beacon_ctor(_Cancellation_beacon 
 DEFINE_THISCALL_WRAPPER(_Cancellation_beacon_dtor, 4)
 void __thiscall _Cancellation_beacon_dtor(_Cancellation_beacon *this)
 {
-    FIXME("(%p) stub\n", this);
+    TRACE("(%p)\n", this);
+    Concurrency_Free(this->ref);
 }
 
 /* ?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ */
@@ -1100,7 +1103,8 @@ void __thiscall _Cancellation_beacon_dtor(_Cancellation_beacon *this)
 DEFINE_THISCALL_WRAPPER(_Cancellation_beacon__Confirm_cancel, 4)
 MSVCRT_bool __thiscall _Cancellation_beacon__Confirm_cancel(_Cancellation_beacon *this)
 {
-    FIXME("(%p) stub\n", this);
+    FIXME("(%p) partial stub\n", this);
+    InterlockedDecrement(this->ref);
     return FALSE;
 }
 #endif
