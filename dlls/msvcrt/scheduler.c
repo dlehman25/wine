@@ -325,7 +325,7 @@ unsigned int __cdecl Context_VirtualProcessorId(void)
 _Context __cdecl _Context__CurrentContext(void)
 {
     _Context ctx;
-    ctx.context = try_get_current_context();
+    ctx.context = Context_CurrentContext();
     TRACE("()\n");
     return ctx;
 }
