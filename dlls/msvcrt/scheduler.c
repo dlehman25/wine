@@ -323,11 +323,10 @@ unsigned int __cdecl Context_VirtualProcessorId(void)
 
 #if _MSVCR_VER > 100
 /* ?_CurrentContext@_Context@details@Concurrency@@SA?AV123@XZ */
-_Context __cdecl _Context__CurrentContext(void)
+_Context *__cdecl _Context__CurrentContext(_Context *ctx)
 {
-    _Context ctx;
-    ctx.context = Context_CurrentContext();
-    TRACE("()\n");
+    TRACE("(%p)\n", ctx);
+    ctx->context = Context_CurrentContext();
     return ctx;
 }
 
