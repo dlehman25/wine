@@ -62,8 +62,10 @@
 #define __thiscall __cdecl
 #endif
 
+typedef void (*vtable_ptr)(void);
+
 typedef struct {
-    void *vtable;
+    const vtable_ptr *vtable;
 } Context;
 
 typedef struct {
