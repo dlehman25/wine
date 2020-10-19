@@ -1288,6 +1288,7 @@ static DWORD CALLBACK chore_wrapper(void *arg)
     /* TODO: cancellation */
     LONG completed;
     _UnrealizedChore *uc = arg;
+    get_current_context();
     _TaskCollectionBase *coll = uc->coll;
     uc->task_func(uc);
     completed = InterlockedIncrement(&coll->completed);
