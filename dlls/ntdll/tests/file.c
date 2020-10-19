@@ -4054,6 +4054,7 @@ static void test_NtCreateFile(void)
     OBJECT_ATTRIBUTES attr;
     IO_STATUS_BLOCK io;
     UNICODE_STRING nameW;
+    BOOL fileDeleted;
     DWORD ret, i;
 
     GetTempPathW(MAX_PATH, path);
@@ -4129,8 +4130,21 @@ static void test_NtCreateFile(void)
         DeleteFileW(path);
     }
 
-    pRtlFreeUnicodeString( &nameW );
     DeleteFileW( path );
+
+    /* test FILE_SUPERSEDE */
+    CreateDirectoryW( path, NULL );
+    status = pNtCreateFile(&handle, DELETE, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL,
+                           FILE_SHARE_DELETE, FILE_SUPERSEDE, 0, NULL, 0);
+    ok(status == STATUS_OBJECT_NAME_COLLISION, "expected %#x got %#x\n", STATUS_OBJECT_NAME_COLLISION, status);
+
+    fileDeleted = GetFileAttributesW( path ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
+    ok( !fileDeleted, "file should exist\n" );
+    
+    RemoveDirectoryW( path );
+
+    pRtlFreeUnicodeString( &nameW );
+printf("path %ls\n", path);    
 }
 
 static void test_read_write(void)
@@ -5162,6 +5176,40 @@ START_TEST(file)
     pNtQueryFullAttributesFile = (void *)GetProcAddress(hntdll, "NtQueryFullAttributesFile");
     pNtFlushBuffersFile = (void *)GetProcAddress(hntdll, "NtFlushBuffersFile");
 
+    /* test FILE_SUPERSEDE */
+{
+    static const WCHAR fooW[] = {'f','o','o',0};
+    NTSTATUS status;
+    HANDLE handle;
+    WCHAR path[MAX_PATH];
+    OBJECT_ATTRIBUTES attr;
+    IO_STATUS_BLOCK io;
+    UNICODE_STRING nameW;
+    BOOL fileDeleted;
+
+    GetTempPathW(MAX_PATH, path);
+    GetTempFileNameW(path, fooW, 0, path);
+    DeleteFileW(path);
+    pRtlDosPathNameToNtPathName_U(path, &nameW, NULL, NULL);
+
+    attr.Length = sizeof(attr);
+    attr.RootDirectory = NULL;
+    attr.ObjectName = &nameW;
+    attr.Attributes = OBJ_CASE_INSENSITIVE;
+    attr.SecurityDescriptor = NULL;
+    attr.SecurityQualityOfService = NULL;
+
+    CreateDirectoryW( path, NULL );
+    status = pNtCreateFile(&handle, DELETE, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL,
+                           FILE_SHARE_DELETE, FILE_SUPERSEDE, 0, NULL, 0);
+    ok(status == STATUS_OBJECT_NAME_COLLISION, "expected %#x got %#x\n", STATUS_OBJECT_NAME_COLLISION, status);
+
+    fileDeleted = GetFileAttributesW( path ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
+    ok( !fileDeleted, "file should exist\n" );
+    
+    RemoveDirectoryW( path );
+    return;
+}
     test_read_write();
     test_NtCreateFile();
     create_file_test();
