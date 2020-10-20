@@ -1081,6 +1081,71 @@ void __cdecl _CurrentScheduler__ScheduleTask(void (__cdecl *proc)(void*), void *
     CurrentScheduler_ScheduleTask(proc, data);
 }
 
+typedef enum {
+    _NotComplete,
+    _Complete,
+    _Canceled,
+} TaskCollectionStatus;
+
+typedef struct {
+    ULONG_PTR unk[8];
+} _StructuredTaskCollection;
+
+typedef struct {
+    int dummy;
+} _CancellationTokenState;
+
+typedef struct {
+    ULONG_PTR unk0[2];
+    _StructuredTaskCollection *coll;
+    ULONG_PTR unk1[2];
+} _UnrealizedChore;
+
+typedef struct {
+    int dummy;
+} location;
+
+/* ?_Abort@_StructuredTaskCollection@details@Concurrency@@AAEXXZ */
+/* ?_Abort@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Abort, 4)
+void __thiscall _StructuredTaskCollection_Abort(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAEXXZ */
+/* ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Cancel, 4)
+void __thiscall _StructuredTaskCollection_Cancel(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+/* ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QAE_NXZ */
+/* ?_IsCanceling@_StructuredTaskCollection@details@Concurrency@@QEAA_NXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_IsCanceling, 4)
+MSVCRT_bool __thiscall _StructuredTaskCollection_IsCanceling(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+    return FALSE;
+}
+
+/* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z */
+/* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule, 8)
+void __thiscall _StructuredTaskCollection_Schedule(_StructuredTaskCollection *this, _UnrealizedChore *chore)
+{
+    FIXME("(%p %p) stub\n", this, chore);
+}
+
+/* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z */
+/* ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z */
+TaskCollectionStatus __stdcall _StructuredTaskCollection_RunAndWait__UnrealizedChore(_StructuredTaskCollection *this, _UnrealizedChore *chore)
+{
+    FIXME("(%p %p) stub\n", this, chore);
+    return _NotComplete;
+}
+
 #if _MSVCR_VER > 100
 typedef struct _Cancellation_beacon
 {
@@ -1116,6 +1181,41 @@ MSVCRT_bool __thiscall _Cancellation_beacon__Confirm_cancel(_Cancellation_beacon
     InterlockedDecrement(this->ref);
     return FALSE;
 }
+
+/* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@PAVlocation@3@@Z */
+/* ?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@PEAVlocation@3@@Z */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_Schedule_loc, 12)
+void __thiscall _StructuredTaskCollection_Schedule_loc(_StructuredTaskCollection *this, _UnrealizedChore *chore, location *loc)
+{
+    FIXME("(%p %p %p) stub\n", this, chore, loc);
+}
+
+/* ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z */
+/* ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_ctor_cts, 8)
+_StructuredTaskCollection *__thiscall _StructuredTaskCollection_ctor_cts(_StructuredTaskCollection *this, _CancellationTokenState *state)
+{
+    FIXME("(%p %p) stub\n", this, state);
+    return this;
+}
+
+/* ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AAEXXZ */
+/* ?_CleanupToken@_StructuredTaskCollection@details@Concurrency@@AEAAXXZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_CleanupToken, 4)
+void __thiscall _StructuredTaskCollection_CleanupToken(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+
+#if _MSVCR_VER >= 120
+/* ??1_StructuredTaskCollection@details@Concurrency@@QAE@XZ */
+/* ??1_StructuredTaskCollection@details@Concurrency@@QEAA@XZ */
+DEFINE_THISCALL_WRAPPER(_StructuredTaskCollection_dtor, 4)
+void __thiscall _StructuredTaskCollection_dtor(_StructuredTaskCollection *this)
+{
+    FIXME("(%p) stub\n", this);
+}
+#endif
 #endif
 
 #ifdef __ASM_USE_THISCALL_WRAPPER
