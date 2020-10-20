@@ -1265,7 +1265,7 @@ void CDECL get_initial_console( RTL_USER_PROCESS_PARAMETERS *params )
         params->hStdError = (HANDLE)((UINT_PTR)params->hStdError | 1);
         output_fd = 2;
     }
-    if (params->hStdOutput && isatty(1))
+    if (params->hStdOutput) /* && isatty(1)) // GetFileType */
     {
         params->ConsoleHandle = CONSOLE_HANDLE_SHELL;
         params->hStdOutput = (HANDLE)((UINT_PTR)params->hStdOutput | 1);
