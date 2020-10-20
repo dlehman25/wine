@@ -73,6 +73,30 @@ static void init_thiscall_thunk(void)
 #define __thiscall __cdecl
 #endif
 
+#define DEFINE_EXPECT(func) \
+    static BOOL expect_ ## func = FALSE, called_ ## func = FALSE
+
+#define SET_EXPECT(func) \
+    expect_ ## func = TRUE
+
+#define CHECK_EXPECT2(func) \
+    do { \
+        ok(expect_ ##func, "unexpected call " #func "\n"); \
+        called_ ## func = TRUE; \
+    }while(0)
+
+#define CHECK_EXPECT(func) \
+    do { \
+        CHECK_EXPECT2(func); \
+        expect_ ## func = FALSE; \
+    }while(0)
+
+#define CHECK_CALLED(func) \
+    do { \
+        ok(called_ ## func, "expected " #func "\n"); \
+        expect_ ## func = called_ ## func = FALSE; \
+    }while(0)
+
 typedef unsigned char MSVCRT_bool;
 
 typedef void (*vtable_ptr)(void);
@@ -89,6 +113,34 @@ typedef struct {
     LONG *signal;
 } _Cancellation_beacon;
 
+typedef struct {
+    ULONG_PTR unk0[3];
+    Context *ctx;
+    int scheduled;
+    int completed;
+    ULONG_PTR unk1[6];
+} _StructuredTaskCollection;
+
+struct _UnrealizedChore;
+typedef void (__cdecl *chore_func)(void*);
+typedef void (__cdecl *chore_wrapper_func)(struct _UnrealizedChore*);
+typedef struct _UnrealizedChore{
+    ULONG_PTR unk0[1];
+    chore_func func;
+    _StructuredTaskCollection *coll;
+    chore_wrapper_func wrapper;
+    ULONG_PTR unk1[1];
+} _UnrealizedChore;
+
+typedef struct {
+    ULONG_PTR unk[16];
+} _CancellationTokenState;
+
+typedef enum {
+    _NotComplete,
+    _Complete,
+} _TaskCollectionStatus;
+
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static size_t (CDECL *p___strncnt)(const char *str, size_t count);
 
@@ -103,6 +155,10 @@ static _Context* (__cdecl *p__Context__CurrentContext)(_Context*);
 static void (__thiscall *p__Cancellation_beacon_ctor)(_Cancellation_beacon*);
 static void (__thiscall *p__Cancellation_beacon_dtor)(_Cancellation_beacon*);
 static MSVCRT_bool (__thiscall *p__Cancellation_beacon__Confirm_cancel)(_Cancellation_beacon*);
+
+static void (__thiscall *p__StructuredTaskCollection_ctor_cts)(_StructuredTaskCollection*,_CancellationTokenState*);
+static void (__thiscall *p__StructuredTaskCollection_Schedule)(_StructuredTaskCollection*,_UnrealizedChore*);
+static _TaskCollectionStatus (__stdcall *p__StructuredTaskCollection_RunAndWait__UnrealizedChore)(_StructuredTaskCollection*,_UnrealizedChore*);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -137,6 +193,13 @@ static BOOL init(void)
                 "??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
         SET(p__Cancellation_beacon__Confirm_cancel,
                 "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ");
+        
+        SET(p__StructuredTaskCollection_ctor_cts,
+                "??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z");
+        SET(p__StructuredTaskCollection_Schedule,
+                "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore,
+                "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z");
     }
     else
     {
@@ -148,6 +211,13 @@ static BOOL init(void)
                 "??1_Cancellation_beacon@details@Concurrency@@QAE@XZ");
         SET(p__Cancellation_beacon__Confirm_cancel,
                 "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ");
+        
+        SET(p__StructuredTaskCollection_ctor_cts,
+                "??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z");
+        SET(p__StructuredTaskCollection_Schedule,
+                "?_Schedule@_StructuredTaskCollection@details@Concurrency@@QAEXPAV_UnrealizedChore@23@@Z");
+        SET(p__StructuredTaskCollection_RunAndWait__UnrealizedChore,
+                "?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z"); 
     }
 
     init_thiscall_thunk();
@@ -279,6 +349,66 @@ static void test__Cancellation_beacon(void)
     call_func1(p__Cancellation_beacon_dtor, &cb);
 }
 
+DEFINE_EXPECT(chore_func0);
+DEFINE_EXPECT(chore_func1);
+static void *chore_func_arg;
+static void test_chore_func0(void *arg)
+{
+    CHECK_EXPECT(chore_func0);
+    chore_func_arg = arg;
+}
+
+static void test_chore_func1(void *arg)
+{
+    CHECK_EXPECT(chore_func1);
+    chore_func_arg = arg;
+}
+
+static void test__StructuredTaskCollection(void)
+{
+    _StructuredTaskCollection stc;
+    _TaskCollectionStatus tcs;
+    _UnrealizedChore uc0;
+    _UnrealizedChore uc1;
+    Context *ctx;
+
+    memset(&stc, 0, sizeof(stc));
+    p__StructuredTaskCollection_ctor_cts(&stc, NULL);
+    todo_wine ok(stc.completed == INT_MIN, "expected %x, got %x\n", INT_MIN, stc.completed);
+
+    memset(&stc, 0, sizeof(stc));
+    memset(&uc0, 0, sizeof(uc0));
+    p__StructuredTaskCollection_Schedule(&stc, &uc0);
+    todo_wine ok(uc0.coll == &stc, "expected %p, got %p\n", &stc, uc0.coll);
+    todo_wine ok(!!uc0.wrapper, "expected non-NULL\n");
+    todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
+    ok(stc.completed == 0, "expected 0, got %d\n", stc.completed);
+
+    ctx = p_Context_CurrentContext();
+    todo_wine ok(stc.ctx == ctx, "expected %p, got %p\n", ctx, stc.ctx);
+
+    if (!uc0.wrapper) return;
+
+    uc0.func = test_chore_func0;
+    SET_EXPECT(chore_func0);
+    uc0.wrapper(&uc0);
+    CHECK_CALLED(chore_func0);
+
+    ok(chore_func_arg == &uc0, "expected %p, got %p\n", &uc0, chore_func_arg);
+    todo_wine ok(stc.scheduled == 1, "expected 1, got %d\n", stc.scheduled);
+    todo_wine ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
+
+    SET_EXPECT(chore_func0);
+    SET_EXPECT(chore_func1);
+    uc1.func = test_chore_func1;
+    tcs = p__StructuredTaskCollection_RunAndWait__UnrealizedChore(&stc, &uc1);
+    CHECK_CALLED(chore_func0);
+    CHECK_CALLED(chore_func1);
+    ok(tcs == _Complete, "expected %d, got %d\n", _Complete, tcs);
+    ok(stc.scheduled == 0, "expected 0, got %d\n", stc.scheduled);
+    ok(stc.completed == 1, "expected 1, got %d\n", stc.completed);
+}
+
 START_TEST(msvcr110)
 {
     if (!init()) return;
@@ -287,4 +417,5 @@ START_TEST(msvcr110)
     test___strncnt();
     test_CurrentContext();
     test__Cancellation_beacon();
+    test__StructuredTaskCollection();
 }
