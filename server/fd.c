@@ -1592,7 +1592,7 @@ static void fd_destroy( struct object *obj )
 /* check if the desired access is possible without violating */
 /* the sharing mode of other opens of the same file */
 static unsigned int check_sharing( struct fd *fd, unsigned int access, unsigned int sharing,
-                                   unsigned int open_flags, unsigned int options )
+                                   unsigned int open_flags, unsigned int options, int create )
 {
     /* only a few access bits are meaningful wrt sharing */
     const unsigned int read_access = FILE_READ_DATA | FILE_EXECUTE;
@@ -1633,6 +1633,9 @@ static unsigned int check_sharing( struct fd *fd, unsigned int access, unsigned 
     if (((existing_access & read_access) && !(sharing & FILE_SHARE_READ)) ||
         ((existing_access & write_access) && !(sharing & FILE_SHARE_WRITE)) ||
         ((existing_access & DELETE) && !(sharing & FILE_SHARE_DELETE)))
+        return STATUS_SHARING_VIOLATION;
+    if ((create == FILE_OVERWRITE_IF || create == FILE_OVERWRITE) &&
+        !(existing_sharing & FILE_SHARE_WRITE))
         return STATUS_SHARING_VIOLATION;
     return 0;
 }
@@ -1788,7 +1791,7 @@ struct fd *dup_fd_object( struct fd *orig, unsigned int access, unsigned int sha
         fd->closed = closed;
         fd->inode = (struct inode *)grab_object( orig->inode );
         list_add_head( &fd->inode->open, &fd->inode_entry );
-        if ((err = check_sharing( fd, access, sharing, 0, options )))
+        if ((err = check_sharing( fd, access, sharing, 0, options, -1 )))
         {
             set_error( err );
             goto failed;
@@ -1889,9 +1892,9 @@ void get_nt_name( struct fd *fd, struct unicode_str *name )
 }
 
 /* open() wrapper that returns a struct fd with no fd user set */
-struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_name,
-                    int flags, mode_t *mode, unsigned int access,
-                    unsigned int sharing, unsigned int options )
+struct fd *open_fd2( struct fd *root, const char *name, struct unicode_str nt_name,
+                     int flags, mode_t *mode, unsigned int access,
+                     unsigned int sharing, unsigned int options, int create )
 {
     struct stat st;
     struct closed_fd *closed_fd;
@@ -2008,7 +2011,7 @@ struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_nam
             set_error( STATUS_FILE_IS_A_DIRECTORY );
             goto error;
         }
-        if ((err = check_sharing( fd, access, sharing, flags, options )))
+        if ((err = check_sharing( fd, access, sharing, flags, options, create )))
         {
             set_error( err );
             goto error;
@@ -2082,6 +2085,13 @@ struct fd *create_anonymous_fd( const struct fd_ops *fd_user_ops, int unix_fd, s
     }
     close( unix_fd );
     return NULL;
+}
+
+struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_name,
+                    int flags, mode_t *mode, unsigned int access,
+                    unsigned int sharing, unsigned int options )
+{
+    return open_fd2( root, name, nt_name, flags, mode, access, sharing, options, -1 );
 }
 
 /* retrieve the object that is using an fd */
