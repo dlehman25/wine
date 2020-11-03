@@ -67,6 +67,27 @@ static void print_tzi(const REGTIMEZONEINFORMATION *tzi)
     }
 }
 
+static time_t find_dst_change_name(time_t min, time_t max, int *is_dst)
+{
+    time_t pos;
+    struct tm tm, tm2;
+
+    pos = min;
+    localtime_r(&pos, &tm);
+    *is_dst = !tm.tm_isdst;
+    while (min <= max)
+    {
+        pos = (min + max) / 2;
+        localtime_r(&pos, &tm2);
+        if (!strcmp(tm2.tm_zone, tm.tm_zone))
+            min = pos + 1;
+        else
+            max = pos - 1;
+    }
+
+    return min;
+}
+
 /* some time zones (Pacific/Bougainville) redefine standard time */
 static time_t find_dst_change(time_t min, time_t max, int *is_dst)
 {
@@ -96,6 +117,22 @@ static time_t find_dst_change(time_t min, time_t max, int *is_dst)
 static inline int is_leap_year(int year)
 {
     return !(year % 4) && ((year % 100) || !(year % 400));
+}
+
+static int is_same_name(const char *tza, const char *tzb)
+{
+    char a[8];
+    char b[8];
+
+    if (!strcmp(tza, tzb)) return 1;
+
+    strncpy(a, tza, 7); a[7] = 0;
+    strncpy(b, tzb, 7); b[7] = 0;
+    if (strlen(a) == 4 && (a[2] == 'S' || a[2] == 'D')) a[2] = '.';
+    if (strlen(b) == 4 && (b[2] == 'S' || b[2] == 'D')) b[2] = '.';
+    if (strlen(a) == 3 && (a[1] == 'S' || a[1] == 'D')) a[1] = '.';
+    if (strlen(b) == 3 && (b[1] == 'S' || b[1] == 'D')) b[1] = '.';
+    return !strcmp(a, b);
 }
 
 static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
@@ -138,7 +175,7 @@ static void init_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
     memset(tzi, 0, sizeof(*tzi));
 
     redef_std = jan1st.tm_gmtoff != dec31st.tm_gmtoff &&
-                !strcmp(jan1st.tm_zone, dec31st.tm_zone);
+                !is_same_name(jan1st.tm_zone, dec31st.tm_zone);
 
     dlt = std = 0;
     tmp = find_dst_change(start, end, &is_dst);
