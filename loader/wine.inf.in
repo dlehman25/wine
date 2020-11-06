@@ -3483,6 +3483,21 @@ HKLM,%CurrentVersionNT%\Time Zones\Newfoundland Standard Time,"MUI_Dlt",,"@tzres
 HKLM,%CurrentVersionNT%\Time Zones\Newfoundland Standard Time,"MUI_Std",,"@tzres.dll,-9504"
 HKLM,%CurrentVersionNT%\Time Zones\Newfoundland Standard Time,"Std",,"Newfoundland Standard Time"
 HKLM,%CurrentVersionNT%\Time Zones\Newfoundland Standard Time,"TZI",1,d2,00,00,00,00,00,00,00,c4,ff,ff,ff,00,00,0b,00,00,00,01,00,02,00,00,00,00,00,00,00,00,00,03,00,00,00,02,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time,"Display",,"Pacific/Norfolk"
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time,"Dlt",,"Norfolk Daylight Time"
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time,"MUI_Dlt",,"@tzres.dll,-47441"
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time,"MUI_Std",,"@tzres.dll,-47440"
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time,"Std",,"Norfolk Standard Time"
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time,"TZI",1,6c,fd,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,04,00,00,00,01,00,03,00,00,00,00,00,00,00,00,00,0a,00,00,00,01,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2014",1,4e,fd,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2015",1,4e,fd,ff,ff,00,00,00,00,1e,00,00,00,00,00,0c,00,03,00,05,00,00,00,00,00,00,00,00,00,00,00,0a,00,00,00,01,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2016",1,6c,fd,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2017",1,6c,fd,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2018",1,6c,fd,ff,ff,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2019",1,6c,fd,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,01,00,02,00,01,00,00,00,00,00,00,00,00,00,00,00,0a,00,00,00,01,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"2020",1,6c,fd,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,04,00,00,00,01,00,03,00,00,00,00,00,00,00,00,00,0a,00,00,00,01,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"FirstEntry",0x10001,"2014"
+HKLM,%CurrentVersionNT%\Time Zones\Norfolk Standard Time\Dynamic DST,"LastEntry",0x10001,"2020"
 HKLM,%CurrentVersionNT%\Time Zones\North Asia East Standard Time,"Display",,"Asia/Irkutsk"
 HKLM,%CurrentVersionNT%\Time Zones\North Asia East Standard Time,"Dlt",,"North Asia East Daylight Time"
 HKLM,%CurrentVersionNT%\Time Zones\North Asia East Standard Time,"MUI_Dlt",,"@tzres.dll,-19057"
