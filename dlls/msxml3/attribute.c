@@ -614,15 +614,7 @@ static HRESULT WINAPI domattr_get_baseName(
     BSTR* name)
 {
     domattr *This = impl_from_IXMLDOMAttribute( iface );
-
     TRACE("(%p)->(%p)\n", This, name);
-
-    /* special case for default namespace definition */
-    if (name && xmlStrEqual(This->node.node->name, xmlns) && xmldoc_version(This->node.node->doc) != MSXML6)
-    {
-        *name = SysAllocStringLen(NULL, 0);
-        return S_OK;
-    }
     return node_get_base_name( &This->node, name );
 }
 
