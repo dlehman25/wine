@@ -4038,6 +4038,12 @@ static NTSTATUS process_init(void)
     init_directories();
     init_user_process_params();
     params = peb->ProcessParameters;
+{
+    NTSTATUS status;
+    WCHAR *path;
+    status = RtlGetSearchPath(&path);
+    RtlInitUnicodeString(&params->DllPath, path);
+}
 
     load_global_options();
     version_init();
