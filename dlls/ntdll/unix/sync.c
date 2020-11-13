@@ -2646,6 +2646,27 @@ static inline NTSTATUS fast_wake_addr( const void *addr )
 
 #endif
 
+static NTSTATUS server_keyed_event( enum select_op op, const void *addr,
+                                    const LARGE_INTEGER *timeout )
+{
+    timeout_t abs_timeout = timeout ? timeout->QuadPart : TIMEOUT_INFINITE;
+    select_op_t select_op;
+
+    if (abs_timeout < 0)
+    {
+        LARGE_INTEGER now;
+
+        NtQueryPerformanceCounter( &now, NULL );
+        abs_timeout -= now.QuadPart;
+    }
+
+    select_op.keyed_event.op     = op;
+    select_op.keyed_event.handle = wine_server_obj_handle( keyed_event );
+    select_op.keyed_event.key    = wine_server_client_ptr( addr );
+
+    return server_select( &select_op, sizeof(select_op.keyed_event), SELECT_INTERRUPTIBLE,
+                          abs_timeout, NULL, &addr_mutex, NULL );
+}
 
 /***********************************************************************
  *           RtlWaitOnAddress   (NTDLL.@)
@@ -2653,9 +2674,7 @@ static inline NTSTATUS fast_wake_addr( const void *addr )
 NTSTATUS WINAPI RtlWaitOnAddress( const void *addr, const void *cmp, SIZE_T size,
                                   const LARGE_INTEGER *timeout )
 {
-    select_op_t select_op;
     NTSTATUS ret;
-    timeout_t abs_timeout = timeout ? timeout->QuadPart : TIMEOUT_INFINITE;
 
     if (size != 1 && size != 2 && size != 4 && size != 8)
         return STATUS_INVALID_PARAMETER;
@@ -2670,20 +2689,7 @@ NTSTATUS WINAPI RtlWaitOnAddress( const void *addr, const void *cmp, SIZE_T size
         return STATUS_SUCCESS;
     }
 
-    if (abs_timeout < 0)
-    {
-        LARGE_INTEGER now;
-
-        NtQueryPerformanceCounter( &now, NULL );
-        abs_timeout -= now.QuadPart;
-    }
-
-    select_op.keyed_event.op     = SELECT_KEYED_EVENT_WAIT;
-    select_op.keyed_event.handle = wine_server_obj_handle( keyed_event );
-    select_op.keyed_event.key    = wine_server_client_ptr( addr );
-
-    return server_select( &select_op, sizeof(select_op.keyed_event), SELECT_INTERRUPTIBLE,
-                          abs_timeout, NULL, &addr_mutex, NULL );
+    return server_keyed_event( SELECT_KEYED_EVENT_WAIT, addr, timeout );
 }
 
 /***********************************************************************
@@ -2694,7 +2700,7 @@ void WINAPI RtlWakeAddressAll( const void *addr )
     if (fast_wake_addr( addr ) != STATUS_NOT_IMPLEMENTED) return;
 
     mutex_lock( &addr_mutex );
-    while (NtReleaseKeyedEvent( 0, addr, 0, &zero_timeout ) == STATUS_SUCCESS) {}
+    while (server_keyed_event( SELECT_KEYED_EVENT_RELEASE, addr, &zero_timeout ) == STATUS_SUCCESS) {}
     mutex_unlock( &addr_mutex );
 }
 
@@ -2706,6 +2712,6 @@ void WINAPI RtlWakeAddressSingle( const void *addr )
     if (fast_wake_addr( addr ) != STATUS_NOT_IMPLEMENTED) return;
 
     mutex_lock( &addr_mutex );
-    NtReleaseKeyedEvent( 0, addr, 0, &zero_timeout );
+    server_keyed_event( SELECT_KEYED_EVENT_RELEASE, addr, &zero_timeout );
     mutex_unlock( &addr_mutex );
 }
