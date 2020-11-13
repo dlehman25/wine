@@ -2665,7 +2665,8 @@ static NTSTATUS server_keyed_event( enum select_op op, const void *addr,
     select_op.keyed_event.key    = wine_server_client_ptr( addr );
 
     return server_select( &select_op, sizeof(select_op.keyed_event), SELECT_INTERRUPTIBLE,
-                          abs_timeout, NULL, &addr_mutex, NULL );
+                          abs_timeout, NULL,
+                          op == SELECT_KEYED_EVENT_WAIT ? &addr_mutex : NULL, NULL );
 }
 
 /***********************************************************************
