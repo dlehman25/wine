@@ -1696,11 +1696,12 @@ static struct module* elf_load_module(struct process* pcs, const WCHAR* name, UL
  * - if a module is in debuggee and not in pcs, it's loaded into pcs
  * - if a module is in pcs and not in debuggee, it's unloaded from pcs
  */
-static BOOL elf_synchronize_module_list(struct process* pcs)
+BOOL elf_synchronize_module_list(struct process* pcs)
 {
     struct module*      module;
     struct elf_load     el;
 
+MESSAGE("%s: \n", __FUNCTION__);
     for (module = pcs->lmodules; module; module = module->next)
     {
         if (module->type == DMT_ELF && !module->is_virtual)
@@ -1759,6 +1760,7 @@ BOOL elf_read_wine_loader_dbg_info(struct process* pcs, ULONG_PTR addr)
     loader = get_wine_loader_name(pcs);
     ret = elf_search_and_load_file(pcs, loader, addr, 0, &elf_info);
     heap_free(loader);
+MESSAGE("%s addr %llx ret %d elf %llx\n", __FUNCTION__, addr, ret, elf_info.dbg_hdr_addr);
     if (!ret || !elf_info.dbg_hdr_addr) return FALSE;
 
     TRACE("Found ELF debug header %#lx\n", elf_info.dbg_hdr_addr);

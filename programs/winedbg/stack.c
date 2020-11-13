@@ -209,11 +209,13 @@ unsigned stack_fetch_frames(const dbg_ctx_t* _ctx)
         sf.AddrFrame.Mode = AddrModeFlat;
     }
 
+SetLastError(0xdeadbeef);
     while ((ret = StackWalk64(dbg_curr_process->be_cpu->machine, dbg_curr_process->handle,
                               dbg_curr_thread->handle, &sf, &ctx, stack_read_mem,
                               SymFunctionTableAccess64, SymGetModuleBase64, NULL)) ||
            nf == 0) /* we always register first frame information */
     {
+printf("%s: %d rip %llx ret %d gle %x\n", __FUNCTION__, __LINE__, ctx.ctx.Rip, ret, GetLastError()); fflush(stdout);
         dbg_curr_thread->frames = dbg_heap_realloc(dbg_curr_thread->frames,
                                                    (nf + 1) * sizeof(dbg_curr_thread->frames[0]));
 

@@ -417,6 +417,10 @@ static unsigned dbg_handle_debug_event(DEBUG_EVENT* de)
         }
         dbg_init_current_process();
         dbg_init_current_thread(de->u.CreateProcessInfo.lpStartAddress);
+        {
+            IMAGEHLP_MODULE64 mod = {0};
+            dbg_get_debuggee_info(dbg_curr_process->handle, &mod);
+        }
         break;
 
     case EXIT_PROCESS_DEBUG_EVENT:

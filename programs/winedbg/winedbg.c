@@ -447,6 +447,7 @@ BOOL dbg_get_debuggee_info(HANDLE hProcess, IMAGEHLP_MODULE64* imh_mod)
     SymEnumerateModules64(hProcess, mod_loader_cb, &mli);
     SymSetExtendedOption(SYMOPT_EX_WINE_NATIVE_MODULES, opt);
 
+MESSAGE("%s: %p %p\n", __FUNCTION__, hProcess, imh_mod->BaseOfImage);
     return imh_mod->BaseOfImage != 0;
 }
 

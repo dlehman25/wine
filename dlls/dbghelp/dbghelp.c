@@ -291,6 +291,7 @@ static BOOL check_live_target(struct process* pcs)
     PROCESS_BASIC_INFORMATION pbi;
     ULONG_PTR base = 0, env = 0;
 
+MESSAGE("%s: handle %p\n", __FUNCTION__, pcs->handle);
     if (!GetProcessId(pcs->handle)) return FALSE;
     if (GetEnvironmentVariableA("DBGHELP_NOLIVE", NULL, 0)) return FALSE;
 
@@ -309,12 +310,15 @@ static BOOL check_live_target(struct process* pcs)
     }
     else
     {
+/* XXX env values seem off */
         PEB peb;
         if (!ReadProcessMemory(pcs->handle, pbi.PebBaseAddress, &peb, sizeof(peb), NULL)) return FALSE;
         if (!ReadProcessMemory(pcs->handle, &peb.CloudFileFlags, &base, sizeof(base), NULL)) return FALSE;
         ReadProcessMemory(pcs->handle, &peb.ProcessParameters->Environment, &env, sizeof(env), NULL);
+MESSAGE("%s: handle %p peb %p base %llx env %s\n", __FUNCTION__, pcs->handle, pbi.PebBaseAddress, base, debugstr_w((const WCHAR*)env));
     }
 
+MESSAGE("%s: handle %p 64bit %d env %p\n", __FUNCTION__, pcs->handle, pcs->is_64bit, env);
     /* read debuggee environment block */
     if (env)
     {
@@ -351,11 +355,13 @@ static BOOL check_live_target(struct process* pcs)
         free(buf);
     }
 
+MESSAGE("%s: handle %p base %p ?????\n", __FUNCTION__, pcs->handle, base);
+
     if (!base) return FALSE;
 
-    TRACE("got debug info address %#lx from PEB %p\n", base, pbi.PebBaseAddress);
+    MESSAGE("%s: got debug info address %#lx from PEB %p\n", __FUNCTION__, base, pbi.PebBaseAddress);
     if (!elf_read_wine_loader_dbg_info(pcs, base) && !macho_read_wine_loader_dbg_info(pcs, base))
-        WARN("couldn't load process debug info at %#lx\n", base);
+        MESSAGE("%s: couldn't load process debug info at %#lx\n", __FUNCTION__, base);
     return TRUE;
 }
 

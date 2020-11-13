@@ -193,6 +193,8 @@ struct module* module_new(struct process* pcs, const WCHAR* name,
     struct module*      module;
     unsigned            i;
 
+if (type == DMT_ELF)
+    MESSAGE("%s: %llx %s\n", __FUNCTION__, mod_addr, debugstr_w(name));
     assert(type == DMT_ELF || type == DMT_PE || type == DMT_MACHO);
     if (!(module = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*module))))
 	return NULL;
@@ -408,6 +410,7 @@ struct module* module_find_by_addr(const struct process* pcs, DWORD64 addr,
                                    enum module_type type)
 {
     struct module*      module;
+int num = 0;
     
     if (type == DMT_UNKNOWN)
     {
@@ -420,11 +423,13 @@ struct module* module_find_by_addr(const struct process* pcs, DWORD64 addr,
     {
         for (module = pcs->lmodules; module; module = module->next)
         {
+//MESSAGE("%s: %d: type %d addr %llx base %llx\n", __FUNCTION__, ++num, module->type, addr, module->module.BaseOfImage);
             if (type == module->type && addr >= module->module.BaseOfImage &&
                 addr < module->module.BaseOfImage + module->module.ImageSize) 
                 return module;
         }
     }
+//MESSAGE("%s: %llx %d num %d\n", __FUNCTION__, addr, type, num);
     SetLastError(ERROR_MOD_NOT_FOUND);
     return module;
 }
@@ -999,18 +1004,31 @@ BOOL  WINAPI SymEnumerateModulesW64(HANDLE hProcess,
 {
     struct process*     pcs = process_find_by_handle(hProcess);
     struct module*      module;
-
-    if (!pcs) return FALSE;
+BOOL ret;
+int num =0;
+    if (!pcs) 
+    {
+MESSAGE("%s: %d: XXXX\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
     
     for (module = pcs->lmodules; module; module = module->next)
     {
         if (!dbghelp_opt_native &&
             (module->type == DMT_ELF || module->type == DMT_MACHO))
+        {
+MESSAGE("%s: %d: XXXX opt %d type %d\n", __FUNCTION__, __LINE__, dbghelp_opt_native, module->type);
             continue;
-        if (!EnumModulesCallback(module->modulename,
-                                 module->module.BaseOfImage, UserContext))
+        }
+
+        ret = EnumModulesCallback(module->modulename,
+                                 module->module.BaseOfImage, UserContext);
+MESSAGE("%s: %d %llx %s\n", __FUNCTION__, ret, module->module.BaseOfImage, debugstr_w(module->modulename));
+        if (!ret)
             break;
+++num;
     }
+MESSAGE("%s: enum %d\n", __FUNCTION__, num);
     return TRUE;
 }
 
@@ -1194,6 +1212,7 @@ BOOL  WINAPI SymGetModuleInfo64(HANDLE hProcess, DWORD64 dwAddr,
 
     if (sizeof(mi64) < ModuleInfo->SizeOfStruct)
     {
+MESSAGE("%s: XXXX\n", __FUNCTION__);
         SetLastError(ERROR_MOD_NOT_FOUND); /* NOTE: native returns this error */
         WARN("Wrong size %u\n", ModuleInfo->SizeOfStruct);
         return FALSE;
@@ -1350,8 +1369,14 @@ PVOID WINAPI SymFunctionTableAccess64(HANDLE hProcess, DWORD64 AddrBase)
     return dbghelp_current_cpu->find_runtime_function(module, AddrBase);
 }
 
+extern BOOL elf_synchronize_module_list(struct process* pcs);
 static BOOL native_synchronize_module_list(struct process* pcs)
 {
+    if (0)
+    {
+    BOOL ret = elf_synchronize_module_list(pcs);
+    MESSAGE("%s %d\n", __FUNCTION__, ret);
+    }
     return FALSE;
 }
 
