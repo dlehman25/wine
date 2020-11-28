@@ -1028,6 +1028,26 @@ static BOOL get_ldr_module32( HANDLE process, HMODULE module, LDR_DATA_TABLE_ENT
 }
 
 
+static BOOL get_ldr_module_by_addr( HANDLE process, void *addr, LDR_DATA_TABLE_ENTRY *ldr_module )
+{
+    struct module_iterator iter;
+    INT ret;
+
+    if (!init_module_iterator( &iter, process )) return FALSE;
+
+    while ((ret = module_iterator_next( &iter )) > 0)
+        if (addr >= iter.ldr_module.DllBase &&
+            addr < (void*)((char*)iter.ldr_module.DllBase + iter.ldr_module.SizeOfImage))
+        {
+            *ldr_module = iter.ldr_module;
+            return TRUE;
+        }
+
+    if (ret == 0) SetLastError( ERROR_INVALID_HANDLE );
+    return FALSE;
+}
+
+
 /***********************************************************************
  *         K32EmptyWorkingSet   (kernelbase.@)
  */
@@ -1247,9 +1267,33 @@ DWORD WINAPI DECLSPEC_HOTPATCH K32GetMappedFileNameA( HANDLE process, void *addr
  */
 DWORD WINAPI DECLSPEC_HOTPATCH K32GetMappedFileNameW( HANDLE process, void *addr, WCHAR *name, DWORD size )
 {
-    FIXME( "(%p, %p, %p, %d): stub\n", process, addr, name, size );
-    if (name && size) name[0] = 0;
-    return 0;
+    BOOL wow64;
+
+    if (!IsWow64Process( process, &wow64 )) return 0;
+/*
+    if (is_win64 && wow64)
+    {
+        LDR_DATA_TABLE_ENTRY32 ldr_module32;
+
+        if (!get_ldr_module32(process, module, &ldr_module32)) return 0;
+        size = min( ldr_module32.BaseDllName.Length / sizeof(WCHAR), size );
+        if (!ReadProcessMemory( process, (void *)(DWORD_PTR)ldr_module32.BaseDllName.Buffer,
+                                name, size * sizeof(WCHAR), NULL ))
+            return 0;
+    }
+    else
+*/
+    {
+        LDR_DATA_TABLE_ENTRY ldr_module;
+
+        if (!get_ldr_module_by_addr( process, addr, &ldr_module )) return 0;
+        size = min( ldr_module.BaseDllName.Length / sizeof(WCHAR), size );
+        if (!ReadProcessMemory( process, ldr_module.BaseDllName.Buffer,
+                                name, size * sizeof(WCHAR), NULL ))
+            return 0;
+    }
+    name[size] = 0;
+    return size;
 }
 
 
