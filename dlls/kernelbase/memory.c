@@ -233,7 +233,19 @@ LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFileEx( HANDLE handle, DWORD access, DW
 BOOL WINAPI DECLSPEC_HOTPATCH ReadProcessMemory( HANDLE process, const void *addr, void *buffer,
                                                  SIZE_T size, SIZE_T *bytes_read )
 {
-    return set_ntstatus( NtReadVirtualMemory( process, addr, buffer, size, bytes_read ));
+    BOOL ret;
+    SIZE_T i, nread;
+    ret = set_ntstatus( NtReadVirtualMemory( process, addr, buffer, size, bytes_read ));
+
+    nread = bytes_read ? *bytes_read : 0;
+    MESSAGE("%s: %d %p %p %p %lu %lu\n\t", __FUNCTION__, ret, process, addr, buffer, size, nread);
+    for (i = 0; i < nread; i++)
+    {
+        if (!((i+1)%16)) MESSAGE("\n\t");
+        MESSAGE("%02x ", ((BYTE*)buffer)[i]);
+    }
+    MESSAGE("\n\n");
+    return ret;
 }
 
 
