@@ -747,7 +747,7 @@ static BOOL BezierCheck( int level, POINT *Points)
             if(Points[2].x > Points[3].x)
                 return FALSE;
         dx=BEZIERSHIFTDOWN(dx);
-        if(!dx) return TRUE;
+        if(dx <= 0) return TRUE;
         if(abs(Points[1].y-Points[0].y-(dy/dx)*
                 BEZIERSHIFTDOWN(Points[1].x-Points[0].x)) > BEZIERPIXEL ||
            abs(Points[2].y-Points[0].y-(dy/dx)*
@@ -770,7 +770,7 @@ static BOOL BezierCheck( int level, POINT *Points)
             if(Points[2].y > Points[3].y)
                 return FALSE;
         dy=BEZIERSHIFTDOWN(dy);
-        if(!dy) return TRUE;
+        if(dy <= 0) return TRUE;
         if(abs(Points[1].x-Points[0].x-(dx/dy)*
                 BEZIERSHIFTDOWN(Points[1].y-Points[0].y)) > BEZIERPIXEL ||
            abs(Points[2].x-Points[0].x-(dx/dy)*
