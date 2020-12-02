@@ -1639,7 +1639,12 @@ NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source, HANDLE 
                                    ACCESS_MASK access, ULONG attributes, ULONG options )
 {
     NTSTATUS ret;
+    int fd;
 
+    /* to avoid a race condition with the fd_cache, remove the mapping
+     * here, if any.  if the handle wasn't closed, the slot will still be
+     * available to be remapped by a later call to server_get_unix_fd */
+    fd = remove_fd_from_cache( source );
     SERVER_START_REQ( dup_handle )
     {
         req->src_process = wine_server_obj_handle( source_process );
@@ -1651,11 +1656,8 @@ NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source, HANDLE 
         if (!(ret = wine_server_call( req )))
         {
             if (dest) *dest = wine_server_ptr_handle( reply->handle );
-            if (reply->closed && reply->self)
-            {
-                int fd = remove_fd_from_cache( source );
-                if (fd != -1) close( fd );
-            }
+            if (reply->closed && reply->self && (fd != -1))
+                close( fd );
         }
     }
     SERVER_END_REQ;
