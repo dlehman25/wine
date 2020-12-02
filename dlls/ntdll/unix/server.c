@@ -1675,7 +1675,10 @@ NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source, HANDLE 
                                    ACCESS_MASK access, ULONG attributes, ULONG options )
 {
     NTSTATUS ret;
+    int fd = -1;
 
+    if (options & DUPLICATE_CLOSE_SOURCE)
+        fd = remove_fd_from_cache( source );
     SERVER_START_REQ( dup_handle )
     {
         req->src_process = wine_server_obj_handle( source_process );
@@ -1687,11 +1690,8 @@ NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source, HANDLE 
         if (!(ret = wine_server_call( req )))
         {
             if (dest) *dest = wine_server_ptr_handle( reply->handle );
-            if (reply->closed && reply->self)
-            {
-                int fd = remove_fd_from_cache( source );
-                if (fd != -1) close( fd );
-            }
+            if (reply->closed && reply->self && (fd != -1))
+                close( fd );
         }
     }
     SERVER_END_REQ;
