@@ -5779,8 +5779,211 @@ static void test_move_file(void)
     SetCurrentDirectoryA( cwd );
 }
 
+static HANDLE hchild;
+static HANDLE hpipe;
+static HANDLE hready;
+static char selfname[MAX_PATH];
+
+static void test_fd_cache_race_child(void)
+{
+    HANDLE quit;
+    HANDLE handles[2];
+    HANDLE hfiles[4096/sizeof(HANDLE)];
+    DWORD res, i, nread;
+    OVERLAPPED ov;
+    BOOL ret;
+
+    quit = OpenEventW(EVENT_ALL_ACCESS, FALSE, L"test_fd_cache_quit");
+    ok(!!quit, "gle %d\n", GetLastError());
+
+    hready = OpenEventW(EVENT_ALL_ACCESS, FALSE, L"test_fd_cache_ready");
+    ok(!!hready, "gle %d\n", GetLastError());
+
+    hpipe = CreateFileW(L"\\\\.\\pipe\\test_fd_cache_pipe", GENERIC_READ,
+                        0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    ok(hpipe != INVALID_HANDLE_VALUE, "gle %d\n", GetLastError());
+
+    handles[0] = quit;
+    handles[1] = hready;
+    for (;;)
+    {
+        res = WaitForMultipleObjects(ARRAY_SIZE(handles), handles,
+                                     FALSE, INFINITE);
+        if (res != (WAIT_OBJECT_0+1))
+        {
+            ok(res == WAIT_OBJECT_0, "got %u\n", res);
+            break;
+        }
+
+        /* read from pipe */
+        nread = 0;
+        memset(&ov, 0, sizeof(ov));
+        while ((ret = ReadFile(hpipe, hfiles, sizeof(hfiles),
+                               &nread, &ov)))
+        {
+            ok(!(nread % sizeof(HANDLE)), "%x not muliple of HANDLE\n", nread);
+
+            for (i = 0; i < nread/sizeof(HANDLE); i++)
+            {
+                ret = CloseHandle(hfiles[i]);
+                ok(ret, "gle %d\n", GetLastError());
+            }
+            nread = 0;
+        }
+    }
+    DisconnectNamedPipe(hpipe);
+    CloseHandle(hpipe);
+    CloseHandle(quit);
+}
+
+static DWORD WINAPI test_fd_cache_race_proc(void *arg)
+{
+    BYTE buffer[1024];
+    char path[MAX_PATH];
+    HANDLE hfile, hchildfile;
+    DWORD i, id, times, nread, nwritten;
+    BOOL ret;
+
+    id = PtrToLong( arg );
+    sprintf( path, "%s%u", filename, id );
+    times = 100;
+    while (times--)
+    {
+        hfile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                            OPEN_EXISTING, 0, 0);
+        ok(hfile != INVALID_HANDLE_VALUE, "failed to open %s, gle %d\n",
+           path, GetLastError());
+
+        /* read contents */
+        nread = 0;
+        ret = ReadFile(hfile, buffer, sizeof(buffer), &nread, NULL);
+        ok(ret, "gle %d\n", GetLastError());
+        ok(nread == sizeof(buffer), "%u: expected %zu, got %u\n", times,
+           sizeof(buffer), nread);
+
+        /* check contents */
+        for (i = 0; i < nread; i++)
+            ok(buffer[i] == id, "%u: expected %x, got %x at %u\n", times,
+               id, buffer[i], i);
+
+        hchildfile = NULL;
+        SetLastError(0xdeadbeef);
+        ret = DuplicateHandle(GetCurrentProcess(), hfile,
+                              hchild, &hchildfile, 0, FALSE,
+                              DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+        ok(ret, "gle %d\n", GetLastError());
+
+        /* send handle to process */
+        nwritten = 0;
+        ret = WriteFile(hpipe, &hchildfile, sizeof(hchildfile), &nwritten, NULL);
+        ok(ret, "gle %d\n", GetLastError());
+        ok(nwritten == sizeof(hchildfile), "expected %zu, got %u\n",
+           sizeof(hchildfile), nwritten);
+
+        ret = SetEvent(hready);
+        ok(ret, "gle %d\n", GetLastError());
+    }
+    FlushFileBuffers(hpipe);
+    return 0;
+}
+
+static void test_fd_cache_race(void)
+{
+    HANDLE threads[64];
+    HANDLE quit, hfile;
+    SYSTEM_INFO sysi;
+    DWORD i, nproc, res, mode;
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    char cmdline[MAX_PATH];
+    char path[MAX_PATH];
+    DWORD nwritten;
+    BYTE buffer[1024];
+    BOOL ret;
+
+    GetSystemInfo(&sysi);
+    nproc = sysi.dwNumberOfProcessors;
+
+    /* create events */
+    quit = CreateEventW(NULL, TRUE, FALSE, L"test_fd_cache_quit");
+    ok(!!quit, "gle %d\n", GetLastError());
+
+    hready = CreateEventW(NULL, FALSE, FALSE, L"test_fd_cache_ready");
+    ok(!!hready, "gle %d\n", GetLastError());
+
+    /* create named pipe */
+    mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE;
+    hpipe = CreateNamedPipeW(L"\\\\.\\pipe\\test_fd_cache_pipe",
+                            mode, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE,
+                            1, 4096, 4096, 5000, NULL);
+    ok(!!hpipe, "gle %d\n", GetLastError());
+
+    /* start process */
+    memset(&si, 0, sizeof(si));
+    memset(&pi, 0, sizeof(pi));
+    sprintf(cmdline, "\"%s\" file fd_cache", selfname);
+    ret = CreateProcessA(NULL, cmdline, NULL, NULL, FALSE,
+                         0, NULL, NULL, &si, &pi);
+    ok(ret, "gle %d\n", GetLastError());
+    hchild = pi.hProcess;
+
+    ret = ConnectNamedPipe(hpipe, NULL);
+    ok(ret, "gle %d\n", GetLastError());
+
+    /* create multiple test files */
+    for (i = 0; i < nproc; i++)
+    {
+        sprintf(path, "%s%u", filename, i);
+        hfile = CreateFileA(path, GENERIC_WRITE, 0, NULL,
+                            CREATE_ALWAYS, 0, 0);
+        ok(hfile != INVALID_HANDLE_VALUE, "failed to open %s, gle %d\n",
+           path, GetLastError());
+
+        nwritten = 0;
+        memset(buffer, i, sizeof(buffer));
+        ret = WriteFile(hfile, buffer, sizeof(buffer), &nwritten, 0);
+        ok(ret, "gle %d\n", GetLastError());
+        ok(nwritten == sizeof(buffer), "expected %zu, got %u\n",
+           sizeof(buffer), nwritten);
+
+        CloseHandle(hfile);
+    }
+
+    /* start multiple threads */
+    for (i = 0; i < nproc; i++)
+        threads[i] = CreateThread(NULL, 0, test_fd_cache_race_proc,
+                                  LongToPtr(i), 0, NULL);
+
+    /* wait for threads to exit */
+    res = WaitForMultipleObjects(nproc, threads, TRUE, INFINITE);
+    ok(res == WAIT_OBJECT_0, "got %d\n", res);
+
+    /* signal process to exit */
+    SetEvent(quit);
+
+    /* wait for process to exit */
+    res = WaitForSingleObject(hchild, INFINITE);
+    ok(res == WAIT_OBJECT_0, "got %d\n", res);
+
+    /* cleanup */
+    for (i = 0; i < nproc; i++)
+        CloseHandle(threads[i]);
+    for (i = 0; i < nproc; i++)
+    {
+        sprintf(path, "%s%u", filename, i);
+        DeleteFileA(path);
+    }
+    CloseHandle(hchild);
+    DisconnectNamedPipe(hpipe);
+    CloseHandle(hpipe);
+    CloseHandle(hready);
+    CloseHandle(quit);
+}
+
 START_TEST(file)
 {
+    int argc;
+    char **argv;
     char temp_path[MAX_PATH];
     DWORD ret;
 
@@ -5793,6 +5996,20 @@ START_TEST(file)
     ret = DeleteFileA(filename);
     ok(ret != 0, "DeleteFile error %u\n", GetLastError());
 
+    argc = winetest_get_mainargs( &argv );
+    strcpy(selfname, argv[0]);
+    if (argc >= 3)
+    {
+        if (!strcmp(argv[2], "fd_cache"))
+        {
+            test_fd_cache_race_child();
+            return;
+        }
+        ok(0, "Unexpected command %s\n", argv[2]);
+        return;
+    }
+    test_fd_cache_race();
+    return;
     test__hread(  );
     test__hwrite(  );
     test__lclose(  );
