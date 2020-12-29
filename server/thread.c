@@ -772,7 +772,22 @@ static int wait_on( const select_op_t *select_op, unsigned int count, struct obj
 {
     struct thread_wait *wait;
     struct wait_queue_entry *entry;
-    unsigned int i;
+    unsigned int i, j;
+
+    if (select_op->op == SELECT_WAIT_ALL)
+    {
+        for (i = 0; i < count-1; i++)
+        {
+            for (j = i+1; j < count; j++)
+            {
+                if (objects[i] == objects[j])
+                {
+                    set_error( STATUS_INVALID_PARAMETER );
+                    return 0;
+                }
+            }
+        }
+    }
 
     if (!(wait = mem_alloc( FIELD_OFFSET(struct thread_wait, queues[count]) ))) return 0;
     wait->next    = current->wait;
