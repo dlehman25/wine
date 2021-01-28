@@ -149,6 +149,8 @@ extern "C" {
 #define _tcsspn       WINE_tchar_routine(strspn,          _mbsspn,     wcsspn)
 #define _tcsstr       WINE_tchar_routine(strstr,          _mbsstr,     wcsstr)
 #define _tcstod       WINE_tchar_routine(strtod,          strtod,      wcstod)
+#define _tcstof       WINE_tchar_routine(strtof,          strtof,      wcstof)
+#define _tcstof_l     WINE_tchar_routine(_strtof_l,       _strtof_l,   _wcstof_l)
 #define _tcstok       WINE_tchar_routine(strtok,          _mbstok,     _wcstok)
 #define _tcstol       WINE_tchar_routine(strtol,          strtol,      wcstol)
 #define _tcstold      WINE_tchar_routine(strtold,         strtold,     wcstold)
