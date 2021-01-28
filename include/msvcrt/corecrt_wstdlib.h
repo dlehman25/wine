@@ -62,6 +62,11 @@ _ACRTIMP long long     __cdecl _wcstoll_l(const wchar_t*,wchar_t**,int,_locale_t
 _ACRTIMP unsigned long long __cdecl wcstoull(const wchar_t*,wchar_t**,int);
 _ACRTIMP unsigned long long __cdecl _wcstoull_l(const wchar_t*,wchar_t**,int,_locale_t);
 
+#ifdef _UCRT
+_ACRTIMP double __cdecl _wcstold_l(const wchar_t*,wchar_t**,_locale_t);
+static inline long double wcstold(const wchar_t *string, wchar_t **endptr) { return _wcstold_l(string, endptr, NULL); }
+#endif /* _UCRT */
+
 #ifdef __cplusplus
 }
 #endif
