@@ -59,6 +59,8 @@ _ACRTIMP unsigned __int64 __cdecl _wcstoui64(const wchar_t*,wchar_t**,int);
 _ACRTIMP unsigned __int64 __cdecl _wcstoui64_l(const wchar_t*,wchar_t**,int,_locale_t);
 _ACRTIMP long long     __cdecl wcstoll(const wchar_t*,wchar_t**,int);
 _ACRTIMP long long     __cdecl _wcstoll_l(const wchar_t*,wchar_t**,int,_locale_t);
+_ACRTIMP unsigned long long __cdecl wcstoull(const wchar_t*,wchar_t**,int);
+_ACRTIMP unsigned long long __cdecl _wcstoull_l(const wchar_t*,wchar_t**,int,_locale_t);
 
 #ifdef __cplusplus
 }

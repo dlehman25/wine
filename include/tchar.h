@@ -154,6 +154,8 @@ extern "C" {
 #define _tcstoll      WINE_tchar_routine(strtoll,         strtoll,     wcstoll)
 #define _tcstoll_l    WINE_tchar_routine(_strtoll_l,      _strtoll_l,  _wcstoll_l)
 #define _tcstoul      WINE_tchar_routine(strtoul,         strtoul,     wcstoul)
+#define _tcstoull     WINE_tchar_routine(strtoull,        strtoull,    wcstoull)
+#define _tcstoull_l   WINE_tchar_routine(_strtoull_l,     _strtoull_l, _wcstoull_l)
 #define _tcsupr       WINE_tchar_routine(_strupr,         _mbsupr,     _wcsupr)
 #define _tcsupr_s     WINE_tchar_routine(_strupr_s,       _mbsupr_s,   _wcsupr_s)
 #define _tcsxfrm      WINE_tchar_routine(strxfrm,         strxfrm,     wcsxfrm)
