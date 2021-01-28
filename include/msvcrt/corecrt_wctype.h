@@ -59,6 +59,9 @@ _ACRTIMP int     __cdecl iswxdigit(wint_t);
 _ACRTIMP wint_t  __cdecl towlower(wint_t);
 _ACRTIMP wint_t  __cdecl towupper(wint_t);
 
+_ACRTIMP const unsigned short* __cdecl __pctype_func(void);
+_ACRTIMP const unsigned short* __cdecl __pwctype_func(void);
+
 #ifdef __cplusplus
 }
 #endif
