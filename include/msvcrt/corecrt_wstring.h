@@ -73,6 +73,7 @@ _ACRTIMP size_t   __cdecl wcsspn(const wchar_t*,const wchar_t*);
 _ACRTIMP wchar_t* __cdecl wcsstr(const wchar_t*,const wchar_t*);
 _ACRTIMP wchar_t* __cdecl wcstok_s(wchar_t*,const wchar_t*,wchar_t**);
 _ACRTIMP size_t   __cdecl wcsxfrm(wchar_t*,const wchar_t*,size_t);
+_ACRTIMP size_t   __cdecl _wcsxfrm_l(wchar_t*,const wchar_t*,size_t,_locale_t);
 
 #ifdef _UCRT
 _ACRTIMP wchar_t* __cdecl wcstok(wchar_t*,const wchar_t*,wchar_t**);
