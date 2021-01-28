@@ -115,6 +115,7 @@ extern "C" {
 #define _tcsdec       WINE_tchar_routine(_strdec,         _mbsdec,     _wcsdec)
 #define _tcsdup       WINE_tchar_routine(strdup,          _mbsdup,     _wcsdup)
 #define _tcsftime     WINE_tchar_routine(strftime,        strftime,    wcsftime)
+#define _tcsftime_l   WINE_tchar_routine(_strftime_l,     _strftime_l, _wcsftime_l)
 #define _tcsicmp      WINE_tchar_routine(strcasecmp,      _mbsicmp,    _wcsicmp)
 #define _tcsicoll     WINE_tchar_routine(_stricoll,       _stricoll,   _wcsicoll)
 #define _tcsinc       WINE_tchar_routine(_strinc,         _mbsinc,     _wcsinc)
