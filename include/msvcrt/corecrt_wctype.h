@@ -28,6 +28,7 @@ _ACRTIMP int     __cdecl _isleadbyte_l(int,_locale_t);
 _ACRTIMP int     __cdecl _iswalnum_l(wint_t,_locale_t);
 _ACRTIMP int     __cdecl _iswalpha_l(wint_t,_locale_t);
 _ACRTIMP int     __cdecl _iswblank_l(wint_t,_locale_t);
+_ACRTIMP int     __cdecl _iswcntrl_l(wint_t,_locale_t);
 _ACRTIMP int     __cdecl _iswctype_l(wint_t,wctype_t,_locale_t);
 _ACRTIMP int     __cdecl _iswdigit_l(wint_t,_locale_t);
 _ACRTIMP int     __cdecl _iswgraph_l(wint_t,_locale_t);
