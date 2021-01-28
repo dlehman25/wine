@@ -244,6 +244,8 @@ _ACRTIMP _invalid_parameter_handler __cdecl _set_thread_local_invalid_parameter_
 void __cdecl _invalid_parameter(const wchar_t *expr, const wchar_t *func, const wchar_t *file,
                                 unsigned int line, uintptr_t arg);
 
+_ACRTIMP DECLSPEC_NORETURN void __cdecl quick_exit(int);
+
 #ifdef _UCRT
 _ACRTIMP double __cdecl _strtold_l(const char*,char**,_locale_t);
 static inline long double strtold(const char *string, char **endptr) { return _strtold_l(string, endptr, NULL); }
