@@ -67,6 +67,7 @@ _ACRTIMP char*   __cdecl strstr(const char*,const char*);
 _ACRTIMP char*   __cdecl strtok(char*,const char*);
 _ACRTIMP char*   __cdecl strtok_s(char*,const char*,char**);
 _ACRTIMP size_t  __cdecl strxfrm(char*,const char*,size_t);
+_ACRTIMP size_t  __cdecl _strxfrm_l(char*,const char*,size_t,_locale_t);
 
 #ifdef __cplusplus
 }
