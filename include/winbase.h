@@ -140,6 +140,9 @@ typedef struct _OFSTRUCT
 #define INVALID_FILE_ATTRIBUTES  (~0u)
 
 #define FLS_OUT_OF_INDEXES (~0u)
+#define LOCKFILE_FAIL_IMMEDIATELY   1
+#define LOCKFILE_EXCLUSIVE_LOCK     2
+
 #define TLS_OUT_OF_INDEXES (~0u)
 
 #define SHUTDOWN_NORETRY 1
