@@ -129,6 +129,8 @@ _ACRTIMP __msvcrt_ulong* __cdecl __doserrno(void);
 _ACRTIMP int*            __cdecl _errno(void);
 #define errno                  (*_errno())
 
+#define MB_CUR_MAX       __mb_cur_max
+
 /* FIXME: We need functions to access these:
  * int _sys_nerr;
  * char** _sys_errlist;
