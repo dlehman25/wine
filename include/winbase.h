@@ -42,6 +42,7 @@ extern "C" {
 #include <libloaderapi.h>
 #include <synchapi.h>
 #include <threadpoolapiset.h>
+#include <fibersapi.h>
 
   /* Windows Exit Procedure flag values */
 #define	WEP_FREE_DLL        0
@@ -341,7 +342,6 @@ typedef struct _PROCESS_HEAP_ENTRY
 #define LOCKFILE_FAIL_IMMEDIATELY   1
 #define LOCKFILE_EXCLUSIVE_LOCK     2
 
-#define FLS_OUT_OF_INDEXES (~0u)
 #define TLS_OUT_OF_INDEXES (~0u)
 
 #define SHUTDOWN_NORETRY 1
@@ -2064,10 +2064,6 @@ WINBASEAPI BOOL        WINAPI FindNextVolumeMountPointW(HANDLE,LPWSTR,DWORD);
 #define                       FindNextVolumeMountPoint WINELIB_NAME_AW(FindNextVolumeMountPoint)
 WINBASEAPI BOOL        WINAPI FindVolumeClose(HANDLE);
 WINBASEAPI BOOL        WINAPI FindVolumeMountPointClose(HANDLE);
-WINBASEAPI DWORD       WINAPI FlsAlloc(PFLS_CALLBACK_FUNCTION);
-WINBASEAPI BOOL        WINAPI FlsFree(DWORD);
-WINBASEAPI PVOID       WINAPI FlsGetValue(DWORD);
-WINBASEAPI BOOL        WINAPI FlsSetValue(DWORD,PVOID);
 WINBASEAPI BOOL        WINAPI FlushFileBuffers(HANDLE);
 WINBASEAPI BOOL        WINAPI FlushInstructionCache(HANDLE,LPCVOID,SIZE_T);
 WINBASEAPI VOID        WINAPI FlushProcessWriteBuffers(void);
