@@ -327,4 +327,9 @@ static inline ldiv_t __wine_msvcrt_ldiv(__msvcrt_long num, __msvcrt_long denom)
 
 #pragma pack(pop)
 
+#ifdef __cplusplus
+inline long abs(long x) { return labs(x); }
+inline long long abs(long long x) { return llabs(x); }
+#endif
+
 #endif /* __WINE_STDLIB_H */
