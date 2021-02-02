@@ -866,10 +866,7 @@ static void compile(struct options* opts, const char* lang)
     strarray_add(comp_args, "-D__int8=char");
     strarray_add(comp_args, "-D__int16=short");
     strarray_add(comp_args, "-D__int32=int");
-    if (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64)
-        strarray_add(comp_args, "-D__int64=long");
-    else
-        strarray_add(comp_args, "-D__int64=long long");
+    strarray_add(comp_args, "-D__int64=long long");
 
 no_compat_defines:
     strarray_add(comp_args, "-D__WINE__");

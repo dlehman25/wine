@@ -57,11 +57,7 @@ extern "C" {
 #    define __int32 int
 #  endif
 #  ifndef __int64
-#    if defined(_WIN64) && !defined(__MINGW64__)
-#      define __int64 long
-#    else
-#      define __int64 long long
-#    endif
+#    define __int64 long long
 #  endif
 #endif /* !defined(_MSC_VER) */
 
