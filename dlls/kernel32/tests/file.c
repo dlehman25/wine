@@ -5980,6 +5980,120 @@ static void test_fd_cache_race_send(void)
     CloseHandle(quit);
 }
 
+static void test_fd_cache_race_child_recv(void)
+{
+    DWORD res, nxfer, gle;
+    char path[MAX_PATH];
+    OVERLAPPED ov;
+    HANDLE hfile;
+    BOOL ret;
+
+    hready = OpenEventW(EVENT_ALL_ACCESS, FALSE, L"test_fd_cache_ready");
+    ok(!!hready, "gle %d\n", GetLastError());
+
+    /* open file */
+    GetTempPathA(MAX_PATH, path);
+    sprintf(path+strlen(path), "temp%u.txt", GetCurrentProcessId());
+    hfile = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
+                        NULL, CREATE_NEW, 0, 0);
+    ok(hfile != INVALID_HANDLE_VALUE, "failed to open %s, gle %d\n", path, GetLastError());
+
+    /* send handle to parent */
+    hpipe = CreateFileW(L"\\\\.\\pipe\\test_fd_cache_pipe", GENERIC_WRITE,
+                        0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    ok(hpipe != INVALID_HANDLE_VALUE, "gle %d\n", GetLastError());
+
+    nxfer = 0;
+    memset(&ov, 0, sizeof(ov));
+    ret = WriteFile(hpipe, &hfile, sizeof(hfile), &nxfer, &ov);
+    ok(ret, "gle %d\n", GetLastError());
+
+    /* (parent will duplicate and close here) */
+
+    /* wait for signal to continue */
+    res = WaitForSingleObject(hready, INFINITE);
+    ok(res == WAIT_OBJECT_0, "got %u\n", res);
+
+    /* try to write and fail */
+    nxfer = 0;
+    memset(&ov, 0, sizeof(ov));
+    SetLastError(0xdeadbeef);
+    res = WriteFile(hfile, path, strlen(path), &nxfer, &ov);
+    gle = GetLastError();
+    todo_wine {
+    ok(!res, "got %u\n", res);
+    ok(gle == ERROR_INVALID_HANDLE, "gle %d\n", gle);
+    ok(!nxfer, "got %u\n", nxfer);
+    }
+
+    /* CloseHandle(hfile); closed by parent */
+    DisconnectNamedPipe(hpipe);
+    CloseHandle(hpipe);
+    CloseHandle(hready);
+}
+
+static void test_fd_cache_race_recv(void)
+{
+    BOOL ret;
+    OVERLAPPED ov;
+    STARTUPINFOA si;
+    DWORD res, mode, nread;
+    PROCESS_INFORMATION pi;
+    char path[MAX_PATH];
+    HANDLE hchild, hchildfile, hfile;
+
+    hready = CreateEventW(NULL, FALSE, FALSE, L"test_fd_cache_ready");
+    ok(!!hready, "gle %d\n", GetLastError());
+
+    /* create named pipe */
+    mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE;
+    hpipe = CreateNamedPipeW(L"\\\\.\\pipe\\test_fd_cache_pipe",
+                            mode, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE,
+                            1, 4096, 4096, 5000, NULL);
+    ok(!!hpipe, "gle %d\n", GetLastError());
+
+    /* spawn child */
+    memset(&si, 0, sizeof(si));
+    memset(&pi, 0, sizeof(pi));
+    sprintf(path, "\"%s\" file fd_cache_recv", selfname);
+    ret = CreateProcessA(NULL, path, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+    ok(ret, "gle %d\n", GetLastError());
+    hchild = pi.hProcess;
+
+    ret = ConnectNamedPipe(hpipe, NULL);
+    ok(ret, "gle %d\n", GetLastError());
+
+    /* read handle from child */
+    nread = 0;
+    hchildfile = NULL;
+    memset(&ov, 0, sizeof(ov));
+    ret = ReadFile(hpipe, &hchildfile, sizeof(hchildfile), &nread, &ov);
+    ok(ret, "gle %d\n", GetLastError());
+
+    /* duplicate handle and close source */
+    ret = DuplicateHandle(hchild, hchildfile,
+                          GetCurrentProcess(), &hfile, 0, FALSE,
+                          DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+    ok(ret, "gle %d\n", GetLastError());
+
+    /* signal child to continue */
+    SetEvent(hready);
+
+    /* wait for child to exit */
+    res = WaitForSingleObject(hchild, INFINITE);
+    ok(res == WAIT_OBJECT_0, "got %d\n", res);
+
+    CloseHandle(hfile);
+    CloseHandle(hchild);
+    DisconnectNamedPipe(hpipe);
+    CloseHandle(hpipe);
+    CloseHandle(hready);
+
+    GetTempPathA(MAX_PATH, path);
+    sprintf(path+strlen(path), "temp%u.txt", pi.dwProcessId);
+    DeleteFileA(path);
+}
+
 START_TEST(file)
 {
     int argc;
@@ -6005,10 +6119,16 @@ START_TEST(file)
             test_fd_cache_race_child_send();
             return;
         }
+        if (!strcmp(argv[2], "fd_cache_recv"))
+        {
+            test_fd_cache_race_child_recv();
+            return;
+        }
         ok(0, "Unexpected command %s\n", argv[2]);
         return;
     }
     test_fd_cache_race_send();
+    test_fd_cache_race_recv();
     return;
     test__hread(  );
     test__hwrite(  );
