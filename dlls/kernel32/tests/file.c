@@ -5784,7 +5784,7 @@ static HANDLE hpipe;
 static HANDLE hready;
 static char selfname[MAX_PATH];
 
-static void test_fd_cache_race_child(void)
+static void test_fd_cache_race_child_send(void)
 {
     HANDLE quit;
     HANDLE handles[2];
@@ -5836,7 +5836,7 @@ static void test_fd_cache_race_child(void)
     CloseHandle(quit);
 }
 
-static DWORD WINAPI test_fd_cache_race_proc(void *arg)
+static DWORD WINAPI test_fd_cache_race_send_proc(void *arg)
 {
     BYTE buffer[1024];
     char path[MAX_PATH];
@@ -5887,7 +5887,7 @@ static DWORD WINAPI test_fd_cache_race_proc(void *arg)
     return 0;
 }
 
-static void test_fd_cache_race(void)
+static void test_fd_cache_race_send(void)
 {
     HANDLE threads[64];
     HANDLE quit, hfile;
@@ -5921,7 +5921,7 @@ static void test_fd_cache_race(void)
     /* start process */
     memset(&si, 0, sizeof(si));
     memset(&pi, 0, sizeof(pi));
-    sprintf(cmdline, "\"%s\" file fd_cache", selfname);
+    sprintf(cmdline, "\"%s\" file fd_cache_send", selfname);
     ret = CreateProcessA(NULL, cmdline, NULL, NULL, FALSE,
                          0, NULL, NULL, &si, &pi);
     ok(ret, "gle %d\n", GetLastError());
@@ -5951,7 +5951,7 @@ static void test_fd_cache_race(void)
 
     /* start multiple threads */
     for (i = 0; i < nproc; i++)
-        threads[i] = CreateThread(NULL, 0, test_fd_cache_race_proc,
+        threads[i] = CreateThread(NULL, 0, test_fd_cache_race_send_proc,
                                   LongToPtr(i), 0, NULL);
 
     /* wait for threads to exit */
@@ -6000,15 +6000,15 @@ START_TEST(file)
     strcpy(selfname, argv[0]);
     if (argc >= 3)
     {
-        if (!strcmp(argv[2], "fd_cache"))
+        if (!strcmp(argv[2], "fd_cache_send"))
         {
-            test_fd_cache_race_child();
+            test_fd_cache_race_child_send();
             return;
         }
         ok(0, "Unexpected command %s\n", argv[2]);
         return;
     }
-    test_fd_cache_race();
+    test_fd_cache_race_send();
     return;
     test__hread(  );
     test__hwrite(  );
