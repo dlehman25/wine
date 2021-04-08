@@ -4461,6 +4461,12 @@ static void test_EM_SETTEXTEX(void)
                  "EM_SETTEXTEX: Test multibyte character set wrong text: Result: %s\n", bufACP);
   }
 
+  setText.codepage = CP_ACP;
+  setText.flags = ST_SELECTION;
+  result = SendMessageA(hwndRichEdit, EM_SETTEXTEX, (WPARAM)&setText,
+                       (LPARAM)"{\\rtf1 \\trowd row1 \\intbl \\cell \\row \\par \\trowd row2 \\intbl \\cell \\row}");
+  todo_wine ok(result == 13, "EM_SETTEXTEX returned %d, expected 13\n", result);
+
   DestroyWindow(hwndRichEdit);
 
   /* Single-line richedit */

@@ -592,6 +592,11 @@ ME_Paragraph *para_split( ME_TextEditor *editor, ME_Run *run, ME_Style *style,
     next_run->para = new_para;
   }
 
+  if (old_para->nFlags & MEPF_REWRAP)
+  {
+      old_para->nFlags &= ~MEPF_REWRAP;
+      wine_rb_remove( &editor->marked_paras, &old_para->marked_entry );
+  }
   new_para->nCharOfs = old_para->nCharOfs + ofs;
   new_para->nCharOfs += eol_len;
   new_para->nFlags = 0;
