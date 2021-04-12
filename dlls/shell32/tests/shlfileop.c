@@ -1746,6 +1746,18 @@ static void test_copy(void)
     }
     ok(RemoveDirectoryA("threedir"), "Expected dir to exist\n");
 
+    /* pTo is under MAX_PATH, but the appended filenames exceed it */
+    strcpy(to, CURR_DIR);
+    strcat(to, "\\");
+    memset(to + strlen(to), 'a', MAX_PATH - strlen(to) - 2);
+    memset(&to[MAX_PATH - 2], 0, 2);
+    shfo.pFrom = "test*.txt\0";
+    shfo.pTo = to;
+    shfo.fFlags = FOF_NOCONFIRMATION | FOF_NOCONFIRMMKDIR | FOF_SILENT | FOF_FILESONLY;
+    retval = SHFileOperationA(&shfo);
+    todo_wine ok(retval == ERROR_FILENAME_EXCED_RANGE, "Expected ERROR_FILENAME_EXCED_RANGE, got %d\n", retval);
+    ok(RemoveDirectoryA(to), "Expected dir to exist\n");
+
     createTestFile("one.txt");
     createTestFile("two.txt");
     CreateDirectoryA("threedir", NULL);
