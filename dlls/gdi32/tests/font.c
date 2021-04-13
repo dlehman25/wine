@@ -5241,6 +5241,20 @@ static void test_AddFontMemResource(void)
     }
 
     SetLastError(0xdeadbeef);
+    bRet = pRemoveFontMemResourceEx(NULL);
+    ok(!bRet, "RemoveFontMemResourceEx should fail\n");
+    ok(GetLastError() == ERROR_INVALID_PARAMETER,
+       "Expected GetLastError() to return ERROR_INVALID_PARAMETER, got %u\n",
+       GetLastError());
+
+    SetLastError(0xdeadbeef);
+    bRet = pRemoveFontMemResourceEx((HANDLE)0xdeadbeef);
+    ok(!bRet, "RemoveFontMemResourceEx should fail\n");
+    ok(GetLastError() == 0xdeadbeef,
+       "Expected GetLastError() to return 0xdeadbeef, got %u\n",
+       GetLastError());
+
+    SetLastError(0xdeadbeef);
     ret = pAddFontMemResourceEx(NULL, 0, NULL, NULL);
     ok(!ret, "AddFontMemResourceEx should fail\n");
     ok(GetLastError() == ERROR_INVALID_PARAMETER,

@@ -86,6 +86,14 @@ struct gdi_font_face
     struct wine_rb_entry       full_name_entry;
 };
 
+struct font_mem
+{
+    struct list entry;
+    BYTE data[1];
+} fontmem;
+
+static struct list fontmem_list = LIST_INIT( fontmem_list );
+
 static const struct font_backend_funcs *font_funcs;
 
 static const MAT2 identity = { {0,1}, {0,0}, {0,0}, {0,1} };
@@ -8079,6 +8087,7 @@ HANDLE WINAPI AddFontMemResourceEx( PVOID ptr, DWORD size, PVOID pdv, DWORD *pcF
 {
     HANDLE ret;
     DWORD num_fonts;
+    struct font_mem *mem;
     void *copy;
 
     if (!ptr || !size || !pcFonts)
@@ -8087,11 +8096,15 @@ HANDLE WINAPI AddFontMemResourceEx( PVOID ptr, DWORD size, PVOID pdv, DWORD *pcF
         return NULL;
     }
     if (!font_funcs) return NULL;
-    if (!(copy = HeapAlloc( GetProcessHeap(), 0, size ))) return NULL;
+    if (!(mem = HeapAlloc( GetProcessHeap(), 0,
+                           FIELD_OFFSET(struct font_mem, data[size] )))) return NULL;
+    copy = mem->data;
     memcpy( copy, ptr, size );
 
     EnterCriticalSection( &font_cs );
     num_fonts = font_funcs->add_mem_font( copy, size, ADDFONT_ALLOW_BITMAP | ADDFONT_ADD_RESOURCE );
+    if (num_fonts)
+        list_add_tail( &fontmem_list, &mem->entry );
     LeaveCriticalSection( &font_cs );
 
     if (!num_fonts)
@@ -8125,8 +8138,29 @@ HANDLE WINAPI AddFontMemResourceEx( PVOID ptr, DWORD size, PVOID pdv, DWORD *pcF
  */
 BOOL WINAPI RemoveFontMemResourceEx( HANDLE fh )
 {
-    FIXME("(%p) stub\n", fh);
-    return TRUE;
+    void *data_ptr;
+    struct font_mem *mem;
+
+    if (!fh)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    data_ptr = (void*)((INT_PTR)fh ^ 0x87654321);
+    EnterCriticalSection( &font_cs );
+    LIST_FOR_EACH_ENTRY( mem, &fontmem_list, struct font_mem, entry )
+    {
+        if (mem->data == data_ptr)
+        {
+            list_remove( &mem->entry );
+            LeaveCriticalSection( &font_cs );
+            HeapFree( GetProcessHeap(), 0, mem );
+            return TRUE;
+        }
+    }
+    LeaveCriticalSection( &font_cs );
+    return FALSE;
 }
 
 /***********************************************************************
