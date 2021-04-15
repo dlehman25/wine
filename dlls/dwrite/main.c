@@ -1854,7 +1854,7 @@ static HRESULT WINAPI dwritefactory6_CreateFontCollectionFromFontSet(IDWriteFact
 {
     FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
 
-    return E_NOTIMPL;
+    return fontset_create_collection(iface, fontset, family_model, collection);
 }
 
 static HRESULT WINAPI dwritefactory6_CreateFontSetBuilder(IDWriteFactory7 *iface, IDWriteFontSetBuilder2 **builder)

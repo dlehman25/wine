@@ -2597,11 +2597,9 @@ static void test_system_fontcollection(void)
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
-    todo_wine
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
-    if (hr == S_OK) {
         EXPECT_REF(collection1, 2);
-        EXPECT_REF(factory, 2);
+        todo_wine EXPECT_REF(factory, 2);
         EXPECT_REF(fontset, 1);
 
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset2);
@@ -2613,18 +2611,17 @@ static void test_system_fontcollection(void)
         hr = IDWriteFactory_QueryInterface(factory, &IID_IDWriteFactory3, (void **)&factory3);
         ok(hr == S_OK, "Failed to get IDWriteFactory3 interface, hr %#x.\n", hr);
 
-        EXPECT_REF(factory, 3);
+        todo_wine EXPECT_REF(factory, 3);
         hr = IDWriteFactory3_GetSystemFontSet(factory3, &fontset2);
         ok(hr == S_OK, "Failed to get system font set, hr %#x.\n", hr);
         ok(fontset != fontset2, "Expected new fontset instance.\n");
         EXPECT_REF(fontset2, 1);
-        EXPECT_REF(factory, 4);
+        todo_wine EXPECT_REF(factory, 4);
 
         IDWriteFontSet_Release(fontset2);
         IDWriteFontSet_Release(fontset);
 
         IDWriteFactory3_Release(factory3);
-    }
         IDWriteFontCollection1_Release(collection1);
     }
     else
@@ -10320,6 +10317,196 @@ if (SUCCEEDED(hr))
     DELETE_FONTFILE(path);
 }
 
+static void test_Sitka(void)
+{
+    static const WCHAR *subfamily[] =
+    {
+        L"Small",
+        L"Text",
+        L"Subheading",
+        L"Heading",
+        L"Display",
+        L"Banner",
+    };
+    static const WCHAR *facenames[] =
+    {
+        L"Regular",
+        L"Bold", // ??? Oblique
+        L"Oblique", // ??? Bold
+        L"Bold Oblique",
+    };
+    IDWriteFontFaceReference1 *fontfaceref1;
+    IDWriteFontFaceReference *fontfaceref;
+    IDWriteFontCollection2 *collection2;
+    IDWriteFontSetBuilder2 *builder2;
+    IDWriteLocalizedStrings *names;
+    ULONG ref, i, j, count, count2;
+    IDWriteFontFamily2 *family2;
+    DWRITE_FONT_SIMULATIONS sim;
+    IDWriteFontFace5 *fontface5;
+    IDWriteFactory7 *factory7;
+    IDWriteFontSet1 *fontset1;
+    IDWriteFontSet *fontset;
+    IDWriteFont3 *font3;
+    WCHAR buffer[256];
+    BOOL exists;
+    HRESULT hr;
+
+    factory7 = create_factory_iid(&IID_IDWriteFactory7);
+    hr = IDWriteFactory7_CreateFontSetBuilder(factory7, &builder2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+    hr = IDWriteFontSetBuilder2_AddFontFile(builder2, L"c:/windows/fonts/sitka.ttc");
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+    hr = IDWriteFontSetBuilder2_CreateFontSet(builder2, &fontset);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+    count = IDWriteFontSet_GetFontCount(fontset);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &fontfaceref);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
+        ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
+
+        IDWriteFontFaceReference_Release(fontfaceref);
+    }
+
+    /* create collection from font set (typo) */
+    EXPECT_REF(fontset, 1);
+    hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    if (hr != S_OK) return;
+    EXPECT_REF(fontset, 1);
+
+    count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+    ok(count == 1, "%d count %u\n", __LINE__,  count);
+    hr = IDWriteFontCollection2_GetFontFamily(collection2, 0, &family2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    count = IDWriteFontFamily2_GetFontCount(family2);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontFamily2_GetFont(family2, i, &font3);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        hr = IDWriteFont3_GetFaceNames(font3, &names);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcscmp(subfamily[i], buffer), "Expected %ls, got %ls\n", subfamily[i], buffer);
+
+        sim = IDWriteFont3_GetSimulations(font3);
+        ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "Got %u\n", sim);
+
+        IDWriteFont3_Release(font3);
+    }
+    IDWriteFontFamily2_Release(family2);
+
+    EXPECT_REF(collection2, 1);
+
+    hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    EXPECT_REF(collection2, 1);
+    EXPECT_REF(fontset1, 1);
+
+    IDWriteFontSet1_Release(fontset1);
+    IDWriteFontCollection2_Release(collection2);
+
+    /* create collection from font set (wss) */
+    EXPECT_REF(fontset, 1);
+    hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    EXPECT_REF(fontset, 1);
+
+    count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontCollection2_GetFontFamily(collection2, i, &family2);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        count2 = IDWriteFontFamily2_GetFontCount(family2);
+        ok(count2 == 4, "Got %u\n", count2);
+        for (j = 0; j < count2; j++)
+        {
+            hr = IDWriteFontFamily2_GetFont(family2, j, &font3);
+            ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+            hr = IDWriteFont3_GetFaceNames(font3, &names);
+            ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+            get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+            IDWriteLocalizedStrings_Release(names);
+            ok(!wcscmp(facenames[j], buffer), "Expected %ls, got %ls\n", facenames[j], buffer);
+
+            IDWriteFont3_Release(font3);
+        }
+
+        IDWriteFontFamily2_Release(family2);
+    }
+
+    EXPECT_REF(collection2, 1);
+    hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    EXPECT_REF(collection2, 1);
+    EXPECT_REF(fontset1, 1);
+
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet1_GetFontFaceReference(fontset1, i, &fontfaceref1);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        hr = IDWriteFontFaceReference1_CreateFontFace(fontfaceref1, &fontface5);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        hr = IDWriteFontFace5_GetFamilyNames(fontface5, &names);
+        ok(hr == S_OK, "Failed to get family names, hr %#x.\n", hr);
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcsncmp(L"Sitka ", buffer, 6), "Got %ls\n", buffer);
+        ok(!wcscmp(&buffer[6], subfamily[i]), "Expected %ls, got %ls\n", subfamily[i], buffer);
+
+        hr = IDWriteFontFace5_GetFaceNames(fontface5, &names);
+        ok(hr == S_OK, "Failed to get face names, hr %#x.\n", hr);
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcscmp(L"Regular", buffer), "Got %ls\n", buffer);
+
+        exists = FALSE;
+        hr = IDWriteFontSet1_GetPropertyValues(fontset1, i, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, &exists, &names);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        ok(exists, "Expected it to exist\n");
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcsncmp(L"Sitka ", buffer, 6), "Got %ls\n", buffer);
+        ok(!wcscmp(&buffer[6], subfamily[i]), "Expected %ls, got %ls\n", subfamily[i], buffer);
+
+        exists = FALSE;
+        hr = IDWriteFontSet1_GetPropertyValues(fontset1, i, DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME, &exists, &names);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        ok(exists, "Expected it to exist\n");
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcscmp(L"Sitka", buffer), "Got %ls\n", buffer);
+
+        IDWriteFontFace5_Release(fontface5);
+        IDWriteFontFaceReference1_Release(fontfaceref1);
+    }
+    IDWriteFontSet1_Release(fontset1);
+    IDWriteFontCollection2_Release(collection2);
+
+    IDWriteFontSet_Release(fontset);
+    IDWriteFontSetBuilder2_Release(builder2);
+    ref = IDWriteFactory7_Release(factory7);
+    ok(ref == 0, "factory not released, %u\n", ref);
+}
+
 START_TEST(font)
 {
     IDWriteFactory *factory;
@@ -10328,6 +10515,7 @@ START_TEST(font)
         win_skip("failed to create factory\n");
         return;
     }
+if (0) { test_Sitka(); return; }
 
     test_object_lifetime();
     test_CreateFontFromLOGFONT();
@@ -10394,6 +10582,7 @@ START_TEST(font)
     test_family_font_set();
     test_system_font_set();
     test_CreateFontCollectionFromFontSet();
+    test_Sitka();
 
     IDWriteFactory_Release(factory);
 }
