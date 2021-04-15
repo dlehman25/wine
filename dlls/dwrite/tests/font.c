@@ -2597,11 +2597,8 @@ static void test_system_fontcollection(void)
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
-    todo_wine
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
-    if (hr == S_OK) {
         EXPECT_REF(collection1, 2);
-        EXPECT_REF(factory, 2);
         EXPECT_REF(fontset, 1);
 
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset2);
@@ -2613,18 +2610,15 @@ static void test_system_fontcollection(void)
         hr = IDWriteFactory_QueryInterface(factory, &IID_IDWriteFactory3, (void **)&factory3);
         ok(hr == S_OK, "Failed to get IDWriteFactory3 interface, hr %#x.\n", hr);
 
-        EXPECT_REF(factory, 3);
         hr = IDWriteFactory3_GetSystemFontSet(factory3, &fontset2);
         ok(hr == S_OK, "Failed to get system font set, hr %#x.\n", hr);
         ok(fontset != fontset2, "Expected new fontset instance.\n");
         EXPECT_REF(fontset2, 1);
-        EXPECT_REF(factory, 4);
 
         IDWriteFontSet_Release(fontset2);
         IDWriteFontSet_Release(fontset);
 
         IDWriteFactory3_Release(factory3);
-    }
         IDWriteFontCollection1_Release(collection1);
     }
     else
