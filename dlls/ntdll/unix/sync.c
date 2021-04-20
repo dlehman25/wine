@@ -50,6 +50,9 @@
 #ifdef HAVE_SCHED_H
 # include <sched.h>
 #endif
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -71,6 +74,7 @@
 #include "wine/server.h"
 #include "wine/exception.h"
 #include "wine/debug.h"
+#include "wine/rbtree.h"
 #include "unix_private.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(sync);
@@ -308,6 +312,330 @@ static NTSTATUS validate_open_object_attributes( const OBJECT_ATTRIBUTES *attr )
     return STATUS_SUCCESS;
 }
 
+/***********************************************************************/
+/* lightweight keyed event support */
+struct lwke_bin
+{
+    RTL_SRWLOCK lock;
+    struct list que;
+};
+
+#define LWKE_EVENTS 64
+#define LWKE_KEYS   16
+static struct lwke_bin lwke_bins[LWKE_EVENTS][LWKE_KEYS];
+
+/* see server/object.h but just wait/wake for all */
+#define KEYEDEVENT_WAIT       0x0001
+#define KEYEDEVENT_WAKE       0x0002
+#define KEYEDEVENT_ALL_ACCESS (KEYEDEVENT_WAIT|KEYEDEVENT_WAKE)
+
+/* based on the server.c::fd_cache */
+static pthread_mutex_t lwke_cache_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+typedef ULONG_PTR lwke_cache_entry; /* struct lwke* | access (lower 2 bits) */
+
+static inline ULONG_PTR interlocked_xchg_ptr( ULONG_PTR *dest, ULONG_PTR val )
+{
+    return (ULONG_PTR)InterlockedExchangePointer( (void **)dest, (void *)val );
+}
+
+static inline ULONG_PTR interlocked_cmpxchg_ptr( ULONG_PTR *dest, ULONG_PTR xchg, ULONG_PTR cmp )
+{
+    return (ULONG_PTR)InterlockedCompareExchangePointer( (void **)dest, (void *)xchg, (void *)cmp );
+}
+
+#define LWKE_CACHE_BLOCK_SIZE  8192 /* 32k/64k on 32/64-bit */
+#define LWKE_CACHE_ENTRIES     128
+
+static lwke_cache_entry *lwke_cache[LWKE_CACHE_ENTRIES];
+static lwke_cache_entry lwke_cache_initial_block[LWKE_CACHE_BLOCK_SIZE];
+
+static inline unsigned int handle_to_index( HANDLE handle, unsigned int *entry )
+{
+    unsigned int idx = (wine_server_obj_handle(handle) >> 2) - 1;
+    *entry = idx / LWKE_CACHE_BLOCK_SIZE;
+    return idx % LWKE_CACHE_BLOCK_SIZE;
+}
+
+struct lwke
+{
+    struct wine_rb_entry entry;
+    ULONG refcount;
+    UNICODE_STRING name;
+    /* name buffer */
+};
+
+struct ke_node
+{
+    struct list entry;
+    RTL_CONDITION_VARIABLE cv;
+    struct lwke *event;
+    const void *key;
+    int op;
+    int go;
+};
+
+static int lwke_event_cmp(const void *key, const struct wine_rb_entry *entry)
+{
+    const struct lwke *lwke;
+    const UNICODE_STRING *left = key;
+
+    lwke = WINE_RB_ENTRY_VALUE( entry, struct lwke, entry );
+    return wcscmp( left->Buffer, lwke->name.Buffer );
+}
+
+static struct wine_rb_tree lwke_events = { lwke_event_cmp };
+
+static inline lwke_cache_entry lwke_new_cache_entry( struct lwke *event, ACCESS_MASK access )
+{
+    lwke_cache_entry entry;
+    entry = (ULONG_PTR)event & ~KEYEDEVENT_ALL_ACCESS;
+    entry |= access & KEYEDEVENT_ALL_ACCESS;
+    return entry;
+}
+
+static inline struct lwke *lwke_from_cache_entry( lwke_cache_entry entry )
+{
+    return (struct lwke *)(entry & ~KEYEDEVENT_ALL_ACCESS);
+}
+
+static inline ACCESS_MASK lwke_access_from_cache_entry( lwke_cache_entry entry )
+{
+    return (ACCESS_MASK)(entry & KEYEDEVENT_ALL_ACCESS);
+}
+
+static inline struct lwke_bin *lwke_hash( struct lwke *event, const void *key )
+{
+    ULONG_PTR e = (ULONG_PTR)event;
+    ULONG_PTR k = (ULONG_PTR)key;
+    return &lwke_bins[(e >> 2) & (LWKE_EVENTS - 1)][(k >> 2) & (LWKE_KEYS - 1)];
+}
+
+static inline int lwke_matching_op( int op )
+{
+    return op ^ KEYEDEVENT_ALL_ACCESS;
+}
+
+static pthread_once_t lwke_once;
+static int lwke_is_supported = -1;
+static void lwke_init_once( void )
+{
+    int i, j;
+
+    if (!use_futexes() || getenv("ESRI_LWKE_DISABLE"))
+    {
+        lwke_is_supported = 0;
+        return;
+    }
+
+    for (i = 0; i < LWKE_EVENTS; i++)
+    {
+        for (j = 0; j < LWKE_KEYS; j++)
+        {
+            lwke_bins[i][j].lock.Ptr = NULL;
+            list_init(&lwke_bins[i][j].que);
+        }
+    }
+
+    lwke_is_supported = 1;
+}
+
+static inline int lwke_supported( void )
+{
+    if (lwke_is_supported != -1)
+        return lwke_is_supported;
+    pthread_once( &lwke_once, lwke_init_once );
+    return lwke_is_supported;
+}
+
+/* caller must hold lwke_cache_mutex */
+static BOOL lwke_add_event_to_cache( HANDLE handle, struct lwke *event, ACCESS_MASK access )
+{
+    unsigned int entry, idx = handle_to_index( handle, &entry );
+    lwke_cache_entry cache;
+
+    if (entry >= LWKE_CACHE_ENTRIES)
+    {
+        FIXME( "too many allocated handles, not caching %p\n", handle );
+        return FALSE;
+    }
+
+    if (!lwke_cache[entry])  /* do we need to allocate a new block of entries? */
+    {
+        if (!entry) lwke_cache[0] = lwke_cache_initial_block;
+        else
+        {
+            void *ptr = anon_mmap_alloc( LWKE_CACHE_BLOCK_SIZE * sizeof(lwke_cache_entry),
+                                         PROT_READ | PROT_WRITE );
+            if (ptr == MAP_FAILED) return FALSE;
+            lwke_cache[entry] = ptr;
+        }
+    }
+
+    /* store eventid+1 so that 0 can be used as the unset value */
+    cache = lwke_new_cache_entry( event, access );
+    interlocked_xchg_ptr( &lwke_cache[entry][idx], cache );
+    return TRUE;
+}
+
+static inline NTSTATUS lwke_get_cached_event( HANDLE handle, struct lwke **event, ACCESS_MASK *access )
+{
+    unsigned int entry, idx = handle_to_index( handle, &entry );
+    lwke_cache_entry cache;
+
+    if (entry >= LWKE_CACHE_ENTRIES || !lwke_cache[entry]) return STATUS_INVALID_HANDLE;
+
+    cache = interlocked_cmpxchg_ptr( &lwke_cache[entry][idx], 0, 0 );
+    if (!cache) return STATUS_INVALID_HANDLE; /* may be valid, but not cached */
+
+    *event = lwke_from_cache_entry( cache );
+    *access = lwke_access_from_cache_entry( cache );
+    return STATUS_SUCCESS;
+}
+
+static struct lwke *lwke_remove_event_from_cache( HANDLE handle )
+{
+    unsigned int entry, idx = handle_to_index( handle, &entry );
+    struct lwke *event = NULL;
+
+    if (entry < LWKE_CACHE_ENTRIES && lwke_cache[entry])
+    {
+        lwke_cache_entry cache;
+        cache = interlocked_xchg_ptr( &lwke_cache[entry][idx], 0 );
+        if (cache) event = lwke_from_cache_entry( cache );
+    }
+
+    return event;
+}
+
+static void lwke_set( BOOL create, HANDLE handle, ACCESS_MASK access,
+                      const OBJECT_ATTRIBUTES *objattr, ULONG flags )
+{
+    struct lwke *lwke;
+    struct wine_rb_entry *entry;
+    WCHAR empty[1] = {0};
+    UNICODE_STRING empty_string = { 0, 0, empty };
+    UNICODE_STRING *name;
+
+    if (!lwke_supported())
+        return;
+
+    /* only handle keyed events created with certain arguments for now */
+    if (flags)
+        return;
+
+    access = 0;
+    if (access & GENERIC_READ)  access |= KEYEDEVENT_WAIT;
+    if (access & GENERIC_WRITE) access |= KEYEDEVENT_WAKE;
+    if (access & GENERIC_ALL)   access |= KEYEDEVENT_WAIT | KEYEDEVENT_WAKE;
+    if (!access)
+        return;
+
+    if (objattr && (objattr->RootDirectory || objattr->Attributes ||
+        objattr->SecurityDescriptor || objattr->SecurityQualityOfService))
+        return;
+
+    if (!objattr || !objattr->ObjectName)
+        name = &empty_string;
+    else
+        name = objattr->ObjectName;
+
+    lwke = NULL;
+    pthread_mutex_lock( &lwke_cache_mutex );
+    if ((entry = wine_rb_get( &lwke_events, name )))
+    {
+        lwke = WINE_RB_ENTRY_VALUE( entry, struct lwke, entry );
+        if (lwke_add_event_to_cache( handle, lwke, access ))
+            ++lwke->refcount;
+    }
+    else if (create && (lwke = malloc( sizeof(*lwke) + name->Length + sizeof(WCHAR) )))
+    {
+        lwke->refcount = 1;
+        lwke->name.Length = name->Length;
+        lwke->name.MaximumLength = name->Length + sizeof(WCHAR);
+        lwke->name.Buffer = (PWSTR)(lwke + 1);
+        memcpy( lwke->name.Buffer, name->Buffer, name->Length );
+        lwke->name.Buffer[name->Length / sizeof(WCHAR)] = 0;
+
+        if (lwke_add_event_to_cache( handle, lwke, access ))
+            wine_rb_put( &lwke_events, name, &lwke->entry );
+        else
+        {
+            free( lwke );
+            lwke = NULL;
+        }
+    }
+    pthread_mutex_unlock( &lwke_cache_mutex );
+
+    if (!lwke)
+       WARN("failed to cache %p '%s'\n", handle,
+            debugstr_wn(name->Buffer, name->Length / sizeof(WCHAR)));
+    else
+       TRACE("%p %p %x %x %p '%s'\n", handle, lwke, access, flags, objattr,
+             debugstr_wn(name->Buffer, name->Length / sizeof(WCHAR)));
+}
+
+void lwke_close( HANDLE handle )
+{
+    struct lwke *lwke;
+
+    if (!(lwke = lwke_remove_event_from_cache( handle )))
+        return;
+
+    pthread_mutex_lock( &lwke_cache_mutex );
+    if (!--lwke->refcount)
+    {
+        wine_rb_remove( &lwke_events, &lwke->entry );
+        free( lwke );
+    }
+    pthread_mutex_unlock( &lwke_cache_mutex );
+}
+
+static NTSTATUS lwke_op( HANDLE handle, const void *key, int op, const LARGE_INTEGER *timeout )
+{
+    struct lwke *event;
+    struct lwke_bin *bin;
+    struct ke_node *node;
+    struct ke_node self;
+    NTSTATUS status;
+    DWORD access;
+
+    if ((status = lwke_get_cached_event( handle, &event, &access )))
+        return status;
+
+    if (!(access & op))
+        return STATUS_ACCESS_DENIED;
+
+    bin = lwke_hash( event, key );
+    fast_RtlAcquireSRWLockExclusive( &bin->lock );
+    LIST_FOR_EACH_ENTRY(node, &bin->que, struct ke_node, entry)
+    {
+        if (node->key != key) continue;
+        if (node->event != event) continue;
+        if (node->op != op) continue;
+        node->go = 1;
+        fast_RtlReleaseSRWLockExclusive( &bin->lock );
+        fast_RtlWakeConditionVariable( &node->cv, 1 );
+        return STATUS_SUCCESS;
+    }
+
+    list_add_tail( &bin->que, &self.entry );
+    self.cv.Ptr = NULL;
+    self.event = event;
+    self.key = key;
+    self.op = lwke_matching_op( op );
+    self.go = 0;
+    do
+    {
+        const void *value = self.cv.Ptr;
+        fast_RtlReleaseSRWLockExclusive( &bin->lock );
+        status = fast_wait_cv( &self.cv, value, timeout );
+        fast_RtlAcquireSRWLockExclusive( &bin->lock );
+    } while (!self.go && (status == STATUS_WAIT_0));
+    list_remove( &self.entry );
+    fast_RtlReleaseSRWLockExclusive( &bin->lock );
+    return self.go ? STATUS_WAIT_0 : status;
+}
 
 /******************************************************************************
  *              NtCreateSemaphore (NTDLL.@)
@@ -1662,6 +1990,8 @@ NTSTATUS WINAPI NtCreateKeyedEvent( HANDLE *handle, ACCESS_MASK access,
     }
     SERVER_END_REQ;
 
+    if (!ret && *handle) lwke_set( TRUE, *handle, access, attr, flags );
+
     free( objattr );
     return ret;
 }
@@ -1687,6 +2017,8 @@ NTSTATUS WINAPI NtOpenKeyedEvent( HANDLE *handle, ACCESS_MASK access, const OBJE
         *handle = wine_server_ptr_handle( reply->handle );
     }
     SERVER_END_REQ;
+
+    if (!ret && *handle) lwke_set( FALSE, *handle, access, attr, 0 );
     return ret;
 }
 
@@ -1702,6 +2034,14 @@ NTSTATUS WINAPI NtWaitForKeyedEvent( HANDLE handle, const void *key,
     if (!handle) handle = keyed_event;
     if ((ULONG_PTR)key & 1) return STATUS_INVALID_PARAMETER_1;
     if (alertable) flags |= SELECT_ALERTABLE;
+    else if (lwke_supported())
+    {
+        NTSTATUS status;
+        status = lwke_op( handle, key, KEYEDEVENT_WAIT, timeout );
+        if (status == STATUS_WAIT_0 || status == STATUS_TIMEOUT || status == STATUS_ACCESS_DENIED)
+            return status;
+        /* fall-through */
+    }
     select_op.keyed_event.op     = SELECT_KEYED_EVENT_WAIT;
     select_op.keyed_event.handle = wine_server_obj_handle( handle );
     select_op.keyed_event.key    = wine_server_client_ptr( key );
@@ -1721,6 +2061,14 @@ NTSTATUS WINAPI NtReleaseKeyedEvent( HANDLE handle, const void *key,
     if (!handle) handle = keyed_event;
     if ((ULONG_PTR)key & 1) return STATUS_INVALID_PARAMETER_1;
     if (alertable) flags |= SELECT_ALERTABLE;
+    else if (lwke_supported())
+    {
+        NTSTATUS status;
+        status = lwke_op( handle, key, KEYEDEVENT_WAKE, timeout );
+        if (status == STATUS_WAIT_0 || status == STATUS_TIMEOUT || status == STATUS_ACCESS_DENIED)
+            return status;
+        /* fall-through */
+    }
     select_op.keyed_event.op     = SELECT_KEYED_EVENT_RELEASE;
     select_op.keyed_event.handle = wine_server_obj_handle( handle );
     select_op.keyed_event.key    = wine_server_client_ptr( key );

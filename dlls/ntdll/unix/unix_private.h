@@ -267,6 +267,8 @@ extern void set_syscall_frame(void *frame) DECLSPEC_HIDDEN;
 
 #define IMAGE_DLLCHARACTERISTICS_PREFER_NATIVE 0x0010 /* Wine extension */
 
+extern void lwke_close( HANDLE ) DECLSPEC_HIDDEN;
+
 #define TICKSPERSEC 10000000
 #define SECS_1601_TO_1970  ((369 * 365 + 89) * (ULONGLONG)86400)
 

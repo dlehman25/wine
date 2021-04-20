@@ -1730,7 +1730,10 @@ NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source, HANDLE 
     /* always remove the cached fd; if the server request fails we'll just
      * retrieve it again */
     if (options & DUPLICATE_CLOSE_SOURCE)
+    {
         fd = remove_fd_from_cache( source );
+        if ((fd == -1) && source) lwke_close( source );
+    }
 
     SERVER_START_REQ( dup_handle )
     {
@@ -1769,6 +1772,7 @@ NTSTATUS WINAPI NtClose( HANDLE handle )
     /* always remove the cached fd; if the server request fails we'll just
      * retrieve it again */
     fd = remove_fd_from_cache( handle );
+    if ((fd == -1) && handle) lwke_close( handle );
 
     SERVER_START_REQ( close_handle )
     {
