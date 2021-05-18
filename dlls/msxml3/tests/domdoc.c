@@ -13299,11 +13299,11 @@ typedef struct _namespace_as_attribute_t {
 } namespace_as_attribute_t;
 
 static const namespace_as_attribute_t namespace_as_attribute_test_data[] = {
-    { &CLSID_DOMDocument,   "CLSID_DOMDocument",   "" },
-    { &CLSID_DOMDocument2,  "CLSID_DOMDocument2",  "" },
-    { &CLSID_DOMDocument26, "CLSID_DOMDocument26", "" },
-    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
-    { &CLSID_DOMDocument40, "CLSID_DOMDocument40", "" },
+//    { &CLSID_DOMDocument,   "CLSID_DOMDocument",   "" },
+//    { &CLSID_DOMDocument2,  "CLSID_DOMDocument2",  "" },
+//    { &CLSID_DOMDocument26, "CLSID_DOMDocument26", "" },
+//    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
+//    { &CLSID_DOMDocument40, "CLSID_DOMDocument40", "" },
     { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
     { 0 }
 };
@@ -13410,6 +13410,8 @@ static void test_namespaces_as_attributes(void)
 
                 str = NULL;
                 hr = IXMLDOMNode_get_prefix(item, &str);
+printf("%d: %p\n", i, str);
+if (str) printf("\t%ls\n", str);
                 if (test->prefixes[i])
                 {
                     ok(hr == S_OK, "Failed to get node name, hr %#x.\n", hr);
@@ -13610,6 +13612,8 @@ START_TEST(domdoc)
         return;
     }
 
+    test_namespaces_as_attributes();
+    return;
     test_createProcessingInstruction();
     test_load_with_site();
     test_domdoc();
