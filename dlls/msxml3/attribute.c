@@ -597,8 +597,8 @@ static HRESULT WINAPI domattr_get_prefix(
 
     if (ns)
     {
-        /* special case for default namespace definition (but MSXML6 returns NULL) */
-        if (xmlStrEqual(This->node.node->name, xmlns) && (xmldoc_version(This->node.node->doc) != MSXML6))
+        /* special case for default namespace definition */
+        if (xmlStrEqual(This->node.node->name, xmlns))
             *prefix = bstr_from_xmlChar(xmlns);
         else if (ns->prefix)
             *prefix = bstr_from_xmlChar(ns->prefix);
