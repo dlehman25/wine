@@ -13320,7 +13320,18 @@ static void test_namespaces_as_attributes(void)
         const char *uris[3];
         const char *texts[3];
     };
+//  xmlns=\"http://www.opengis.net/wfs
     static const struct test tests[] = {
+        /* namespace only */
+        {
+            "<a xmlns=\"http://www.opengis.net/wfs\" />", 1,
+            { "xmlns:ns" }, /* nodeName */
+            { "xmlns" },    /* prefix */
+            { "ns" },       /* baseName */
+            { "" },         /* namespaceURI */
+            { "nshref" },   /* text */
+        },
+#if 0    
         {
             "<a ns:b=\"b attr\" d=\"d attr\" xmlns:ns=\"nshref\" />", 3,
             { "ns:b",   "d",     "xmlns:ns" },  /* nodeName */
@@ -13351,7 +13362,7 @@ static void test_namespaces_as_attributes(void)
         {
             "<a />", 0,
         },
-
+#endif
         { NULL }
     };
     const struct test *test;
@@ -13381,6 +13392,8 @@ static void test_namespaces_as_attributes(void)
 
             node = NULL;
             hr = IXMLDOMDocument_selectSingleNode(doc, _bstr_("a"), &node);
+printf("hr %x node %p\n", hr, node);
+continue;
             ok(SUCCEEDED(hr), "Failed to select a node, hr %#x.\n", hr);
 
             hr = IXMLDOMNode_get_attributes(node, &map);
