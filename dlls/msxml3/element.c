@@ -1830,7 +1830,7 @@ static HRESULT domelem_get_item(const xmlNodePtr node, LONG index, IXMLDOMNode *
     if (!xmlns)
         return E_OUTOFMEMORY;
 
-    curr = xmlNewNsProp(NULL, xmlns, ns->prefix, ns->href);
+    curr = xmlNewNsProp(NULL, xmlns, ns->prefix ? ns->prefix : "", ns->href);
     if (!curr) {
         xmlFreeNs(xmlns);
         return E_OUTOFMEMORY;

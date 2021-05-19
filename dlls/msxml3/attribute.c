@@ -600,7 +600,7 @@ static HRESULT WINAPI domattr_get_prefix(
 MSXML_VERSION ver = xmldoc_version(This->node.node->doc);
 MESSAGE("%s: ver %d name %s pfx %s\n", __FUNCTION__, ver, This->node.node->name, ns->prefix);
         /* special case for default namespace definition (but MSXML6 returns NULL) */
-        if (xmlStrEqual(This->node.node->name, xmlns) && (xmldoc_version(This->node.node->doc) != MSXML6))
+        if (xmlStrEqual(This->node.node->name, xmlns)) //  && (xmldoc_version(This->node.node->doc) != MSXML6))
             *prefix = bstr_from_xmlChar(xmlns);
         else if (ns->prefix)
             *prefix = bstr_from_xmlChar(ns->prefix);

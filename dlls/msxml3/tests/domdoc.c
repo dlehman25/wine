@@ -13302,9 +13302,9 @@ static const namespace_as_attribute_t namespace_as_attribute_test_data[] = {
 //    { &CLSID_DOMDocument,   "CLSID_DOMDocument",   "" },
 //    { &CLSID_DOMDocument2,  "CLSID_DOMDocument2",  "" },
 //    { &CLSID_DOMDocument26, "CLSID_DOMDocument26", "" },
-//    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
+    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
 //    { &CLSID_DOMDocument40, "CLSID_DOMDocument40", "" },
-    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
+//    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
     { 0 }
 };
 
@@ -13324,12 +13324,13 @@ static void test_namespaces_as_attributes(void)
     static const struct test tests[] = {
         /* namespace only */
         {
-            "<a xmlns=\"http://www.opengis.net/wfs\" />", 1,
-            { "xmlns:ns" }, /* nodeName */
+//"<GetCapabilities service=\"WFS\" xmlns=\"http://www.opengis.net/wfs\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd\"/>", 4, 
+"<a xmlns=\"http://www.opengis.net/wfs\" />", 1, 
+            { "xmlns" }, /* nodeName */ // TODO: xmlns:
             { "xmlns" },    /* prefix */
-            { "ns" },       /* baseName */
-            { "" },         /* namespaceURI */
-            { "nshref" },   /* text */
+            { "" },       /* baseName */
+            { "http://www.opengis.net/wfs" },         /* namespaceURI */
+            { "http://www.opengis.net/wfs" },   /* text */
         },
 #if 0    
         {
@@ -13392,8 +13393,6 @@ static void test_namespaces_as_attributes(void)
 
             node = NULL;
             hr = IXMLDOMDocument_selectSingleNode(doc, _bstr_("a"), &node);
-printf("hr %x node %p\n", hr, node);
-continue;
             ok(SUCCEEDED(hr), "Failed to select a node, hr %#x.\n", hr);
 
             hr = IXMLDOMNode_get_attributes(node, &map);
@@ -13414,6 +13413,7 @@ continue;
                 item = NULL;
                 hr = IXMLDOMNamedNodeMap_get_item(map, i, &item);
                 ok(SUCCEEDED(hr), "Failed to get item, hr %#x.\n", hr);
+                if (!item) {printf("*** %d\n", i); continue; }
 
                 str = NULL;
                 hr = IXMLDOMNode_get_nodeName(item, &str);
