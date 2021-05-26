@@ -13304,7 +13304,7 @@ static const namespace_as_attribute_t namespace_as_attribute_test_data[] = {
 //    { &CLSID_DOMDocument26, "CLSID_DOMDocument26", "" },
     { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
 //    { &CLSID_DOMDocument40, "CLSID_DOMDocument40", "" },
-//    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
+    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
     { 0 }
 };
 
@@ -13325,7 +13325,7 @@ static void test_namespaces_as_attributes(void)
         /* namespace only */
         {
 //"<GetCapabilities service=\"WFS\" xmlns=\"http://www.opengis.net/wfs\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd\"/>", 4, 
-"<a xmlns=\"http://www.opengis.net/wfs\" />", 1, 
+            "<a xmlns=\"http://www.opengis.net/wfs\"/>", 1, 
             { "xmlns" }, /* nodeName */ // TODO: xmlns:
             { "xmlns" },    /* prefix */
             { "" },       /* baseName */
@@ -13394,6 +13394,12 @@ static void test_namespaces_as_attributes(void)
             node = NULL;
             hr = IXMLDOMDocument_selectSingleNode(doc, _bstr_("a"), &node);
             ok(SUCCEEDED(hr), "Failed to select a node, hr %#x.\n", hr);
+            if (!node) 
+            {
+            printf("NULL: %s\n", test->xml);
+            ++test;
+                continue; // TODO: wfs with msxml6
+            }
 
             hr = IXMLDOMNode_get_attributes(node, &map);
             ok(SUCCEEDED(hr), "Failed to get attributes, hr %#x.\n", hr);
@@ -13424,7 +13430,7 @@ static void test_namespaces_as_attributes(void)
                 str = NULL;
                 hr = IXMLDOMNode_get_prefix(item, &str);
 printf("%d: %p\n", i, str);
-if (str) printf("\t%ls\n", str);
+if (str) printf("\t((%ls))\n", str);
                 if (test->prefixes[i])
                 {
                     ok(hr == S_OK, "Failed to get node name, hr %#x.\n", hr);
