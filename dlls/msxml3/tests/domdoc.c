@@ -13296,6 +13296,7 @@ typedef struct _namespace_as_attribute_t {
     const GUID *guid;
     const char *clsid;
     const char *xmlns_uri;
+    BOOL xmlns_null;
 } namespace_as_attribute_t;
 
 static const namespace_as_attribute_t namespace_as_attribute_test_data[] = {
@@ -13304,7 +13305,7 @@ static const namespace_as_attribute_t namespace_as_attribute_test_data[] = {
 //    { &CLSID_DOMDocument26, "CLSID_DOMDocument26", "" },
 //    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
 //    { &CLSID_DOMDocument40, "CLSID_DOMDocument40", "" },
-    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
+    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/", TRUE },
     { 0 }
 };
 
@@ -13395,13 +13396,16 @@ static void test_namespaces_as_attributes(void)
             node = NULL;
             hr = IXMLDOMDocument_selectSingleNode(doc, _bstr_("a"), &node);
             ok(SUCCEEDED(hr), "Failed to select a node, hr %#x.\n", hr);
-            if (!node) 
+/*
+            if (test->xmlns_null)
             {
-            printf("NULL: %s\n", test->xml);
-            ++test;
-                continue; // TODO: wfs with msxml6
+                test++;
+                ok(!node, "got %p\n", node);
+                continue;
             }
-
+            else
+                ok(node, "got NULL\n");
+*/
             hr = IXMLDOMNode_get_attributes(node, &map);
             ok(SUCCEEDED(hr), "Failed to get attributes, hr %#x.\n", hr);
 
