@@ -13296,16 +13296,15 @@ typedef struct _namespace_as_attribute_t {
     const GUID *guid;
     const char *clsid;
     const char *xmlns_uri;
-    BOOL xmlns_null;
 } namespace_as_attribute_t;
 
 static const namespace_as_attribute_t namespace_as_attribute_test_data[] = {
 //    { &CLSID_DOMDocument,   "CLSID_DOMDocument",   "" },
 //    { &CLSID_DOMDocument2,  "CLSID_DOMDocument2",  "" },
 //    { &CLSID_DOMDocument26, "CLSID_DOMDocument26", "" },
-//    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
+    { &CLSID_DOMDocument30, "CLSID_DOMDocument30", "" },
 //    { &CLSID_DOMDocument40, "CLSID_DOMDocument40", "" },
-    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/", TRUE },
+    { &CLSID_DOMDocument60, "CLSID_DOMDocument60", "http://www.w3.org/2000/xmlns/" },
     { 0 }
 };
 
@@ -13320,6 +13319,7 @@ static void test_namespaces_as_attributes(void)
         const char *basenames[3];
         const char *uris[3];
         const char *texts[3];
+        BOOL msxml6_null;
     };
 //  xmlns=\"http://www.opengis.net/wfs
     static const struct test tests[] = {
@@ -13333,6 +13333,7 @@ static void test_namespaces_as_attributes(void)
             { "" },       /* baseName */
             { "http://www.opengis.net/wfs" },         /* namespaceURI */
             { "http://www.opengis.net/wfs" },   /* text */
+            TRUE
         },
 #if 0    
         {
@@ -13396,16 +13397,16 @@ static void test_namespaces_as_attributes(void)
             node = NULL;
             hr = IXMLDOMDocument_selectSingleNode(doc, _bstr_("a"), &node);
             ok(SUCCEEDED(hr), "Failed to select a node, hr %#x.\n", hr);
-/*
-            if (test->xmlns_null)
+            if (test->msxml6_null && !strcmp(entry->clsid, "CLSID_DOMDocument60"))
             {
+                IXMLDOMDocument_Release(doc);
                 test++;
                 ok(!node, "got %p\n", node);
                 continue;
             }
             else
-                ok(node, "got NULL\n");
-*/
+                ok(!!node, "got NULL\n");
+
             hr = IXMLDOMNode_get_attributes(node, &map);
             ok(SUCCEEDED(hr), "Failed to get attributes, hr %#x.\n", hr);
 
