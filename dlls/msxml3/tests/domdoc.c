@@ -8586,9 +8586,8 @@ todo_wine
     node_map = NULL;
     ok(hr == S_OK, "got 0x%08x\n", hr);
     hr = IXMLDOMNode_get_attributes(node, &node_map);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
-    if (node_map) IXMLDOMNamedNodeMap_Release(node_map);
+    IXMLDOMNamedNodeMap_Release(node_map);
     IXMLDOMNode_Release(node);
     IXMLDOMProcessingInstruction_Release(pi);
 
