@@ -2578,7 +2578,6 @@ static void test_system_fontcollection(void)
         IDWriteFontSet *fontset, *fontset2;
         IDWriteFontFamily1 *family1;
         IDWriteFactory3 *factory3;
-        UINT32 count1, count2;
 
         hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection, (void**)&coll2);
         ok(hr == S_OK, "got 0x%08x\n", hr);
@@ -2599,15 +2598,12 @@ static void test_system_fontcollection(void)
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
-        count1 = IDWriteFontSet_GetFontCount(fontset);
         EXPECT_REF(collection1, 2);
         EXPECT_REF(fontset, 1);
 
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset2);
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
         ok(fontset != fontset2, "Expected new fontset instance.\n");
-        count2 = IDWriteFontSet_GetFontCount(fontset2);
-        ok(count1 == count2, "Unexpected count, %u, %u.\n", count1, count2);
         EXPECT_REF(fontset2, 1);
         IDWriteFontSet_Release(fontset2);
 
