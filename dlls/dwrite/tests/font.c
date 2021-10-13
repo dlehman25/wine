@@ -2613,6 +2613,7 @@ static void test_system_fontcollection(void)
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
+if (0)
 {
     UINT32 i, nfonts;
     nfonts = IDWriteFontSet_GetFontCount(fontset);

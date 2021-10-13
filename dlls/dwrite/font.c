@@ -3128,6 +3128,16 @@ static HRESULT WINAPI dwritefontcollection1_GetFontSet(IDWriteFontCollection3 *i
     UINT32 j, nfonts;
     HRESULT hr;
 
+
+{
+UINT32 n, sum;
+n = collection->count;
+sum = 0;
+for (i = 0; i < n; i++)
+    sum += collection->family_data[i]->count;
+MESSAGE("%s: count %u sum %u\n", __FUNCTION__, n, sum);
+}
+
     *fontset = NULL;
     if (FAILED(hr = create_fontset_builder(collection->factory, &builder)))
         return hr;
