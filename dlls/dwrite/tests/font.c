@@ -2614,9 +2614,50 @@ static void test_system_fontcollection(void)
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
 {
-    UINT32 nfonts;
+    UINT32 i, nfonts;
     nfonts = IDWriteFontSet_GetFontCount(fontset);
     printf("&&&&&& %u\n", nfonts);
+    for (i = 0; i < nfonts; i++)
+    {
+        WCHAR buffer1[256];
+        WCHAR buffer2[256];
+        UINT32 nfams, nnames;
+        UINT32 j;
+        IDWriteFontFaceReference *ref = NULL;
+        IDWriteLocalizedStrings *names = NULL;
+        IDWriteLocalizedStrings *fams = NULL;
+        IDWriteFontFace3 *face = NULL;
+
+        IDWriteFontSet_GetFontFaceReference(fontset, i, &ref);
+        IDWriteFontFaceReference_CreateFontFace(ref, &face);
+
+        IDWriteFontFace3_GetFamilyNames(face, &fams);
+        nfams = IDWriteLocalizedStrings_GetCount(fams);
+        for (j = 0; j < nfams; j++)
+        {
+            buffer1[0] = buffer2[0] = 0;
+            IDWriteLocalizedStrings_GetLocaleName(fams, j, buffer1, sizeof(buffer1));
+            IDWriteLocalizedStrings_GetString(fams, j, buffer2, sizeof(buffer2));
+            printf("[%d] [%d] %ls %ls\n", i, j, buffer1, buffer2);
+        }
+        IDWriteLocalizedStrings_Release(fams);
+
+        IDWriteFontFace3_GetFaceNames(face, &names);
+        nnames = IDWriteLocalizedStrings_GetCount(names);
+        for (j = 0; j < nnames; j++)
+        {
+            buffer1[0] = buffer2[0] = 0;
+            IDWriteLocalizedStrings_GetLocaleName(names, j, buffer1, sizeof(buffer1));
+            IDWriteLocalizedStrings_GetString(names, j, buffer2, sizeof(buffer2));
+            printf("[%d] [%d] %ls %ls\n", i, j, buffer1, buffer2);
+        }
+        IDWriteLocalizedStrings_Release(names);
+
+        printf("-------------------------------------\n");
+
+        IDWriteFontFace3_Release(face);
+        IDWriteFontFaceReference_Release(ref);
+    }
 }
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
         EXPECT_REF(collection1, 2);
