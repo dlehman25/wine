@@ -2592,11 +2592,32 @@ static void test_system_fontcollection(void)
         hr = IDWriteFontCollection1_GetFontFamily(collection1, 0, &family1);
         ok(hr == S_OK, "got 0x%08x\n", hr);
         IDWriteFontFamily1_Release(family1);
+        {
+            UINT32 nfamilies;
+            UINT32 nfonts;
+            UINT32 i;
+
+            nfonts = 0;
+            nfamilies = IDWriteFontCollection1_GetFontFamilyCount(collection1);
+            for (i = 0; i < nfamilies; i++)
+            {
+                if (FAILED(hr = IDWriteFontCollection1_GetFontFamily(collection1, i, &family1)))
+                    break;
+
+                nfonts += IDWriteFontFamily1_GetFontCount(family1);
+            }
+            printf("**** %u\n", nfonts);
+        }
 
         /* system fontset */
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
+{
+    UINT32 nfonts;
+    nfonts = IDWriteFontSet_GetFontCount(fontset);
+    printf("&&&&&& %u\n", nfonts);
+}
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
         EXPECT_REF(collection1, 2);
         EXPECT_REF(fontset, 1);
