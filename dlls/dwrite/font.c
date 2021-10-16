@@ -3128,7 +3128,62 @@ static HRESULT WINAPI dwritefontcollection1_GetFontSet(IDWriteFontCollection3 *i
     UINT32 j, nfonts;
     HRESULT hr;
 
+{
+    for (i = 0; i < collection->count; ++i)
+    {
+        struct dwrite_fontfamily_data *family_data = collection->family_data[i];
 
+        for (j = 0; j < family_data->count; ++j)
+        {
+            struct dwrite_font_data *font_data = family_data->fonts[j];
+            UINT32 key_size;
+            const void *key;
+            UINT32 k, count;
+
+            printf("[%u][%u] %x %x %x %x %x %x %ls\n", i, j, 
+                font_data->style,
+                font_data->stretch,
+                font_data->weight,
+                font_data->flags,
+                font_data->face_type,
+                font_data->face_index,
+                font_data->facename);
+            count = IDWriteLocalizedStrings_GetCount(font_data->names);
+            for (k = 0; k < count; k++)
+            {
+                WCHAR buffer[255];
+                hr = IDWriteLocalizedStrings_GetString(font_data->names, k, buffer, ARRAY_SIZE(buffer));
+                if (SUCCEEDED(hr))
+                    printf("[%u][%u][%u] names: %ls\n", i, j, k, buffer);
+            }
+            count = IDWriteLocalizedStrings_GetCount(font_data->family_names);
+            for (k = 0; k < count; k++)
+            {
+                WCHAR buffer[255];
+                hr = IDWriteLocalizedStrings_GetString(font_data->names, k, buffer, ARRAY_SIZE(buffer));
+                if (SUCCEEDED(hr))
+                    printf("[%u][%u][%u] family_names: %ls\n", i, j, k, buffer);
+            }
+            
+            key = NULL;
+            hr = IDWriteFontFile_GetReferenceKey(font_data->file, &key, &key_size);
+            if (SUCCEEDED(hr))
+            {
+                WCHAR ch;
+                printf("[%u][%u] %u %p: ", i, j, key_size, key);
+                for (k = 0; k < key_size/2; k++)
+                {
+                    ch = ((WCHAR *)key)[k];
+                    printf("%c", isprint(ch) ? ch : '.');
+                }
+                printf("\n");
+            }
+        }
+    }
+}
+
+
+if (0)
 {
 UINT32 n, sum;
 n = collection->count;
@@ -3136,6 +3191,18 @@ sum = 0;
 for (i = 0; i < n; i++)
     sum += collection->family_data[i]->count;
 MESSAGE("%s: count %u sum %u\n", __FUNCTION__, n, sum);
+for (i = 0; i < n; i++)
+{
+    struct dwrite_fontfamily_data *family = collection->family_data[i];
+    UINT32 count = IDWriteLocalizedStrings_GetCount(family->familyname);
+    for (j = 0; j < count; j++)
+    {
+        WCHAR buffer[255];
+        hr = IDWriteLocalizedStrings_GetString(family->familyname, j, buffer, ARRAY_SIZE(buffer));
+        if (SUCCEEDED(hr))
+            printf("[%u][%u] %ls\n", i, j, buffer);
+    }
+}
 }
 
     *fontset = NULL;

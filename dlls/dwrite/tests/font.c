@@ -2613,6 +2613,7 @@ static void test_system_fontcollection(void)
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
+        return;
 if (0)
 {
     UINT32 i, nfonts;
@@ -10386,6 +10387,8 @@ START_TEST(font)
         return;
     }
 
+    test_system_fontcollection();
+return;
     test_object_lifetime();
     test_CreateFontFromLOGFONT();
     test_CreateBitmapRenderTarget();
