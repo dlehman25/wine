@@ -2613,6 +2613,63 @@ static void test_system_fontcollection(void)
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
+{
+    const void *key;
+    UINT32 key_size;
+    UINT32 i, j, count, count2, idx;
+    IDWriteFontFile *file;
+    IDWriteFontFace3 *face;
+    IDWriteLocalizedStrings *names;
+    IDWriteFontFaceReference *ref, *ref2;
+    count = IDWriteFontSet_GetFontCount(fontset);
+    printf("count %u\n", count);
+    for (i = 0; i < count; i++)
+    {
+        ref = NULL;
+        hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &ref);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+
+        face = NULL;
+        hr = IDWriteFontFaceReference_CreateFontFace(ref, &face);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+        ref2 = NULL;
+        hr = IDWriteFontFace3_GetFontFaceReference(face, &ref2);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+
+        idx = IDWriteFontFaceReference_GetFontFaceIndex(ref);
+
+        file = NULL;
+        hr = IDWriteFontFaceReference_GetFontFile(ref, &file);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+
+        key = NULL;
+        key_size = 0;
+        hr = IDWriteFontFile_GetReferenceKey(file, &key, &key_size);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+
+        /* ref != ref2 */
+        printf("[%u/%u]: idx %u size %u: ", i, count, idx, key_size);
+        for (j = 0; j < key_size/sizeof(WCHAR); j++)
+        {
+            WCHAR ch = ((WCHAR*)key)[j];
+            printf("%c", isprint(ch) ? ch : '.');
+        }
+        printf("\n");
+
+        hr = IDWriteFontFace3_GetFaceNames(face, &names);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+        count2 = IDWriteLocalizedStrings_GetCount(names);
+        for (j = 0; j < count2; j++)
+        {
+            WCHAR locale[128];
+            WCHAR string[128];
+            hr = IDWriteLocalizedStrings_GetLocaleName(names, j, locale, ARRAY_SIZE(locale));
+            hr = IDWriteLocalizedStrings_GetString(names, j, string, ARRAY_SIZE(string));
+            printf("\t[%u/%u] %ls %ls\n", j, count2, string, locale);
+        }
+        printf("\n====================================\n");
+    }
+}
         return;
 if (0)
 {
