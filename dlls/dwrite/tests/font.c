@@ -2595,7 +2595,9 @@ static void test_system_fontcollection(void)
         {
             UINT32 nfamilies;
             UINT32 nfonts;
-            UINT32 i;
+            UINT32 count;
+            UINT32 nnames;
+            UINT32 i, j, k;
 
             nfonts = 0;
             nfamilies = IDWriteFontCollection1_GetFontFamilyCount(collection1);
@@ -2604,9 +2606,26 @@ static void test_system_fontcollection(void)
                 if (FAILED(hr = IDWriteFontCollection1_GetFontFamily(collection1, i, &family1)))
                     break;
 
-                nfonts += IDWriteFontFamily1_GetFontCount(family1);
+                count = IDWriteFontFamily1_GetFontCount(family1);
+                nfonts += count;
+                for (j = 0; j < count; j++)
+                {
+                    IDWriteLocalizedStrings *names = NULL;
+                    hr = IDWriteFontFamily1_GetFamilyNames(family1, &names);
+                    nnames = IDWriteLocalizedStrings_GetCount(names);
+                    for (k = 0; k < nnames; k++)
+                    {
+                        WCHAR buffer1[128], buffer2[128];
+                        buffer1[0] = buffer2[0] = 0;
+                        IDWriteLocalizedStrings_GetLocaleName(names, k, buffer1, sizeof(buffer1));
+                        IDWriteLocalizedStrings_GetString(names, k, buffer2, sizeof(buffer2));
+                        printf("[%u/%u][%u/%u][%u/%u] %ls %ls\n", 
+                            i, nfamilies, j, count, k, nnames, buffer1, buffer2);
+                    }
+                }
             }
-            printf("**** %u\n", nfonts);
+            printf("**** nfonts %u nfamilies %u\n", nfonts, nfamilies);
+            printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
         }
 
         /* system fontset */
@@ -2659,6 +2678,19 @@ static void test_system_fontcollection(void)
         hr = IDWriteFontFace3_GetFaceNames(face, &names);
         if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
         count2 = IDWriteLocalizedStrings_GetCount(names);
+        printf("face names:\n");
+        for (j = 0; j < count2; j++)
+        {
+            WCHAR locale[128];
+            WCHAR string[128];
+            hr = IDWriteLocalizedStrings_GetLocaleName(names, j, locale, ARRAY_SIZE(locale));
+            hr = IDWriteLocalizedStrings_GetString(names, j, string, ARRAY_SIZE(string));
+            printf("\t[%u/%u] %ls %ls\n", j, count2, string, locale);
+        }
+        hr = IDWriteFontFace3_GetFamilyNames(face, &names);
+        if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
+        count2 = IDWriteLocalizedStrings_GetCount(names);
+        printf("family names:\n");
         for (j = 0; j < count2; j++)
         {
             WCHAR locale[128];
