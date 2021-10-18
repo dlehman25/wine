@@ -2593,11 +2593,14 @@ static void test_system_fontcollection(void)
         ok(hr == S_OK, "got 0x%08x\n", hr);
         IDWriteFontFamily1_Release(family1);
         {
+            IDWriteFontList *list;
             UINT32 nfamilies;
             UINT32 nfonts;
             UINT32 count;
+            UINT32 count2;
             UINT32 nnames;
             UINT32 i, j, k;
+            WCHAR buffer1[128], buffer2[128];
 
             nfonts = 0;
             nfamilies = IDWriteFontCollection1_GetFontFamilyCount(collection1);
@@ -2606,8 +2609,9 @@ static void test_system_fontcollection(void)
                 if (FAILED(hr = IDWriteFontCollection1_GetFontFamily(collection1, i, &family1)))
                     break;
 
-                count = IDWriteFontFamily1_GetFontCount(family1);
+                count = IDWriteFontFamily1_GetFontCount(family1);                
                 nfonts += count;
+                printf("******** %u / %u\n", i, nfamilies);
                 for (j = 0; j < count; j++)
                 {
                     IDWriteLocalizedStrings *names = NULL;
@@ -2615,7 +2619,33 @@ static void test_system_fontcollection(void)
                     nnames = IDWriteLocalizedStrings_GetCount(names);
                     for (k = 0; k < nnames; k++)
                     {
-                        WCHAR buffer1[128], buffer2[128];
+                        buffer1[0] = buffer2[0] = 0;
+                        IDWriteLocalizedStrings_GetLocaleName(names, k, buffer1, sizeof(buffer1));
+                        IDWriteLocalizedStrings_GetString(names, k, buffer2, sizeof(buffer2));
+                        printf("[%u/%u][%u/%u][%u/%u] %ls %ls\n", 
+                            i, nfamilies, j, count, k, nnames, buffer1, buffer2);
+                    }
+                }
+
+                list = NULL;
+                hr = IDWriteFontFamily1_QueryInterface(family1, &IID_IDWriteFontList1, (void **)&list);
+                count2 = IDWriteFontList_GetFontCount(list);
+                printf("[%u] count %u count2 %u\n", i, count, count2);
+                for (j = 0; j < count2; j++)
+                {
+                    IDWriteFont *font;
+                    IDWriteLocalizedStrings *names = NULL;
+
+                    IDWriteFontList_GetFont(list, j, &font);
+                    hr = IDWriteFont_GetFaceNames(font, &names);
+                    nnames = IDWriteLocalizedStrings_GetCount(names);
+                    printf("[%u/%u][%u/%u] stretch %x style %u weight %u\n", 
+                            i, nfamilies, j, count,
+                            IDWriteFont_GetStretch(font),
+                            IDWriteFont_GetStyle(font),
+                            IDWriteFont_GetWeight(font));
+                    for (k = 0; k < nnames; k++)
+                    {
                         buffer1[0] = buffer2[0] = 0;
                         IDWriteLocalizedStrings_GetLocaleName(names, k, buffer1, sizeof(buffer1));
                         IDWriteLocalizedStrings_GetString(names, k, buffer2, sizeof(buffer2));
