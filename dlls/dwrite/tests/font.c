@@ -2593,7 +2593,9 @@ static void test_system_fontcollection(void)
         ok(hr == S_OK, "got 0x%08x\n", hr);
         IDWriteFontFamily1_Release(family1);
         {
+            IDWriteFontFamily2 *family2;
             IDWriteFontList *list;
+            IDWriteFontSet1 *set;
             UINT32 nfamilies;
             UINT32 nfonts;
             UINT32 count;
@@ -2601,6 +2603,7 @@ static void test_system_fontcollection(void)
             UINT32 nnames;
             UINT32 i, j, k;
             WCHAR buffer1[128], buffer2[128];
+            DWRITE_FONT_PROPERTY_ID prop;
 
             nfonts = 0;
             nfamilies = IDWriteFontCollection1_GetFontFamilyCount(collection1);
@@ -2609,8 +2612,76 @@ static void test_system_fontcollection(void)
                 if (FAILED(hr = IDWriteFontCollection1_GetFontFamily(collection1, i, &family1)))
                     break;
 
+                hr = IDWriteFontFamily1_QueryInterface(family1, &IID_IDWriteFontFamily2, (void **)&family2);
+                hr = IDWriteFontFamily2_GetFontSet(family2, &set);            
+                count = IDWriteFontSet1_GetFontCount(set);
+                printf("XXXX set count %u\n", count);
+                for (j = 0; j < count; j++)
+                {
+                    IDWriteFontFace5 *face5;
+                    IDWriteLocalizedStrings *names = NULL;
+
+                    hr = IDWriteFontSet1_CreateFontFace(set, j, &face5);
+                    printf("[%u/%u][%u/%u] stretch %x style %u weight %u\n", 
+                            i, nfamilies, j, count,
+                            IDWriteFontFace5_GetStretch(face5),
+                            IDWriteFontFace5_GetStyle(face5),
+                            IDWriteFontFace5_GetWeight(face5));
+                    
+                    if (IDWriteFontFace5_GetStretch(face5) == 5 ||
+                        IDWriteFontFace5_GetStyle(face5) == 0 ||
+                        IDWriteFontFace5_GetWeight(face5) == 400)
+                        nfonts++;
+
+                    printf("\nfamily names from set\n");
+                    hr = IDWriteFontFace5_GetFamilyNames(face5, &names);
+                    nnames = IDWriteLocalizedStrings_GetCount(names);
+                    for (k = 0; k < nnames; k++)
+                    {
+                        buffer1[0] = buffer2[0] = 0;
+                        IDWriteLocalizedStrings_GetLocaleName(names, k, buffer1, sizeof(buffer1));
+                        IDWriteLocalizedStrings_GetString(names, k, buffer2, sizeof(buffer2));
+                        printf("[%u/%u][%u/%u][%u/%u] %ls %ls\n", 
+                            i, nfamilies, j, count, k, nnames, buffer1, buffer2);
+                    }
+                    printf("\nface names from set\n");
+                    hr = IDWriteFontFace5_GetFaceNames(face5, &names);
+                    nnames = IDWriteLocalizedStrings_GetCount(names);
+                    for (k = 0; k < nnames; k++)
+                    {
+                        buffer1[0] = buffer2[0] = 0;
+                        IDWriteLocalizedStrings_GetLocaleName(names, k, buffer1, sizeof(buffer1));
+                        IDWriteLocalizedStrings_GetString(names, k, buffer2, sizeof(buffer2));
+                        printf("[%u/%u][%u/%u][%u/%u] %ls %ls\n", 
+                            i, nfamilies, j, count, k, nnames, buffer1, buffer2);
+                    }
+
+                    printf("\nproperties\n");
+                    for (prop = DWRITE_FONT_PROPERTY_ID_NONE; prop <= DWRITE_FONT_PROPERTY_ID_FACE_NAME; prop++)
+                    {
+                        BOOL exists = FALSE;
+                        names = NULL;
+                        hr = IDWriteFontSet1_GetPropertyValues(set, j, prop, &exists, &names);
+                        if (SUCCEEDED(hr) && exists)
+                        {
+                            printf("[%u/%u][%u/%u][%u]: properties\n", 
+                                i, nfamilies, j, count, (UINT32)prop);
+                            nnames = IDWriteLocalizedStrings_GetCount(names);
+                            for (k = 0; k < nnames; k++)
+                            {
+                                buffer1[0] = buffer2[0] = 0;
+                                IDWriteLocalizedStrings_GetLocaleName(names, k, buffer1, sizeof(buffer1));
+                                IDWriteLocalizedStrings_GetString(names, k, buffer2, sizeof(buffer2));
+                                printf("\tprop %u [%u/%u] %ls %ls\n", prop,
+                                    k, nnames, buffer1, buffer2);
+                            }
+                        }
+                    }
+                }
+
+
                 count = IDWriteFontFamily1_GetFontCount(family1);                
-                nfonts += count;
+                printf("XXXX family count %u\n", count);
                 printf("******** %u / %u\n", i, nfamilies);
                 for (j = 0; j < count; j++)
                 {
@@ -2670,6 +2741,7 @@ static void test_system_fontcollection(void)
     IDWriteFontFace3 *face;
     IDWriteLocalizedStrings *names;
     IDWriteFontFaceReference *ref, *ref2;
+    DWRITE_FONT_PROPERTY_ID prop;
     count = IDWriteFontSet_GetFontCount(fontset);
     printf("count %u\n", count);
     for (i = 0; i < count; i++)
@@ -2704,6 +2776,11 @@ static void test_system_fontcollection(void)
             printf("%c", isprint(ch) ? ch : '.');
         }
         printf("\n");
+                    
+        printf("[%u/%u] stretch %x style %u weight %u\n", i, count,
+            IDWriteFontFace3_GetStretch(face),
+            IDWriteFontFace3_GetStyle(face),
+            IDWriteFontFace3_GetWeight(face));
 
         hr = IDWriteFontFace3_GetFaceNames(face, &names);
         if (FAILED(hr)) { printf("%d: hr %x\n", __LINE__, hr); return; }
@@ -2728,6 +2805,28 @@ static void test_system_fontcollection(void)
             hr = IDWriteLocalizedStrings_GetLocaleName(names, j, locale, ARRAY_SIZE(locale));
             hr = IDWriteLocalizedStrings_GetString(names, j, string, ARRAY_SIZE(string));
             printf("\t[%u/%u] %ls %ls\n", j, count2, string, locale);
+        }
+        printf("\nproperties\n");
+        for (prop = DWRITE_FONT_PROPERTY_ID_NONE; prop <= DWRITE_FONT_PROPERTY_ID_FACE_NAME; prop++)
+        {
+            BOOL exists = FALSE;
+            names = NULL;
+            hr = IDWriteFontSet_GetPropertyValues(fontset, i, prop, &exists, &names);
+            if (SUCCEEDED(hr) && exists)
+            {
+                printf("[%u/%u][%u]: properties\n", 
+                    i, count, (UINT32)prop);
+                count2 = IDWriteLocalizedStrings_GetCount(names);
+                for (j = 0; j < count2; j++)
+                {
+                    WCHAR locale[128];
+                    WCHAR string[128];
+                    IDWriteLocalizedStrings_GetLocaleName(names, j, locale, sizeof(locale));
+                    IDWriteLocalizedStrings_GetString(names, j, string, sizeof(string));
+                    printf("\tprop %u [%u/%u] %ls %ls\n", prop,
+                        j, count2, locale, string);
+                }
+            }
         }
         printf("\n====================================\n");
     }
