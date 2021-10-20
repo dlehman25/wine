@@ -10605,6 +10605,90 @@ START_TEST(font)
         return;
     }
 
+{
+    IDWriteFontCollection1 *collection;
+    IDWriteFontSetBuilder1 *builder1;
+    IDWriteLocalizedStrings *names;
+    IDWriteFontFamily1 *family;
+    IDWriteFontFace3 *fontface;
+    IDWriteFactory5 *factory;
+    IDWriteFontSet *fontset;
+    IDWriteFontFile *file;
+    IDWriteFont3 *font3;
+    WCHAR nameW[256];
+    WCHAR *path;
+    UINT32 count2;
+    UINT32 count;
+    UINT32 i, j;
+    HRESULT hr;
+
+    factory = create_factory_iid(&IID_IDWriteFactory5);
+    hr = IDWriteFactory5_CreateFontSetBuilder(factory, &builder1);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    path = create_testfontfile(test_fontfile);
+    printf("path %ls\n", path);
+
+    hr = IDWriteFactory5_CreateFontFileReference(factory, path, NULL, &file);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    hr = IDWriteFontSetBuilder1_AddFontFile(builder1, file);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    hr = IDWriteFontSetBuilder1_CreateFontSet(builder1, &fontset);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    hr = IDWriteFactory5_CreateFontCollectionFromFontSet(factory, fontset, &collection);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    count = IDWriteFontCollection1_GetFontFamilyCount(collection);
+    ok(count == 1, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+        hr = IDWriteFontFamily1_GetFamilyNames(family, &names);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+        get_enus_string(names, nameW, ARRAY_SIZE(nameW));
+        IDWriteLocalizedStrings_Release(names);
+        printf("[%u] name %ls\n", i, nameW);
+
+        count2 = IDWriteFontFamily1_GetFontCount(family);
+        ok(count2 == 4, "%d count2 %u\n", __LINE__,  count2);
+        for (j = 0; j < count2; j++)
+        {
+            hr = IDWriteFontFamily1_GetFont(family, j, &font3);
+            ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+            hr = IDWriteFont3_CreateFontFace(font3, &fontface);
+            ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+            hr = IDWriteFont3_GetFaceNames(font3, &names);
+            ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+            get_enus_string(names, nameW, ARRAY_SIZE(nameW));
+            IDWriteLocalizedStrings_Release(names);
+            printf("[%u][%u] name %ls\n", i, j, nameW);
+
+            IDWriteFontFace3_Release(fontface);
+            IDWriteFont3_Release(font3);
+        }
+
+        IDWriteFontFamily1_Release(family);
+    }
+
+    IDWriteFontCollection1_Release(collection);
+    IDWriteFontSet_Release(fontset);
+    IDWriteFontFile_Release(file);
+    IDWriteFontSetBuilder1_Release(builder1);
+    IDWriteFactory5_Release(factory);
+    DELETE_FONTFILE(path);
+    return;
+}
+
+    test_fontsetbuilder();
+return;
     test_system_fontcollection();
 return;
     test_object_lifetime();
