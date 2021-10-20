@@ -10606,6 +10606,7 @@ START_TEST(font)
     }
 
 {
+    DWRITE_FONT_SIMULATIONS font_sim;
     IDWriteFontCollection1 *collection;
     IDWriteFontSetBuilder1 *builder1;
     IDWriteLocalizedStrings *names;
@@ -10669,7 +10670,9 @@ START_TEST(font)
             ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
             get_enus_string(names, nameW, ARRAY_SIZE(nameW));
             IDWriteLocalizedStrings_Release(names);
-            printf("[%u][%u] name %ls\n", i, j, nameW);
+
+            font_sim = IDWriteFont3_GetSimulations(font3);
+            printf("[%u][%u] name %ls sim %u\n", i, j, nameW, font_sim);
 
             IDWriteFontFace3_Release(fontface);
             IDWriteFont3_Release(font3);
