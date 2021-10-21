@@ -10607,12 +10607,15 @@ START_TEST(font)
 
 {
     DWRITE_FONT_SIMULATIONS font_sim;
+    IDWriteFontCollection2 *collection2;
     IDWriteFontCollection1 *collection;
     IDWriteFontSetBuilder1 *builder1;
     IDWriteLocalizedStrings *names;
     IDWriteFontFamily1 *family;
+    IDWriteFontFace5 *fontface5;
     IDWriteFontFace3 *fontface;
     IDWriteFactory5 *factory;
+    IDWriteFontSet1 *fontset1;
     IDWriteFontSet *fontset;
     IDWriteFontFile *file;
     IDWriteFont3 *font3;
@@ -10680,6 +10683,32 @@ START_TEST(font)
 
         IDWriteFontFamily1_Release(family);
     }
+    hr = IDWriteFontCollection1_QueryInterface(collection, &IID_IDWriteFontCollection2, (void **)&collection2);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    ok(count == 1, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet1_CreateFontFace(fontset1, i, &fontface5);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+        hr = IDWriteFontFace5_GetFaceNames(fontface5, &names);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+        get_enus_string(names, nameW, ARRAY_SIZE(nameW));
+        IDWriteLocalizedStrings_Release(names);
+
+        font_sim = IDWriteFontFace5_GetSimulations(fontface5);
+        printf("[%u] name %ls sim %u\n", i, nameW, font_sim);
+
+        IDWriteFontFace5_Release(fontface5);
+    }
+
+    IDWriteFontCollection2_Release(collection2);
+    IDWriteFontSet1_Release(fontset1);
 
     IDWriteFontCollection1_Release(collection);
     IDWriteFontSet_Release(fontset);
