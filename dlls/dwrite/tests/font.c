@@ -2582,8 +2582,37 @@ static void test_system_fontcollection(void)
         hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection, (void**)&coll2);
         ok(hr == S_OK, "got 0x%08x\n", hr);
         ok(coll2 == collection, "got %p, %p\n", collection, coll2);
-        IDWriteFontCollection_Release(coll2);
+{
+    DWRITE_FONT_SIMULATIONS font_sim;
+    IDWriteLocalizedStrings *names;
+    IDWriteFontCollection2 *coll2;
+    IDWriteFontFace5 *fontface5;
+    IDWriteFontSet1 *fontset1;
+    WCHAR nameW[256];
+    UINT32 count;
 
+    hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection2, (void**)&coll2);
+    hr = IDWriteFontCollection2_GetFontSet(coll2, &fontset1);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    ok(count == 232, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet1_CreateFontFace(fontset1, i, &fontface5);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+        hr = IDWriteFontFace5_GetFaceNames(fontface5, &names);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+        get_enus_string(names, nameW, ARRAY_SIZE(nameW));
+        IDWriteLocalizedStrings_Release(names);
+
+        font_sim = IDWriteFontFace5_GetSimulations(fontface5);
+        printf("[%u] name %ls sim %u\n", i, nameW, font_sim);
+
+        IDWriteFontFace5_Release(fontface5);
+    }
+    return;
+}
+        IDWriteFontCollection_Release(coll2);
         family1 = (void*)0xdeadbeef;
         hr = IDWriteFontCollection1_GetFontFamily(collection1, ~0u, &family1);
         ok(hr == E_FAIL, "got 0x%08x\n", hr);
@@ -10605,6 +10634,7 @@ START_TEST(font)
         return;
     }
 
+if (0)
 {
     DWRITE_FONT_SIMULATIONS font_sim;
     IDWriteFontCollection2 *collection2;
@@ -10719,8 +10749,11 @@ START_TEST(font)
     return;
 }
 
+if (0)
+{
     test_fontsetbuilder();
-return;
+    return;
+}
     test_system_fontcollection();
 return;
     test_object_lifetime();
