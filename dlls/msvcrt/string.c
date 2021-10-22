@@ -2506,6 +2506,10 @@ int __cdecl memcmp(const void *ptr1, const void *ptr2, size_t n)
     "popl " SRC_REG "\n\t" \
     __ASM_CFI(".cfi_adjust_cfa_offset -4\n\t")
 
+#define MEMMOVE_SMALL
+
+#define MEMMOVE_MOVDQ "movdqa"
+
 #define MEMMOVE_MOVB \
         "movsb\n\t"
 
@@ -2529,6 +2533,30 @@ int __cdecl memcmp(const void *ptr1, const void *ptr2, size_t n)
 #define MEMMOVE_CLEANUP \
     "popq %rax\n\t" \
     __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
+
+#define MEMMOVE_SMALL \
+    "cmp $256, " LEN_REG "\n\t" \
+    "ja align_fwd\n\t" \
+    "cmp $64, " LEN_REG "\n\t" \
+    "jb copy_fwd63\n\t" \
+    "1:\n\t" \
+    "movdqu 0x00(" SRC_REG "), %xmm0\n\t" \
+    "movdqu 0x10(" SRC_REG "), %xmm1\n\t" \
+    "movdqu 0x20(" SRC_REG "), %xmm2\n\t" \
+    "movdqu 0x30(" SRC_REG "), %xmm3\n\t" \
+    "movdqu %xmm0, 0x00(" DEST_REG ")\n\t" \
+    "movdqu %xmm1, 0x10(" DEST_REG ")\n\t" \
+    "movdqu %xmm2, 0x20(" DEST_REG ")\n\t" \
+    "movdqu %xmm3, 0x30(" DEST_REG ")\n\t" \
+    "add $64, " SRC_REG "\n\t" \
+    "add $64, " DEST_REG "\n\t" \
+    "sub $64, " LEN_REG "\n\t" \
+    "cmp $64, " LEN_REG "\n\t" \
+    "jae 1b\n\t" \
+    "jmp copy_fwd63\n\t" \
+    "align_fwd:\n\t"
+
+#define MEMMOVE_MOVDQ "movdqu"
 
 #define MEMMOVE_MOVB \
         "movb (" SRC_REG "), %al\n\t" \
@@ -2562,6 +2590,7 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "sub " SRC_REG ", " TMP_REG "\n\t"
         "cmp " LEN_REG ", " TMP_REG "\n\t"
         "jb copy_bwd\n\t"
+        MEMMOVE_SMALL
         /* copy forwards */
         "cmp $4, " LEN_REG "\n\t" /* 4-bytes align */
         "jb copy_fwd3\n\t"
@@ -2599,10 +2628,10 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "movdqu 0x10(" SRC_REG "), %xmm1\n\t"
         "movdqu 0x20(" SRC_REG "), %xmm2\n\t"
         "movdqu 0x30(" SRC_REG "), %xmm3\n\t"
-        "movdqa %xmm0, 0x00(" DEST_REG ")\n\t"
-        "movdqa %xmm1, 0x10(" DEST_REG ")\n\t"
-        "movdqa %xmm2, 0x20(" DEST_REG ")\n\t"
-        "movdqa %xmm3, 0x30(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm0, 0x00(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm1, 0x10(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm2, 0x20(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm3, 0x30(" DEST_REG ")\n\t"
         "add $64, " SRC_REG "\n\t"
         "add $64, " DEST_REG "\n\t"
         "sub $64, " LEN_REG "\n\t"
@@ -2614,7 +2643,7 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "shr $5, " TMP_REG "\n\t"
         "jnc 1f\n\t"
         "movdqu 0(" SRC_REG "), %xmm0\n\t"
-        "movdqa %xmm0, 0(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm0, 0(" DEST_REG ")\n\t"
         "add $16, " SRC_REG "\n\t"
         "add $16, " DEST_REG "\n\t"
         "1:\n\t"
@@ -2622,8 +2651,8 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "jnc copy_fwd15\n\t"
         "movdqu 0x00(" SRC_REG "), %xmm0\n\t"
         "movdqu 0x10(" SRC_REG "), %xmm1\n\t"
-        "movdqa %xmm0, 0x00(" DEST_REG ")\n\t"
-        "movdqa %xmm1, 0x10(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm0, 0x00(" DEST_REG ")\n\t"
+        MEMMOVE_MOVDQ "%xmm1, 0x10(" DEST_REG ")\n\t"
         "add $32, " SRC_REG "\n\t"
         "add $32, " DEST_REG "\n\t"
         "copy_fwd15:\n\t" /* copy last 15 bytes, dest 4-bytes aligned */
