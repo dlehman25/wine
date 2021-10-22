@@ -2460,15 +2460,20 @@ static void test_system_fontcollection(void)
     IDWriteFontCollection2 *collection2;
     IDWriteFontCollection3 *collection3;
     IDWriteFactory *factory, *factory2;
+    IDWriteFontFaceReference *fontref;
     IDWriteFontFileLoader *loader;
     IDWriteFontFamily *family;
     IDWriteFontFace *fontface;
     IDWriteFactory6 *factory6;
     IDWriteFontFile *file;
     IDWriteFont *font;
+    UINT32 nfamilies;
+    UINT32 nfonts;
+    UINT32 count2;
+    UINT32 count;
+    UINT32 i, j;
     HRESULT hr;
     ULONG ref;
-    UINT32 i;
     BOOL ret;
 
     factory = create_factory();
@@ -2597,11 +2602,8 @@ static void test_system_fontcollection(void)
         EXPECT_REF(collection1, 2);
         EXPECT_REF(factory, 2);
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset);
-    todo_wine
         ok(hr == S_OK, "Failed to get fontset, hr %#x.\n", hr);
-    if (hr == S_OK) {
         EXPECT_REF(collection1, 2);
-        EXPECT_REF(factory, 2);
         EXPECT_REF(fontset, 1);
 
         hr = IDWriteFontCollection1_GetFontSet(collection1, &fontset2);
@@ -2613,18 +2615,37 @@ static void test_system_fontcollection(void)
         hr = IDWriteFactory_QueryInterface(factory, &IID_IDWriteFactory3, (void **)&factory3);
         ok(hr == S_OK, "Failed to get IDWriteFactory3 interface, hr %#x.\n", hr);
 
-        EXPECT_REF(factory, 3);
         hr = IDWriteFactory3_GetSystemFontSet(factory3, &fontset2);
         ok(hr == S_OK, "Failed to get system font set, hr %#x.\n", hr);
         ok(fontset != fontset2, "Expected new fontset instance.\n");
         EXPECT_REF(fontset2, 1);
-        EXPECT_REF(factory, 4);
+
+        count = IDWriteFontSet_GetFontCount(fontset);
+        count2 = 0;
+        nfamilies = IDWriteFontCollection1_GetFontFamilyCount(collection1);
+        for (i = 0; i < nfamilies; i++)
+        {
+            hr = IDWriteFontCollection1_GetFontFamily(collection1, i, &family1);
+            ok(hr == S_OK, "Failed to get font family, hr %#x.\n", hr);
+
+            nfonts = IDWriteFontFamily1_GetFontCount(family1);
+            for (j = 0; j < nfonts; j++)
+            {
+                hr = IDWriteFontFamily1_GetFontFaceReference(family1, j, &fontref);
+                ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+                if (!IDWriteFontFaceReference_GetSimulations(fontref))
+                    count2++;
+                IDWriteFontFaceReference_Release(fontref);
+            }
+            IDWriteFontFamily1_Release(family1);
+        }
+        ok(count == count2, "Expected %#x, got %#x\n", count, count2);
 
         IDWriteFontSet_Release(fontset2);
         IDWriteFontSet_Release(fontset);
 
         IDWriteFactory3_Release(factory3);
-    }
         IDWriteFontCollection1_Release(collection1);
     }
     else

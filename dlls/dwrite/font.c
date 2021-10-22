@@ -3117,9 +3117,42 @@ static HRESULT WINAPI dwritefontcollection_GetFontFromFontFace(IDWriteFontCollec
 
 static HRESULT WINAPI dwritefontcollection1_GetFontSet(IDWriteFontCollection3 *iface, IDWriteFontSet **fontset)
 {
-    FIXME("%p, %p.\n", iface, fontset);
+    struct dwrite_fontcollection *collection = impl_from_IDWriteFontCollection3(iface);
+    IDWriteFontSetBuilder2 *builder;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFamily2 *family;
+    UINT32 i, nfamilies;
+    UINT32 j, nfonts;
+    HRESULT hr;
 
-    return E_NOTIMPL;
+    *fontset = NULL;
+    if (FAILED(hr = create_fontset_builder(collection->factory, &builder)))
+        return hr;
+
+    nfamilies = IDWriteFontCollection3_GetFontFamilyCount(iface);
+    for (i = 0; i < nfamilies; i++)
+    {
+        if (FAILED(hr = IDWriteFontCollection3_GetFontFamily(iface, i, &family)))
+            break;
+
+        nfonts = IDWriteFontFamily2_GetFontCount(family);
+        for (j = 0; j < nfonts; j++)
+        {
+            if (FAILED(hr = IDWriteFontFamily2_GetFontFaceReference(family, j, &ref)))
+                break;
+            if (IDWriteFontFaceReference_GetSimulations(ref) == DWRITE_FONT_SIMULATIONS_NONE)
+                hr = IDWriteFontSetBuilder2_AddFontFaceReference(builder, ref);
+            IDWriteFontFaceReference_Release(ref);
+            if (FAILED(hr))
+                break;
+        }
+        IDWriteFontFamily2_Release(family);
+    }
+
+    if (SUCCEEDED(hr))
+        hr = IDWriteFontSetBuilder2_CreateFontSet(builder, fontset);
+    IDWriteFontSetBuilder2_Release(builder);
+    return hr;
 }
 
 static HRESULT WINAPI dwritefontcollection1_GetFontFamily(IDWriteFontCollection3 *iface, UINT32 index,
