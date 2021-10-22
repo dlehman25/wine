@@ -2506,27 +2506,48 @@ int __cdecl memcmp(const void *ptr1, const void *ptr2, size_t n)
     "popl " SRC_REG "\n\t" \
     __ASM_CFI(".cfi_adjust_cfa_offset -4\n\t")
 
+#define MEMMOVE_MOVB \
+        "movsb\n\t"
+
+#define MEMMOVE_MOVW \
+        "movsw\n\t"
+
+#define MEMMOVE_MOVL \
+        "movsl\n\t"
+
 #else
 
-#define DEST_REG "%rdi"
-#define SRC_REG "%rsi"
+#define DEST_REG "%rcx"
+#define SRC_REG "%rdx"
 #define LEN_REG "%r8"
 #define TMP_REG "%r9"
 
 #define MEMMOVE_INIT \
-    "pushq " SRC_REG "\n\t" \
-    __ASM_CFI(".cfi_adjust_cfa_offset 8\n\t") \
     "pushq " DEST_REG "\n\t" \
-    __ASM_CFI(".cfi_adjust_cfa_offset 8\n\t") \
-    "movq %rcx, " DEST_REG "\n\t" \
-    "movq %rdx, " SRC_REG "\n\t"
+    __ASM_CFI(".cfi_adjust_cfa_offset 8\n\t")
 
 #define MEMMOVE_CLEANUP \
-    "movq %rcx, %rax\n\t" \
-    "popq " DEST_REG "\n\t" \
-    __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t") \
-    "popq " SRC_REG "\n\t" \
+    "popq %rax\n\t" \
     __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
+
+#define MEMMOVE_MOVB \
+        "movb (" SRC_REG "), %al\n\t" \
+        "movb %al, (" DEST_REG ")\n\t" \
+        "inc " SRC_REG "\n\t" \
+        "inc " DEST_REG "\n\t"
+
+#define MEMMOVE_MOVW \
+        "movw (" SRC_REG "), %ax\n\t" \
+        "movw %ax, (" DEST_REG ")\n\t" \
+        "add $2, " SRC_REG "\n\t" \
+        "add $2, " DEST_REG "\n\t"
+
+#define MEMMOVE_MOVL \
+        "movl (" SRC_REG "), %eax\n\t" \
+        "movl %eax, (" DEST_REG ")\n\t" \
+        "add $4, " SRC_REG "\n\t" \
+        "add $4, " DEST_REG "\n\t"
+
 #endif
 
 #ifdef __x86_64__
@@ -2547,13 +2568,13 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "mov " DEST_REG ", " TMP_REG "\n\t"
         "shr $1, " TMP_REG "\n\t"
         "jnc 1f\n\t"
-        "movsb\n\t"
+        MEMMOVE_MOVB
         "dec " LEN_REG "\n\t"
         "inc " TMP_REG "\n\t"
         "1:\n\t"
         "shr $1, " TMP_REG "\n\t"
         "jnc 1f\n\t"
-        "movsw\n\t"
+        MEMMOVE_MOVW
         "sub $2, " LEN_REG "\n\t"
         "inc " TMP_REG "\n\t"
         "1:\n\t" /* 16-bytes align */
@@ -2561,14 +2582,14 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "jb copy_fwd15\n\t"
         "shr $1, " TMP_REG "\n\t"
         "jnc 1f\n\t"
-        "movsl\n\t"
+        MEMMOVE_MOVL
         "sub $4, " LEN_REG "\n\t"
         "inc " TMP_REG "\n\t"
         "1:\n\t"
         "shr $1, " TMP_REG "\n\t"
         "jnc 1f\n\t"
-        "movsl\n\t"
-        "movsl\n\t"
+        MEMMOVE_MOVL
+        MEMMOVE_MOVL
         "sub $8, " LEN_REG "\n\t"
         "1:\n\t"
         "cmp $64, " LEN_REG "\n\t"
@@ -2610,20 +2631,20 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
         "and $3, " LEN_REG "\n\t"
         "shr $3, " TMP_REG "\n\t"
         "jnc 1f\n\t"
-        "movsl\n\t"
+        MEMMOVE_MOVL
         "1:\n\t"
         "shr $1, " TMP_REG "\n\t"
         "jnc copy_fwd3\n\t"
-        "movsl\n\t"
-        "movsl\n\t"
+        MEMMOVE_MOVL
+        MEMMOVE_MOVL
         "copy_fwd3:\n\t" /* copy last 3 bytes */
         "shr $1, " LEN_REG "\n\t"
         "jnc 1f\n\t"
-        "movsb\n\t"
+        MEMMOVE_MOVB
         "1:\n\t"
         "shr $1, " LEN_REG "\n\t"
         "jnc 1f\n\t"
-        "movsw\n\t"
+        MEMMOVE_MOVW
         "1:\n\t"
         MEMMOVE_CLEANUP
         "ret\n\t"
