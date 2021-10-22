@@ -2529,8 +2529,13 @@ int __cdecl memcmp(const void *ptr1, const void *ptr2, size_t n)
     __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
 #endif
 
+#ifdef __x86_64__
+void * __cdecl memmove(void *dst, const void *src, size_t n);
+__ASM_GLOBAL_FUNC( memmove,
+#else
 void * __cdecl sse2_memmove(void *dst, const void *src, size_t n);
 __ASM_GLOBAL_FUNC( sse2_memmove,
+#endif
         MEMMOVE_INIT
         "mov " DEST_REG ", " TMP_REG "\n\t" /* check copying direction */
         "sub " SRC_REG ", " TMP_REG "\n\t"
@@ -2742,11 +2747,9 @@ __ASM_GLOBAL_FUNC( sse2_memmove,
 #else
 # define MERGE(w1, sh1, w2, sh2) ((w1 >> sh1) | (w2 << sh2))
 #endif
+#ifndef __x86_64__
 void * __cdecl memmove(void *dst, const void *src, size_t n)
 {
-#ifdef __x86_64__
-    return sse2_memmove(dst, src, n);
-#else
     unsigned char *d = dst;
     const unsigned char *s = src;
     int sh1;
@@ -2843,8 +2846,8 @@ void * __cdecl memmove(void *dst, const void *src, size_t n)
         while (n--) *--d = *--s;
     }
     return dst;
-#endif
 }
+#endif
 #undef MERGE
 
 /*********************************************************************
