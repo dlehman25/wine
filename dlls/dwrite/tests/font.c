@@ -2635,7 +2635,57 @@ static void test_system_fontcollection(void)
                 ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
 
                 if (!IDWriteFontFaceReference_GetSimulations(fontref))
+                {
                     count2++;
+                    // XXX
+                    {
+                        IDWriteLocalizedStrings *names;
+                        IDWriteFontFace3 *face;
+                        IDWriteFontFile *file;
+                        const void *key;
+                        UINT32 key_size;
+                        UINT32 k, c, idx;
+
+                        file = NULL;
+                        hr = IDWriteFontFaceReference_GetFontFile(fontref, &file);
+
+                        idx = IDWriteFontFaceReference_GetFontFaceIndex(fontref);
+
+                        key = NULL;
+                        key_size = 0;
+                        hr = IDWriteFontFile_GetReferenceKey(file, &key, &key_size);
+
+                        printf("[%u/%u]: idx %u size %u: ", j, nfonts, idx, key_size);
+                        for (k = 0; k < key_size/sizeof(WCHAR); k++)
+                        {
+                            WCHAR ch = ((WCHAR*)key)[k];
+                            if (isprint(ch))
+                                printf("%c", ch);
+                            else
+                                printf("%02x", ch);
+                        }
+                        printf("\n");
+        
+                        face = NULL;
+                        hr = IDWriteFontFaceReference_CreateFontFace(fontref, &face);
+                        printf("[%u/%u] stretch %x style %u weight %u\n", j, nfonts,
+                            IDWriteFontFace3_GetStretch(face),
+                            IDWriteFontFace3_GetStyle(face),
+                            IDWriteFontFace3_GetWeight(face));
+
+                        hr = IDWriteFontFace3_GetFaceNames(face, &names);
+                        c = IDWriteLocalizedStrings_GetCount(names);
+                        printf("face names:\n");
+                        for (k = 0; k < c; k++)
+                        {
+                            WCHAR locale[128];
+                            WCHAR string[128];
+                            hr = IDWriteLocalizedStrings_GetLocaleName(names, k, locale, ARRAY_SIZE(locale));
+                            hr = IDWriteLocalizedStrings_GetString(names, k, string, ARRAY_SIZE(string));
+                            printf("\t[%u/%u] %ls %ls\n", k, c, string, locale);
+                        }
+                    }
+                }
                 IDWriteFontFaceReference_Release(fontref);
             }
             IDWriteFontFamily1_Release(family1);
