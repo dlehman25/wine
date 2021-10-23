@@ -10433,6 +10433,8 @@ START_TEST(font)
     ok(SUCCEEDED(hr), "got %x\n", hr);
     countcoll1 = IDWriteFontSet_GetFontCount(fontsetcoll1);
 
+    check_familymodel(collection1, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE);
+
     hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2typo);
     ok(SUCCEEDED(hr), "got %x\n", hr);
     hr = IDWriteFontCollection2_GetFontSet(collection2typo, &fontset1typo);
