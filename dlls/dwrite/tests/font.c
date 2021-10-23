@@ -10424,6 +10424,7 @@ START_TEST(font)
     IDWriteFontCollection2 *collection2wss;
     IDWriteFontCollection1 *collection1;
     IDWriteFontCollection *collection;
+    IDWriteLocalizedStrings *names;
     IDWriteFactory6 *factory6;
     IDWriteFactory3 *factory3;
     IDWriteFontSet1 *fontset1;
@@ -10431,11 +10432,15 @@ START_TEST(font)
     IDWriteFontSet1 *fontset1wss;
     IDWriteFontSet *fontsetcoll1;
     IDWriteFontSet *fontset;
+    IDWriteFontFamily2 *family2;
+    IDWriteFontFamily1 *family1;
+    WCHAR familyW[256];
     UINT32 countcoll1;
     UINT32 counttypo;
     UINT32 countwss;
     UINT32 count;
     UINT32 num;
+    UINT32 i;
     HRESULT hr;
 
     factory6 = create_factory_iid(&IID_IDWriteFactory6);
@@ -10480,6 +10485,51 @@ START_TEST(font)
     hr = IDWriteFontCollection2_QueryInterface(collection2wss, &IID_IDWriteFontCollection, (void **)&collection);
     num = get_number_fonts(collection);
     ok(num > count, "Expected diff, got %u\n", num);
+
+    printf("families from collection1\n");
+    num = IDWriteFontCollection1_GetFontFamilyCount(collection1);
+    for (i = 0; i < num; i++)
+    {
+        hr = IDWriteFontCollection1_GetFontFamily(collection1, i, &family1);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+
+        hr = IDWriteFontFamily1_GetFamilyNames(family1, &names);
+        ok(hr == S_OK, "Failed to get family names, hr %#x.\n", hr);
+        get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+        IDWriteLocalizedStrings_Release(names);
+
+        printf("[%u/%u] %ls\n", i, num, familyW);
+    }
+
+    printf("families from TYPOGRAPHIC\n");
+    num = IDWriteFontCollection2_GetFontFamilyCount(collection2typo);
+    for (i = 0; i < num; i++)
+    {
+        hr = IDWriteFontCollection2_GetFontFamily(collection2typo, i, &family2);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+
+        hr = IDWriteFontFamily2_GetFamilyNames(family2, &names);
+        ok(hr == S_OK, "Failed to get family names, hr %#x.\n", hr);
+        get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+        IDWriteLocalizedStrings_Release(names);
+
+        printf("[%u/%u] %ls\n", i, num, familyW);
+    }
+
+    printf("families from WEIGHT_STRETCH_STYLE\n");
+    num = IDWriteFontCollection2_GetFontFamilyCount(collection2wss);
+    for (i = 0; i < num; i++)
+    {
+        hr = IDWriteFontCollection2_GetFontFamily(collection2wss, i, &family2);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+
+        hr = IDWriteFontFamily2_GetFamilyNames(family2, &names);
+        ok(hr == S_OK, "Failed to get family names, hr %#x.\n", hr);
+        get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+        IDWriteLocalizedStrings_Release(names);
+
+        printf("[%u/%u] %ls\n", i, num, familyW);
+    }
 
     return;
 }
