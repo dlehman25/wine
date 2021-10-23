@@ -10400,6 +10400,58 @@ START_TEST(font)
         return;
     }
 
+{
+    /* compare # fonts between collections from font set depending on models */
+    IDWriteFontCollection2 *collection2typo;
+    IDWriteFontCollection2 *collection2wss;
+    IDWriteFontCollection1 *collection1;
+    IDWriteFactory6 *factory6;
+    IDWriteFactory3 *factory3;
+    IDWriteFontSet1 *fontset1;
+    IDWriteFontSet1 *fontset1typo;
+    IDWriteFontSet1 *fontset1wss;
+    IDWriteFontSet *fontsetcoll1;
+    IDWriteFontSet *fontset;
+    UINT32 countcoll1;
+    UINT32 counttypo;
+    UINT32 countwss;
+    UINT32 count;
+    HRESULT hr;
+
+    factory6 = create_factory_iid(&IID_IDWriteFactory6);
+    IDWriteFactory6_GetSystemFontSet(factory6, FALSE, &fontset1);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+
+    hr = IDWriteFactory6_QueryInterface(factory6, &IID_IDWriteFactory3, (void **)&factory3);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    hr = IDWriteFontSet1_QueryInterface(fontset1, &IID_IDWriteFontSet, (void **)&fontset);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+
+    hr = IDWriteFactory3_CreateFontCollectionFromFontSet(factory3, fontset, &collection1);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    hr = IDWriteFontCollection1_GetFontSet(collection1, &fontsetcoll1);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    countcoll1 = IDWriteFontSet_GetFontCount(fontsetcoll1);
+
+    hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2typo);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    hr = IDWriteFontCollection2_GetFontSet(collection2typo, &fontset1typo);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    counttypo = IDWriteFontSet1_GetFontCount(fontset1typo);
+
+    hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2wss);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    hr = IDWriteFontCollection2_GetFontSet(collection2wss, &fontset1wss);
+    ok(SUCCEEDED(hr), "got %x\n", hr);
+    countwss = IDWriteFontSet1_GetFontCount(fontset1wss);
+
+    ok(count == countcoll1, "Expected %u, got %u\n", count, countcoll1);
+    ok(count == counttypo, "Expected %u, got %u\n", count, counttypo);
+    ok(count == countwss, "Expected %u, got %u\n", count, countwss);
+
+    return;
+}
+
     test_object_lifetime();
     test_CreateFontFromLOGFONT();
     test_CreateBitmapRenderTarget();
