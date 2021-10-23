@@ -10391,6 +10391,24 @@ if (SUCCEEDED(hr))
     DELETE_FONTFILE(path);
 }
 
+UINT32 get_number_fonts(IDWriteFontCollection *coll)
+{
+    UINT32 count;
+    UINT32 nfam;
+    UINT32 i;
+
+    count = 0;
+    nfam = IDWriteFontCollection_GetFontFamilyCount(coll);
+    for (i = 0; i < nfam; i++)
+    {
+        IDWriteFontFamily *family;
+
+        IDWriteFontCollection_GetFontFamily(coll, i, &family);
+        count += IDWriteFontFamily_GetFontCount(family);
+    }
+    return count;
+}
+
 START_TEST(font)
 {
     IDWriteFactory *factory;
@@ -10405,6 +10423,7 @@ START_TEST(font)
     IDWriteFontCollection2 *collection2typo;
     IDWriteFontCollection2 *collection2wss;
     IDWriteFontCollection1 *collection1;
+    IDWriteFontCollection *collection;
     IDWriteFactory6 *factory6;
     IDWriteFactory3 *factory3;
     IDWriteFontSet1 *fontset1;
@@ -10416,6 +10435,7 @@ START_TEST(font)
     UINT32 counttypo;
     UINT32 countwss;
     UINT32 count;
+    UINT32 num;
     HRESULT hr;
 
     factory6 = create_factory_iid(&IID_IDWriteFactory6);
@@ -10450,6 +10470,16 @@ START_TEST(font)
     ok(count == countcoll1, "Expected %u, got %u\n", count, countcoll1);
     ok(count == counttypo, "Expected %u, got %u\n", count, counttypo);
     ok(count == countwss, "Expected %u, got %u\n", count, countwss);
+
+    hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection, (void **)&collection);
+    num = get_number_fonts(collection);
+    ok(num > count, "Expected diff, got %u\n", num);
+    hr = IDWriteFontCollection2_QueryInterface(collection2typo, &IID_IDWriteFontCollection, (void **)&collection);
+    num = get_number_fonts(collection);
+    ok(count == num, "Expected %u, got %u\n", num, count);
+    hr = IDWriteFontCollection2_QueryInterface(collection2wss, &IID_IDWriteFontCollection, (void **)&collection);
+    num = get_number_fonts(collection);
+    ok(num > count, "Expected diff, got %u\n", num);
 
     return;
 }
