@@ -10424,6 +10424,7 @@ START_TEST(font)
     IDWriteFontCollection2 *collection2wss;
     IDWriteFontCollection1 *collection1;
     IDWriteFontCollection *collection;
+    IDWriteFontFaceReference *fontref;
     IDWriteLocalizedStrings *names;
     IDWriteFactory6 *factory6;
     IDWriteFactory3 *factory3;
@@ -10440,8 +10441,9 @@ START_TEST(font)
     UINT32 countwss;
     UINT32 count;
     UINT32 nfonts;
+    UINT32 nsims;
     UINT32 num;
-    UINT32 i;
+    UINT32 i, j;
     HRESULT hr;
 
     factory6 = create_factory_iid(&IID_IDWriteFactory6);
@@ -10499,9 +10501,16 @@ START_TEST(font)
         get_enus_string(names, familyW, ARRAY_SIZE(familyW));
         IDWriteLocalizedStrings_Release(names);
 
+        nsims = 0;
         nfonts = IDWriteFontFamily1_GetFontCount(family1);
+        for (j = 0; j < nfonts; j++)
+        {
+            IDWriteFontFamily1_GetFontFaceReference(family1, j, &fontref);
+            if (IDWriteFontFaceReference_GetSimulations(fontref))
+                nsims++;
+        }
 
-        printf("[%u/%u] %ls %u\n", i, num, familyW, nfonts);
+        printf("[%u/%u] %ls %u %u\n", i, num, familyW, nfonts, nsims);
     }
 
     printf("families from TYPOGRAPHIC\n");
@@ -10516,9 +10525,16 @@ START_TEST(font)
         get_enus_string(names, familyW, ARRAY_SIZE(familyW));
         IDWriteLocalizedStrings_Release(names);
 
+        nsims = 0;
         nfonts = IDWriteFontFamily2_GetFontCount(family2);
+        for (j = 0; j < nfonts; j++)
+        {
+            IDWriteFontFamily2_GetFontFaceReference(family2, j, &fontref);
+            if (IDWriteFontFaceReference_GetSimulations(fontref))
+                nsims++;
+        }
 
-        printf("[%u/%u] %ls %u\n", i, num, familyW, nfonts);
+        printf("[%u/%u] %ls %u %u\n", i, num, familyW, nfonts, nsims);
     }
 
     printf("families from WEIGHT_STRETCH_STYLE\n");
@@ -10533,9 +10549,16 @@ START_TEST(font)
         get_enus_string(names, familyW, ARRAY_SIZE(familyW));
         IDWriteLocalizedStrings_Release(names);
 
+        nsims = 0;
         nfonts = IDWriteFontFamily2_GetFontCount(family2);
+        for (j = 0; j < nfonts; j++)
+        {
+            IDWriteFontFamily2_GetFontFaceReference(family2, j, &fontref);
+            if (IDWriteFontFaceReference_GetSimulations(fontref))
+                nsims++;
+        }
 
-        printf("[%u/%u] %ls %u\n", i, num, familyW, nfonts);
+        printf("[%u/%u] %ls %u %u\n", i, num, familyW, nfonts, nsims);
     }
 
     return;
