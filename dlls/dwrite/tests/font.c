@@ -10439,6 +10439,7 @@ START_TEST(font)
     UINT32 counttypo;
     UINT32 countwss;
     UINT32 count;
+    UINT32 nfonts;
     UINT32 num;
     UINT32 i;
     HRESULT hr;
@@ -10498,7 +10499,9 @@ START_TEST(font)
         get_enus_string(names, familyW, ARRAY_SIZE(familyW));
         IDWriteLocalizedStrings_Release(names);
 
-        printf("[%u/%u] %ls\n", i, num, familyW);
+        nfonts = IDWriteFontFamily1_GetFontCount(family1);
+
+        printf("[%u/%u] %ls %u\n", i, num, familyW, nfonts);
     }
 
     printf("families from TYPOGRAPHIC\n");
@@ -10513,7 +10516,9 @@ START_TEST(font)
         get_enus_string(names, familyW, ARRAY_SIZE(familyW));
         IDWriteLocalizedStrings_Release(names);
 
-        printf("[%u/%u] %ls\n", i, num, familyW);
+        nfonts = IDWriteFontFamily2_GetFontCount(family2);
+
+        printf("[%u/%u] %ls %u\n", i, num, familyW, nfonts);
     }
 
     printf("families from WEIGHT_STRETCH_STYLE\n");
@@ -10528,7 +10533,9 @@ START_TEST(font)
         get_enus_string(names, familyW, ARRAY_SIZE(familyW));
         IDWriteLocalizedStrings_Release(names);
 
-        printf("[%u/%u] %ls\n", i, num, familyW);
+        nfonts = IDWriteFontFamily2_GetFontCount(family2);
+
+        printf("[%u/%u] %ls %u\n", i, num, familyW, nfonts);
     }
 
     return;
