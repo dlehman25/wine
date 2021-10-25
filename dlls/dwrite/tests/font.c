@@ -10409,21 +10409,10 @@ UINT32 get_number_fonts(IDWriteFontCollection *coll)
     return count;
 }
 
-START_TEST(font)
+static void dump_fontset(IDWriteFontSet1 *fontset1)
 {
-    IDWriteFactory *factory;
-
-    if (!(factory = create_factory())) {
-        win_skip("failed to create factory\n");
-        return;
-    }
-
-{
-    /* check for duplicate keys */
     IDWriteFontFaceReference1 *fontref1;
     IDWriteLocalizedStrings *names;
-    IDWriteFactory6 *factory6;
-    IDWriteFontSet1 *fontset1;
     IDWriteFontFace5 *face5;
     IDWriteFontFile *file;
     WCHAR nameW[128];
@@ -10433,8 +10422,6 @@ START_TEST(font)
     UINT32 idx;
     UINT32 i, j;
 
-    factory6 = create_factory_iid(&IID_IDWriteFactory6);
-    IDWriteFactory6_GetSystemFontSet(factory6, FALSE, &fontset1);
     count = IDWriteFontSet1_GetFontCount(fontset1);
     for (i = 0; i < count; i++)
     {
@@ -10469,6 +10456,26 @@ START_TEST(font)
             IDWriteFontFace5_GetSimulations(face5),
             nameW);
     }
+
+}
+
+START_TEST(font)
+{
+    IDWriteFactory *factory;
+
+    if (!(factory = create_factory())) {
+        win_skip("failed to create factory\n");
+        return;
+    }
+
+{
+    /* check for duplicate keys */
+    IDWriteFactory6 *factory6;
+    IDWriteFontSet1 *fontset1;
+
+    factory6 = create_factory_iid(&IID_IDWriteFactory6);
+    IDWriteFactory6_GetSystemFontSet(factory6, FALSE, &fontset1);
+    dump_fontset(fontset1);
 
     return;
 }
