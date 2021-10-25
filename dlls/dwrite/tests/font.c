@@ -10462,10 +10462,12 @@ START_TEST(font)
         IDWriteFontFaceReference1_CreateFontFace(fontref1, &face5);
         IDWriteFontFace5_GetFaceNames(face5, &names);
         get_enus_string(names, nameW, ARRAY_SIZE(nameW));
-        printf(" stretch %x style %u weight %u %ls\n",
+        printf(" stretch %x style %u weight %u sims %u %ls\n",
             IDWriteFontFace5_GetStretch(face5),
             IDWriteFontFace5_GetStyle(face5),
-            IDWriteFontFace5_GetWeight(face5), nameW);
+            IDWriteFontFace5_GetWeight(face5),
+            IDWriteFontFace5_GetSimulations(face5),
+            nameW);
     }
 
     return;
