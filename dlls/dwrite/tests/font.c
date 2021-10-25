@@ -10421,12 +10421,14 @@ START_TEST(font)
 {
     /* check for duplicate keys */
     IDWriteFontFaceReference1 *fontref1;
+    IDWriteLocalizedStrings *names;
     IDWriteFactory6 *factory6;
     IDWriteFontSet1 *fontset1;
     IDWriteFontFace5 *face5;
     IDWriteFontFile *file;
     const void *key;
     UINT32 key_size;
+    UINT32 nfaces;
     UINT32 count;
     UINT32 idx;
     UINT32 i, j;
@@ -10462,6 +10464,18 @@ START_TEST(font)
             IDWriteFontFace5_GetStretch(face5),
             IDWriteFontFace5_GetStyle(face5),
             IDWriteFontFace5_GetWeight(face5));
+
+        IDWriteFontFace5_GetFaceNames(face5, &names);
+        nfaces = IDWriteLocalizedStrings_GetCount(names);
+        printf("face names:\n");
+        for (j = 0; j < nfaces; j++)
+        {
+            WCHAR locale[128];
+            WCHAR string[128];
+            IDWriteLocalizedStrings_GetLocaleName(names, j, locale, ARRAY_SIZE(locale));
+            IDWriteLocalizedStrings_GetString(names, j, string, ARRAY_SIZE(string));
+            printf("\t[%u/%u] %ls %ls\n", j, nfaces, string, locale);
+        }
     }
 
     return;
