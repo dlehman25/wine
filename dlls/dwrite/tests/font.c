@@ -10419,6 +10419,56 @@ START_TEST(font)
     }
 
 {
+    /* check for duplicate keys */
+    IDWriteFontFaceReference1 *fontref1;
+    IDWriteFactory6 *factory6;
+    IDWriteFontSet1 *fontset1;
+    IDWriteFontFace5 *face5;
+    IDWriteFontFile *file;
+    const void *key;
+    UINT32 key_size;
+    UINT32 count;
+    UINT32 idx;
+    UINT32 i, j;
+
+    factory6 = create_factory_iid(&IID_IDWriteFactory6);
+    IDWriteFactory6_GetSystemFontSet(factory6, FALSE, &fontset1);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    for (i = 0; i < count; i++)
+    {
+        IDWriteFontSet1_GetFontFaceReference(fontset1, i, &fontref1);
+        idx = IDWriteFontFaceReference1_GetFontFaceIndex(fontref1);
+
+        file = NULL;
+        IDWriteFontFaceReference1_GetFontFile(fontref1, &file);
+
+        key = NULL;
+        key_size = 0;
+        IDWriteFontFile_GetReferenceKey(file, &key, &key_size);
+
+        printf("[%u/%u]: idx %u size %u: ", i, count, idx, key_size);
+        for (j = 0; j < key_size/sizeof(WCHAR); j++)
+        {
+            WCHAR ch = ((WCHAR*)key)[j];
+            if (isprint(ch))
+                printf("%c", ch);
+            else
+                printf("%02x", ch);
+        }
+
+        face5 = NULL;
+        IDWriteFontFaceReference1_CreateFontFace(fontref1, &face5);
+        printf(" stretch %x style %u weight %u\n",
+            IDWriteFontFace5_GetStretch(face5),
+            IDWriteFontFace5_GetStyle(face5),
+            IDWriteFontFace5_GetWeight(face5));
+    }
+
+    return;
+}
+
+
+{
     /* compare # fonts between collections from font set depending on models */
     IDWriteFontCollection2 *collection2typo;
     IDWriteFontCollection2 *collection2wss;
