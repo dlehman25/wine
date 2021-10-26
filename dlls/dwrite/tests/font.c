@@ -10542,6 +10542,17 @@ START_TEST(font)
     ok(count == counttypo, "Expected %u, got %u\n", count, counttypo);
     ok(count == countwss, "Expected %u, got %u\n", count, countwss);
 
+    if (1)
+    {
+        printf("---- original fontset:\n");
+        dump_fontset(fontset1);
+        printf("---- from Collection2 TYPO:\n");
+        dump_fontset(fontset1typo);
+        printf("---- from Collection2 WSS:\n");
+        dump_fontset(fontset1wss);
+        return;
+    }
+
     hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection, (void **)&collection);
     num = get_number_fonts(collection);
     ok(num > count, "Expected diff, got %u\n", num);
