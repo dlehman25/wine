@@ -10415,6 +10415,7 @@ static void dump_fontset(IDWriteFontSet1 *fontset1)
     IDWriteLocalizedStrings *names;
     IDWriteFontFace5 *face5;
     IDWriteFontFile *file;
+    WCHAR familyW[128];
     WCHAR nameW[128];
     const void *key;
     UINT32 key_size;
@@ -10447,14 +10448,17 @@ static void dump_fontset(IDWriteFontSet1 *fontset1)
 
         face5 = NULL;
         IDWriteFontFaceReference1_CreateFontFace(fontref1, &face5);
+        IDWriteFontFace5_GetFamilyNames(face5, &names);
+        get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+
         IDWriteFontFace5_GetFaceNames(face5, &names);
         get_enus_string(names, nameW, ARRAY_SIZE(nameW));
-        printf(" stretch %x style %u weight %u sims %u %ls\n",
+        printf(" stretch %x style %u weight %u sims %u %ls %ls\n",
             IDWriteFontFace5_GetStretch(face5),
             IDWriteFontFace5_GetStyle(face5),
             IDWriteFontFace5_GetWeight(face5),
             IDWriteFontFace5_GetSimulations(face5),
-            nameW);
+            familyW, nameW);
     }
 
 }
