@@ -598,7 +598,7 @@ struct dwritefactory
     IDWriteFactory7 IDWriteFactory7_iface;
     LONG refcount;
 
-    IDWriteFontCollection1 *system_collection;
+    IDWriteFontCollection3 *system_collection;
     IDWriteFontCollection1 *eudc_collection;
     IDWriteGdiInterop1 *gdiinterop;
     IDWriteFontFallback1 *fallback;
@@ -655,7 +655,7 @@ static void release_dwritefactory(struct dwritefactory *factory)
         release_fileloader(fileloader);
 
     if (factory->system_collection)
-        IDWriteFontCollection1_Release(factory->system_collection);
+        IDWriteFontCollection3_Release(factory->system_collection);
     if (factory->eudc_collection)
         IDWriteFontCollection1_Release(factory->eudc_collection);
     if (factory->fallback)
@@ -703,13 +703,13 @@ static struct collectionloader *factory_get_collection_loader(struct dwritefacto
     return found;
 }
 
-static IDWriteFontCollection1 *factory_get_system_collection(struct dwritefactory *factory)
+static IDWriteFontCollection3 *factory_get_system_collection(struct dwritefactory *factory)
 {
-    IDWriteFontCollection1 *collection;
+    IDWriteFontCollection3 *collection;
     HRESULT hr;
 
     if (factory->system_collection) {
-        IDWriteFontCollection1_AddRef(factory->system_collection);
+        IDWriteFontCollection3_AddRef(factory->system_collection);
         return factory->system_collection;
     }
 
@@ -720,7 +720,7 @@ static IDWriteFontCollection1 *factory_get_system_collection(struct dwritefactor
     }
 
     if (InterlockedCompareExchangePointer((void **)&factory->system_collection, collection, NULL))
-        IDWriteFontCollection1_Release(collection);
+        IDWriteFontCollection3_Release(collection);
 
     return factory->system_collection;
 }
@@ -1685,7 +1685,7 @@ static HRESULT WINAPI dwritefactory3_GetSystemFontCollection(IDWriteFactory7 *if
     if (check_for_updates)
         FIXME("checking for system font updates not implemented\n");
 
-    *collection = factory_get_system_collection(factory);
+    *collection = (IDWriteFontCollection1 *)factory_get_system_collection(factory);
 
     return *collection ? S_OK : E_FAIL;
 }

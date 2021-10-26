@@ -5013,7 +5013,7 @@ static HRESULT create_system_fontfile_enumerator(IDWriteFactory7 *factory, IDWri
     return S_OK;
 }
 
-HRESULT get_system_fontcollection(IDWriteFactory7 *factory, IDWriteFontCollection1 **collection)
+HRESULT get_system_fontcollection(IDWriteFactory7 *factory, IDWriteFontCollection3 **collection)
 {
     IDWriteFontFileEnumerator *enumerator;
     HRESULT hr;
@@ -5025,7 +5025,7 @@ HRESULT get_system_fontcollection(IDWriteFactory7 *factory, IDWriteFontCollectio
         return hr;
 
     TRACE("building system font collection for factory %p\n", factory);
-    hr = create_font_collection(factory, enumerator, TRUE, (IDWriteFontCollection3 **)collection);
+    hr = create_font_collection(factory, enumerator, TRUE, collection);
     IDWriteFontFileEnumerator_Release(enumerator);
     return hr;
 }
