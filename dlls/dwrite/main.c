@@ -1843,9 +1843,19 @@ static HRESULT WINAPI dwritefactory6_GetSystemFontSet(IDWriteFactory7 *iface, BO
 static HRESULT WINAPI dwritefactory6_GetSystemFontCollection(IDWriteFactory7 *iface, BOOL include_downloadable,
         DWRITE_FONT_FAMILY_MODEL family_model, IDWriteFontCollection2 **collection)
 {
-    FIXME("%p, %d, %d, %p.\n", iface, include_downloadable, family_model, collection);
+    struct dwritefactory *factory = impl_from_IDWriteFactory7(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %d, %d, %p.\n", iface, include_downloadable, family_model, collection);
+
+    if (include_downloadable)
+        FIXME("remote fonts are not supported\n");
+
+    if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
+        FIXME("Typographic family model not supported\n");
+
+    *collection = (IDWriteFontCollection2 *)factory_get_system_collection(factory);
+
+    return *collection ? S_OK : E_FAIL;
 }
 
 static HRESULT WINAPI dwritefactory6_CreateFontCollectionFromFontSet(IDWriteFactory7 *iface, IDWriteFontSet *fontset,

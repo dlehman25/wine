@@ -2736,12 +2736,12 @@ todo_wine
     {
         hr = IDWriteFactory6_GetSystemFontCollection(factory6, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC,
                 &collection2);
-    todo_wine
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
     if (SUCCEEDED(hr))
     {
         hr = IDWriteFactory6_GetSystemFontCollection(factory6, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &c2);
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
+    todo_wine
         ok(c2 == collection2 && collection != (IDWriteFontCollection *)c2, "Unexpected collection instance.\n");
         IDWriteFontCollection2_Release(c2);
         IDWriteFontCollection2_Release(collection2);
