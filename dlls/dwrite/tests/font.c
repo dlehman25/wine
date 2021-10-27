@@ -2522,9 +2522,12 @@ static void test_system_fontcollection(void)
     IDWriteFactory *factory, *factory2;
     IDWriteFontFaceReference *fontref;
     IDWriteFontFileLoader *loader;
+    IDWriteFontCollection2 *c2;
+    IDWriteFontCollection3 *c3;
     IDWriteFontFamily *family;
     IDWriteFontFace *fontface;
     IDWriteFactory6 *factory6;
+    IDWriteFactory7 *factory7;
     IDWriteFontFile *file;
     IDWriteFont *font;
     UINT32 nfamilies;
@@ -2731,8 +2734,6 @@ todo_wine
     hr = IDWriteFactory_QueryInterface(factory, &IID_IDWriteFactory6, (void **)&factory6);
     if (SUCCEEDED(hr))
     {
-        IDWriteFontCollection2 *c2;
-
         hr = IDWriteFactory6_GetSystemFontCollection(factory6, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC,
                 &collection2);
     todo_wine
@@ -2748,12 +2749,40 @@ todo_wine
         hr = IDWriteFactory6_GetSystemFontCollection(factory6, FALSE, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE,
                 &collection2);
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
+        ok(collection == (IDWriteFontCollection *)collection2, "Unexpected collection instance.\n");
         IDWriteFontCollection2_Release(collection2);
     }
         IDWriteFactory6_Release(factory6);
     }
     else
         win_skip("IDWriteFactory6 is not supported.\n");
+
+    hr = IDWriteFactory_QueryInterface(factory, &IID_IDWriteFactory7, (void **)&factory7);
+    if (SUCCEEDED(hr))
+    {
+        hr = IDWriteFactory7_GetSystemFontCollection(factory7, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC,
+                &collection3);
+    todo_wine
+        ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
+    if (SUCCEEDED(hr))
+    {
+        hr = IDWriteFactory7_GetSystemFontCollection(factory7, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &c3);
+        ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
+        ok(c3 == collection3 && collection != (IDWriteFontCollection *)c3, "Unexpected collection instance.\n");
+        ok(c3 == (IDWriteFontCollection3 *)c2, "Unexpected collection instance.\n");
+        IDWriteFontCollection3_Release(c3);
+        IDWriteFontCollection3_Release(collection3);
+
+        hr = IDWriteFactory7_GetSystemFontCollection(factory7, FALSE, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE,
+                &collection3);
+        ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
+        ok(collection == (IDWriteFontCollection *)collection3, "Unexpected collection instance.\n");
+        IDWriteFontCollection3_Release(collection3);
+    }
+        IDWriteFactory7_Release(factory7);
+    }
+    else
+        win_skip("IDWriteFactory7 is not supported.\n");
 
     ref = IDWriteFontCollection_Release(collection);
     ok(!ref, "Collection wasn't released, %u.\n", ref);
