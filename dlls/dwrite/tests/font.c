@@ -10657,7 +10657,7 @@ START_TEST(font)
         return;
     }
 
-if (0)
+if (1)
 {
     DWRITE_FONT_SIMULATIONS font_sim;
     IDWriteFontCollection2 *collection2;
@@ -10683,7 +10683,10 @@ if (0)
     hr = IDWriteFactory5_CreateFontSetBuilder(factory, &builder1);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
-    path = create_testfontfile(test_fontfile);
+    if (0)
+        path = create_testfontfile(test_fontfile);
+    else
+        path = wcsdup(L"c:/windows/fonts/sitka.ttc");
     printf("path %ls\n", path);
 
     hr = IDWriteFactory5_CreateFontFileReference(factory, path, NULL, &file);
@@ -10699,7 +10702,7 @@ if (0)
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
     count = IDWriteFontCollection1_GetFontFamilyCount(collection);
-    ok(count == 1, "%d count %u\n", __LINE__,  count);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
     for (i = 0; i < count; i++)
     {
         hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
