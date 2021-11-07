@@ -10661,13 +10661,13 @@ if (1)
 {
     DWRITE_FONT_SIMULATIONS font_sim;
     IDWriteFontCollection2 *collection2;
-    IDWriteFontCollection1 *collection;
+    IDWriteFontSetBuilder2 *builder2;
     IDWriteFontSetBuilder1 *builder1;
     IDWriteLocalizedStrings *names;
-    IDWriteFontFamily1 *family;
+    IDWriteFontFamily2 *family2;
     IDWriteFontFace5 *fontface5;
     IDWriteFontFace3 *fontface;
-    IDWriteFactory5 *factory;
+    IDWriteFactory7 *factory;
     IDWriteFontSet1 *fontset1;
     IDWriteFontSet *fontset;
     IDWriteFontFile *file;
@@ -10679,8 +10679,8 @@ if (1)
     UINT32 i, j;
     HRESULT hr;
 
-    factory = create_factory_iid(&IID_IDWriteFactory5);
-    hr = IDWriteFactory5_CreateFontSetBuilder(factory, &builder1);
+    factory = create_factory_iid(&IID_IDWriteFactory7);
+    hr = IDWriteFactory7_CreateFontSetBuilder(factory, &builder2);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
     if (0)
@@ -10689,37 +10689,43 @@ if (1)
         path = wcsdup(L"c:/windows/fonts/sitka.ttc");
     printf("path %ls\n", path);
 
-    hr = IDWriteFactory5_CreateFontFileReference(factory, path, NULL, &file);
+    hr = IDWriteFactory7_CreateFontFileReference(factory, path, NULL, &file);
+    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+
+    hr = IDWriteFontSetBuilder2_QueryInterface(builder2, &IID_IDWriteFontSetBuilder1, (void**)&builder1);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
     hr = IDWriteFontSetBuilder1_AddFontFile(builder1, file);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
-    hr = IDWriteFontSetBuilder1_CreateFontSet(builder1, &fontset);
+    hr = IDWriteFontSetBuilder2_CreateFontSet(builder2, &fontset);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
-    hr = IDWriteFactory5_CreateFontCollectionFromFontSet(factory, fontset, &collection);
+    if (0)
+        hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
+    else
+        hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
-    count = IDWriteFontCollection1_GetFontFamilyCount(collection);
+    count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
     ok(count == 6, "%d count %u\n", __LINE__,  count);
     for (i = 0; i < count; i++)
     {
-        hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
+        hr = IDWriteFontCollection2_GetFontFamily(collection2, i, &family2);
         ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
-        hr = IDWriteFontFamily1_GetFamilyNames(family, &names);
+        hr = IDWriteFontFamily2_GetFamilyNames(family2, &names);
         ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
         get_enus_string(names, nameW, ARRAY_SIZE(nameW));
         IDWriteLocalizedStrings_Release(names);
         printf("[%u] name %ls\n", i, nameW);
 
-        count2 = IDWriteFontFamily1_GetFontCount(family);
+        count2 = IDWriteFontFamily2_GetFontCount(family2);
         ok(count2 == 4, "%d count2 %u\n", __LINE__,  count2);
         for (j = 0; j < count2; j++)
         {
-            hr = IDWriteFontFamily1_GetFont(family, j, &font3);
+            hr = IDWriteFontFamily2_GetFont(family2, j, &font3);
             ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
             hr = IDWriteFont3_CreateFontFace(font3, &fontface);
@@ -10737,10 +10743,8 @@ if (1)
             IDWriteFont3_Release(font3);
         }
 
-        IDWriteFontFamily1_Release(family);
+        IDWriteFontFamily2_Release(family2);
     }
-    hr = IDWriteFontCollection1_QueryInterface(collection, &IID_IDWriteFontCollection2, (void **)&collection2);
-    ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
     hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
     ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
@@ -10766,11 +10770,11 @@ if (1)
     IDWriteFontCollection2_Release(collection2);
     IDWriteFontSet1_Release(fontset1);
 
-    IDWriteFontCollection1_Release(collection);
     IDWriteFontSet_Release(fontset);
     IDWriteFontFile_Release(file);
+    IDWriteFontSetBuilder2_Release(builder2);
     IDWriteFontSetBuilder1_Release(builder1);
-    IDWriteFactory5_Release(factory);
+    IDWriteFactory7_Release(factory);
     DELETE_FONTFILE(path);
     return;
 }
