@@ -10672,6 +10672,7 @@ if (1)
     IDWriteFontSet *fontset;
     IDWriteFontFile *file;
     IDWriteFont3 *font3;
+    WCHAR familyW[256];
     WCHAR nameW[256];
     WCHAR *path;
     UINT32 count2;
@@ -10756,13 +10757,18 @@ if (1)
         hr = IDWriteFontSet1_CreateFontFace(fontset1, i, &fontface5);
         ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
 
+        hr = IDWriteFontFace5_GetFamilyNames(fontface5, &names);
+        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
+        get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+        IDWriteLocalizedStrings_Release(names);
+
         hr = IDWriteFontFace5_GetFaceNames(fontface5, &names);
         ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
         get_enus_string(names, nameW, ARRAY_SIZE(nameW));
         IDWriteLocalizedStrings_Release(names);
 
         font_sim = IDWriteFontFace5_GetSimulations(fontface5);
-        printf("[%u] name %ls sim %u\n", i, nameW, font_sim);
+        printf("[%u] family %ls face %ls sim %u\n", i, familyW, nameW, font_sim);
 
         IDWriteFontFace5_Release(fontface5);
     }
