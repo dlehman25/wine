@@ -10651,6 +10651,7 @@ if (SUCCEEDED(hr))
 static void test_Sitka(void)
 {
     IDWriteFontFaceReference *fontfaceref;
+    IDWriteFontCollection2 *collection2;
     IDWriteFontSetBuilder2 *builder2;
     DWRITE_FONT_SIMULATIONS sim;
     IDWriteFactory7 *factory7;
@@ -10682,8 +10683,24 @@ static void test_Sitka(void)
     }
 
     /* create collection from font set (typo) */
+    EXPECT_REF(fontset, 1);
+    hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    EXPECT_REF(fontset, 1);
+
+    count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+    ok(count == 1, "%d count %u\n", __LINE__,  count);
+    IDWriteFontCollection2_Release(collection2);
 
     /* create collection from font set (wss) */
+    EXPECT_REF(fontset, 1);
+    hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    EXPECT_REF(fontset, 1);
+
+    count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    IDWriteFontCollection2_Release(collection2);
 
     IDWriteFontSet_Release(fontset);
     IDWriteFontSetBuilder2_Release(builder2);
