@@ -10648,6 +10648,27 @@ if (SUCCEEDED(hr))
     DELETE_FONTFILE(path);
 }
 
+static void test_Sitka(void)
+{
+    IDWriteFactory *factory;
+    IDWriteFont *font;
+    ULONG ref;
+
+    factory = create_factory();
+
+    font = get_font(factory, L"Sitka Small", DWRITE_FONT_STYLE_NORMAL);
+    if (!font) {
+        ref = IDWriteFactory_Release(factory);
+        ok(ref == 0, "factory not released, %u\n", ref);
+        skip("Sitka Small font not found.\n");
+        return;
+    }
+    IDWriteFont_Release(font);
+
+    ref = IDWriteFactory_Release(factory);
+    ok(ref == 0, "factory not released, %u\n", ref);
+}
+
 START_TEST(font)
 {
     IDWriteFactory *factory;
@@ -10857,6 +10878,7 @@ return;
     test_family_font_set();
     test_system_font_set();
     test_CreateFontCollectionFromFontSet();
+    test_Sitka();
 
     IDWriteFactory_Release(factory);
 }
