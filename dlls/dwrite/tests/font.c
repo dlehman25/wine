@@ -10650,22 +10650,44 @@ if (SUCCEEDED(hr))
 
 static void test_Sitka(void)
 {
-    IDWriteFactory *factory;
-    IDWriteFont *font;
-    ULONG ref;
+    IDWriteFontFaceReference *fontfaceref;
+    IDWriteFontSetBuilder2 *builder2;
+    DWRITE_FONT_SIMULATIONS sim;
+    IDWriteFactory7 *factory7;
+    IDWriteFontSet *fontset;
+    ULONG ref, i, count;
+    HRESULT hr;
 
-    factory = create_factory();
+    factory7 = create_factory_iid(&IID_IDWriteFactory7);
+    hr = IDWriteFactory7_CreateFontSetBuilder(factory7, &builder2);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
-    font = get_font(factory, L"Sitka Small", DWRITE_FONT_STYLE_NORMAL);
-    if (!font) {
-        ref = IDWriteFactory_Release(factory);
-        ok(ref == 0, "factory not released, %u\n", ref);
-        skip("Sitka Small font not found.\n");
-        return;
+    hr = IDWriteFontSetBuilder2_AddFontFile(builder2, L"c:/windows/fonts/sitka.ttc");
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+    hr = IDWriteFontSetBuilder2_CreateFontSet(builder2, &fontset);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+    count = IDWriteFontSet_GetFontCount(fontset);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &fontfaceref);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
+        ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
+
+        IDWriteFontFaceReference_Release(fontfaceref);
     }
-    IDWriteFont_Release(font);
 
-    ref = IDWriteFactory_Release(factory);
+    /* create collection from font set (typo) */
+
+    /* create collection from font set (wss) */
+
+    IDWriteFontSet_Release(fontset);
+    IDWriteFontSetBuilder2_Release(builder2);
+    ref = IDWriteFactory7_Release(factory7);
     ok(ref == 0, "factory not released, %u\n", ref);
 }
 
