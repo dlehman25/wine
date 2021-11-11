@@ -10670,6 +10670,7 @@ static void test_Sitka(void)
     IDWriteFactory7 *factory7;
     IDWriteFontSet1 *fontset1;
     IDWriteFontSet *fontset;
+    IDWriteFont3 *font3;
     ULONG ref, i, count;
     WCHAR buffer[256];
     HRESULT hr;
@@ -10709,6 +10710,22 @@ static void test_Sitka(void)
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
     count = IDWriteFontFamily2_GetFontCount(family2);
     ok(count == 6, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontFamily2_GetFont(family2, i, &font3);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        hr = IDWriteFont3_GetFaceNames(font3, &names);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcscmp(subfamily[i], buffer), "Expected %ls, got %ls\n", subfamily[i], buffer);
+
+        sim = IDWriteFont3_GetSimulations(font3);
+        ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "Got %u\n", sim);
+
+        IDWriteFont3_Release(font3);
+    }
     IDWriteFontFamily2_Release(family2);
 
     EXPECT_REF(collection2, 1);
@@ -10718,13 +10735,6 @@ static void test_Sitka(void)
     ok(count == 6, "%d count %u\n", __LINE__,  count);
     EXPECT_REF(collection2, 1);
     EXPECT_REF(fontset1, 1);
-    count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
-    ok(count == 1, "%d count %u\n", __LINE__,  count);
-    hr = IDWriteFontCollection2_GetFontFamily(collection2, 0, &family2);
-    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
-    count = IDWriteFontFamily2_GetFontCount(family2);
-    ok(count == 6, "%d count %u\n", __LINE__,  count);
-    IDWriteFontFamily2_Release(family2);
 
     IDWriteFontSet1_Release(fontset1);
     IDWriteFontCollection2_Release(collection2);
