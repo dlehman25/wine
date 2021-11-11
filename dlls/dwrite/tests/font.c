@@ -10650,14 +10650,27 @@ if (SUCCEEDED(hr))
 
 static void test_Sitka(void)
 {
+    static const WCHAR *subfamily[] =
+    {
+        L"Small",
+        L"Text",
+        L"Subheading",
+        L"Heading",
+        L"Display",
+        L"Banner",
+    };
+    IDWriteFontFaceReference1 *fontfaceref1;
     IDWriteFontFaceReference *fontfaceref;
     IDWriteFontCollection2 *collection2;
     IDWriteFontSetBuilder2 *builder2;
+    IDWriteLocalizedStrings *names;
     DWRITE_FONT_SIMULATIONS sim;
+    IDWriteFontFace5 *fontface5;
     IDWriteFactory7 *factory7;
     IDWriteFontSet1 *fontset1;
     IDWriteFontSet *fontset;
     ULONG ref, i, count;
+    WCHAR buffer[256];
     HRESULT hr;
 
     factory7 = create_factory_iid(&IID_IDWriteFactory7);
@@ -10718,6 +10731,31 @@ static void test_Sitka(void)
     ok(count == 6, "%d count %u\n", __LINE__,  count);
     EXPECT_REF(collection2, 1);
     EXPECT_REF(fontset1, 1);
+
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet1_GetFontFaceReference(fontset1, i, &fontfaceref1);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        hr = IDWriteFontFaceReference1_CreateFontFace(fontfaceref1, &fontface5);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        hr = IDWriteFontFace5_GetFamilyNames(fontface5, &names);
+        ok(hr == S_OK, "Failed to get family names, hr %#x.\n", hr);
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcsncmp(L"Sitka ", buffer, 6), "Got %ls\n", buffer);
+        ok(!wcscmp(&buffer[6], subfamily[i]), "Expected %ls, got %ls\n", subfamily[i], buffer);
+
+        hr = IDWriteFontFace5_GetFaceNames(fontface5, &names);
+        ok(hr == S_OK, "Failed to get face names, hr %#x.\n", hr);
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcscmp(L"Regular", buffer), "Got %ls\n", buffer);
+
+        IDWriteFontFace5_Release(fontface5);
+        IDWriteFontFaceReference1_Release(fontfaceref1);
+    }
     IDWriteFontSet1_Release(fontset1);
     IDWriteFontCollection2_Release(collection2);
 
