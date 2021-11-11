@@ -10655,6 +10655,7 @@ static void test_Sitka(void)
     IDWriteFontSetBuilder2 *builder2;
     DWRITE_FONT_SIMULATIONS sim;
     IDWriteFactory7 *factory7;
+    IDWriteFontSet1 *fontset1;
     IDWriteFontSet *fontset;
     ULONG ref, i, count;
     HRESULT hr;
@@ -10690,6 +10691,15 @@ static void test_Sitka(void)
 
     count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
     ok(count == 1, "%d count %u\n", __LINE__,  count);
+
+    EXPECT_REF(collection2, 1);
+    hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    EXPECT_REF(collection2, 1);
+    EXPECT_REF(fontset1, 1);
+    IDWriteFontSet1_Release(fontset1);
     IDWriteFontCollection2_Release(collection2);
 
     /* create collection from font set (wss) */
@@ -10700,6 +10710,15 @@ static void test_Sitka(void)
 
     count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
     ok(count == 6, "%d count %u\n", __LINE__,  count);
+
+    EXPECT_REF(collection2, 1);
+    hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    count = IDWriteFontSet1_GetFontCount(fontset1);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    EXPECT_REF(collection2, 1);
+    EXPECT_REF(fontset1, 1);
+    IDWriteFontSet1_Release(fontset1);
     IDWriteFontCollection2_Release(collection2);
 
     IDWriteFontSet_Release(fontset);
