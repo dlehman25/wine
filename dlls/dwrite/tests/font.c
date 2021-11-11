@@ -2582,59 +2582,6 @@ static void test_system_fontcollection(void)
         hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection, (void**)&coll2);
         ok(hr == S_OK, "got 0x%08x\n", hr);
         ok(coll2 == collection, "got %p, %p\n", collection, coll2);
-{
-    DWRITE_FONT_SIMULATIONS font_sim;
-    IDWriteLocalizedStrings *names;
-    IDWriteFontCollection2 *coll2;
-    IDWriteFontFace5 *fontface5;
-    IDWriteFontSet1 *fontset1;
-    WCHAR nameW[256];
-    UINT32 nfamilies;
-    UINT32 nfonts;
-    UINT32 count;
-    UINT32 j;
-
-    hr = IDWriteFontCollection1_QueryInterface(collection1, &IID_IDWriteFontCollection2, (void**)&coll2);
-    hr = IDWriteFontCollection2_GetFontSet(coll2, &fontset1);
-    count = IDWriteFontSet1_GetFontCount(fontset1);
-    ok(count == 232, "%d count %u\n", __LINE__,  count);
-    for (i = 0; i < count; i++)
-    {
-        hr = IDWriteFontSet1_CreateFontFace(fontset1, i, &fontface5);
-        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
-
-        hr = IDWriteFontFace5_GetFaceNames(fontface5, &names);
-        ok(hr == S_OK, "%d hr %x\n", __LINE__,  hr);
-        get_enus_string(names, nameW, ARRAY_SIZE(nameW));
-        IDWriteLocalizedStrings_Release(names);
-
-        font_sim = IDWriteFontFace5_GetSimulations(fontface5);
-        /* printf("[%u] name %ls sim %u\n", i, nameW, font_sim); */
-
-        IDWriteFontFace5_Release(fontface5);
-    }
-
-    nfamilies = IDWriteFontCollection2_GetFontFamilyCount(coll2);
-    ok(nfamilies == 94, "%d nfamilies %u\n", __LINE__,  nfamilies);
-    count = 0;
-    for (i = 0; i < nfamilies; i++)
-    {
-        IDWriteFontFamily2 *family;
-        IDWriteFontCollection2_GetFontFamily(coll2, i, &family);
-        nfonts = IDWriteFontFamily2_GetFontCount(family);
-//        count += nfonts;
-        for (j = 0; j < nfonts; j++)
-        {
-            IDWriteFontFaceReference *ref;
-            hr = IDWriteFontFamily2_GetFontFaceReference(family, j, &ref);
-            font_sim = IDWriteFontFaceReference_GetSimulations(ref);
-            if (!font_sim) count++;
-            //hr = IDWriteFontSetBuilder2_AddFontFaceReference(builder, ref);
-        }
-    }
-    ok(count == 232, "%d count %u\n", __LINE__,  count);
-    return;
-}
         IDWriteFontCollection_Release(coll2);
         family1 = (void*)0xdeadbeef;
         hr = IDWriteFontCollection1_GetFontFamily(collection1, ~0u, &family1);
