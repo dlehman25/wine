@@ -10460,11 +10460,19 @@ static void test_Sitka(void)
         L"Display",
         L"Banner",
     };
+    static const WCHAR *facenames[] =
+    {
+        L"Regular",
+        L"Oblique",
+        L"Bold",
+        L"Bold Oblique",
+    };
     IDWriteFontFaceReference1 *fontfaceref1;
     IDWriteFontFaceReference *fontfaceref;
     IDWriteFontCollection2 *collection2;
     IDWriteFontSetBuilder2 *builder2;
     IDWriteLocalizedStrings *names;
+    ULONG ref, i, j, count, count2;
     IDWriteFontFamily2 *family2;
     DWRITE_FONT_SIMULATIONS sim;
     IDWriteFontFace5 *fontface5;
@@ -10472,7 +10480,6 @@ static void test_Sitka(void)
     IDWriteFontSet1 *fontset1;
     IDWriteFontSet *fontset;
     IDWriteFont3 *font3;
-    ULONG ref, i, count;
     WCHAR buffer[256];
     HRESULT hr;
 
@@ -10548,6 +10555,28 @@ static void test_Sitka(void)
 
     count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
     ok(count == 6, "%d count %u\n", __LINE__,  count);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontCollection2_GetFontFamily(collection2, i, &family2);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        count2 = IDWriteFontFamily2_GetFontCount(family2);
+        ok(count2 == 4, "Got %u\n", count2);
+        for (j = 0; j < count2; j++)
+        {
+            hr = IDWriteFontFamily2_GetFont(family2, j, &font3);
+            ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+            hr = IDWriteFont3_GetFaceNames(font3, &names);
+            ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+            get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+            IDWriteLocalizedStrings_Release(names);
+            ok(!wcscmp(facenames[j], buffer), "Expected %ls, got %ls\n", facenames[j], buffer);
+
+            IDWriteFont3_Release(font3);
+        }
+
+        IDWriteFontFamily2_Release(family2);
+    }
 
     EXPECT_REF(collection2, 1);
     hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
