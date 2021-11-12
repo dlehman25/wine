@@ -10481,6 +10481,7 @@ static void test_Sitka(void)
     IDWriteFontSet *fontset;
     IDWriteFont3 *font3;
     WCHAR buffer[256];
+    BOOL exists;
     HRESULT hr;
 
     factory7 = create_factory_iid(&IID_IDWriteFactory7);
@@ -10606,6 +10607,23 @@ static void test_Sitka(void)
         get_enus_string(names, buffer, ARRAY_SIZE(buffer));
         IDWriteLocalizedStrings_Release(names);
         ok(!wcscmp(L"Regular", buffer), "Got %ls\n", buffer);
+
+        exists = FALSE;
+        hr = IDWriteFontSet1_GetPropertyValues(fontset1, i, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, &exists, &names);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        ok(exists, "Expected it to exist\n");
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcsncmp(L"Sitka ", buffer, 6), "Got %ls\n", buffer);
+        ok(!wcscmp(&buffer[6], subfamily[i]), "Expected %ls, got %ls\n", subfamily[i], buffer);
+
+        exists = FALSE;
+        hr = IDWriteFontSet1_GetPropertyValues(fontset1, i, DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME, &exists, &names);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        ok(exists, "Expected it to exist\n");
+        get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+        IDWriteLocalizedStrings_Release(names);
+        ok(!wcscmp(L"Sitka", buffer), "Got %ls\n", buffer);
 
         IDWriteFontFace5_Release(fontface5);
         IDWriteFontFaceReference1_Release(fontfaceref1);
