@@ -10510,7 +10510,8 @@ static void test_Sitka(void)
     /* create collection from font set (typo) */
     EXPECT_REF(fontset, 1);
     hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
-    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    todo_wine  ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    if (hr != S_OK) return;
     EXPECT_REF(fontset, 1);
 
     count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
