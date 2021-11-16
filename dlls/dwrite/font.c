@@ -7803,6 +7803,46 @@ static HRESULT fontset_create_from_font_data(IDWriteFactory7 *factory, struct dw
     return S_OK;
 }
 
+HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontset,
+        DWRITE_FONT_FAMILY_MODEL family_model, IDWriteFontCollection2 **collection)
+{
+    FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
+    return E_NOTIMPL;
+/*
+    struct dwritefactory *factory = impl_from_IDWriteFactory7(iface);
+    IDWriteFontFaceReference *faceref;
+    IDWriteFontCollection3 *coll;
+    IDWriteFontFace3 *face;
+    UINT32 i, count;
+    HRESULT hr;
+
+    FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
+
+    *collection = NULL;
+
+    hr = create_font_collection2(iface, &coll);
+    if (FAILED(hr))
+        return hr;
+
+    count = IDWriteFontSet_GetFontCount(fontset);
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &faceref);
+        if (FAILED(hr))
+            return hr;
+
+        hr = IDWriteFontFaceReference_CreateFontFace(faceref, &face);
+        if (FAILED(hr))
+            return hr;
+
+        IDWriteFontFaceReference_Release(faceref);
+    }
+
+    *collection = (IDWriteFontCollection2*)coll;
+    return hr;
+*/
+}
+
 static HRESULT fontset_builder_create_fontset(IDWriteFactory7 *factory, struct dwrite_fontset_entry **src_entries,
         unsigned int count, IDWriteFontSet **ret)
 {
