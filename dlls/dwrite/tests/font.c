@@ -10309,31 +10309,6 @@ static void test_family_font_set(void)
             IDWriteLocalizedStrings_Release(values);
         }
 
-{ // test properties
-unsigned int i;
-for (i = 0; i < count; i++)
-{
-    IDWriteLocalizedStrings *names;
-    WCHAR buffer[256];
-    unsigned int j;
-    BOOL exists;
-    printf("========================================= %d/%d\n", i, count);
-    for (j = DWRITE_FONT_PROPERTY_ID_NONE; j <= DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; j++)
-    {
-        exists = FALSE;
-        hr = IDWriteFontSet1_GetPropertyValues(fontset, i, j, &exists, &names);
-
-        buffer[0] = 0;
-        if (exists)
-        {
-            get_enus_string(names, buffer, ARRAY_SIZE(buffer));
-            IDWriteLocalizedStrings_Release(names);
-        }
-        printf("\t[%d] %ls\n", j, exists ? buffer : L"");
-    }
-}
-}
-
         hr = IDWriteFontSet1_CreateFontResource(fontset, 100, &resource);
         ok(hr == E_INVALIDARG, "Unexpected hr %#x.\n", hr);
 
@@ -10690,7 +10665,6 @@ START_TEST(font)
         win_skip("failed to create factory\n");
         return;
     }
-if (1) { test_family_font_set(); return; }
 if (1) { test_Sitka(); return; }
 
     test_object_lifetime();
