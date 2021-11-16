@@ -7806,7 +7806,30 @@ static HRESULT fontset_create_from_font_data(IDWriteFactory7 *factory, struct dw
 HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontset,
         DWRITE_FONT_FAMILY_MODEL family_model, IDWriteFontCollection2 **collection)
 {
+    struct dwrite_fontset *set = impl_from_IDWriteFontSet3(fontset);
+    IDWriteLocalizedStrings *values;
+    unsigned int i, j;
+
     FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
+
+    for (i = 0; i < set->count; i++)
+    {
+        //values = fontset_entry_get_property(set->entries[i], DWRITE_FONT_PROPERTY_ID_FULL_NAME);
+
+        for (j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; j <= DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME; j++)
+        {
+            // valid:
+            // DWRITE_FONT_PROPERTY_ID_FULL_NAME
+            // DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME
+            // DWRITE_FONT_PROPERTY_ID_DESIGN_SCRIPT_LANGUAGE_TAG
+            // DWRITE_FONT_PROPERTY_ID_SUPPORTED_SCRIPT_LANGUAGE_TAG
+            values = fontset_entry_get_property(set->entries[i], j);
+            printf("set %u/%u [%u] %p\n", i, set->count, j, values);
+        }
+
+        break;
+    }
+
     return E_NOTIMPL;
 /*
     struct dwritefactory *factory = impl_from_IDWriteFactory7(iface);
