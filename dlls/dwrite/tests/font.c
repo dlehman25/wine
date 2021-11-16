@@ -10250,14 +10250,16 @@ todo_wine {
 static void test_family_font_set(void)
 {
     IDWriteFontCollection *collection;
+    IDWriteLocalizedStrings *names;
     IDWriteFontFamily2 *family2;
     IDWriteFontFamily *family;
     IDWriteFactory *factory;
-    unsigned int count, refcount;
+    unsigned int i, j, count, refcount;
     IDWriteFontSet1 *fontset, *fontset2;
     IDWriteLocalizedStrings *values;
     IDWriteFontResource *resource;
     WCHAR buffW[64];
+    UINT32 index;
     BOOL exists;
     HRESULT hr;
 
@@ -10317,6 +10319,48 @@ static void test_family_font_set(void)
         IDWriteFontResource_Release(resource);
 
         IDWriteFontSet1_Release(fontset2);
+        IDWriteFontSet1_Release(fontset);
+
+        IDWriteFontFamily2_Release(family2);
+    }
+    else
+        win_skip("IDWriteFontFamily2 is not supported.\n");
+
+    IDWriteFontFamily_Release(family);
+
+    exists = FALSE;
+    index = ~0;
+    hr = IDWriteFontCollection_FindFamilyName(collection, L"Arial", &index, &exists);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    ok(exists, "got %d\n", exists);
+    ok(index != ~0, "got %u\n", index);
+
+    hr = IDWriteFontCollection_GetFontFamily(collection, index, &family);
+    ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    if (SUCCEEDED(IDWriteFontFamily_QueryInterface(family, &IID_IDWriteFontFamily2, (void **)&family2)))
+    {
+        hr = IDWriteFontFamily2_GetFontSet(family2, &fontset);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        count = IDWriteFontSet1_GetFontCount(fontset);
+        for (i = 0; i < count; i++)
+        {
+            printf("================================= %u / %u\n", i, count);
+            for (j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME;
+                 j < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; j++)
+            {
+                exists = FALSE;
+                hr = IDWriteFontSet1_GetPropertyValues(fontset, i, j, &exists, &names);
+
+                buffW[0] = 0;
+                if (exists)
+                {
+                    get_enus_string(names, buffW, ARRAY_SIZE(buffW));
+                    IDWriteLocalizedStrings_Release(names);
+                }
+                printf("\t[%d] %ls\n", j, exists ? buffW : L"");
+            }
+        }
         IDWriteFontSet1_Release(fontset);
 
         IDWriteFontFamily2_Release(family2);
