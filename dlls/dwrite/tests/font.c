@@ -10627,6 +10627,24 @@ if (!count) return;
         IDWriteLocalizedStrings_Release(names);
         ok(!wcscmp(L"Sitka", buffer), "Got %ls\n", buffer);
 
+{ // test properties
+    unsigned int j;
+    printf("============== %ls\n", buffer);
+    for (j = DWRITE_FONT_PROPERTY_ID_NONE; j <= DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; j++)
+    {
+        exists = FALSE;
+        hr = IDWriteFontSet1_GetPropertyValues(fontset1, i, j, &exists, &names);
+
+        buffer[0] = 0;
+        if (exists)
+        {
+            get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+            IDWriteLocalizedStrings_Release(names);
+        }
+        printf("\t[%d] %ls\n", j, exists ? buffer : L"");
+    }
+}
+
         IDWriteFontFace5_Release(fontface5);
         IDWriteFontFaceReference1_Release(fontfaceref1);
     }
