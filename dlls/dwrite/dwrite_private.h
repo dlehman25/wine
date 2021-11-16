@@ -314,6 +314,7 @@ extern HRESULT create_fontface(const struct fontface_desc *desc, struct list *ca
         IDWriteFontFace5 **fontface) DECLSPEC_HIDDEN;
 extern HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerator *enumerator, BOOL is_system,
        IDWriteFontCollection3 **collection) DECLSPEC_HIDDEN;
+extern HRESULT create_font_collection2(IDWriteFactory7 *factory, IDWriteFontCollection3 **collection) DECLSPEC_HIDDEN;
 extern HRESULT create_glyphrunanalysis(const struct glyphrunanalysis_desc*,IDWriteGlyphRunAnalysis**) DECLSPEC_HIDDEN;
 extern BOOL    is_system_collection(IDWriteFontCollection*) DECLSPEC_HIDDEN;
 extern HRESULT get_local_refkey(const WCHAR*,const FILETIME*,void**,UINT32*) DECLSPEC_HIDDEN;

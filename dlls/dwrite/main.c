@@ -1854,6 +1854,7 @@ static HRESULT WINAPI dwritefactory6_CreateFontCollectionFromFontSet(IDWriteFact
 {
     struct dwritefactory *factory = impl_from_IDWriteFactory7(iface);
     IDWriteFontFaceReference *faceref;
+    IDWriteFontCollection3 *coll;
     IDWriteFontFace3 *face;
     UINT32 i, count;
     HRESULT hr;
@@ -1861,6 +1862,10 @@ static HRESULT WINAPI dwritefactory6_CreateFontCollectionFromFontSet(IDWriteFact
     FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
 
     *collection = NULL;
+
+    hr = create_font_collection2(iface, &coll);
+    if (FAILED(hr))
+        return hr;
 
     count = IDWriteFontSet_GetFontCount(fontset);
     for (i = 0; i < count; i++)
@@ -1876,7 +1881,8 @@ static HRESULT WINAPI dwritefactory6_CreateFontCollectionFromFontSet(IDWriteFact
         IDWriteFontFaceReference_Release(faceref);
     }
 
-    return E_NOTIMPL;
+    *collection = (IDWriteFontCollection2*)coll;
+    return hr;
 }
 
 static HRESULT WINAPI dwritefactory6_CreateFontSetBuilder(IDWriteFactory7 *iface, IDWriteFontSetBuilder2 **builder)

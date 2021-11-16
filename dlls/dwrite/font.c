@@ -4626,6 +4626,30 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
     return hr;
 }
 
+HRESULT create_font_collection2(IDWriteFactory7 *factory, IDWriteFontCollection3 **ret)
+{
+    struct dwrite_fontcollection *collection;
+    HRESULT hr = S_OK;
+
+    *ret = NULL;
+
+    collection = heap_alloc(sizeof(struct dwrite_fontcollection));
+    if (!collection) return E_OUTOFMEMORY;
+
+    hr = init_font_collection(collection, FALSE);
+    if (FAILED(hr)) {
+        heap_free(collection);
+        return hr;
+    }
+
+    *ret = &collection->IDWriteFontCollection3_iface;
+
+    collection->factory = factory;
+    IDWriteFactory7_AddRef(factory);
+
+    return hr;
+}
+
 struct system_fontfile_enumerator
 {
     IDWriteFontFileEnumerator IDWriteFontFileEnumerator_iface;
