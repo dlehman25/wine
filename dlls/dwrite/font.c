@@ -7346,7 +7346,9 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     stream_desc.face_type = entry->face_type;
     stream_desc.face_index = entry->face_index;
 
-    if (property == DWRITE_FONT_PROPERTY_ID_FULL_NAME)
+    if (property == DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME)
+        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES, &value);
+    else if (property == DWRITE_FONT_PROPERTY_ID_FULL_NAME)
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_FULL_NAME, &value);
     else if (property == DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME)
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME, &value);
@@ -7355,7 +7357,7 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     else if (property == DWRITE_FONT_PROPERTY_ID_SUPPORTED_SCRIPT_LANGUAGE_TAG)
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_SUPPORTED_SCRIPT_LANGUAGE_TAG, &value);
     else
-        WARN("Unsupported property %u.\n", property);
+        MESSAGE("Unsupported property %u.\n", property);
 
     if (stream_desc.stream)
         IDWriteFontFileStream_Release(stream_desc.stream);

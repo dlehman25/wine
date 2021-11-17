@@ -2387,10 +2387,12 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
     has_english = FALSE;
     candidate_unicode = candidate_mac = candidate_mac_en = -1;
 
+printf("%s: count %d\n", __FUNCTION__, count);
     for (i = 0; i < count; i++)
     {
         unsigned short platform;
 
+printf("%s: %d == %d\n", __FUNCTION__, id, GET_BE_WORD(records[i].nameID));
         if (GET_BE_WORD(records[i].nameID) != id)
             continue;
 
