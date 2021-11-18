@@ -7346,7 +7346,29 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     stream_desc.face_type = entry->face_type;
     stream_desc.face_index = entry->face_index;
 
-    if (property == DWRITE_FONT_PROPERTY_ID_FULL_NAME)
+    if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT ||
+        property == DWRITE_FONT_PROPERTY_ID_STRETCH ||
+        property == DWRITE_FONT_PROPERTY_ID_STYLE)
+    {
+        struct dwrite_font_props props = { 0 };
+        WCHAR buffW[16];
+        opentype_get_font_properties(&stream_desc, &props);
+        switch (property)
+        {
+            case DWRITE_FONT_PROPERTY_ID_WEIGHT:
+                _swprintf(buffW, L"%u", props.weight);
+                break;
+            case DWRITE_FONT_PROPERTY_ID_STRETCH:
+                _swprintf(buffW, L"%u", props.stretch);
+                break;
+            case DWRITE_FONT_PROPERTY_ID_STYLE:
+                _swprintf(buffW, L"%u", props.style);
+                break;
+        }
+        create_localizedstrings(&value);
+        add_localizedstring(value, L"", buffW);
+    }
+    else if (property == DWRITE_FONT_PROPERTY_ID_FULL_NAME)
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_FULL_NAME, &value);
     else if (property == DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME)
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME, &value);
