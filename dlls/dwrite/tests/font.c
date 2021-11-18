@@ -10268,8 +10268,6 @@ static void test_family_font_set(void)
     hr = IDWriteFactory_GetSystemFontCollection(factory, &collection, FALSE);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
-if (0)
-{
     hr = IDWriteFontCollection_GetFontFamily(collection, 0, &family);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
@@ -10329,10 +10327,10 @@ if (0)
         win_skip("IDWriteFontFamily2 is not supported.\n");
 
     IDWriteFontFamily_Release(family);
-}
+
     exists = FALSE;
     index = ~0;
-    hr = IDWriteFontCollection_FindFamilyName(collection, L"Sitka Small", &index, &exists);
+    hr = IDWriteFontCollection_FindFamilyName(collection, L"Arial", &index, &exists);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
     ok(exists, "got %d\n", exists);
     ok(index != ~0, "got %u\n", index);
@@ -10352,8 +10350,6 @@ if (0)
                  j < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; j++)
             {
                 exists = FALSE;
-j = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME;
-printf("========================\n");
                 hr = IDWriteFontSet1_GetPropertyValues(fontset, i, j, &exists, &names);
 
                 buffW[0] = 0;
@@ -10363,7 +10359,6 @@ printf("========================\n");
                     IDWriteLocalizedStrings_Release(names);
                 }
                 printf("\t[%d] %ls\n", j, exists ? buffW : L"");
-return;
             }
         }
         IDWriteFontSet1_Release(fontset);
