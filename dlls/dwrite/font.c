@@ -7776,12 +7776,14 @@ static HRESULT fontset_create_entry(IDWriteFontFile *file, DWRITE_FONT_FACE_TYPE
         unsigned int face_index, unsigned int simulations, struct dwrite_fontset_entry **ret)
 {
     struct dwrite_fontset_entry *entry;
+struct dwrite_fontfile *file2 = impl_from_IDWriteFontFile(file);
 
     if (!(entry = heap_alloc_zero(sizeof(*entry))))
         return E_OUTOFMEMORY;
 
     entry->refcount = 1;
     entry->file = file;
+printf("%s: file %p %p key %p sim %x\n", __FUNCTION__, file, file2, file2->reference_key, simulations);
     IDWriteFontFile_AddRef(entry->file);
     entry->face_type = face_type;
     entry->face_index = face_index;

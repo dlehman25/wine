@@ -9779,6 +9779,12 @@ static void test_fontsetbuilder(void)
             hr = IDWriteFontSetBuilder_AddFontFaceReference(builder, ref);
             ok(hr == S_OK, "Failed to add fontface reference, hr %#x.\n", hr);
             EXPECT_REF(ref, 1);
+{
+IDWriteFontFace3 *font3;
+IDWriteFontFaceReference_CreateFontFace(ref, &font3);
+UINT32 ivalue = IDWriteFontFace3_GetWeight(font3);
+printf("%s: %d: ivalue %u\n", __FUNCTION__, __LINE__, ivalue);
+}
 
             hr = IDWriteFontSetBuilder_CreateFontSet(builder, &fontset);
             ok(hr == S_OK, "Failed to create a font set, hr %#x.\n", hr);
@@ -9800,6 +9806,7 @@ static void test_fontsetbuilder(void)
             hr = IDWriteFontSet_GetFontFaceReference(fontset, 0, &ref3);
             ok(hr == S_OK, "Failed to get font face reference, hr %#x.\n", hr);
             ok(ref2 != ref3, "Unexpected reference.\n");
+if (0)
 {
 IDWriteFontFace3 *font3;
 IDWriteFontFaceReference_CreateFontFace(ref3, &font3);
