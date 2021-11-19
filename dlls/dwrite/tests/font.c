@@ -9758,17 +9758,25 @@ IDWriteFont3 *font;
 UINT32 idx, val;
 BOOL exists;
 
+// works for Arial, but has separate ttf files, same for DejaVu Sans
+// fails for aakar, but only has medium, same for sahadeva
 hr = IDWriteFontCollection1_FindFamilyName(collection, L"Arial", &idx, &exists);
+hr = IDWriteFontCollection1_FindFamilyName(collection, L"aakar", &idx, &exists);
+hr = IDWriteFontCollection1_FindFamilyName(collection, L"Sahadeva", &idx, &exists);
+hr = IDWriteFontCollection1_FindFamilyName(collection, L"DejaVu Sans", &idx, &exists);
 hr = IDWriteFontCollection1_GetFontFamily(collection, idx, &family);
-hr = IDWriteFontFamily1_GetFont(family, 0, &font);
-val = IDWriteFont3_GetWeight(font);
-printf("val from Font3 %u\n", val);
+count = IDWriteFontFamily1_GetFontCount(family);
+for (i = 0; i < count; i++)
+{
+    hr = IDWriteFontFamily1_GetFont(family, i, &font);
+    val = IDWriteFont3_GetWeight(font);
+    printf("val from Font3 %u\n", val);
 
-hr = IDWriteFactory3_CreateFontSetBuilder(factory, &builder);
-hr = IDWriteFont3_GetFontFaceReference(font, &ref);
-hr = IDWriteFontFaceReference_CreateFontFace(ref, &font3);
-val = IDWriteFontFace3_GetWeight(font3);
-printf("val from FontFace3 %u\n", val);
+    hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+    hr = IDWriteFontFaceReference_CreateFontFace(ref, &font3);
+    val = IDWriteFontFace3_GetWeight(font3);
+    printf("val from FontFace3 %u\n", val);
+}
 return;
 }
     for (i = 0; i < count; i++) {
@@ -9794,17 +9802,17 @@ return;
 
             hr = IDWriteFont3_GetFontFaceReference(font, &ref);
             ok(hr == S_OK, "Failed to get fontface reference, hr %#x.\n", hr);
-
-            EXPECT_REF(ref, 1);
-            hr = IDWriteFontSetBuilder_AddFontFaceReference(builder, ref);
-            ok(hr == S_OK, "Failed to add fontface reference, hr %#x.\n", hr);
-            EXPECT_REF(ref, 1);
 {
 IDWriteFontFace3 *font3;
 IDWriteFontFaceReference_CreateFontFace(ref, &font3);
 UINT32 ivalue = IDWriteFontFace3_GetWeight(font3);
 printf("%s: %d: ivalue %u\n", __FUNCTION__, __LINE__, ivalue);
 }
+
+            EXPECT_REF(ref, 1);
+            hr = IDWriteFontSetBuilder_AddFontFaceReference(builder, ref);
+            ok(hr == S_OK, "Failed to add fontface reference, hr %#x.\n", hr);
+            EXPECT_REF(ref, 1);
 
             hr = IDWriteFontSetBuilder_CreateFontSet(builder, &fontset);
             ok(hr == S_OK, "Failed to create a font set, hr %#x.\n", hr);
