@@ -9827,6 +9827,7 @@ static void test_fontsetbuilder(void)
                 {
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT:
                     ivalue = IDWriteFont3_GetWeight(font);
+printf("%u\n", ivalue);
                     break;
                 case DWRITE_FONT_PROPERTY_ID_STRETCH:
                     ivalue = IDWriteFont3_GetStretch(font);
@@ -9856,8 +9857,21 @@ static void test_fontsetbuilder(void)
                     ok(hr == S_OK, "Failed to get property string, hr %#x.\n", hr);
 
                     wsprintfW(buffW, L"%u", ivalue);
-                    ok(!lstrcmpW(buffW, buff2W), "Unexpected property value %s, expected %s.\n", wine_dbgstr_w(buff2W),
+                    ok(!lstrcmpW(buffW, buff2W), "%d Unexpected property value %s, expected %s.\n", i, wine_dbgstr_w(buff2W),
                         wine_dbgstr_w(buffW));
+if (lstrcmpW(buffW, buff2W)) 
+{
+    IDWriteLocalizedStrings *names;
+    WCHAR nameW[256];
+    IDWriteFontFamily_GetFamilyNames(family, &names);
+    get_enus_string(names, nameW, ARRAY_SIZE(nameW));
+    printf("%ls\n", nameW);
+
+    IDWriteFont3_GetFaceNames(font, &names);
+    get_enus_string(names, nameW, ARRAY_SIZE(nameW));
+    printf("%ls\n", nameW);
+    exit(1);
+}
                     break;
                 default:
                     ;
