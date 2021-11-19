@@ -9751,6 +9751,26 @@ static void test_fontsetbuilder(void)
     ok(hr == S_OK, "Failed to get system collection, hr %#x.\n", hr);
     count = IDWriteFontCollection1_GetFontFamilyCount(collection);
 
+{
+IDWriteFontFamily1 *family;
+IDWriteFontFace3 *font3;
+IDWriteFont3 *font;
+UINT32 idx, val;
+BOOL exists;
+
+hr = IDWriteFontCollection1_FindFamilyName(collection, L"Arial", &idx, &exists);
+hr = IDWriteFontCollection1_GetFontFamily(collection, idx, &family);
+hr = IDWriteFontFamily1_GetFont(family, 0, &font);
+val = IDWriteFont3_GetWeight(font);
+printf("val from Font3 %u\n", val);
+
+hr = IDWriteFactory3_CreateFontSetBuilder(factory, &builder);
+hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+hr = IDWriteFontFaceReference_CreateFontFace(ref, &font3);
+val = IDWriteFontFace3_GetWeight(font3);
+printf("val from FontFace3 %u\n", val);
+return;
+}
     for (i = 0; i < count; i++) {
         IDWriteFontFamily1 *family;
         UINT32 j, fontcount;
@@ -9875,7 +9895,7 @@ printf("%s: %d: ivalue %u\n", __FUNCTION__, __LINE__, ivalue);
                         wine_dbgstr_w(buffW));
     IDWriteLocalizedStrings *names;
     WCHAR nameW[256];
-    IDWriteFontFamily_GetFamilyNames(family, &names);
+    IDWriteFontFamily1_GetFamilyNames(family, &names);
     get_enus_string(names, nameW, ARRAY_SIZE(nameW));
     printf("%ls\n", nameW);
 
