@@ -9800,11 +9800,18 @@ static void test_fontsetbuilder(void)
             hr = IDWriteFontSet_GetFontFaceReference(fontset, 0, &ref3);
             ok(hr == S_OK, "Failed to get font face reference, hr %#x.\n", hr);
             ok(ref2 != ref3, "Unexpected reference.\n");
+{
+IDWriteFontFace3 *font3;
+IDWriteFontFaceReference_CreateFontFace(ref3, &font3);
+UINT32 ivalue = IDWriteFontFace3_GetWeight(font3);
+printf("%s: %d: ivalue %u\n", __FUNCTION__, __LINE__, ivalue);
+}
 
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-            for (id = DWRITE_FONT_PROPERTY_ID_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL; ++id)
+            //for (id = DWRITE_FONT_PROPERTY_ID_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL; ++id)
+            id = DWRITE_FONT_PROPERTY_ID_WEIGHT;
             {
                 IDWriteLocalizedStrings *values;
                 WCHAR buffW[255], buff2W[255];
@@ -9827,7 +9834,7 @@ static void test_fontsetbuilder(void)
                 {
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT:
                     ivalue = IDWriteFont3_GetWeight(font);
-printf("%u\n", ivalue);
+printf("%s: %d: ivalue %u\n", __FUNCTION__, __LINE__, ivalue);
                     break;
                 case DWRITE_FONT_PROPERTY_ID_STRETCH:
                     ivalue = IDWriteFont3_GetStretch(font);
@@ -9857,10 +9864,8 @@ printf("%u\n", ivalue);
                     ok(hr == S_OK, "Failed to get property string, hr %#x.\n", hr);
 
                     wsprintfW(buffW, L"%u", ivalue);
-                    ok(!lstrcmpW(buffW, buff2W), "%d Unexpected property value %s, expected %s.\n", i, wine_dbgstr_w(buff2W),
+                    ok(!lstrcmpW(buffW, buff2W), "%d %d Unexpected property value %s, expected %s.\n", i, j, wine_dbgstr_w(buff2W),
                         wine_dbgstr_w(buffW));
-if (lstrcmpW(buffW, buff2W)) 
-{
     IDWriteLocalizedStrings *names;
     WCHAR nameW[256];
     IDWriteFontFamily_GetFamilyNames(family, &names);
@@ -9870,8 +9875,9 @@ if (lstrcmpW(buffW, buff2W))
     IDWriteFont3_GetFaceNames(font, &names);
     get_enus_string(names, nameW, ARRAY_SIZE(nameW));
     printf("%ls\n", nameW);
+    printf("==============\n");
+if (lstrcmpW(buffW, buff2W)) 
     exit(1);
-}
                     break;
                 default:
                     ;
