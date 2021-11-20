@@ -10763,7 +10763,7 @@ START_TEST(font)
         win_skip("failed to create factory\n");
         return;
     }
-if (1) { test_fontsetbuilder(); return; }
+if (0) { test_fontsetbuilder(); return; }
 if (1) { test_family_font_set(); return; }
 if (1) { test_Sitka(); return; }
 

@@ -7346,6 +7346,15 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     stream_desc.face_type = entry->face_type;
     stream_desc.face_index = entry->face_index;
 
+    /* https://docs.microsoft.com/en-us/typography/opentype/spec/name */
+    /* if typographic family is missing (prop 16), then use font family (prop 1) */
+    if (property == DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME)
+    {
+        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES, &value);
+        if (!value)
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
+    }
+
     if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT ||
         property == DWRITE_FONT_PROPERTY_ID_STRETCH ||
         property == DWRITE_FONT_PROPERTY_ID_STYLE)
