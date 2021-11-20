@@ -7354,6 +7354,26 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
         if (!value)
             opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
     }
+    else if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME)
+    {
+        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WEIGHT_STRETCH_STYLE_FAMILY_NAME, &value);
+        if (!value)
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
+    }
+    else if (property == DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME)
+    {
+        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES, &value);
+        if (!value)
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
+    }
+    else if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME)
+    {
+        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
+        if (!value)
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
+    }
+    else if (property == DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME)
+        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
 
     if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT ||
         property == DWRITE_FONT_PROPERTY_ID_STRETCH ||
@@ -7366,12 +7386,12 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     WCHAR buff[256];
     IDWriteLocalizedStrings *names;
     opentype_get_font_facename(&stream_desc, buff, &names);    
-    printf("buff %ls\n", buff);
+//    printf("buff %ls\n", buff);
 }
         switch (property)
         {
             case DWRITE_FONT_PROPERTY_ID_WEIGHT:
-printf("weight %u\n", props.weight);
+//printf("weight %u\n", props.weight);
                 _swprintf(buffW, L"%u", props.weight);
                 break;
             case DWRITE_FONT_PROPERTY_ID_STRETCH:
