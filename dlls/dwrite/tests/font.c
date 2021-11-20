@@ -10384,13 +10384,15 @@ static void test_family_font_set(void)
 
     exists = FALSE;
     index = ~0;
-    hr = IDWriteFontCollection_FindFamilyName(collection, L"Arial", &index, &exists);
+    hr = IDWriteFontCollection_FindFamilyName(collection, L"Bahnschrift", &index, &exists);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
     ok(exists, "got %d\n", exists);
     ok(index != ~0, "got %u\n", index);
 
     hr = IDWriteFontCollection_GetFontFamily(collection, index, &family);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+    count = IDWriteFontFamily_GetFontCount(family);
+    printf("count %u\n", count);
     if (SUCCEEDED(IDWriteFontFamily_QueryInterface(family, &IID_IDWriteFontFamily2, (void **)&family2)))
     {
         hr = IDWriteFontFamily2_GetFontSet(family2, &fontset);
