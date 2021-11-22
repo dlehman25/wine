@@ -7874,6 +7874,22 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
 
     for (i = 0; i < set->count; i++)
     {
+        WCHAR buffer[256];
+        if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
+            j = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME;
+        else
+            j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME;
+        values = fontset_entry_get_property(set->entries[i], j);
+        buffer[0] = 0;
+        fontstrings_get_en_string(values, buffer, sizeof(buffer));
+
+        printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);
+    }
+    return E_NOTIMPL;
+
+
+    for (i = 0; i < set->count; i++)
+    {
         //values = fontset_entry_get_property(set->entries[i], DWRITE_FONT_PROPERTY_ID_FULL_NAME);
 
         for (j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; j <= DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME; j++)

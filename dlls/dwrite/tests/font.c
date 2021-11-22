@@ -10384,7 +10384,7 @@ static void test_family_font_set(void)
 
     exists = FALSE;
     index = ~0;
-    hr = IDWriteFontCollection_FindFamilyName(collection, L"Bahnschrift", &index, &exists);
+    hr = IDWriteFontCollection_FindFamilyName(collection, L"Sitka Small", &index, &exists);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
     ok(exists, "got %d\n", exists);
     ok(index != ~0, "got %u\n", index);
@@ -10609,7 +10609,7 @@ static void test_Sitka(void)
 
     /* create collection from font set (typo) */
     EXPECT_REF(fontset, 1);
-    hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
+    hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2);
     todo_wine ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
     if (hr != S_OK) return;
     EXPECT_REF(fontset, 1);
@@ -10766,7 +10766,7 @@ START_TEST(font)
         return;
     }
 if (0) { test_fontsetbuilder(); return; }
-if (1) { test_family_font_set(); return; }
+if (0) { test_family_font_set(); return; }
 if (1) { test_Sitka(); return; }
 
     test_object_lifetime();
