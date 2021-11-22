@@ -7897,28 +7897,30 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
             struct fontface_desc desc;
             IDWriteFontFileStream *stream;
             IDWriteFontFile *file;
+            HRESULT hr;
     
             file = set->entries[i]->file;
 
             get_filestream_from_file(file, &stream);
             desc.factory = iface;
-            desc.face_type = DWRITE_FONT_FACE_TYPE_TRUETYPE; //
+            desc.face_type = set->entries[i]->face_type;
             desc.file = file;
             desc.stream = stream;
-            desc.index = idx++;
-            desc.simulations = DWRITE_FONT_SIMULATIONS_NONE;
+            desc.index = set->entries[i]->face_index;
+            desc.simulations = set->entries[i]->simulations;
             desc.font_data = NULL;
 
-            init_font_data(&desc, &font_data);
+            hr = init_font_data(&desc, &font_data);
+            printf("%x %p\n", hr, font_data);
 
             init_fontfamily_data(values, &family_data);
-            //fontfamily_add_font(family_data, font_data);
+            fontfamily_add_font(family_data, font_data);
             fontcollection_add_family(coll, family_data);
             printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);
         }
     }
     IDWriteFontCollection3_QueryInterface(coll3, &IID_IDWriteFontCollection2, (void**)collection);
-    return E_NOTIMPL;
+    return S_OK;
 
 
     for (i = 0; i < set->count; i++)
