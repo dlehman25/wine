@@ -7867,24 +7867,57 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
         DWRITE_FONT_FAMILY_MODEL family_model, IDWriteFontCollection2 **collection)
 {
     struct dwrite_fontset *set = impl_from_IDWriteFontSet3(fontset);
+    struct dwrite_fontcollection *coll;
     IDWriteLocalizedStrings *values;
+    IDWriteFontCollection3 *coll3;
     unsigned int i, j;
+    unsigned int idx;
 
     FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
 
+    create_font_collection2(iface, &coll3);
+    coll = impl_from_IDWriteFontCollection3(coll3);
+
+    if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
+        j = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME;
+    else
+        j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME;
+
+    idx = 0;
     for (i = 0; i < set->count; i++)
     {
         WCHAR buffer[256];
-        if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
-            j = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME;
-        else
-            j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME;
         values = fontset_entry_get_property(set->entries[i], j);
         buffer[0] = 0;
         fontstrings_get_en_string(values, buffer, sizeof(buffer));
+        if (collection_find_family(coll, buffer) == ~0u)
+        {
+            struct dwrite_fontfamily_data *family_data;
+            struct dwrite_font_data *font_data;
+            struct fontface_desc desc;
+            IDWriteFontFileStream *stream;
+            IDWriteFontFile *file;
+    
+            file = set->entries[i]->file;
 
-        printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);
+            get_filestream_from_file(file, &stream);
+            desc.factory = iface;
+            desc.face_type = DWRITE_FONT_FACE_TYPE_TRUETYPE; //
+            desc.file = file;
+            desc.stream = stream;
+            desc.index = idx++;
+            desc.simulations = DWRITE_FONT_SIMULATIONS_NONE;
+            desc.font_data = NULL;
+
+            init_font_data(&desc, &font_data);
+
+            init_fontfamily_data(values, &family_data);
+            //fontfamily_add_font(family_data, font_data);
+            fontcollection_add_family(coll, family_data);
+            printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);
+        }
     }
+    IDWriteFontCollection3_QueryInterface(coll3, &IID_IDWriteFontCollection2, (void**)collection);
     return E_NOTIMPL;
 
 
