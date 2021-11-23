@@ -428,7 +428,6 @@ static const struct {
     const char *path;
     const char *url;
     DWORD ret;
-    BOOL todo;
 } TEST_URLFROMPATH [] = {
     {"foo", "file:foo", S_OK},
     {"foo\\bar", "file:foo/bar", S_OK},
@@ -438,7 +437,7 @@ static const struct {
     {"c:\\foo/b a%r", "file:///c:/foo/b%20a%25r", S_OK},
     {"c:\\foo\\foo bar", "file:///c:/foo/foo%20bar", S_OK},
     {"file:///c:/foo/bar", "file:///c:/foo/bar", S_FALSE},
-    {"\\\\urlpath", "file://urlpath/", S_OK, TRUE},
+    {"\\\\urlpath", "file://urlpath/", S_OK},
     {"\\\\urlpath\\", "file://urlpath/", S_OK},
 #if 0
     /* The following test fails on native shlwapi as distributed with Win95/98.
@@ -1327,7 +1326,6 @@ static void test_UrlCreateFromPath(void)
         len = INTERNET_MAX_URL_LENGTH;
         ret = pUrlCreateFromPathA(TEST_URLFROMPATH[i].path, ret_url, &len, 0);
         ok(ret == TEST_URLFROMPATH[i].ret, "ret %08x from path %s\n", ret, TEST_URLFROMPATH[i].path);
-        todo_wine_if(TEST_URLFROMPATH[i].todo)
         ok(!lstrcmpiA(ret_url, TEST_URLFROMPATH[i].url), "url %s from path %s\n", ret_url, TEST_URLFROMPATH[i].path);
         ok(len == strlen(ret_url), "ret len %d from path %s\n", len, TEST_URLFROMPATH[i].path);
 
@@ -1339,7 +1337,6 @@ static void test_UrlCreateFromPath(void)
             WideCharToMultiByte(CP_ACP, 0, ret_urlW, -1, ret_url, sizeof(ret_url),0,0);
             ok(ret == TEST_URLFROMPATH[i].ret, "ret %08x from path L\"%s\", expected %08x\n",
                 ret, TEST_URLFROMPATH[i].path, TEST_URLFROMPATH[i].ret);
-            todo_wine_if(TEST_URLFROMPATH[i].todo)
             ok(!lstrcmpiW(ret_urlW, urlW), "got %s expected %s from path L\"%s\"\n",
                 ret_url, TEST_URLFROMPATH[i].url, TEST_URLFROMPATH[i].path);
             ok(len == lstrlenW(ret_urlW), "ret len %d from path L\"%s\"\n", len, TEST_URLFROMPATH[i].path);
