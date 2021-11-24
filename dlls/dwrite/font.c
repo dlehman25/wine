@@ -7910,7 +7910,7 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
 
         hr = init_font_data(&desc, &font_data);
         
-        if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC) 
+        if (0 && family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC) 
         {
         WCHAR buff2[256];
         IDWriteLocalizedStrings *names;
@@ -7929,14 +7929,14 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
 */
         }
 
-
         idx = collection_find_family(coll, buffer);
+printf("[%d] %d %ls\n", i, idx, buffer);
         if (idx == ~0u)
         {
             init_fontfamily_data(values, &family_data);
             fontfamily_add_font(family_data, font_data);
             fontcollection_add_family(coll, family_data);
-            printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);
+            printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);            
         }
         else
             fontfamily_add_font(coll->family_data[idx], font_data);
