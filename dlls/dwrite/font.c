@@ -7909,7 +7909,26 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
         desc.font_data = NULL;
 
         hr = init_font_data(&desc, &font_data);
-        printf("%x %p\n", hr, font_data);
+        
+        if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC) 
+        {
+        WCHAR buff2[256];
+        IDWriteLocalizedStrings *names;
+        if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
+            j = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME;
+        else
+            j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME;
+        font_data->names = fontset_entry_get_property(set->entries[i], j);
+        fontstrings_get_en_string(font_data->names, buff2, sizeof(buff2));
+/*
+        printf("%x %p %ls\n", hr, font_data, buff2);
+        create_localizedstrings(&font_data->names);
+        add_localizedstring(font_data->names, L"en-us", L"Small");
+        fontstrings_get_en_string(font_data->names, buff2, sizeof(buff2));
+        printf("%x %p %ls\n", hr, font_data, buff2);
+*/
+        }
+
 
         idx = collection_find_family(coll, buffer);
         if (idx == ~0u)
