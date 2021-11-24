@@ -7805,14 +7805,12 @@ static HRESULT fontset_create_entry(IDWriteFontFile *file, DWRITE_FONT_FACE_TYPE
         unsigned int face_index, unsigned int simulations, struct dwrite_fontset_entry **ret)
 {
     struct dwrite_fontset_entry *entry;
-struct dwrite_fontfile *file2 = impl_from_IDWriteFontFile(file);
 
     if (!(entry = heap_alloc_zero(sizeof(*entry))))
         return E_OUTOFMEMORY;
 
     entry->refcount = 1;
     entry->file = file;
-printf("%s: file %p %p key %p sim %x\n", __FUNCTION__, file, file2, file2->reference_key, simulations);
     IDWriteFontFile_AddRef(entry->file);
     entry->face_type = face_type;
     entry->face_index = face_index;
@@ -7910,15 +7908,16 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
 
         hr = init_font_data(&desc, &font_data);
         
-        if (0 && family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC) 
+        if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC) 
         {
+        int k;
         WCHAR buff2[256];
         IDWriteLocalizedStrings *names;
         if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
-            j = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME;
+            k = DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME;
         else
-            j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME;
-        font_data->names = fontset_entry_get_property(set->entries[i], j);
+            k = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME;
+        font_data->names = fontset_entry_get_property(set->entries[i], k);
         fontstrings_get_en_string(font_data->names, buff2, sizeof(buff2));
 /*
         printf("%x %p %ls\n", hr, font_data, buff2);
@@ -7930,7 +7929,6 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
         }
 
         idx = collection_find_family(coll, buffer);
-printf("[%d] %d %ls\n", i, idx, buffer);
         if (idx == ~0u)
         {
             init_fontfamily_data(values, &family_data);
@@ -7942,6 +7940,7 @@ printf("[%d] %d %ls\n", i, idx, buffer);
             fontfamily_add_font(coll->family_data[idx], font_data);
     }
     IDWriteFontCollection3_QueryInterface(coll3, &IID_IDWriteFontCollection2, (void**)collection);
+    IDWriteFontCollection3_Release(coll3);
     return S_OK;
 
 
