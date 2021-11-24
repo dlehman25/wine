@@ -7368,8 +7368,8 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     }
     else if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME)
     {
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
-        if (!value)
+        //opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
+        ///if (!value)
             opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
     }
     else if (property == DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME)

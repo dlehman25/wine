@@ -10766,7 +10766,7 @@ START_TEST(font)
         return;
     }
 if (0) { test_fontsetbuilder(); return; }
-if (0) { test_family_font_set(); return; }
+if (1) { test_family_font_set(); return; }
 if (1) { test_Sitka(); return; }
 
     test_object_lifetime();
