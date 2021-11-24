@@ -7883,41 +7883,44 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
     else
         j = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME;
 
-    idx = 0;
     for (i = 0; i < set->count; i++)
     {
         WCHAR buffer[256];
+        struct dwrite_fontfamily_data *family_data;
+        struct dwrite_font_data *font_data;
+        struct fontface_desc desc;
+        IDWriteFontFileStream *stream;
+        IDWriteFontFile *file;
+        HRESULT hr;
+
         values = fontset_entry_get_property(set->entries[i], j);
         buffer[0] = 0;
         fontstrings_get_en_string(values, buffer, sizeof(buffer));
-        if (collection_find_family(coll, buffer) == ~0u)
+
+        file = set->entries[i]->file;
+
+        get_filestream_from_file(file, &stream);
+        desc.factory = iface;
+        desc.face_type = set->entries[i]->face_type;
+        desc.file = file;
+        desc.stream = stream;
+        desc.index = set->entries[i]->face_index;
+        desc.simulations = set->entries[i]->simulations;
+        desc.font_data = NULL;
+
+        hr = init_font_data(&desc, &font_data);
+        printf("%x %p\n", hr, font_data);
+
+        idx = collection_find_family(coll, buffer);
+        if (idx == ~0u)
         {
-            struct dwrite_fontfamily_data *family_data;
-            struct dwrite_font_data *font_data;
-            struct fontface_desc desc;
-            IDWriteFontFileStream *stream;
-            IDWriteFontFile *file;
-            HRESULT hr;
-    
-            file = set->entries[i]->file;
-
-            get_filestream_from_file(file, &stream);
-            desc.factory = iface;
-            desc.face_type = set->entries[i]->face_type;
-            desc.file = file;
-            desc.stream = stream;
-            desc.index = set->entries[i]->face_index;
-            desc.simulations = set->entries[i]->simulations;
-            desc.font_data = NULL;
-
-            hr = init_font_data(&desc, &font_data);
-            printf("%x %p\n", hr, font_data);
-
             init_fontfamily_data(values, &family_data);
             fontfamily_add_font(family_data, font_data);
             fontcollection_add_family(coll, family_data);
             printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);
         }
+        else
+            fontfamily_add_font(coll->family_data[idx], font_data);
     }
     IDWriteFontCollection3_QueryInterface(coll3, &IID_IDWriteFontCollection2, (void**)collection);
     return S_OK;
