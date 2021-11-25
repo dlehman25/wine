@@ -10688,12 +10688,12 @@ static void test_Sitka(void)
     ok(count == 6, "%d count %u\n", __LINE__,  count);
     EXPECT_REF(collection2, 1);
     EXPECT_REF(fontset1, 1);
-return;
 
     for (i = 0; i < count; i++)
     {
         hr = IDWriteFontSet1_GetFontFaceReference(fontset1, i, &fontfaceref1);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+return;
 
         hr = IDWriteFontFaceReference1_CreateFontFace(fontfaceref1, &fontface5);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
