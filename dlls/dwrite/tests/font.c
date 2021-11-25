@@ -10680,7 +10680,6 @@ static void test_Sitka(void)
 
         IDWriteFontFamily2_Release(family2);
     }
-return;
 
     EXPECT_REF(collection2, 1);
     hr = IDWriteFontCollection2_GetFontSet(collection2, &fontset1);
@@ -10689,6 +10688,7 @@ return;
     ok(count == 6, "%d count %u\n", __LINE__,  count);
     EXPECT_REF(collection2, 1);
     EXPECT_REF(fontset1, 1);
+return;
 
     for (i = 0; i < count; i++)
     {

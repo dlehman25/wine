@@ -3295,6 +3295,7 @@ static HRESULT WINAPI dwritefontcollection2_GetFontSet(IDWriteFontCollection3 *i
     struct dwrite_fontcollection *collection = impl_from_IDWriteFontCollection3(iface);
     IDWriteFontSetBuilder2 *builder;
     IDWriteFontFaceReference *ref;
+    DWRITE_FONT_SIMULATIONS sim;
     IDWriteFontFamily2 *family;
     UINT32 i, nfamilies;
     UINT32 j, nfonts;
@@ -3317,7 +3318,9 @@ static HRESULT WINAPI dwritefontcollection2_GetFontSet(IDWriteFontCollection3 *i
         {
             if (FAILED(hr = IDWriteFontFamily2_GetFontFaceReference(family, j, &ref)))
                 break;
-            hr = IDWriteFontSetBuilder2_AddFontFaceReference(builder, ref);
+            sim = IDWriteFontFaceReference_GetSimulations(ref);
+            if (sim == DWRITE_FONT_SIMULATIONS_NONE)
+                hr = IDWriteFontSetBuilder2_AddFontFaceReference(builder, ref);
             IDWriteFontFaceReference_Release(ref);
             if (FAILED(hr))
                 break;
