@@ -7973,6 +7973,14 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
         else
             fontfamily_add_font(coll->family_data[idx], font_data);
     }
+    if (family_model != DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC) 
+    {
+        for (i = 0; i < coll->count; ++i)
+        {
+            fontfamily_add_oblique_simulated_face(coll->family_data[i]);
+            fontfamily_add_bold_simulated_face(coll->family_data[i]);
+        }
+    }
     IDWriteFontCollection3_QueryInterface(coll3, &IID_IDWriteFontCollection2, (void**)collection);
     IDWriteFontCollection3_Release(coll3);
     return S_OK;
