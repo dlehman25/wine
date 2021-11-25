@@ -10563,8 +10563,8 @@ static void test_Sitka(void)
     static const WCHAR *facenames[] =
     {
         L"Regular",
-        L"Oblique",
-        L"Bold",
+        L"Bold", // ??? Oblique
+        L"Oblique", // ??? Bold
         L"Bold Oblique",
     };
     IDWriteFontFaceReference1 *fontfaceref1;

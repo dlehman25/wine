@@ -7968,7 +7968,6 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
             init_fontfamily_data(values, &family_data);
             fontfamily_add_font(family_data, font_data);
             fontcollection_add_family(coll, family_data);
-            printf("set %u/%u [%u] %p %ls\n", i, set->count, j, values, buffer);            
         }
         else
             fontfamily_add_font(coll->family_data[idx], font_data);
@@ -7977,8 +7976,8 @@ HRESULT fontset_create_collection(IDWriteFactory7 *iface, IDWriteFontSet *fontse
     {
         for (i = 0; i < coll->count; ++i)
         {
-            fontfamily_add_oblique_simulated_face(coll->family_data[i]);
             fontfamily_add_bold_simulated_face(coll->family_data[i]);
+            fontfamily_add_oblique_simulated_face(coll->family_data[i]);
         }
     }
     IDWriteFontCollection3_QueryInterface(coll3, &IID_IDWriteFontCollection2, (void**)collection);
