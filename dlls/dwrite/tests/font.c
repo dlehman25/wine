@@ -10693,7 +10693,6 @@ static void test_Sitka(void)
     {
         hr = IDWriteFontSet1_GetFontFaceReference(fontset1, i, &fontfaceref1);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
-return;
 
         hr = IDWriteFontFaceReference1_CreateFontFace(fontfaceref1, &fontface5);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
@@ -10728,6 +10727,7 @@ return;
         IDWriteLocalizedStrings_Release(names);
         ok(!wcscmp(L"Sitka", buffer), "Got %ls\n", buffer);
 
+if (0)
 { // test properties
     unsigned int j;
     printf("============== %ls\n", buffer);

@@ -7742,9 +7742,17 @@ static HRESULT WINAPI dwritefontset1_GetFontAxisRanges(IDWriteFontSet3 *iface, D
 static HRESULT WINAPI dwritefontset1_GetFontFaceReference(IDWriteFontSet3 *iface, UINT32 index,
         IDWriteFontFaceReference1 **reference)
 {
-    FIXME("%p, %u, %p.\n", iface, index, reference);
+    struct dwrite_fontset *set = impl_from_IDWriteFontSet3(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %u, %p.\n", iface, index, reference);
+
+    *reference = NULL;
+
+    if (index >= set->count)
+        return E_INVALIDARG;
+
+    return IDWriteFactory7_CreateFontFaceReference_(set->factory, set->entries[index]->file,
+            set->entries[index]->face_index, set->entries[index]->simulations, reference);
 }
 
 static HRESULT WINAPI dwritefontset1_CreateFontResource(IDWriteFontSet3 *iface, UINT32 index, IDWriteFontResource **resource)
