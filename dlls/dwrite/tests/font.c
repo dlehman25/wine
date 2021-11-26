@@ -3738,6 +3738,35 @@ static UINT32 opentype_cmap_get_unicode_ranges(const struct dwrite_fonttable *ta
     return count;
 }
 
+static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx)
+{
+    USHORT lang_id, length, offset, encoding, platform;
+    const struct name_header *header = (const struct name_header *)table->data;
+    const struct name_record *record;
+    unsigned int string_offset;
+    const void *name;
+    
+    string_offset = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, stringOffset));
+    
+    record = &header->records[idx];
+
+    platform = GET_BE_WORD(record->platformID);
+    lang_id = GET_BE_WORD(record->languageID);
+    length = GET_BE_WORD(record->length);
+    offset = GET_BE_WORD(record->offset);
+    encoding = GET_BE_WORD(record->encodingID);
+
+    if (!(name = table_read_ensure(table, string_offset + offset, length)))
+        return FALSE;
+
+    if (lang_id < 0x8000)
+    {
+
+    }
+
+    return FALSE;
+}
+
 static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
             enum opentype_string_id id, IDWriteLocalizedStrings **strings)
 {
@@ -3783,6 +3812,7 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
                 break;
         }
     }
+    opentype_decode_namerecord(table, 0);
     return E_NOTIMPL;
 }
 
