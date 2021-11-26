@@ -452,6 +452,24 @@ enum opentype_cmap_table_format
     OPENTYPE_CMAP_TABLE_SEGMENTED_COVERAGE = 12,
 };
 
+struct name_record
+{
+    WORD platformID;
+    WORD encodingID;
+    WORD languageID;
+    WORD nameID;
+    WORD length;
+    WORD offset;
+};
+
+struct name_header
+{
+    WORD format;
+    WORD count;
+    WORD stringOffset;
+    struct name_record records[1];
+};
+
 enum opentype_string_id
 {
     OPENTYPE_STRING_COPYRIGHT_NOTICE = 0,
@@ -3552,6 +3570,14 @@ struct dwrite_fonttable
     UINT32 size;
 };
 
+static const void *table_read_ensure(const struct dwrite_fonttable *table, unsigned int offset, unsigned int size)
+{
+    if (size > table->size || offset > table->size - size)
+        return NULL;
+
+    return table->data + offset;
+}
+
 static WORD table_read_be_word(const struct dwrite_fonttable *table, void *ptr, DWORD offset)
 {
     if (!ptr)
@@ -3715,6 +3741,48 @@ static UINT32 opentype_cmap_get_unicode_ranges(const struct dwrite_fonttable *ta
 static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
             enum opentype_string_id id, IDWriteLocalizedStrings **strings)
 {
+    const struct name_record *records;
+    WORD format;
+    int i, count;
+
+    if (!table->data)
+        return E_FAIL;
+
+    format = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, format));
+    if (format != 0 && format != 1)
+        return E_NOTIMPL;
+
+    count = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, count));
+
+    if (!(records = table_read_ensure(table, FIELD_OFFSET(struct name_header, records),
+                count * sizeof(struct name_record))))
+    {
+        count = 0;
+    }
+
+    printf("format %d count %d records %p\n", format, count, records);
+    for (i = 0; i < count; i++)
+    {
+        unsigned short platform;
+
+        if (GET_BE_WORD(records[i].nameID) != id)
+            continue;
+
+        platform = GET_BE_WORD(records[i].platformID);
+        switch (platform)
+        {
+/*
+            case OPENTYPE_PLATFORM_UNICODE:
+                break;
+            case OPENTYPE_PLATFORM_MAC:
+                break;
+            case OPENTYPE_PLATFORM_WIN:
+                break;
+*/
+            default:
+                break;
+        }
+    }
     return E_NOTIMPL;
 }
 
@@ -9729,6 +9797,10 @@ exists = FALSE;
 hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
     &name.size, &name.context, &exists);
 ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
+if (exists)
+{
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, NULL);
+}
 
 hr = IDWriteFont3_GetFaceNames(font, &names);
 get_enus_string(names, buffer, ARRAY_SIZE(buffer));
