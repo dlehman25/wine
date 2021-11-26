@@ -10140,12 +10140,34 @@ hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&nam
 ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
 if (table_exists)
 {
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, NULL);
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, NULL);
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, NULL);
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, NULL);
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, NULL);
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, NULL);
+    WCHAR buffW[32768];
+    int k;
+    for (k = 0; k < 16; k++)
+    {
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, k, buffW);
+        printf("%u %ls\n", k, buffW);
+    }
+/*
+    buffW[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
+    printf("family %ls\n", buffW);
+    buffW[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, buffW);
+    printf("family %ls\n", buffW);
+    buffW[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffW);
+    printf("family %ls\n", buffW);
+    buffW[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, buffW);
+    printf("family %ls\n", buffW);
+    buffW[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffW);
+    printf("family %ls\n", buffW);
+    buffW[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
+    printf("family %ls\n", buffW);
+*/
 }
 buffer[0] = 0;
 hr = IDWriteFont3_GetFaceNames(font, &names);
