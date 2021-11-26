@@ -4041,7 +4041,7 @@ static void get_name_record_locale(enum opentype_platform_id platform, USHORT la
 */
 }
 
-static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx, char *ret)
+static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx, WCHAR *ret)
 {
     USHORT lang_id, length, offset, encoding, platform;
     const struct name_header *header = (const struct name_header *)table->data;
@@ -4072,14 +4072,14 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
         get_name_record_locale(platform, lang_id, locale, ARRAY_SIZE(locale));
         for (i = 0; i < length; i++) ret[i] = ((char*)name)[i];
         ret[i] = 0;
-        printf("%u: %u %s\n", idx, length, ret);
+//        printf("%u: %u %ls\n", idx, length, ret);
     }
 
     return FALSE;
 }
 
 static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
-            enum opentype_string_id id, char *ret)
+            enum opentype_string_id id, WCHAR *ret)
 {
     const struct name_record *records;
     WORD format;
@@ -4100,7 +4100,7 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
         count = 0;
     }
 
-    printf("format %d count %d records %p\n", format, count, records);
+//    printf("format %d count %d records %p\n", format, count, records);
     for (i = 0; i < count; i++)
     {
         unsigned short platform;
@@ -10199,16 +10199,20 @@ printf("=====================================\n");
                     break;
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
                 {
-                    char buffer[32768];
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffer);
-                    printf("name %s\n", buffer);
+                    WCHAR val[32768];
+                    WCHAR buffer[256];
+                    buffer[0] = 0;
+                    val[0] = 0;
+                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, val);
+                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
                 default:
                 {
                     WCHAR buffer[256];
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    printf("[%d] %d %ls\n", i, id, buffer);
+                    //printf("[%d] %d %ls\n", i, id, buffer);
                 }
                     ;
                 }
