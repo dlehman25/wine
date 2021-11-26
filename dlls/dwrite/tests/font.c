@@ -9627,6 +9627,15 @@ static void test_fontsetbuilder(void)
         hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
         ok(hr == S_OK, "Failed to get family, hr %#x.\n", hr);
 
+{
+IDWriteLocalizedStrings *names;
+WCHAR buffer[256];
+hr = IDWriteFontFamily1_GetFamilyNames(family, &names);
+get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+printf("=====================================\n");
+printf("[%d / %d] %ls\n", i, count, buffer);
+printf("=====================================\n");
+}
         fontcount = IDWriteFontFamily1_GetFontCount(family);
         for (j = 0; j < fontcount; ++j)
         {
@@ -9672,6 +9681,15 @@ static void test_fontsetbuilder(void)
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
+{
+IDWriteLocalizedStrings *names;
+WCHAR buffer[256];
+hr = IDWriteFont3_GetFaceNames(font, &names);
+get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+printf("=====================================\n");
+printf("[%d / %d] %ls\n", j, fontcount, buffer);
+printf("=====================================\n");
+}
             for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
             {
                 IDWriteLocalizedStrings *values;
@@ -9704,6 +9722,11 @@ static void test_fontsetbuilder(void)
                     ivalue = IDWriteFont3_GetStyle(font);
                     break;
                 default:
+                {
+                    WCHAR buffer[256];
+                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+                    printf("[%d] %d %ls\n", i, id, buffer);
+                }
                     ;
                 }
 
