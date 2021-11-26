@@ -7353,16 +7353,9 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
         struct dwrite_font_props props = { 0 };
         WCHAR buffW[16];
         opentype_get_font_properties(&stream_desc, &props);
-{
-    WCHAR buff[256];
-    IDWriteLocalizedStrings *names;
-    opentype_get_font_facename(&stream_desc, buff, &names);    
-//    printf("buff %ls\n", buff);
-}
         switch (property)
         {
             case DWRITE_FONT_PROPERTY_ID_WEIGHT:
-//printf("weight %u\n", props.weight);
                 _swprintf(buffW, L"%u", props.weight);
                 break;
             case DWRITE_FONT_PROPERTY_ID_STRETCH:
