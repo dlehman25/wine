@@ -4041,7 +4041,7 @@ static void get_name_record_locale(enum opentype_platform_id platform, USHORT la
 */
 }
 
-static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx)
+static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx, char *ret)
 {
     USHORT lang_id, length, offset, encoding, platform;
     const struct name_header *header = (const struct name_header *)table->data;
@@ -4066,21 +4066,20 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
     {
         UINT codepage;
         WCHAR locale[LOCALE_NAME_MAX_LENGTH];
-        char nameA[32768];
         int i;
 
         codepage = get_name_record_codepage(platform, encoding);
         get_name_record_locale(platform, lang_id, locale, ARRAY_SIZE(locale));
-        for (i = 0; i < length; i++) nameA[i] = ((char*)name)[i];
-        nameA[i] = 0;
-        printf("%u: %u %s\n", idx, length, nameA);
+        for (i = 0; i < length; i++) ret[i] = ((char*)name)[i];
+        ret[i] = 0;
+        printf("%u: %u %s\n", idx, length, ret);
     }
 
     return FALSE;
 }
 
 static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
-            enum opentype_string_id id, IDWriteLocalizedStrings **strings)
+            enum opentype_string_id id, char *ret)
 {
     const struct name_record *records;
     WORD format;
@@ -4124,7 +4123,7 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
                 break;
         }
     }
-    opentype_decode_namerecord(table, id);
+    opentype_decode_namerecord(table, id, ret);
     return E_NOTIMPL;
 }
 
@@ -10125,6 +10124,7 @@ printf("=====================================\n");
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
+if (0)
 {
 IDWriteFontFace3 *fontface;
 struct dwrite_fonttable name;
@@ -10159,8 +10159,16 @@ printf("=====================================\n");
             {
                 IDWriteLocalizedStrings *values;
                 WCHAR buffW[255], buff2W[255];
+                struct dwrite_fonttable name;
+                IDWriteFontFace3 *fontface;
                 UINT32 c, ivalue = 0;
                 BOOL exists = FALSE;
+
+                hr = IDWriteFont3_CreateFontFace(font, &fontface);
+                ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
+
+                hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+                        &name.size, &name.context, &exists);
 
                 hr = IDWriteFontSet_GetPropertyValues(fontset, 0, id, &exists, &values);
                 ok(hr == S_OK, "Failed to get property value, hr %#x.\n", hr);
@@ -10173,7 +10181,10 @@ printf("=====================================\n");
                 }
 
                 if (!exists)
+                {
+                    IDWriteFontFace3_Release(fontface);
                     continue;
+                }
 
                 switch (id)
                 {
@@ -10186,6 +10197,13 @@ printf("=====================================\n");
                 case DWRITE_FONT_PROPERTY_ID_STYLE:
                     ivalue = IDWriteFont3_GetStyle(font);
                     break;
+                case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
+                {
+                    char buffer[32768];
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffer);
+                    printf("name %s\n", buffer);
+                    break;
+                }
                 default:
                 {
                     WCHAR buffer[256];
@@ -10220,6 +10238,7 @@ printf("=====================================\n");
                     ;
                 }
 
+                IDWriteFontFace3_Release(fontface);
                 IDWriteLocalizedStrings_Release(values);
             }
 
