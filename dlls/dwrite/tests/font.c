@@ -9672,7 +9672,7 @@ static void test_fontsetbuilder(void)
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-            for (id = DWRITE_FONT_PROPERTY_ID_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL; ++id)
+            for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
             {
                 IDWriteLocalizedStrings *values;
                 WCHAR buffW[255], buff2W[255];
@@ -10516,6 +10516,7 @@ START_TEST(font)
         return;
     }
 if (0) { test_Sitka(); return; }
+if (1) { test_fontsetbuilder(); return; }
 
     test_object_lifetime();
     test_CreateFontFromLOGFONT();
