@@ -452,6 +452,33 @@ enum opentype_cmap_table_format
     OPENTYPE_CMAP_TABLE_SEGMENTED_COVERAGE = 12,
 };
 
+enum opentype_string_id
+{
+    OPENTYPE_STRING_COPYRIGHT_NOTICE = 0,
+    OPENTYPE_STRING_FAMILY_NAME,
+    OPENTYPE_STRING_SUBFAMILY_NAME,
+    OPENTYPE_STRING_UNIQUE_IDENTIFIER,
+    OPENTYPE_STRING_FULL_FONTNAME,
+    OPENTYPE_STRING_VERSION_STRING,
+    OPENTYPE_STRING_POSTSCRIPT_FONTNAME,
+    OPENTYPE_STRING_TRADEMARK,
+    OPENTYPE_STRING_MANUFACTURER,
+    OPENTYPE_STRING_DESIGNER,
+    OPENTYPE_STRING_DESCRIPTION,
+    OPENTYPE_STRING_VENDOR_URL,
+    OPENTYPE_STRING_DESIGNER_URL,
+    OPENTYPE_STRING_LICENSE_DESCRIPTION,
+    OPENTYPE_STRING_LICENSE_INFO_URL,
+    OPENTYPE_STRING_RESERVED_ID15,
+    OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME,
+    OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME,
+    OPENTYPE_STRING_COMPATIBLE_FULLNAME,
+    OPENTYPE_STRING_SAMPLE_TEXT,
+    OPENTYPE_STRING_POSTSCRIPT_CID_NAME,
+    OPENTYPE_STRING_WWS_FAMILY_NAME,
+    OPENTYPE_STRING_WWS_SUBFAMILY_NAME
+};
+
 #include "poppack.h"
 
 static void *create_factory_iid(REFIID riid)
@@ -3683,6 +3710,12 @@ static UINT32 opentype_cmap_get_unicode_ranges(const struct dwrite_fonttable *ta
         opentype_cmap_read_table(table, index_bmp, &count, &capacity, ranges);
 
     return count;
+}
+
+static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
+            enum opentype_string_id id, IDWriteLocalizedStrings **strings)
+{
+    return E_NOTIMPL;
 }
 
 static UINT32 fontface_get_expected_unicode_ranges(IDWriteFontFace1 *fontface, DWRITE_UNICODE_RANGE **out)
