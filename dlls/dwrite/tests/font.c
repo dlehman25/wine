@@ -4000,6 +4000,47 @@ static UINT get_name_record_codepage(enum opentype_platform_id platform, USHORT 
 
     return codepage;
 }
+
+static void get_name_record_locale(enum opentype_platform_id platform, USHORT lang_id, WCHAR *locale, USHORT locale_len)
+{
+    wcscpy(locale, L"en-US");
+/*
+    switch (platform)
+    {
+    case OPENTYPE_PLATFORM_MAC:
+    {
+        const char *locale_name = NULL;
+
+        if (lang_id > TT_NAME_MAC_LANGID_AZER_ROMAN)
+            WARN("invalid mac lang id %d\n", lang_id);
+        else if (!name_mac_langid_to_locale[lang_id][0])
+            FIXME("failed to map mac lang id %d to locale name\n", lang_id);
+        else
+            locale_name = name_mac_langid_to_locale[lang_id];
+
+        if (locale_name)
+            MultiByteToWideChar(CP_ACP, 0, name_mac_langid_to_locale[lang_id], -1, locale, locale_len);
+        else
+            wcscpy(locale, L"en-US");
+        break;
+    }
+    case OPENTYPE_PLATFORM_WIN:
+        if (!LCIDToLocaleName(MAKELCID(lang_id, SORT_DEFAULT), locale, locale_len, 0))
+        {
+            FIXME("failed to get locale name for lcid=0x%08x\n", MAKELCID(lang_id, SORT_DEFAULT));
+            wcscpy(locale, L"en-US");
+        }
+        break;
+    case OPENTYPE_PLATFORM_UNICODE:
+        wcscpy(locale, L"en-US");
+        break;
+    default:
+        FIXME("unknown platform %d\n", platform);
+        break;
+    }
+*/
+}
+
 static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx)
 {
     USHORT lang_id, length, offset, encoding, platform;
@@ -4024,8 +4065,15 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
     if (lang_id < 0x8000)
     {
         UINT codepage;
+        WCHAR locale[LOCALE_NAME_MAX_LENGTH];
+        char nameA[32768];
+        int i;
 
         codepage = get_name_record_codepage(platform, encoding);
+        get_name_record_locale(platform, lang_id, locale, ARRAY_SIZE(locale));
+        for (i = 0; i < length; i++) nameA[i] = ((char*)name)[i];
+        nameA[i] = 0;
+        printf("%u: %u %s\n", idx, length, nameA);
     }
 
     return FALSE;
@@ -4076,7 +4124,7 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
                 break;
         }
     }
-    opentype_decode_namerecord(table, 0);
+    opentype_decode_namerecord(table, id);
     return E_NOTIMPL;
 }
 
@@ -10078,29 +10126,33 @@ printf("=====================================\n");
             IDWriteFontFaceReference_Release(ref2);
 
 {
-BOOL exists;
 IDWriteFontFace3 *fontface;
 struct dwrite_fonttable name;
 IDWriteLocalizedStrings *names;
 WCHAR buffer[256];
+BOOL table_exists = FALSE;
 
 hr = IDWriteFont3_CreateFontFace(font, &fontface);
 ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
 
-exists = FALSE;
 hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
-    &name.size, &name.context, &exists);
+    &name.size, &name.context, &table_exists);
 ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
-if (exists)
+if (table_exists)
 {
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, NULL);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, NULL);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, NULL);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, NULL);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, NULL);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, NULL);
 }
-
+buffer[0] = 0;
 hr = IDWriteFont3_GetFaceNames(font, &names);
 get_enus_string(names, buffer, ARRAY_SIZE(buffer));
 
 printf("=====================================\n");
-printf("[%d / %d] exists %d %ls\n", j, fontcount, exists, buffer);
+printf("[%d / %d] exists %d %ls\n", j, fontcount, table_exists, buffer);
 printf("=====================================\n");
 }
             for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
