@@ -7303,34 +7303,48 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
     stream_desc.face_type = entry->face_type;
     stream_desc.face_index = entry->face_index;
 
-    /* https://docs.microsoft.com/en-us/typography/opentype/spec/name */
-    /* if typographic family is missing (prop 16), then use font family (prop 1) */
-    if (property == DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME)
+    switch (property)
     {
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
-        if (!value)
+        case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
+            if (!value)
+                opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WEIGHT_STRETCH_STYLE_FAMILY_NAME, &value);
+            if (!value)
+                opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES, &value);
+            if (!value)
+                opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME:
+            //opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
+            ///if (!value)
             opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
-    }
-    else if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME)
-    {
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WEIGHT_STRETCH_STYLE_FAMILY_NAME, &value);
-        if (!value)
+            break;
+        case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
             opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_FULL_NAME:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_FULL_NAME, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_DESIGN_SCRIPT_LANGUAGE_TAG:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_DESIGN_SCRIPT_LANGUAGE_TAG, &value);
+            break;
+        case DWRITE_FONT_PROPERTY_ID_SUPPORTED_SCRIPT_LANGUAGE_TAG:
+            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_SUPPORTED_SCRIPT_LANGUAGE_TAG, &value);
+            break;
+        default:
+            WARN("Unsupported property %u.\n", property);
+            break;
     }
-    else if (property == DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME)
-    {
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES, &value);
-        if (!value)
-            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
-    }
-    else if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME)
-    {
-        //opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_SUBFAMILY_NAMES, &value);
-        ///if (!value)
-            opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES, &value);
-    }
-    else if (property == DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME)
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, &value);
+
 
     if (0 && (property == DWRITE_FONT_PROPERTY_ID_WEIGHT ||
         property == DWRITE_FONT_PROPERTY_ID_STRETCH ||
@@ -7361,16 +7375,6 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
         create_localizedstrings(&value);
         add_localizedstring(value, L"", buffW);
     }
-    else if (property == DWRITE_FONT_PROPERTY_ID_FULL_NAME)
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_FULL_NAME, &value);
-    else if (property == DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME)
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME, &value);
-    else if (property == DWRITE_FONT_PROPERTY_ID_DESIGN_SCRIPT_LANGUAGE_TAG)
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_DESIGN_SCRIPT_LANGUAGE_TAG, &value);
-    else if (property == DWRITE_FONT_PROPERTY_ID_SUPPORTED_SCRIPT_LANGUAGE_TAG)
-        opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_SUPPORTED_SCRIPT_LANGUAGE_TAG, &value);
-    else
-        WARN("Unsupported property %u.\n", property);
 
     if (stream_desc.stream)
         IDWriteFontFileStream_Release(stream_desc.stream);
