@@ -34,6 +34,7 @@
 #include "wine/test.h"
 
 #define MS_CMAP_TAG DWRITE_MAKE_OPENTYPE_TAG('c','m','a','p')
+#define MS_NAME_TAG DWRITE_MAKE_OPENTYPE_TAG('n','a','m','e')
 #define MS_VDMX_TAG DWRITE_MAKE_OPENTYPE_TAG('V','D','M','X')
 #define MS_GASP_TAG DWRITE_MAKE_OPENTYPE_TAG('g','a','s','p')
 #define MS_CPAL_TAG DWRITE_MAKE_OPENTYPE_TAG('C','P','A','L')
@@ -9682,12 +9683,25 @@ printf("=====================================\n");
             IDWriteFontFaceReference_Release(ref2);
 
 {
+BOOL exists;
+IDWriteFontFace3 *fontface;
+struct dwrite_fonttable name;
 IDWriteLocalizedStrings *names;
 WCHAR buffer[256];
+
+hr = IDWriteFont3_CreateFontFace(font, &fontface);
+ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
+
+exists = FALSE;
+hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+    &name.size, &name.context, &exists);
+ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
+
 hr = IDWriteFont3_GetFaceNames(font, &names);
 get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+
 printf("=====================================\n");
-printf("[%d / %d] %ls\n", j, fontcount, buffer);
+printf("[%d / %d] exists %d %ls\n", j, fontcount, exists, buffer);
 printf("=====================================\n");
 }
             for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
