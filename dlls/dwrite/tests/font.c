@@ -10276,6 +10276,16 @@ if (table_exists)
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, val);
                     break;
                 }
+                case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
+                {
+                    WCHAR val[32768];
+                    WCHAR buffer[256];
+                    buffer[0] = 0;
+                    val[0] = 0;
+                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+                    opentype_get_font_strings_from_id(&name, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, val);
+                    break;
+                }
                 default:
                 {
                     WCHAR buffer[256];
