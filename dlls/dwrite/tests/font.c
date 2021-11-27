@@ -10160,8 +10160,16 @@ IDWriteLocalizedStrings *names;
 WCHAR buffer[256];
 BOOL table_exists = FALSE;
 
+buffer[0] = 0;
+hr = IDWriteFont3_GetFaceNames(font, &names);
+get_enus_string(names, buffer, ARRAY_SIZE(buffer));
+
 hr = IDWriteFont3_CreateFontFace(font, &fontface);
 ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
+
+printf("=====================================\n");
+printf("[%d / %d] exists %d %ls\n", j, fontcount, table_exists, buffer);
+printf("=====================================\n");
 
 hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
     &name.size, &name.context, &table_exists);
@@ -10170,7 +10178,7 @@ if (table_exists)
 {
     WCHAR buffW[32768];
     int k;
-    for (k = 0; k < 16; k++)
+    for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
     {
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, k, buffW);
@@ -10195,13 +10203,6 @@ if (table_exists)
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
     printf("wws subfamily %ls\n", buffW);
 }
-buffer[0] = 0;
-hr = IDWriteFont3_GetFaceNames(font, &names);
-get_enus_string(names, buffer, ARRAY_SIZE(buffer));
-
-printf("=====================================\n");
-printf("[%d / %d] exists %d %ls\n", j, fontcount, table_exists, buffer);
-printf("=====================================\n");
 }
             for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
             {
@@ -10245,19 +10246,36 @@ printf("=====================================\n");
                 case DWRITE_FONT_PROPERTY_ID_STYLE:
                     ivalue = IDWriteFont3_GetStyle(font);
                     break;
-/*
-                case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
+                case DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME:
                 {
                     WCHAR val[32768];
                     WCHAR buffer[256];
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, val);
-                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, val);
                     break;
                 }
-*/
+                case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME:
+                {
+                    WCHAR val[32768];
+                    WCHAR buffer[256];
+                    buffer[0] = 0;
+                    val[0] = 0;
+                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, val);
+                    break;
+                }
+                case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME:
+                {
+                    WCHAR val[32768];
+                    WCHAR buffer[256];
+                    buffer[0] = 0;
+                    val[0] = 0;
+                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, val);
+                    break;
+                }
                 default:
                 {
                     WCHAR buffer[256];
@@ -10302,7 +10320,6 @@ printf("=====================================\n");
 
             IDWriteFont3_Release(font);
         }
-return;
         IDWriteFontFamily1_Release(family);
     }
 
