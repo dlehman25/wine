@@ -4078,12 +4078,24 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
     return FALSE;
 }
 
+static BOOL opentype_is_english_namerecord(const struct dwrite_fonttable *table, unsigned int idx)
+{
+    const struct name_header *header = (const struct name_header *)table->data;
+    const struct name_record *record;
+
+    record = &header->records[idx];
+
+    return GET_BE_WORD(record->platformID) == OPENTYPE_PLATFORM_MAC &&
+            GET_BE_WORD(record->languageID) == TT_NAME_MAC_LANGID_ENGLISH;
+}
+
 static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
             enum opentype_string_id id, WCHAR *ret)
 {
+    int i, count, candidate_mac, candidate_mac_en, candidate_unicode;
     const struct name_record *records;
+    BOOL has_english;
     WORD format;
-    int i, count;
 
     if (!table->data)
         return E_FAIL;
@@ -4100,7 +4112,11 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
         count = 0;
     }
 
+    has_english = FALSE;
+    candidate_unicode = candidate_mac = candidate_mac_en = -1;
+
 //    printf("format %d count %d records %p\n", format, count, records);
+    ret[0] = 0;
     for (i = 0; i < count; i++)
     {
         unsigned short platform;
@@ -4111,20 +4127,32 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
         platform = GET_BE_WORD(records[i].platformID);
         switch (platform)
         {
-/*
             case OPENTYPE_PLATFORM_UNICODE:
+                if (candidate_unicode == -1)
+                    candidate_unicode = i;
                 break;
             case OPENTYPE_PLATFORM_MAC:
+                if (candidate_mac == -1)
+                    candidate_mac = i;
+                if (candidate_mac_en == -1 && opentype_is_english_namerecord(table, i))
+                    candidate_mac_en = i;
                 break;
             case OPENTYPE_PLATFORM_WIN:
+                has_english = TRUE;
+                opentype_decode_namerecord(table, i, ret);
                 break;
-*/
             default:
                 break;
         }
     }
-    opentype_decode_namerecord(table, id, ret);
-    return E_NOTIMPL;
+
+    if (!ret[0] && candidate_mac != -1)
+        has_english |= opentype_decode_namerecord(table, candidate_mac, ret);
+    if (!ret[0] && candidate_unicode != -1)
+        has_english |= opentype_decode_namerecord(table, candidate_unicode, ret);
+    if (!has_english && candidate_mac_en != -1)
+        opentype_decode_namerecord(table, candidate_mac_en, ret);
+    return ret[0] ? S_OK : E_FAIL;
 }
 
 static UINT32 fontface_get_expected_unicode_ranges(IDWriteFontFace1 *fontface, DWRITE_UNICODE_RANGE **out)
@@ -10141,15 +10169,13 @@ ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
 if (table_exists)
 {
     WCHAR buffW[32768];
-/*
     int k;
     for (k = 0; k < 16; k++)
     {
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, k, buffW);
-        printf("%u %ls\n", k, buffW);
+        printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
     }
-*/
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
     printf("family %ls\n", buffW);
@@ -10219,6 +10245,7 @@ printf("=====================================\n");
                 case DWRITE_FONT_PROPERTY_ID_STYLE:
                     ivalue = IDWriteFont3_GetStyle(font);
                     break;
+/*
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
                 {
                     WCHAR val[32768];
@@ -10230,11 +10257,12 @@ printf("=====================================\n");
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
+*/
                 default:
                 {
                     WCHAR buffer[256];
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    printf("[%d] %d %ls\n", i, id, buffer);
+                    printf("%s: %d DWRITE_FONT %d %ls\n", __FUNCTION__, __LINE__, id, buffer);
                 }
                     ;
                 }
