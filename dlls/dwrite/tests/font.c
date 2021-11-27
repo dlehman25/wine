@@ -10124,7 +10124,7 @@ printf("=====================================\n");
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-if (0)
+if (1)
 {
 IDWriteFontFace3 *fontface;
 struct dwrite_fonttable name;
@@ -10141,6 +10141,7 @@ ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
 if (table_exists)
 {
     WCHAR buffW[32768];
+/*
     int k;
     for (k = 0; k < 16; k++)
     {
@@ -10148,26 +10149,25 @@ if (table_exists)
         opentype_get_font_strings_from_id(&name, k, buffW);
         printf("%u %ls\n", k, buffW);
     }
-/*
+*/
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
     printf("family %ls\n", buffW);
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, buffW);
-    printf("family %ls\n", buffW);
+    printf("subfamily %ls\n", buffW);
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffW);
-    printf("family %ls\n", buffW);
+    printf("typo family %ls\n", buffW);
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, buffW);
-    printf("family %ls\n", buffW);
+    printf("typo subfamily %ls\n", buffW);
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffW);
-    printf("family %ls\n", buffW);
+    printf("wws family %ls\n", buffW);
     buffW[0] = 0;
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
-    printf("family %ls\n", buffW);
-*/
+    printf("wws subfamily %ls\n", buffW);
 }
 buffer[0] = 0;
 hr = IDWriteFont3_GetFaceNames(font, &names);
@@ -10234,7 +10234,7 @@ printf("=====================================\n");
                 {
                     WCHAR buffer[256];
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    //printf("[%d] %d %ls\n", i, id, buffer);
+                    printf("[%d] %d %ls\n", i, id, buffer);
                 }
                     ;
                 }
@@ -10274,7 +10274,7 @@ printf("=====================================\n");
 
             IDWriteFont3_Release(font);
         }
-
+return;
         IDWriteFontFamily1_Release(family);
     }
 
