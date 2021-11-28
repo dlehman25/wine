@@ -10971,13 +10971,34 @@ static void test_Sitka(void)
                 &name.size, &name.context, &exists);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
         
+        /*
         for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
         {
             buffW[0] = 0;
             opentype_get_font_strings_from_id(&name, k, buffW);
             printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
         }
-
+        */
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
+        printf("family %ls\n", buffW);
+        /*
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, buffW);
+        printf("subfamily %ls\n", buffW);
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffW);
+        printf("typo family %ls\n", buffW);
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, buffW);
+        printf("typo subfamily %ls\n", buffW);
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffW);
+        printf("wws family %ls\n", buffW);
+        buffW[0] = 0;
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
+        printf("wws subfamily %ls\n", buffW);
+        */
         sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
         ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
 
