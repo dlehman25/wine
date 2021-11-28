@@ -10944,24 +10944,46 @@ static void test_Sitka(void)
     hr = IDWriteFactory7_CreateFontSetBuilder(factory7, &builder2);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
-    hr = IDWriteFontSetBuilder2_AddFontFile(builder2, L"c:/windows/fonts/sitka.ttc");
+    hr = IDWriteFontSetBuilder2_AddFontFile(builder2, L"c:/windows/fonts/arialn.ttf");
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
     hr = IDWriteFontSetBuilder2_CreateFontSet(builder2, &fontset);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
     count = IDWriteFontSet_GetFontCount(fontset);
-    ok(count == 6, "%d count %u\n", __LINE__,  count);
+    //ok(count == 6, "%d count %u\n", __LINE__,  count);
     for (i = 0; i < count; i++)
     {
+        IDWriteFontFace3 *fontface3;
+        struct dwrite_fonttable name;
+        WCHAR buffW[32768];
+        BOOL exists;
+        int k;
+
         hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &fontfaceref);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        hr = IDWriteFontFaceReference_CreateFontFace(fontfaceref, &fontface3);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        exists = FALSE;
+        hr = IDWriteFontFace3_TryGetFontTable(fontface3, MS_NAME_TAG, (const void **)&name.data,
+                &name.size, &name.context, &exists);
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+        
+        for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
+        {
+            buffW[0] = 0;
+            opentype_get_font_strings_from_id(&name, k, buffW);
+            printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
+        }
 
         sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
         ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
 
         IDWriteFontFaceReference_Release(fontfaceref);
     }
+return;
 
     /* create collection from font set (typo) */
     EXPECT_REF(fontset, 1);
@@ -11103,7 +11125,7 @@ START_TEST(font)
         win_skip("failed to create factory\n");
         return;
     }
-if (0) { test_Sitka(); return; }
+if (1) { test_Sitka(); return; }
 if (1) { test_fontsetbuilder(); return; }
 
     test_object_lifetime();
