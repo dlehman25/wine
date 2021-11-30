@@ -4111,11 +4111,57 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
     {
         count = 0;
     }
+    
+if (0)
+{
+    USHORT lang_id, length, offset, encoding, platform, name_id;
+    const struct name_header *header = (const struct name_header *)table->data;
+    const struct name_record *record;
+    USHORT string_offset;
+    const void *name;
+
+    string_offset = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, stringOffset));
+    record = &header->records[0];
+    length = GET_BE_WORD(record->length);
+
+    if (!(name = table_read_ensure(table, string_offset, length)))
+        return FALSE;
+
+    printf("rec %p size %u name %p\n", record, sizeof(*record), name);
+    for (i = 0; i < count; i++)
+    {
+
+        record = &header->records[i];        
+        platform = GET_BE_WORD(record->platformID);
+        encoding = GET_BE_WORD(record->encodingID);
+        lang_id = GET_BE_WORD(record->languageID);
+        name_id = GET_BE_WORD(record->nameID);
+        length = GET_BE_WORD(record->length);
+        offset = GET_BE_WORD(record->offset);
+        printf("[%d/%d] %p plat %d enc %d lang 0x%x name %d len %d offset 0x%x\n", i, count, record,
+            platform, encoding, lang_id, name_id, length, offset);
+    }
+
+    record = &header->records[28];
+    platform = GET_BE_WORD(record->platformID);
+    encoding = GET_BE_WORD(record->encodingID);
+    lang_id = GET_BE_WORD(record->languageID);
+    name_id = GET_BE_WORD(record->nameID);
+    length = GET_BE_WORD(record->length);
+    offset = GET_BE_WORD(record->offset);
+    name = table_read_ensure(table, string_offset + offset, length);
+    ++name;
+    printf("name %p\n",name);
+    for (i = 0; i < length/sizeof(wchar_t); i++)
+        printf("%c\n", ((wchar_t*)name)[i]);
+    exit(0);
+}
+
 
     has_english = FALSE;
     candidate_unicode = candidate_mac = candidate_mac_en = -1;
-
-//    printf("format %d count %d records %p\n", format, count, records);
+    
+    printf("format %d count %d records %p\n", format, count, records);
     ret[0] = 0;
     for (i = 0; i < count; i++)
     {
@@ -10979,16 +11025,18 @@ static void test_Sitka(void)
             printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
         }
         */
+        /*
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
         printf("family %ls\n", buffW);
-        /*
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, buffW);
         printf("subfamily %ls\n", buffW);
+        */
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffW);
         printf("typo family %ls\n", buffW);
+        /*
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, buffW);
         printf("typo subfamily %ls\n", buffW);

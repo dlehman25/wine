@@ -2310,6 +2310,7 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
     string_offset = table_read_be_word(table, FIELD_OFFSET(struct name_header, stringOffset));
 
     record = &header->records[idx];
+printf("table %p header %p idx %d rec %p\n", table, header, idx, record);
 
     platform = GET_BE_WORD(record->platformID);
     lang_id = GET_BE_WORD(record->languageID);
