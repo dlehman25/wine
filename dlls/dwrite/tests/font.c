@@ -4069,10 +4069,11 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
         int i;
 
         codepage = get_name_record_codepage(platform, encoding);
+++name; //// 
+printf("name %p\n", name);
         get_name_record_locale(platform, lang_id, locale, ARRAY_SIZE(locale));
-        for (i = 0; i < length; i++) ret[i] = ((char*)name)[i];
-        ret[i] = 0;
-//        printf("%u: %u %ls\n", idx, length, ret);
+        memcpy(ret, name, length);
+        ret[length/2] = 0;
     }
 
     return FALSE;
@@ -4161,7 +4162,6 @@ if (0)
     has_english = FALSE;
     candidate_unicode = candidate_mac = candidate_mac_en = -1;
     
-    printf("format %d count %d records %p\n", format, count, records);
     ret[0] = 0;
     for (i = 0; i < count; i++)
     {
@@ -4186,11 +4186,14 @@ if (0)
             case OPENTYPE_PLATFORM_WIN:
                 has_english = TRUE;
                 opentype_decode_namerecord(table, i, ret);
+                printf("%d %ls\n", i, ret);
                 break;
             default:
                 break;
         }
     }
+    printf("format %d count %d records %p mac %d uni %d i %d\n", 
+        format, count, records, candidate_mac, candidate_unicode, i);
 
     if (!ret[0] && candidate_mac != -1)
         has_english |= opentype_decode_namerecord(table, candidate_mac, ret);
