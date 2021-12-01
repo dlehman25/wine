@@ -4069,11 +4069,11 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
         int i;
 
         codepage = get_name_record_codepage(platform, encoding);
-++name; //// 
-printf("name %p\n", name);
         get_name_record_locale(platform, lang_id, locale, ARRAY_SIZE(locale));
         memcpy(ret, name, length);
         ret[length/2] = 0;
+        for (i = 0; i < length/2; i++)
+            ret[i] = GET_BE_WORD(ret[i]);
     }
 
     return FALSE;
