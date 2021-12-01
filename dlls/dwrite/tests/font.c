@@ -4192,8 +4192,8 @@ if (0)
                 break;
         }
     }
-    printf("format %d count %d records %p mac %d uni %d i %d\n", 
-        format, count, records, candidate_mac, candidate_unicode, i);
+//    printf("format %d count %d records %p mac %d uni %d i %d\n", 
+//        format, count, records, candidate_mac, candidate_unicode, i);
 
     if (!ret[0] && candidate_mac != -1)
         has_english |= opentype_decode_namerecord(table, candidate_mac, ret);
@@ -11020,26 +11020,21 @@ static void test_Sitka(void)
                 &name.size, &name.context, &exists);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
         
-        /*
         for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
         {
             buffW[0] = 0;
             opentype_get_font_strings_from_id(&name, k, buffW);
             printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
         }
-        */
-        /*
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
         printf("family %ls\n", buffW);
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, buffW);
         printf("subfamily %ls\n", buffW);
-        */
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffW);
         printf("typo family %ls\n", buffW);
-        /*
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, buffW);
         printf("typo subfamily %ls\n", buffW);
@@ -11049,7 +11044,6 @@ static void test_Sitka(void)
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
         printf("wws subfamily %ls\n", buffW);
-        */
         sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
         ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
 
