@@ -10201,7 +10201,7 @@ printf("=====================================\n");
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-if (1)
+if (0)
 {
 IDWriteFontFace3 *fontface;
 struct dwrite_fonttable name;
@@ -10339,7 +10339,7 @@ if (table_exists)
                 {
                     WCHAR buffer[256];
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    printf("%s: %d DWRITE_FONT %d %ls\n", __FUNCTION__, __LINE__, id, buffer);
+                    //printf("%s: %d DWRITE_FONT %d %ls\n", __FUNCTION__, __LINE__, id, buffer);
                 }
                     ;
                 }
@@ -11193,7 +11193,7 @@ START_TEST(font)
         win_skip("failed to create factory\n");
         return;
     }
-if (1) { test_Sitka(); return; }
+if (0) { test_Sitka(); return; }
 if (1) { test_fontsetbuilder(); return; }
 
     test_object_lifetime();
