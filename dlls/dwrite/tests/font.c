@@ -11049,9 +11049,10 @@ static void test_Sitka(void)
         sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
         ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
 
+        IDWriteFontFace3_Release(fontface3);
         IDWriteFontFaceReference_Release(fontfaceref);
     }
-return;
+
     /* create collection from font set (typo) */
     EXPECT_REF(fontset, 1);
     hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
