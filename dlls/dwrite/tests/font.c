@@ -4041,7 +4041,7 @@ static void get_name_record_locale(enum opentype_platform_id platform, USHORT la
 */
 }
 
-static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx, WCHAR *ret)
+static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx, size_t nret, WCHAR *ret)
 {
     USHORT lang_id, length, offset, encoding, platform;
     const struct name_header *header = (const struct name_header *)table->data;
@@ -4068,6 +4068,8 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
         WCHAR locale[LOCALE_NAME_MAX_LENGTH];
         int i;
 
+        if (nret < length)
+            length = nret;
         codepage = get_name_record_codepage(platform, encoding);
         get_name_record_locale(platform, lang_id, locale, ARRAY_SIZE(locale));
         memcpy(ret, name, length);
@@ -4091,7 +4093,7 @@ static BOOL opentype_is_english_namerecord(const struct dwrite_fonttable *table,
 }
 
 static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *table,
-            enum opentype_string_id id, WCHAR *ret)
+            enum opentype_string_id id, size_t nret, WCHAR *ret)
 {
     int i, count, candidate_mac, candidate_mac_en, candidate_unicode;
     const struct name_record *records;
@@ -4185,7 +4187,7 @@ if (0)
                 break;
             case OPENTYPE_PLATFORM_WIN:
                 has_english = TRUE;
-                opentype_decode_namerecord(table, i, ret);
+                opentype_decode_namerecord(table, i, nret, ret);
                 //printf("%d %ls\n", i, ret);
                 break;
             default:
@@ -4196,11 +4198,11 @@ if (0)
 //        format, count, records, candidate_mac, candidate_unicode, i);
 
     if (!ret[0] && candidate_mac != -1)
-        has_english |= opentype_decode_namerecord(table, candidate_mac, ret);
+        has_english |= opentype_decode_namerecord(table, candidate_mac, nret, ret);
     if (!ret[0] && candidate_unicode != -1)
-        has_english |= opentype_decode_namerecord(table, candidate_unicode, ret);
+        has_english |= opentype_decode_namerecord(table, candidate_unicode, nret, ret);
     if (!has_english && candidate_mac_en != -1)
-        opentype_decode_namerecord(table, candidate_mac_en, ret);
+        opentype_decode_namerecord(table, candidate_mac_en, nret, ret);
     return ret[0] ? S_OK : E_FAIL;
 }
 
@@ -10230,26 +10232,26 @@ if (table_exists)
     for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
     {
         buffW[0] = 0;
-        opentype_get_font_strings_from_id(&name, k, buffW);
+        opentype_get_font_strings_from_id(&name, k, sizeof(buffW), buffW);
         printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
     }
     buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffW);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, sizeof(buffW), buffW);
     printf("family %ls\n", buffW);
     buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, buffW);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(buffW), buffW);
     printf("subfamily %ls\n", buffW);
     buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffW);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, sizeof(buffW), buffW);
     printf("typo family %ls\n", buffW);
     buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, buffW);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(buffW), buffW);
     printf("typo subfamily %ls\n", buffW);
     buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffW);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, sizeof(buffW), buffW);
     printf("wws family %ls\n", buffW);
     buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, sizeof(buffW), buffW);
     printf("wws subfamily %ls\n", buffW);
 }
 }
@@ -10302,7 +10304,7 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, val);
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, sizeof(val), val);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME:
@@ -10312,7 +10314,7 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, val);
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME:
@@ -10322,7 +10324,7 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, val);
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
@@ -10332,7 +10334,7 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, val);
+                    opentype_get_font_strings_from_id(&name, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, sizeof(val), val);
                     break;
                 }
                 default:
