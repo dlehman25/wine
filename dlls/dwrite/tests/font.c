@@ -10103,15 +10103,6 @@ static void test_fontsetbuilder(void)
         hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
         ok(hr == S_OK, "Failed to get family, hr %#x.\n", hr);
 
-{
-IDWriteLocalizedStrings *names;
-WCHAR buffer[256];
-hr = IDWriteFontFamily1_GetFamilyNames(family, &names);
-get_enus_string(names, buffer, ARRAY_SIZE(buffer));
-printf("=====================================\n");
-printf("[%d / %d] %ls\n", i, count, buffer);
-printf("=====================================\n");
-}
         fontcount = IDWriteFontFamily1_GetFontCount(family);
         for (j = 0; j < fontcount; ++j)
         {
