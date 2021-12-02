@@ -10148,7 +10148,7 @@ static void test_fontsetbuilder(void)
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-if (0)
+if (1)
 {
 IDWriteFontFace3 *fontface;
 struct dwrite_fonttable name;
@@ -10250,6 +10250,7 @@ if (table_exists)
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, sizeof(val), val);
+                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME:
@@ -10260,6 +10261,7 @@ if (table_exists)
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME:
@@ -10270,6 +10272,7 @@ if (table_exists)
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
@@ -10280,6 +10283,7 @@ if (table_exists)
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, sizeof(val), val);
+                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
                 default:
