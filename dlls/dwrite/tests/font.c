@@ -10261,16 +10261,18 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     UINT32 style, weight;
+                    DWRITE_FONT_SIMULATIONS sim;
 
                     style = IDWriteFont3_GetStyle(font);
                     weight = IDWriteFont3_GetWeight(font);
+                    sim = IDWriteFontFaceReference_GetSimulations(ref);
 
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
                     if (!val[0])
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
-                    ok(!wcscmp(val, buffer), "weight %d style %d expected %ls, got %ls\n", 
-                        weight, style, val, buffer);
+                    ok(!wcscmp(val, buffer), "sim %d weight %d style %d expected %ls, got %ls\n", 
+                        sim, weight, style, val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME:
@@ -10280,16 +10282,18 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     UINT32 style, weight;
+                    DWRITE_FONT_SIMULATIONS sim;
 
                     style = IDWriteFont3_GetStyle(font);
                     weight = IDWriteFont3_GetWeight(font);
+                    sim = IDWriteFontFaceReference_GetSimulations(ref);
 
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
                     if (!val[0])
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
-                    ok(!wcscmp(val, buffer), "weight %d style %d expected %ls, got %ls\n", 
-                        weight, style, val, buffer);
+                    ok(!wcscmp(val, buffer), "sim %d weight %d style %d expected %ls, got %ls\n", 
+                        sim, weight, style, val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
