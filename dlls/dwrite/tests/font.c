@@ -4186,7 +4186,7 @@ if (0)
             case OPENTYPE_PLATFORM_WIN:
                 has_english = TRUE;
                 opentype_decode_namerecord(table, i, ret);
-                printf("%d %ls\n", i, ret);
+                //printf("%d %ls\n", i, ret);
                 break;
             default:
                 break;
@@ -10993,14 +10993,14 @@ static void test_Sitka(void)
     hr = IDWriteFactory7_CreateFontSetBuilder(factory7, &builder2);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
-    hr = IDWriteFontSetBuilder2_AddFontFile(builder2, L"c:/windows/fonts/arialn.ttf");
+    hr = IDWriteFontSetBuilder2_AddFontFile(builder2, L"c:/windows/fonts/sitka.ttc");
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
     hr = IDWriteFontSetBuilder2_CreateFontSet(builder2, &fontset);
     ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
     count = IDWriteFontSet_GetFontCount(fontset);
-    //ok(count == 6, "%d count %u\n", __LINE__,  count);
+    ok(count == 6, "%d count %u\n", __LINE__,  count);
     for (i = 0; i < count; i++)
     {
         IDWriteFontFace3 *fontface3;
@@ -11020,6 +11020,7 @@ static void test_Sitka(void)
                 &name.size, &name.context, &exists);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
         
+        /*
         for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
         {
             buffW[0] = 0;
@@ -11044,13 +11045,13 @@ static void test_Sitka(void)
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, buffW);
         printf("wws subfamily %ls\n", buffW);
+        */
         sim = IDWriteFontFaceReference_GetSimulations(fontfaceref);
         ok(sim == DWRITE_FONT_SIMULATIONS_NONE, "got %u\n", sim);
 
         IDWriteFontFaceReference_Release(fontfaceref);
     }
 return;
-
     /* create collection from font set (typo) */
     EXPECT_REF(fontset, 1);
     hr = IDWriteFactory7_CreateFontCollectionFromFontSet(factory7, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
