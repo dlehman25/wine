@@ -4115,52 +4115,6 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
         count = 0;
     }
     
-if (0)
-{
-    USHORT lang_id, length, offset, encoding, platform, name_id;
-    const struct name_header *header = (const struct name_header *)table->data;
-    const struct name_record *record;
-    USHORT string_offset;
-    const void *name;
-
-    string_offset = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, stringOffset));
-    record = &header->records[0];
-    length = GET_BE_WORD(record->length);
-
-    if (!(name = table_read_ensure(table, string_offset, length)))
-        return FALSE;
-
-    printf("rec %p size %u name %p\n", record, sizeof(*record), name);
-    for (i = 0; i < count; i++)
-    {
-
-        record = &header->records[i];        
-        platform = GET_BE_WORD(record->platformID);
-        encoding = GET_BE_WORD(record->encodingID);
-        lang_id = GET_BE_WORD(record->languageID);
-        name_id = GET_BE_WORD(record->nameID);
-        length = GET_BE_WORD(record->length);
-        offset = GET_BE_WORD(record->offset);
-        printf("[%d/%d] %p plat %d enc %d lang 0x%x name %d len %d offset 0x%x\n", i, count, record,
-            platform, encoding, lang_id, name_id, length, offset);
-    }
-
-    record = &header->records[28];
-    platform = GET_BE_WORD(record->platformID);
-    encoding = GET_BE_WORD(record->encodingID);
-    lang_id = GET_BE_WORD(record->languageID);
-    name_id = GET_BE_WORD(record->nameID);
-    length = GET_BE_WORD(record->length);
-    offset = GET_BE_WORD(record->offset);
-    name = table_read_ensure(table, string_offset + offset, length);
-    ++name;
-    printf("name %p\n",name);
-    for (i = 0; i < length/sizeof(wchar_t); i++)
-        printf("%c\n", ((wchar_t*)name)[i]);
-    exit(0);
-}
-
-
     has_english = FALSE;
     candidate_unicode = candidate_mac = candidate_mac_en = -1;
     
