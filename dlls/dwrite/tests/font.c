@@ -10260,11 +10260,17 @@ if (table_exists)
                     WCHAR buffer[256];
                     buffer[0] = 0;
                     val[0] = 0;
+                    UINT32 style, weight;
+
+                    style = IDWriteFont3_GetStyle(font);
+                    weight = IDWriteFont3_GetWeight(font);
+
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
                     if (!val[0])
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
-                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
+                    ok(!wcscmp(val, buffer), "weight %d style %d expected %ls, got %ls\n", 
+                        weight, style, val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FACE_NAME:
@@ -10273,11 +10279,17 @@ if (table_exists)
                     WCHAR buffer[256];
                     buffer[0] = 0;
                     val[0] = 0;
+                    UINT32 style, weight;
+
+                    style = IDWriteFont3_GetStyle(font);
+                    weight = IDWriteFont3_GetWeight(font);
+
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
                     if (!val[0])
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
-                    ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
+                    ok(!wcscmp(val, buffer), "weight %d style %d expected %ls, got %ls\n", 
+                        weight, style, val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
@@ -10961,9 +10973,9 @@ static void test_Sitka(void)
     {
         IDWriteFontFace3 *fontface3;
         struct dwrite_fonttable name;
-        WCHAR buffW[32768];
+        //WCHAR buffW[32768];
         BOOL exists;
-        int k;
+        //int k;
 
         hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &fontfaceref);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
