@@ -10148,58 +10148,6 @@ static void test_fontsetbuilder(void)
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-if (0)
-{
-IDWriteFontFace3 *fontface;
-struct dwrite_fonttable name;
-IDWriteLocalizedStrings *names;
-WCHAR buffer[256];
-BOOL table_exists = FALSE;
-
-buffer[0] = 0;
-hr = IDWriteFont3_GetFaceNames(font, &names);
-get_enus_string(names, buffer, ARRAY_SIZE(buffer));
-
-hr = IDWriteFont3_CreateFontFace(font, &fontface);
-ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
-
-printf("=====================================\n");
-printf("[%d / %d] exists %d %ls\n", j, fontcount, table_exists, buffer);
-printf("=====================================\n");
-
-hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
-    &name.size, &name.context, &table_exists);
-ok(hr == S_OK, "Failed to create fontface, hr %#x.\n", hr);
-if (table_exists)
-{
-    WCHAR buffW[32768];
-    int k;
-    for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
-    {
-        buffW[0] = 0;
-        opentype_get_font_strings_from_id(&name, k, sizeof(buffW), buffW);
-        printf("%s: %d: OPENTYPE_STRING %u %ls\n", __FUNCTION__, __LINE__, k, buffW);
-    }
-    buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, sizeof(buffW), buffW);
-    printf("family %ls\n", buffW);
-    buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(buffW), buffW);
-    printf("subfamily %ls\n", buffW);
-    buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, sizeof(buffW), buffW);
-    printf("typo family %ls\n", buffW);
-    buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(buffW), buffW);
-    printf("typo subfamily %ls\n", buffW);
-    buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, sizeof(buffW), buffW);
-    printf("wws family %ls\n", buffW);
-    buffW[0] = 0;
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, sizeof(buffW), buffW);
-    printf("wws subfamily %ls\n", buffW);
-}
-}
             for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
             {
                 IDWriteLocalizedStrings *values;
