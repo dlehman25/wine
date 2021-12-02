@@ -4062,7 +4062,8 @@ static BOOL opentype_decode_namerecord(const struct dwrite_fonttable *table, uns
     if (!(name = table_read_ensure(table, string_offset + offset, length)))
         return FALSE;
 
-    if (lang_id < 0x8000)
+    //if (lang_id < 0x8000)
+    if (lang_id == 0x0409)
     {
         UINT codepage;
         WCHAR locale[LOCALE_NAME_MAX_LENGTH];
@@ -10260,7 +10261,9 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
+                    if (!val[0])
+                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
@@ -10271,7 +10274,9 @@ if (table_exists)
                     buffer[0] = 0;
                     val[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
+                    if (!val[0])
+                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
