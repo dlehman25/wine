@@ -10276,8 +10276,17 @@ if (table_exists)
                     }
                     else
                     {
+                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
+                        if (!val[0])
+                            opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                        
+                        if (!wcscmp(val, L"Regular")) val[0] = 0;
+
                         if (sim & DWRITE_FONT_SIMULATIONS_BOLD)
-                            wcscpy(val, L"Bold");
+                        {
+                            if (val[0]) wcscat(val, L" ");
+                            wcscat(val, L"Bold");
+                        }
                         if (sim & DWRITE_FONT_SIMULATIONS_OBLIQUE)
                         {
                             if (val[0]) wcscat(val, L" ");
