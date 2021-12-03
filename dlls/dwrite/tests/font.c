@@ -10302,11 +10302,24 @@ if (table_exists)
                     sim = IDWriteFontFaceReference_GetSimulations(ref);
 
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
-                    if (!val[0])
-                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
-                    ok(!wcscmp(val, buffer), "sim %d weight %d style %d expected %ls, got %ls\n", 
-                        sim, weight, style, val, buffer);
+                    if (sim == DWRITE_FONT_SIMULATIONS_NONE)
+                    {
+                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
+                        if (!val[0])
+                            opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                        ok(!wcscmp(val, buffer), "sim %d weight %d style %d expected %ls, got %ls\n", 
+                            sim, weight, style, val, buffer);
+                    }
+                    else
+                    {
+                        if (sim & DWRITE_FONT_SIMULATIONS_BOLD)
+                            wcscpy(val, L"Bold");
+                        if (sim & DWRITE_FONT_SIMULATIONS_OBLIQUE)
+                        {
+                            if (val[0]) wcscat(val, L" ");
+                            wcscat(val, L"Oblique");
+                        }
+                    }
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WIN32_FAMILY_NAME:
