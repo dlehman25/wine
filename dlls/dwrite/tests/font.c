@@ -10496,16 +10496,21 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     if (use_typo)
                     {
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, sizeof(val), val);
-                        if (weight != DWRITE_FONT_WEIGHT_REGULAR)
+                        if (val[0])
                         {
-                            wcscat(val, L" ");
-                            wcscat(val, weight_to_str(weight));
+                            if (weight != DWRITE_FONT_WEIGHT_REGULAR)
+                            {
+                                wcscat(val, L" ");
+                                wcscat(val, weight_to_str(weight));
+                            }
+                            if (stretch != DWRITE_FONT_STRETCH_NORMAL)
+                            {
+                                wcscat(val, L" ");
+                                wcscat(val, stretch_to_str(stretch));
+                            }
                         }
-                        if (stretch != DWRITE_FONT_STRETCH_NORMAL)
-                        {
-                            wcscat(val, L" ");
-                            wcscat(val, stretch_to_str(stretch));
-                        }
+                        else
+                            opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FULL_FONTNAME,sizeof(val), val);
                     }
                     else
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FULL_FONTNAME,sizeof(val), val);
