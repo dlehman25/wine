@@ -10003,16 +10003,16 @@ static const WCHAR *weight_to_str(DWRITE_FONT_WEIGHT weight)
     static const struct knownweight_entry knownweights[] =
     {
         { L"Thin",        DWRITE_FONT_WEIGHT_THIN },
-        { L"Extra Light", DWRITE_FONT_WEIGHT_EXTRA_LIGHT },
+        { L"ExtraLight",  DWRITE_FONT_WEIGHT_EXTRA_LIGHT },
         { L"Light",       DWRITE_FONT_WEIGHT_LIGHT },
-        { L"Semi Light",  DWRITE_FONT_WEIGHT_SEMI_LIGHT },
+        { L"SemiLight",   DWRITE_FONT_WEIGHT_SEMI_LIGHT },
         { L"Regular",     DWRITE_FONT_WEIGHT_REGULAR },
         { L"Medium",      DWRITE_FONT_WEIGHT_MEDIUM },
-        { L"Demi Bold",   DWRITE_FONT_WEIGHT_DEMI_BOLD },
+        { L"SemiBold",    DWRITE_FONT_WEIGHT_DEMI_BOLD },
         { L"Bold",        DWRITE_FONT_WEIGHT_BOLD },
-        { L"Extra Bold",  DWRITE_FONT_WEIGHT_EXTRA_BOLD },
+        { L"ExtraBold",   DWRITE_FONT_WEIGHT_EXTRA_BOLD },
         { L"Black",       DWRITE_FONT_WEIGHT_BLACK },
-        { L"Extra Black", DWRITE_FONT_WEIGHT_EXTRA_BLACK },
+        { L"ExtraBlack",  DWRITE_FONT_WEIGHT_EXTRA_BLACK },
         { NULL, 0 }
     };
     const struct knownweight_entry *ptr = knownweights;
@@ -10032,15 +10032,15 @@ static const WCHAR *stretch_to_str(DWRITE_FONT_STRETCH stretch)
     static const WCHAR *stretchnamesW[] =
     {
         NULL, /* DWRITE_FONT_STRETCH_UNDEFINED */
-        L"Ultra Condensed",
-        L"Extra Condensed",
+        L"UltraCondensed",
+        L"ExtraCondensed",
         L"Condensed",
-        L"Semi Condensed",
+        L"SemiCondensed",
         NULL, /* DWRITE_FONT_STRETCH_NORMAL */
-        L"Semi Expanded",
+        L"SemiExpanded",
         L"Expanded",
-        L"Extra Expanded",
-        L"Ultra Expanded"
+        L"ExtraExpanded",
+        L"UltraExpanded"
     };
     return stretchnamesW[stretch];
 }
