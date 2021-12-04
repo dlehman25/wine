@@ -10013,7 +10013,7 @@ static const WCHAR *weight_to_str(DWRITE_FONT_WEIGHT weight)
         { L"Extra Bold",  DWRITE_FONT_WEIGHT_EXTRA_BOLD },
         { L"Black",       DWRITE_FONT_WEIGHT_BLACK },
         { L"Extra Black", DWRITE_FONT_WEIGHT_EXTRA_BLACK },
-        { NULL, NULL }
+        { NULL, 0 }
     };
     const struct knownweight_entry *ptr = knownweights;
 
@@ -10036,7 +10036,7 @@ static const WCHAR *stretch_to_str(DWRITE_FONT_STRETCH stretch)
         L"Extra Condensed",
         L"Condensed",
         L"Semi Condensed",
-        L"(normal)", /* DWRITE_FONT_STRETCH_NORMAL */
+        NULL, /* DWRITE_FONT_STRETCH_NORMAL */
         L"Semi Expanded",
         L"Expanded",
         L"Extra Expanded",
@@ -10057,6 +10057,7 @@ static void test_fontsetbuilder(void)
     UINT32 count, i, refcount;
     IDWriteFontSet *fontset;
     IDWriteFontFile *file;
+    BOOL use_typo;
     WCHAR *path;
     HRESULT hr;
 
@@ -10269,13 +10270,15 @@ if (table_exists)
     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, sizeof(buffW), buffW);
     printf("wws subfamily %ls\n", buffW);
 }
-hr = IDWriteFontFace_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&tt_os2, &size, &os2_context, &table_exists);
+hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&tt_os2, &size, &os2_context, &table_exists);
 ok(hr == S_OK, "got 0x%08x\n", hr);
-printf("os2 ver %d fsSelection 0x%x wss %d regular %d\n",
+printf("os2 ver %d fsSelection 0x%x regular %d typo %d wws %d\n",
     GET_BE_WORD(tt_os2->version),
     GET_BE_WORD(tt_os2->fsSelection), 
-    GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_WWS,
-    GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_REGULAR);
+    GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_REGULAR,
+    GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRICS,
+    GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_WWS);
+use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRICS);
 }
             for (id = DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL_RS3; ++id)
             {
@@ -10368,8 +10371,6 @@ printf("os2 ver %d fsSelection 0x%x wss %d regular %d\n",
                     sim = IDWriteFontFaceReference_GetSimulations(ref);
 
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-
-                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     if (sim == DWRITE_FONT_SIMULATIONS_NONE)
                     {
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
@@ -10395,8 +10396,8 @@ printf("os2 ver %d fsSelection 0x%x wss %d regular %d\n",
                             wcscat(val, L"Oblique");
                         }
                     }
-                    ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) expected %ls, got %ls\n", 
-                        sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
+                    ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) typo %d expected %ls, got %ls\n", 
+                        sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), use_typo, val, buffer);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME:
@@ -10492,7 +10493,22 @@ printf("os2 ver %d fsSelection 0x%x wss %d regular %d\n",
                     sim = IDWriteFontFaceReference_GetSimulations(ref);
 
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FULL_FONTNAME,sizeof(val), val);
+                    if (use_typo)
+                    {
+                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, sizeof(val), val);
+                        if (weight != DWRITE_FONT_WEIGHT_REGULAR)
+                        {
+                            wcscat(val, L" ");
+                            wcscat(val, weight_to_str(weight));
+                        }
+                        if (stretch != DWRITE_FONT_STRETCH_NORMAL)
+                        {
+                            wcscat(val, L" ");
+                            wcscat(val, stretch_to_str(stretch));
+                        }
+                    }
+                    else
+                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FULL_FONTNAME,sizeof(val), val);
                     ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) expected %ls, got %ls\n", 
                         sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
                     break;
