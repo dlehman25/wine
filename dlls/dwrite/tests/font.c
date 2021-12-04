@@ -10271,7 +10271,9 @@ if (table_exists)
 }
 hr = IDWriteFontFace_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&tt_os2, &size, &os2_context, &table_exists);
 ok(hr == S_OK, "got 0x%08x\n", hr);
-printf("fsSelection 0x%x wss %d regular %d\n", GET_BE_WORD(tt_os2->fsSelection), 
+printf("os2 ver %d fsSelection 0x%x wss %d regular %d\n",
+    GET_BE_WORD(tt_os2->version),
+    GET_BE_WORD(tt_os2->fsSelection), 
     GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_WWS,
     GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_REGULAR);
 }
