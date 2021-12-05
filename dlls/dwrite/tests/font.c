@@ -10376,6 +10376,21 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
                         if (!val[0])
                             opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                        if (use_typo)
+                        {
+                            if (weight != DWRITE_FONT_WEIGHT_REGULAR)
+                            {
+                                if (!wcscmp(val, L"Regular")) val[0] = 0;
+                                if (val[0]) wcscat(val, L" ");
+                                wcscat(val, weight_to_str(weight));
+                            }
+                            if (stretch != DWRITE_FONT_STRETCH_NORMAL)
+                            {
+                                if (!wcscmp(val, L"Regular")) val[0] = 0;
+                                if (val[0]) wcscat(val, L" ");
+                                wcscat(val, stretch_to_str(stretch));
+                            }
+                        }
                     }
                     else
                     {
@@ -10398,8 +10413,7 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                                 wcscat(val, stretch_to_str(stretch));
                             }
                         }
-                        else
-                            if (!wcscmp(val, L"Regular")) val[0] = 0;
+                        if (!wcscmp(val, L"Regular")) val[0] = 0;
 
                         if (sim & DWRITE_FONT_SIMULATIONS_BOLD)
                         {
@@ -10520,6 +10534,11 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     WCHAR buffer[256];
                     buffer[0] = 0;
                     val[0] = 0;
+                    UINT32 weight, stretch;
+
+                    weight = IDWriteFont3_GetWeight(font);
+                    stretch = IDWriteFont3_GetStretch(font);
+
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME, sizeof(val), val);
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
