@@ -10443,6 +10443,21 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, sizeof(val), val);
                         if (!val[0])
                             opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
+                        if (use_typo)
+                        {
+                            if (weight != DWRITE_FONT_WEIGHT_REGULAR)
+                            {
+                                if (!wcscmp(val, L"Regular")) val[0] = 0;
+                                if (val[0]) wcscat(val, L" ");
+                                wcscat(val, weight_to_str(weight));
+                            }
+                            if (stretch != DWRITE_FONT_STRETCH_NORMAL)
+                            {
+                                if (!wcscmp(val, L"Regular")) val[0] = 0;
+                                if (val[0]) wcscat(val, L" ");
+                                wcscat(val, stretch_to_str(stretch));
+                            }
+                        }
                     }
                     else
                     {
@@ -10450,7 +10465,23 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                         if (!val[0])
                             opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, sizeof(val), val);
 
-                        if (!wcscmp(val, L"Regular")) val[0] = 0;
+                        if (use_typo)
+                        {
+                            if (weight != DWRITE_FONT_WEIGHT_REGULAR)
+                            {
+                                if (!wcscmp(val, L"Regular")) val[0] = 0;
+                                if (val[0]) wcscat(val, L" ");
+                                wcscat(val, weight_to_str(weight));
+                            }
+                            if (stretch != DWRITE_FONT_STRETCH_NORMAL)
+                            {
+                                if (!wcscmp(val, L"Regular")) val[0] = 0;
+                                if (val[0]) wcscat(val, L" ");
+                                wcscat(val, stretch_to_str(stretch));
+                            }
+                        }
+                        else
+                            if (!wcscmp(val, L"Regular")) val[0] = 0;
 
                         if (sim & DWRITE_FONT_SIMULATIONS_BOLD)
                         {
