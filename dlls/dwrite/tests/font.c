@@ -10348,6 +10348,7 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                 case DWRITE_FONT_PROPERTY_ID_STYLE:
                     ivalue = IDWriteFont3_GetStyle(font);
                     break;
+/*
                 case DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME:
                 {
                     WCHAR val[32768];
@@ -10359,6 +10360,7 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
                     break;
                 }
+*/
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
                 {
                     WCHAR val[32768];
@@ -10371,9 +10373,6 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     get_wss_family_name(font, val, sizeof(val));
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     printf("%s: %d: table %ls value %ls\n", __FUNCTION__, __LINE__, val, buffer);
-                    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, sizeof(val), val);
-                    if (!val[0])
-                        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, sizeof(val), val);
 
                     style = IDWriteFont3_GetStyle(font);
                     weight = IDWriteFont3_GetWeight(font);
