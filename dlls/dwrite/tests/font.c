@@ -10045,6 +10045,40 @@ static const WCHAR *stretch_to_str(DWRITE_FONT_STRETCH stretch)
     return stretchnamesW[stretch];
 }
 
+static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
+{
+    IDWriteFontFaceReference *ref;
+    UINT32 style, weight, stretch;
+    struct dwrite_fonttable name;
+    DWRITE_FONT_SIMULATIONS sim;
+    IDWriteFontFace3 *fontface;
+    BOOL exists;
+    HRESULT hr;
+
+    style = IDWriteFont3_GetStyle(font);
+    weight = IDWriteFont3_GetWeight(font);
+    stretch = IDWriteFont3_GetStretch(font);
+
+    hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+    sim = IDWriteFontFaceReference_GetSimulations(ref);
+
+    hr = IDWriteFont3_CreateFontFace(font, &fontface);
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+            &name.size, &name.context, &exists);
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, size, buffer);
+    if (!buffer[0])
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, size, buffer);
+
+    if (name.context)
+        IDWriteFontFace3_ReleaseFontTable(fontface, name.context);
+
+    IDWriteFontFace3_Release(fontface);
+    IDWriteFontFaceReference_Release(ref);
+
+    return FALSE;
+}
+
 static void test_fontsetbuilder(void)
 {
     IDWriteFontFaceReference *ref, *ref2, *ref3;
@@ -10347,7 +10381,9 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     stretch = IDWriteFont3_GetStretch(font);
                     sim = IDWriteFontFaceReference_GetSimulations(ref);
 
+                    get_wss_family_name(font, val, sizeof(val));
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+                    printf("%s: %d: table %ls value %ls\n", __FUNCTION__, __LINE__, val, buffer);
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, sizeof(val), val);
                     if (!val[0])
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, sizeof(val), val);
