@@ -10048,20 +10048,12 @@ static const WCHAR *stretch_to_str(DWRITE_FONT_STRETCH stretch)
 static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
 {
     IDWriteFontFaceReference *ref;
-    UINT32 style, weight, stretch;
     struct dwrite_fonttable name;
-    DWRITE_FONT_SIMULATIONS sim;
     IDWriteFontFace3 *fontface;
     BOOL exists;
     HRESULT hr;
 
-    style = IDWriteFont3_GetStyle(font);
-    weight = IDWriteFont3_GetWeight(font);
-    stretch = IDWriteFont3_GetStretch(font);
-
     hr = IDWriteFont3_GetFontFaceReference(font, &ref);
-    sim = IDWriteFontFaceReference_GetSimulations(ref);
-
     hr = IDWriteFont3_CreateFontFace(font, &fontface);
 
     hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
@@ -10376,11 +10368,6 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     UINT32 style, weight, stretch;
                     DWRITE_FONT_SIMULATIONS sim;
 
-                    style = IDWriteFont3_GetStyle(font);
-                    weight = IDWriteFont3_GetWeight(font);
-                    stretch = IDWriteFont3_GetStretch(font);
-                    sim = IDWriteFontFaceReference_GetSimulations(ref);
-
                     get_wss_family_name(font, val, sizeof(val));
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     printf("%s: %d: table %ls value %ls\n", __FUNCTION__, __LINE__, val, buffer);
@@ -10388,10 +10375,15 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     if (!val[0])
                         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, sizeof(val), val);
 
+                    style = IDWriteFont3_GetStyle(font);
+                    weight = IDWriteFont3_GetWeight(font);
+                    stretch = IDWriteFont3_GetStretch(font);
+                    sim = IDWriteFontFaceReference_GetSimulations(ref);
                     ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) expected %ls, got %ls\n", 
                         sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
                     break;
                 }
+/*
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME:
                 {
                     WCHAR val[32768];
@@ -10631,6 +10623,7 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                         sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
                     break;
                 }
+*/
                 default:
                 {
                     WCHAR buffer[256];
