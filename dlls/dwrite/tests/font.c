@@ -10104,18 +10104,27 @@ void trim_spaces(WCHAR *inout, int len)
 
 static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
 {
+    struct dwrite_fonttable os2, name;
     IDWriteFontFaceReference *ref;
-    struct dwrite_fonttable name;
     IDWriteFontFace3 *fontface;
+    UINT16 fsselection;
     BOOL exists;
     HRESULT hr;
 
     hr = IDWriteFont3_GetFontFaceReference(font, &ref);
     hr = IDWriteFont3_CreateFontFace(font, &fontface);
 
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&os2.data,
+            &os2.size, &os2.context, &exists);
     hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
             &name.size, &name.context, &exists);
-    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, size, buffer);
+
+    fsselection = os2.data ? GET_BE_WORD(((TT_OS2_V2*)os2.data)->fsSelection) : 0;
+    buffer[0] = 0;
+    if (os2.data && !(fsselection & OS2_FSSELECTION_WWS))
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, size, buffer);
+    if (!buffer[0])
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, size, buffer);
     if (!buffer[0])
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, size, buffer);
 
