@@ -4131,7 +4131,21 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
     
     has_english = FALSE;
     candidate_unicode = candidate_mac = candidate_mac_en = -1;
-    
+
+/*
+27/45 Bahnschrift
+28/45 Weight
+29/45 Width
+30/45 Light
+31/45 SemiLight
+    for (i = 0; i < count; i++)
+    {
+        ret[0] = 0;
+        opentype_decode_namerecord(table, i, nret, ret);
+        if (ret[0])
+            printf("%d/%d %ls\n", i, count, ret);
+    }
+*/
     ret[0] = 0;
     for (i = 0; i < count; i++)
     {
@@ -4156,7 +4170,6 @@ static HRESULT opentype_get_font_strings_from_id(const struct dwrite_fonttable *
             case OPENTYPE_PLATFORM_WIN:
                 has_english = TRUE;
                 opentype_decode_namerecord(table, i, nret, ret);
-                //printf("%d %ls\n", i, ret);
                 break;
             default:
                 break;
@@ -10416,7 +10429,6 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                 case DWRITE_FONT_PROPERTY_ID_STYLE:
                     ivalue = IDWriteFont3_GetStyle(font);
                     break;
-/*
                 case DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME:
                 {
                     WCHAR val[32768];
@@ -10426,9 +10438,9 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, sizeof(val), val);
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
+                    printf("%s: %d: table %ls value %ls\n", __FUNCTION__, __LINE__, val, buffer);
                     break;
                 }
-*/
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
                 {
                     WCHAR val[32768];
@@ -10440,7 +10452,6 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
 
                     get_wss_family_name(font, val, sizeof(val));
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
-                    printf("%s: %d: table %ls value %ls\n", __FUNCTION__, __LINE__, val, buffer);
 
                     style = IDWriteFont3_GetStyle(font);
                     weight = IDWriteFont3_GetWeight(font);
