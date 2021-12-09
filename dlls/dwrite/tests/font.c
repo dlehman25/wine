@@ -10045,6 +10045,63 @@ static const WCHAR *stretch_to_str(DWRITE_FONT_STRETCH stretch)
     return stretchnamesW[stretch];
 }
 
+/* Modifies facenameW string, and returns pointer to regular term that was removed */
+static const WCHAR *facename_remove_regular_term(WCHAR *facenameW, INT len)
+{
+    static const WCHAR *regular_patterns[] =
+    {
+        L"Medium",
+        L"Regular",
+        NULL
+    };
+
+    const WCHAR *regular_ptr = NULL, *ptr;
+    int i = 0;
+
+    if (len == -1)
+        len = wcslen(facenameW);
+
+    /* remove rightmost regular variant from face name */
+    while (!regular_ptr && (ptr = regular_patterns[i++]))
+    {
+        int pattern_len = wcslen(ptr);
+        WCHAR *src;
+
+        if (pattern_len > len)
+            continue;
+
+        src = facenameW + len - pattern_len;
+        while (src >= facenameW)
+        {
+            if (!wcsnicmp(src, ptr, pattern_len))
+            {
+                memmove(src, src + pattern_len, (len - pattern_len - (src - facenameW) + 1)*sizeof(WCHAR));
+                len = wcslen(facenameW);
+                regular_ptr = ptr;
+                break;
+            }
+            else
+                src--;
+        }
+    }
+
+    return regular_ptr;
+}
+
+void trim_spaces(WCHAR *inout, int len)
+{
+    int s, e;
+
+    s = 0;
+    while (iswspace(inout[s]))
+        s++;
+    e = len-1;
+    while (iswspace(inout[e]))
+        e--;
+    memmove(inout, &inout[s], e-s+1);
+    inout[e-s+1] = 0;
+}
+
 static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
 {
     IDWriteFontFaceReference *ref;
@@ -10068,6 +10125,8 @@ static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
     IDWriteFontFace3_Release(fontface);
     IDWriteFontFaceReference_Release(ref);
 
+    facename_remove_regular_term(buffer, -1);
+    trim_spaces(buffer, wcslen(buffer));
     return FALSE;
 }
 
