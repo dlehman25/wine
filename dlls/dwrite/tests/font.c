@@ -543,7 +543,7 @@ typedef struct {
 } fvar_header;
 
 typedef struct {
-//Tag 	axisTag
+    DWORD  axisTag;
     DWORD  minValue;
     DWORD  defaultValue;
     DWORD  maxValue;
@@ -554,8 +554,8 @@ typedef struct {
 typedef struct {
     USHORT subfamilyNameID;
     USHORT flags;
-    //UserTuple 	coordinates
-    USHORT postScriptNameID;
+    DWORD  coordinates[1];
+    /* USHORT postScriptNameID; */
 } fvar_instance;
 
 struct WOFFHeader
@@ -696,7 +696,11 @@ enum opentype_string_id
     OPENTYPE_STRING_SAMPLE_TEXT,
     OPENTYPE_STRING_POSTSCRIPT_CID_NAME,
     OPENTYPE_STRING_WWS_FAMILY_NAME,
-    OPENTYPE_STRING_WWS_SUBFAMILY_NAME
+    OPENTYPE_STRING_WWS_SUBFAMILY_NAME,
+    /* https://docs.microsoft.com/en-us/typography/opentype/spec/name */
+    OPENTYPE_STRING_LIGHT_BACKGROUND, /* TODO name? */
+    OPENTYPE_STRING_DARK_BACKGROUND, /* TODO name? */
+    OPENTYPE_STRING_POSTSCRIPT_PREFIX, /* TODO name? */
 };
 
 enum opentype_platform_id
@@ -10143,6 +10147,64 @@ void trim_spaces(WCHAR *inout, int len)
     inout[e-s+1] = 0;
 }
 
+static BOOL get_postscript_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
+{
+    struct dwrite_fonttable os2, name, fvar;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFace3 *fontface;
+    BOOL exists;
+    HRESULT hr;
+
+    hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+    hr = IDWriteFont3_CreateFontFace(font, &fontface);
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&os2.data,
+            &os2.size, &os2.context, &exists);
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+            &name.size, &name.context, &exists);
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_FVAR_TAG, (const void **)&fvar.data,
+            &fvar.size, &fvar.context, &exists);
+
+    buffer[0] = 0;
+    opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, size, buffer);
+    printf("%s: %ls exists %d\n", __FUNCTION__, buffer, exists);
+    if (exists)
+    {
+        USHORT i, j;
+        SHORT axesArrayOffset = GET_BE_WORD(((fvar_header*)fvar.data)->axesArrayOffset);
+        USHORT axisCount = GET_BE_WORD(((fvar_header*)fvar.data)->axisCount);
+        USHORT axisSize = GET_BE_WORD(((fvar_header*)fvar.data)->axisSize);
+        USHORT instanceCount = GET_BE_WORD(((fvar_header*)fvar.data)->instanceCount);
+        USHORT instanceSize = GET_BE_WORD(((fvar_header*)fvar.data)->instanceSize);
+        fvar_instance *instance = (fvar_instance*)(((char*)fvar.data) + axesArrayOffset + axisCount * axisSize);
+        printf("axesArrayOffset %d\n", axesArrayOffset);
+        printf("axisCount %d\n", axisCount);
+        printf("axisSize %d\n", axisSize);
+        printf("instanceCount %d\n", instanceCount);
+        printf("instanceSize %d\n", instanceSize);
+        for (i = 0; i < instanceCount; i++)
+        {
+            printf("%u sub %x flags %x\n", i,
+                GET_BE_WORD(instance->subfamilyNameID),
+                GET_BE_WORD(instance->flags));
+            for (j = 0; j < axisCount; j++)
+                printf("  %u coord %x\n", j, GET_BE_WORD(instance->coordinates[j]));
+            if (instanceSize == axisCount * sizeof(DWORD) + 6)
+                printf("  postScriptNameID %x\n",
+                    GET_BE_WORD((USHORT*)&instance->coordinates[axisCount]));
+                
+            instance = (fvar_instance*)((char*)instance + instanceSize);
+        }
+    }
+
+    if (name.context)
+        IDWriteFontFace3_ReleaseFontTable(fontface, name.context);
+
+    IDWriteFontFace3_Release(fontface);
+    IDWriteFontFaceReference_Release(ref);
+    return FALSE;
+}
+
 static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
 {
     struct dwrite_fonttable os2, name;
@@ -10380,7 +10442,7 @@ if (table_exists)
 {
     WCHAR buffW[32768];
     int k;
-    for (k = 0; k <= OPENTYPE_STRING_WWS_SUBFAMILY_NAME; k++)
+    for (k = 0; k <= OPENTYPE_STRING_POSTSCRIPT_PREFIX; k++)
     {
         buffW[0] = 0;
         opentype_get_font_strings_from_id(&name, k, sizeof(buffW), buffW);
@@ -10460,13 +10522,17 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                 case DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME:
                 {
                     WCHAR val[32768];
+                    WCHAR pfx[1024];
                     WCHAR buffer[256];
                     buffer[0] = 0;
                     val[0] = 0;
+                    pfx[0] = 0;
                     get_enus_string(values, buffer, ARRAY_SIZE(buffer));
                     opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_POSTSCRIPT_FONTNAME, sizeof(val), val);
                     ok(!wcscmp(val, buffer), "expected %ls, got %ls\n", val, buffer);
-                    printf("%s: %d: table %ls value %ls\n", __FUNCTION__, __LINE__, val, buffer);
+                    printf("%s: %d: table %ls value %ls pfx %ls\n", __FUNCTION__, __LINE__, val, buffer, pfx);
+                    get_postscript_name(font, val, sizeof(val));
+                    printf("%s: %d: value %ls\n", __FUNCTION__, __LINE__, val);
                     break;
                 }
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
