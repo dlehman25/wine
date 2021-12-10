@@ -52,6 +52,7 @@
 #define MS_SBIX_TAG DWRITE_MAKE_OPENTYPE_TAG('s','b','i','x')
 #define MS_MAXP_TAG DWRITE_MAKE_OPENTYPE_TAG('m','a','x','p')
 #define MS_CBLC_TAG DWRITE_MAKE_OPENTYPE_TAG('C','B','L','C')
+#define MS_FVAR_TAG DWRITE_MAKE_OPENTYPE_TAG('f','v','a','r')
 
 /* 'sbix' formats */
 #define MS_PNG__TAG DWRITE_MAKE_OPENTYPE_TAG('p','n','g',' ')
@@ -529,6 +530,33 @@ typedef struct {
     DWORD version;
     WORD numGlyphs;
 } maxp;
+
+typedef struct {
+    USHORT  majorVersion;
+    USHORT  minorVersion;
+    SHORT   axesArrayOffset;
+    USHORT  reserved;
+    USHORT  axisCount;
+    USHORT  axisSize;
+    USHORT  instanceCount;
+    USHORT  instanceSize;
+} fvar_header;
+
+typedef struct {
+//Tag 	axisTag
+    DWORD  minValue;
+    DWORD  defaultValue;
+    DWORD  maxValue;
+    USHORT flags;
+    USHORT axisNameID;
+} fvar_variation_axis;
+
+typedef struct {
+    USHORT subfamilyNameID;
+    USHORT flags;
+    //UserTuple 	coordinates
+    USHORT postScriptNameID;
+} fvar_instance;
 
 struct WOFFHeader
 {
