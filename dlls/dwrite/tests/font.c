@@ -10184,15 +10184,21 @@ static BOOL get_postscript_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
         printf("instanceSize %d\n", instanceSize);
         for (i = 0; i < instanceCount; i++)
         {
-            printf("%u sub %x flags %x\n", i,
+            WCHAR subfam[1024];
+            
+            subfam[0] = 0;
+            opentype_get_font_strings_from_id(&name, GET_BE_WORD(instance->subfamilyNameID),
+                sizeof(subfam), subfam);
+
+            printf("%u sub %x flags %x %ls\n", i,
                 GET_BE_WORD(instance->subfamilyNameID),
-                GET_BE_WORD(instance->flags));
+                GET_BE_WORD(instance->flags), subfam);
             for (j = 0; j < axisCount; j++)
                 printf("  %u coord %x\n", j, GET_BE_WORD(instance->coordinates[j]));
             if (instanceSize == axisCount * sizeof(DWORD) + 6)
                 printf("  postScriptNameID %x\n",
                     GET_BE_WORD((USHORT*)&instance->coordinates[axisCount]));
-                
+            
             instance = (fvar_instance*)((char*)instance + instanceSize);
         }
     }
