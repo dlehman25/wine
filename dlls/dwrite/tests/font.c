@@ -10236,8 +10236,11 @@ static BOOL get_wss_face_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
 {
     struct dwrite_fonttable os2, name;
     IDWriteFontFaceReference *ref;
+    DWRITE_FONT_SIMULATIONS sim;
     IDWriteFontFace3 *fontface;
+    UINT32 weight, stretch;
     UINT16 fsselection;
+    BOOL use_typo;
     BOOL exists;
     HRESULT hr;
 
@@ -10249,6 +10252,9 @@ static BOOL get_wss_face_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
     hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
             &name.size, &name.context, &exists);
 
+    weight = IDWriteFont3_GetWeight(font);
+    stretch = IDWriteFont3_GetStretch(font);
+    sim = IDWriteFontFaceReference_GetSimulations(ref);
     fsselection = os2.data ? GET_BE_WORD(((TT_OS2_V2*)os2.data)->fsSelection) : 0;
     buffer[0] = 0;
     if (os2.data && !(fsselection & OS2_FSSELECTION_WWS))
@@ -10258,14 +10264,42 @@ static BOOL get_wss_face_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
     if (!buffer[0])
         opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, size, buffer);
 
+    use_typo = fsselection & OS2_FSSELECTION_USE_TYPO_METRICS;
+    if (sim)
+    {
+        facename_remove_regular_term(buffer, -1);
+        trim_spaces(buffer, wcslen(buffer));
+    }
+
+    if (use_typo)
+    {
+        if (buffer[0]) wcscat(buffer, L" ");
+        wcscat(buffer, weight_to_str(weight));
+
+        if (stretch != DWRITE_FONT_STRETCH_NORMAL)
+        {
+            if (buffer[0]) wcscat(buffer, L" ");
+            wcscat(buffer, stretch_to_str(stretch));
+        }
+    }
+
+    if (sim & DWRITE_FONT_SIMULATIONS_BOLD)
+    {
+        if (buffer[0]) wcscat(buffer, L" ");
+        wcscat(buffer, L"Bold");
+    }
+    if (sim & DWRITE_FONT_SIMULATIONS_OBLIQUE)
+    {
+        if (buffer[0]) wcscat(buffer, L" ");
+        wcscat(buffer, L"Oblique");
+    }
+
     if (name.context)
         IDWriteFontFace3_ReleaseFontTable(fontface, name.context);
 
     IDWriteFontFace3_Release(fontface);
     IDWriteFontFaceReference_Release(ref);
 
-    facename_remove_regular_term(buffer, -1);
-    trim_spaces(buffer, wcslen(buffer));
     return FALSE;
 }
 
@@ -10670,7 +10704,6 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     sim = IDWriteFontFaceReference_GetSimulations(ref);
                     ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) expected %ls, got %ls\n", 
                         sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
-
 /*
                     WCHAR val[32768];
                     WCHAR buffer[256];
