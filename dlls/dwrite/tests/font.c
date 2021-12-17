@@ -10177,11 +10177,32 @@ static BOOL get_postscript_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
         USHORT instanceCount = GET_BE_WORD(((fvar_header*)fvar.data)->instanceCount);
         USHORT instanceSize = GET_BE_WORD(((fvar_header*)fvar.data)->instanceSize);
         fvar_instance *instance = (fvar_instance*)(((char*)fvar.data) + axesArrayOffset + axisCount * axisSize);
+        fvar_variation_axis *axis = (fvar_variation_axis*)(((char*)fvar.data) + axesArrayOffset);
         printf("axesArrayOffset %d\n", axesArrayOffset);
         printf("axisCount %d\n", axisCount);
         printf("axisSize %d\n", axisSize);
         printf("instanceCount %d\n", instanceCount);
         printf("instanceSize %d\n", instanceSize);
+        for (i = 0; i < axisCount; i++)
+        {
+            WCHAR axisname[256];            
+            char tag[5];
+
+            axisname[0] = 0;
+            opentype_get_font_strings_from_id(&name, GET_BE_WORD(axis->axisNameID),
+                sizeof(axisname), axisname);
+
+            *((DWORD*)tag) = *(DWORD*)&axis->axisTag;
+            tag[4] = 0;
+            printf("%s %d %d %d %x %d %ls\n", tag,
+                GET_BE_WORD(axis->minValue),
+                GET_BE_WORD(axis->defaultValue),
+                GET_BE_WORD(axis->maxValue),
+                GET_BE_WORD(axis->flags),
+                GET_BE_WORD(axis->axisNameID),
+                axisname);
+            axis = (fvar_variation_axis*)((char*)axis + axisSize);
+        }
         for (i = 0; i < instanceCount; i++)
         {
             WCHAR subfam[1024];
@@ -10194,7 +10215,7 @@ static BOOL get_postscript_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
                 GET_BE_WORD(instance->subfamilyNameID),
                 GET_BE_WORD(instance->flags), subfam);
             for (j = 0; j < axisCount; j++)
-                printf("  %u coord %x\n", j, GET_BE_WORD(instance->coordinates[j]));
+                printf("  %u coord %d\n", j, GET_BE_WORD(instance->coordinates[j]));
             if (instanceSize == axisCount * sizeof(DWORD) + 6)
                 printf("  postScriptNameID %x\n",
                     GET_BE_WORD((USHORT*)&instance->coordinates[axisCount]));
