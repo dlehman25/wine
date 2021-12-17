@@ -10410,6 +10410,33 @@ static void test_fontsetbuilder(void)
 
             hr = IDWriteFont3_GetFontFaceReference(font, &ref);
             ok(hr == S_OK, "Failed to get fontface reference, hr %#x.\n", hr);
+        {
+            int k;
+            UINT32 naxes;
+            DWRITE_FONT_AXIS_VALUE axis_values[4];
+            IDWriteFontFaceReference1 *ref1;
+
+            ref1 = NULL;
+            hr = IDWriteFontFaceReference_QueryInterface(ref, &IID_IDWriteFontFaceReference1, (void **)&ref1);
+
+            if (ref1)
+            {
+                
+                naxes = IDWriteFontFaceReference1_GetFontAxisValueCount(ref1);
+                todo_wine
+                    ok(naxes == 4, "Unexpected axis naxes %u.\n", naxes);
+                if (naxes == 4)
+                {
+
+                    hr = IDWriteFontFaceReference1_GetFontAxisValues(ref1, axis_values, ARRAY_SIZE(axis_values));
+                    ok(hr == S_OK, "Unexpected hr %#x.\n",hr);
+                    for (k = 0; k < 4; k++)
+                        printf("%d %s %f\n", k, wine_dbgstr_an((char *)&axis_values[k].axisTag, 4),
+                            axis_values[k].value);
+                }
+            }
+            IDWriteFontFaceReference1_Release(ref1);
+        }
 
             EXPECT_REF(ref, 1);
             hr = IDWriteFontSetBuilder_AddFontFaceReference(builder, ref);
