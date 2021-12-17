@@ -10232,6 +10232,43 @@ static BOOL get_postscript_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
     return FALSE;
 }
 
+static BOOL get_wss_face_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
+{
+    struct dwrite_fonttable os2, name;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFace3 *fontface;
+    UINT16 fsselection;
+    BOOL exists;
+    HRESULT hr;
+
+    hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+    hr = IDWriteFont3_CreateFontFace(font, &fontface);
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&os2.data,
+            &os2.size, &os2.context, &exists);
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+            &name.size, &name.context, &exists);
+
+    fsselection = os2.data ? GET_BE_WORD(((TT_OS2_V2*)os2.data)->fsSelection) : 0;
+    buffer[0] = 0;
+    if (os2.data && !(fsselection & OS2_FSSELECTION_WWS))
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_SUBFAMILY_NAME, size, buffer);
+    if (!buffer[0])
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME, size, buffer);
+    if (!buffer[0])
+        opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_SUBFAMILY_NAME, size, buffer);
+
+    if (name.context)
+        IDWriteFontFace3_ReleaseFontTable(fontface, name.context);
+
+    IDWriteFontFace3_Release(fontface);
+    IDWriteFontFaceReference_Release(ref);
+
+    facename_remove_regular_term(buffer, -1);
+    trim_spaces(buffer, wcslen(buffer));
+    return FALSE;
+}
+
 static BOOL get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, size_t size)
 {
     struct dwrite_fonttable os2, name;
@@ -10429,8 +10466,8 @@ static void test_fontsetbuilder(void)
                 
                 naxes = IDWriteFontFaceReference1_GetFontAxisValueCount(ref1);
                 todo_wine
-                    ok(naxes == 4, "Unexpected axis naxes %u.\n", naxes);
-                if (naxes == 4)
+                    ok(naxes >= 4, "Unexpected axis naxes %u.\n", naxes);
+                if (naxes >= 4)
                 {
 
                     hr = IDWriteFontFaceReference1_GetFontAxisValues(ref1, axis_values, ARRAY_SIZE(axis_values));
@@ -10614,9 +10651,27 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                         sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
                     break;
                 }
-/*
+
                 case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FACE_NAME:
                 {
+                    WCHAR val[32768];
+                    WCHAR buffer[256];
+                    buffer[0] = 0;
+                    val[0] = 0;
+                    UINT32 style, weight, stretch;
+                    DWRITE_FONT_SIMULATIONS sim;
+
+                    get_wss_face_name(font, val, sizeof(val));
+                    get_enus_string(values, buffer, ARRAY_SIZE(buffer));
+
+                    style = IDWriteFont3_GetStyle(font);
+                    weight = IDWriteFont3_GetWeight(font);
+                    stretch = IDWriteFont3_GetStretch(font);
+                    sim = IDWriteFontFaceReference_GetSimulations(ref);
+                    ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) expected %ls, got %ls\n", 
+                        sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), val, buffer);
+
+/*
                     WCHAR val[32768];
                     WCHAR buffer[256];
                     buffer[0] = 0;
@@ -10687,8 +10742,10 @@ use_typo = !!(GET_BE_WORD(tt_os2->fsSelection) & OS2_FSSELECTION_USE_TYPO_METRIC
                     }
                     ok(!wcscmp(val, buffer), "sim %d weight %d (%ls) style %d stretch %d (%ls) typo %d expected %ls, got %ls\n", 
                         sim, weight, weight_to_str(weight), style, stretch, stretch_to_str(stretch), use_typo, val, buffer);
+*/
                     break;
                 }
+/*
                 case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME:
                 {
                     WCHAR val[32768];
