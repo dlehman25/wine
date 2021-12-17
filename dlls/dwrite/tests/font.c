@@ -10415,10 +10415,15 @@ static void test_fontsetbuilder(void)
             UINT32 naxes;
             DWRITE_FONT_AXIS_VALUE axis_values[4];
             IDWriteFontFaceReference1 *ref1;
+            UINT32 w, st, sy;
 
             ref1 = NULL;
             hr = IDWriteFontFaceReference_QueryInterface(ref, &IID_IDWriteFontFaceReference1, (void **)&ref1);
+            w = IDWriteFont3_GetWeight(font);
+            st = IDWriteFont3_GetStretch(font);
+            sy = IDWriteFont3_GetStyle(font);
 
+            printf("weight %d stretch %d style %d\n", w, st, sy);
             if (ref1)
             {
                 
