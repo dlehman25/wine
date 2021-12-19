@@ -34,6 +34,7 @@
 #include "wine/test.h"
 
 #define MS_CMAP_TAG DWRITE_MAKE_OPENTYPE_TAG('c','m','a','p')
+#define MS_NAME_TAG DWRITE_MAKE_OPENTYPE_TAG('n','a','m','e')
 #define MS_VDMX_TAG DWRITE_MAKE_OPENTYPE_TAG('V','D','M','X')
 #define MS_GASP_TAG DWRITE_MAKE_OPENTYPE_TAG('g','a','s','p')
 #define MS_CPAL_TAG DWRITE_MAKE_OPENTYPE_TAG('C','P','A','L')
@@ -159,6 +160,11 @@ enum TT_HEAD_MACSTYLE
     TT_HEAD_MACSTYLE_SHADOW    = 1 << 4,
     TT_HEAD_MACSTYLE_CONDENSED = 1 << 5,
     TT_HEAD_MACSTYLE_EXTENDED  = 1 << 6,
+};
+
+enum TT_NAME_MAC_LANGUAGE_ID
+{
+    TT_NAME_MAC_LANGID_ENGLISH = 0,
 };
 
 typedef struct
@@ -431,6 +437,60 @@ struct cmap_segmented_mapping_0
     WORD entrySelector;
     WORD rangeShift;
     WORD endCode[1];
+};
+
+struct name_record
+{
+    WORD platformID;
+    WORD encodingID;
+    WORD languageID;
+    WORD nameID;
+    WORD length;
+    WORD offset;
+};
+
+struct name_header
+{
+    WORD format;
+    WORD count;
+    WORD stringOffset;
+    struct name_record records[1];
+};
+
+enum opentype_string_id
+{
+    OPENTYPE_STRING_COPYRIGHT_NOTICE = 0,
+    OPENTYPE_STRING_FAMILY_NAME,
+    OPENTYPE_STRING_SUBFAMILY_NAME,
+    OPENTYPE_STRING_UNIQUE_IDENTIFIER,
+    OPENTYPE_STRING_FULL_FONTNAME,
+    OPENTYPE_STRING_VERSION_STRING,
+    OPENTYPE_STRING_POSTSCRIPT_FONTNAME,
+    OPENTYPE_STRING_TRADEMARK,
+    OPENTYPE_STRING_MANUFACTURER,
+    OPENTYPE_STRING_DESIGNER,
+    OPENTYPE_STRING_DESCRIPTION,
+    OPENTYPE_STRING_VENDOR_URL,
+    OPENTYPE_STRING_DESIGNER_URL,
+    OPENTYPE_STRING_LICENSE_DESCRIPTION,
+    OPENTYPE_STRING_LICENSE_INFO_URL,
+    OPENTYPE_STRING_RESERVED_ID15,
+    OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME,
+    OPENTYPE_STRING_TYPOGRAPHIC_SUBFAMILY_NAME,
+    OPENTYPE_STRING_COMPATIBLE_FULLNAME,
+    OPENTYPE_STRING_SAMPLE_TEXT,
+    OPENTYPE_STRING_POSTSCRIPT_CID_NAME,
+    OPENTYPE_STRING_WWS_FAMILY_NAME,
+    OPENTYPE_STRING_WWS_SUBFAMILY_NAME
+};
+
+enum opentype_platform_id
+{
+    OPENTYPE_PLATFORM_UNICODE = 0,
+    OPENTYPE_PLATFORM_MAC,
+    OPENTYPE_PLATFORM_ISO,
+    OPENTYPE_PLATFORM_WIN,
+    OPENTYPE_PLATFORM_CUSTOM
 };
 
 enum opentype_cmap_table_platform
@@ -3527,6 +3587,14 @@ struct dwrite_fonttable
     void  *context;
     UINT32 size;
 };
+
+static const void *table_read_ensure(const struct dwrite_fonttable *table, unsigned int offset, unsigned int size)
+{
+    if (size > table->size || offset > table->size - size)
+        return NULL;
+
+    return table->data + offset;
+}
 
 static WORD table_read_be_word(const struct dwrite_fonttable *table, void *ptr, DWORD offset)
 {
@@ -9508,6 +9576,206 @@ static void test_AnalyzeContainerType(void)
     IDWriteFactory5_Release(factory);
 }
 
+static BOOL opentype_is_english_namerecord(const struct dwrite_fonttable *table, unsigned int idx)
+{
+    const struct name_header *header = (const struct name_header *)table->data;
+    const struct name_record *record;
+
+    record = &header->records[idx];
+
+    return GET_BE_WORD(record->platformID) == OPENTYPE_PLATFORM_MAC &&
+            GET_BE_WORD(record->languageID) == TT_NAME_MAC_LANGID_ENGLISH;
+}
+
+static void opentype_decode_namerecord(const struct dwrite_fonttable *table, unsigned int idx,
+                                       WCHAR *buffer, UINT32 size)
+{
+    const struct name_header *header = (const struct name_header *)table->data;
+    const struct name_record *record;
+    USHORT lang_id, length, offset;
+    unsigned int i, string_offset;
+    const void *name;
+
+    string_offset = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, stringOffset));
+
+    record = &header->records[idx];
+
+    lang_id = GET_BE_WORD(record->languageID);
+    length = GET_BE_WORD(record->length);
+    offset = GET_BE_WORD(record->offset);
+
+    if (lang_id != 0x0409)
+        return;
+
+    if (!(name = table_read_ensure(table, string_offset + offset, length)))
+        return;
+
+    if (size < length)
+        length = size;
+
+    length /= sizeof(WCHAR);
+    for (i = 0; i < length; i++)
+        buffer[i] = ((WCHAR *)name)[i];
+    for (i = 0; i < length; i++)
+        buffer[i] = GET_BE_WORD(buffer[i]);
+    buffer[i] = 0;
+}
+
+static void opentype_name_get_enus_string_from_id(const struct dwrite_fonttable *table,
+                                                  enum opentype_string_id id,
+                                                  WCHAR *buffer, UINT32 size)
+{
+    int i, count, candidate_mac, candidate_mac_en, candidate_unicode;
+    const struct name_record *records;
+    WORD format;
+
+    format = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, format));
+    ok(format == 0 || format == 1, "Unexpected 'name' format %d\n", format);
+
+    count = table_read_be_word(table, NULL, FIELD_OFFSET(struct name_header, count));
+
+    if (!(records = table_read_ensure(table, FIELD_OFFSET(struct name_header, records),
+                count * sizeof(struct name_record))))
+    {
+        count = 0;
+    }
+
+    candidate_unicode = candidate_mac = candidate_mac_en = -1;
+    for (i = 0; i < count; i++)
+    {
+        unsigned short platform;
+
+        if (GET_BE_WORD(records[i].nameID) != id)
+            continue;
+
+        platform = GET_BE_WORD(records[i].platformID);
+        switch (platform)
+        {
+            case OPENTYPE_PLATFORM_UNICODE:
+                if (candidate_unicode == -1)
+                    candidate_unicode = i;
+                break;
+            case OPENTYPE_PLATFORM_MAC:
+                if (candidate_mac == -1)
+                    candidate_mac = i;
+                if (candidate_mac_en == -1 && opentype_is_english_namerecord(table, i))
+                    candidate_mac_en = i;
+                break;
+            case OPENTYPE_PLATFORM_WIN:
+                opentype_decode_namerecord(table, i, buffer, size);
+                break;
+            default:
+                ok(0, "Unexpected platform %d\n", platform);
+                break;
+        }
+    }
+
+    if (!buffer[0] && candidate_mac != -1)
+        opentype_decode_namerecord(table, candidate_mac, buffer, size);
+    if (!buffer[0] && candidate_unicode != -1)
+        opentype_decode_namerecord(table, candidate_unicode, buffer, size);
+    if (!buffer[0] && candidate_mac_en != -1)
+        opentype_decode_namerecord(table, candidate_mac_en, buffer, size);
+}
+
+static int trim_spaces(WCHAR *in)
+{
+    int len;
+
+    if (!(len = wcslen(in)))
+        return 0;
+
+    while (iswspace(in[len-1]))
+        len--;
+
+    in[len] = 0;
+    return len;
+}
+
+static const WCHAR *facename_remove_regular_term(WCHAR *facenameW, INT len)
+{
+    static const WCHAR *regular_patterns[] =
+    {
+        L"Medium",
+        NULL
+    };
+
+    const WCHAR *regular_ptr = NULL, *ptr;
+    int i = 0;
+
+    if (len == -1)
+        len = wcslen(facenameW);
+
+    /* remove rightmost regular variant from face name */
+    while (!regular_ptr && (ptr = regular_patterns[i++]))
+    {
+        int pattern_len = wcslen(ptr);
+        WCHAR *src;
+
+        if (pattern_len > len)
+            continue;
+
+        src = facenameW + len - pattern_len;
+        while (src >= facenameW)
+        {
+            if (!wcsnicmp(src, ptr, pattern_len))
+            {
+                memmove(src, src + pattern_len, (len - pattern_len - (src - facenameW) + 1)*sizeof(WCHAR));
+                len = wcslen(facenameW);
+                regular_ptr = ptr;
+                break;
+            }
+            else
+                src--;
+        }
+    }
+
+    return regular_ptr;
+}
+
+static void get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, UINT32 size)
+{
+    struct dwrite_fonttable os2, name;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFace3 *fontface;
+    UINT16 fsselection;
+    BOOL exists;
+    HRESULT hr;
+
+    buffer[0] = 0;
+
+    hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = IDWriteFont3_CreateFontFace(font, &fontface);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+            &name.size, &name.context, &exists);
+    if (FAILED(hr) || !exists)
+        return;
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&os2.data,
+            &os2.size, &os2.context, &exists);
+    if (FAILED(hr) || !exists)
+        return;
+
+    fsselection = GET_BE_WORD(((TT_OS2_V2 *)os2.data)->fsSelection);
+    if (!(fsselection & OS2_FSSELECTION_WWS))
+        opentype_name_get_enus_string_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, buffer, size);
+    if (!buffer[0])
+        opentype_name_get_enus_string_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffer, size);
+    if (!buffer[0])
+        opentype_name_get_enus_string_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffer, size);
+
+    facename_remove_regular_term(buffer, -1);
+    trim_spaces(buffer);
+
+    IDWriteFontFace3_ReleaseFontTable(fontface, os2.context);
+    IDWriteFontFace3_ReleaseFontTable(fontface, name.context);
+    IDWriteFontFace3_Release(fontface);
+    IDWriteFontFaceReference_Release(ref);
+}
+
 static void test_fontsetbuilder(void)
 {
     IDWriteFontFaceReference *ref, *ref2, *ref3;
@@ -9678,7 +9946,7 @@ static void test_fontsetbuilder(void)
             IDWriteFontFaceReference_Release(ref3);
             IDWriteFontFaceReference_Release(ref2);
 
-            for (id = DWRITE_FONT_PROPERTY_ID_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL; ++id)
+            for (id = DWRITE_FONT_PROPERTY_ID_PREFERRED_FAMILY_NAME; id < DWRITE_FONT_PROPERTY_ID_TOTAL; ++id)
             {
                 IDWriteLocalizedStrings *values;
                 WCHAR buffW[255], buff2W[255];
@@ -9689,7 +9957,8 @@ static void test_fontsetbuilder(void)
                 ok(hr == S_OK, "Failed to get property value, hr %#x.\n", hr);
 
                 if (id == DWRITE_FONT_PROPERTY_ID_WEIGHT || id == DWRITE_FONT_PROPERTY_ID_STRETCH
-                        || id == DWRITE_FONT_PROPERTY_ID_STYLE)
+                        || id == DWRITE_FONT_PROPERTY_ID_STYLE
+                        || id == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME)
                 {
                 todo_wine
                     ok(exists, "Property %u expected to exist.\n", id);
@@ -9731,6 +10000,12 @@ static void test_fontsetbuilder(void)
                     ok(hr == S_OK, "Failed to get property string, hr %#x.\n", hr);
 
                     wsprintfW(buffW, L"%u", ivalue);
+                    ok(!lstrcmpW(buffW, buff2W), "Unexpected property value %s, expected %s.\n", wine_dbgstr_w(buff2W),
+                        wine_dbgstr_w(buffW));
+                    break;
+                case DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME:
+                    get_wss_family_name(font, buffW, ARRAY_SIZE(buffW));
+                    get_enus_string(values, buff2W, ARRAY_SIZE(buff2W));
                     ok(!lstrcmpW(buffW, buff2W), "Unexpected property value %s, expected %s.\n", wine_dbgstr_w(buff2W),
                         wine_dbgstr_w(buffW));
                     break;
