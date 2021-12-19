@@ -2880,7 +2880,8 @@ if (0) /* crashes on native */
 
             winetest_push_context("Font %s", wine_dbgstr_w(nameW));
 
-            ok(logfont.lfWeight == lf.lfWeight, "Unexpected lfWeight %d, expected lfWeight %d, font weight %d, "
+            ok(logfont.lfWeight == lf.lfWeight || broken(logfont.lfWeight == 1), /* Noto Sans */
+                    "Unexpected lfWeight %d, expected lfWeight %d, font weight %d, "
                     "bold simulation %s.\n", logfont.lfWeight, lf.lfWeight, IDWriteFont_GetWeight(font),
                     sim & DWRITE_FONT_SIMULATIONS_BOLD ? "yes" : "no");
             ok(logfont.lfItalic == lf.lfItalic, "Unexpected italic flag %d, oblique simulation %s.\n",
@@ -4849,7 +4850,8 @@ if (0) { /* crashes on native */
             winetest_push_context("Font %s", wine_dbgstr_w(nameW));
 
             get_logfont_from_font(font, &lf);
-            ok(logfont.lfWeight == lf.lfWeight, "Unexpected lfWeight %d, expected lfWeight %d, font weight %d, "
+            ok(logfont.lfWeight == lf.lfWeight || broken(logfont.lfWeight == 1), /* Noto Sans */
+                    "Unexpected lfWeight %d, expected lfWeight %d, font weight %d, "
                     "bold simulation %s.\n", logfont.lfWeight, lf.lfWeight, IDWriteFont_GetWeight(font),
                     sim & DWRITE_FONT_SIMULATIONS_BOLD ? "yes" : "no");
             ok(logfont.lfItalic == lf.lfItalic, "Unexpected italic flag %d, oblique simulation %s.\n",
