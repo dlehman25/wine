@@ -3855,7 +3855,8 @@ if (strcmp(winetest_platform, "wine")) {
             ok(hr == S_OK, "Failed to get ranges, hr %#x.\n", hr);
 
             expected_count = fontface_get_expected_unicode_ranges(fontface1, &expected_ranges);
-            ok(expected_count == range_count, "%s - %s: unexpected range count %u, expected %u.\n",
+            ok(expected_count == range_count || broken(range_count == 40) /* Juice ITC */,
+                    "%s - %s: unexpected range count %u, expected %u.\n",
                     wine_dbgstr_w(familynameW), wine_dbgstr_w(facenameW), range_count, expected_count);
 
             if (expected_count == range_count) {
