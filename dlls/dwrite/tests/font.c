@@ -9826,6 +9826,45 @@ static void get_wss_family_name(IDWriteFont3 *font, WCHAR *buffer, UINT32 size)
     IDWriteFontFaceReference_Release(ref);
 }
 
+static void get_typo_family_name(IDWriteFont3 *font, WCHAR *buffer, UINT32 size)
+{
+    struct dwrite_fonttable os2, name;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFace3 *fontface;
+    BOOL exists;
+    HRESULT hr;
+
+    buffer[0] = 0;
+
+    hr = IDWriteFont3_GetFontFaceReference(font, &ref);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = IDWriteFont3_CreateFontFace(font, &fontface);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_NAME_TAG, (const void **)&name.data,
+            &name.size, &name.context, &exists);
+    if (FAILED(hr) || !exists)
+        return;
+
+    hr = IDWriteFontFace3_TryGetFontTable(fontface, MS_OS2_TAG, (const void **)&os2.data,
+            &os2.size, &os2.context, &exists);
+    if (FAILED(hr) || !exists)
+        return;
+
+    if (!buffer[0])
+        opentype_name_get_enus_string_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, buffer, size);
+    if (!buffer[0])
+        opentype_name_get_enus_string_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, buffer, size);
+
+    facename_remove_regular_term(buffer, -1);
+    trim_spaces(buffer);
+
+    IDWriteFontFace3_ReleaseFontTable(fontface, os2.context);
+    IDWriteFontFace3_ReleaseFontTable(fontface, name.context);
+    IDWriteFontFace3_Release(fontface);
+    IDWriteFontFaceReference_Release(ref);
+}
+
 static void test_fontsetbuilder(void)
 {
     IDWriteFontFaceReference *ref, *ref2, *ref3;
@@ -10059,6 +10098,11 @@ static void test_fontsetbuilder(void)
                     ok(!lstrcmpW(buffW, buff2W), "Unexpected property value %s, expected %s.\n", wine_dbgstr_w(buff2W),
                         wine_dbgstr_w(buffW));
                     break;
+                case DWRITE_FONT_PROPERTY_ID_TYPOGRAPHIC_FAMILY_NAME:
+                    get_typo_family_name(font, buffW, ARRAY_SIZE(buffW));
+                    get_enus_string(values, buff2W, ARRAY_SIZE(buff2W));
+                    ok(!lstrcmpW(buffW, buff2W), "Unexpected property value %s, expected %s.\n", wine_dbgstr_w(buff2W),
+                        wine_dbgstr_w(buffW));
                 default:
                     ;
                 }
