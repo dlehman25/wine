@@ -703,7 +703,7 @@ static struct collectionloader *factory_get_collection_loader(struct dwritefacto
     return found;
 }
 
-static IDWriteFontCollection3 *factory_get_system_collection(struct dwritefactory *factory)
+static IDWriteFontCollection3 *factory_get_system_collection(struct dwritefactory *factory, DWRITE_FONT_FAMILY_MODEL model)
 {
     IDWriteFontCollection3 *collection;
     HRESULT hr;
@@ -713,7 +713,7 @@ static IDWriteFontCollection3 *factory_get_system_collection(struct dwritefactor
         return factory->system_collection;
     }
 
-    if (FAILED(hr = get_system_fontcollection(&factory->IDWriteFactory7_iface, &collection)))
+    if (FAILED(hr = get_system_fontcollection(&factory->IDWriteFactory7_iface, model, &collection)))
     {
         WARN("Failed to create system font collection, hr %#x.\n", hr);
         return NULL;
@@ -1170,7 +1170,7 @@ static HRESULT WINAPI dwritefactory_CreateTextFormat(IDWriteFactory7 *iface, WCH
     if (collection)
         IDWriteFontCollection_AddRef(collection);
     else {
-        collection = (IDWriteFontCollection *)factory_get_system_collection(factory);
+        collection = (IDWriteFontCollection *)factory_get_system_collection(factory, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE);
         if (!collection) {
             *format = NULL;
             return E_FAIL;
@@ -1685,7 +1685,7 @@ static HRESULT WINAPI dwritefactory3_GetSystemFontCollection(IDWriteFactory7 *if
     if (check_for_updates)
         FIXME("checking for system font updates not implemented\n");
 
-    *collection = (IDWriteFontCollection1 *)factory_get_system_collection(factory);
+    *collection = (IDWriteFontCollection1 *)factory_get_system_collection(factory, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE);
 
     return *collection ? S_OK : E_FAIL;
 }
@@ -1850,10 +1850,7 @@ static HRESULT WINAPI dwritefactory6_GetSystemFontCollection(IDWriteFactory7 *if
     if (include_downloadable)
         FIXME("remote fonts are not supported\n");
 
-    if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
-        FIXME("Typographic family model not supported\n");
-
-    *collection = (IDWriteFontCollection2 *)factory_get_system_collection(factory);
+    *collection = (IDWriteFontCollection2 *)factory_get_system_collection(factory, family_model);
 
     return *collection ? S_OK : E_FAIL;
 }
@@ -1904,10 +1901,7 @@ static HRESULT WINAPI dwritefactory7_GetSystemFontCollection(IDWriteFactory7 *if
     if (include_downloadable)
         FIXME("remote fonts are not supported\n");
 
-    if (family_model == DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC)
-        FIXME("Typographic family model not supported\n");
-
-    *collection = (IDWriteFontCollection3 *)factory_get_system_collection(factory);
+    *collection = (IDWriteFontCollection3 *)factory_get_system_collection(factory, family_model);
 
     return *collection ? S_OK : E_FAIL;
 }
