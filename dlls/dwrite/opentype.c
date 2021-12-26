@@ -2567,31 +2567,35 @@ HRESULT opentype_get_font_info_strings(const struct file_stream_desc *stream_des
 
 /* FamilyName locating order is WWS Family Name -> Preferred Family Name -> Family Name. If font claims to
    have 'Preferred Family Name' in WWS format, then WWS name is not used. */
-HRESULT opentype_get_font_familyname(struct file_stream_desc *stream_desc, IDWriteLocalizedStrings **names)
+HRESULT opentype_get_font_familyname(struct file_stream_desc *stream_desc, DWRITE_FONT_FAMILY_MODEL model,
+                                     IDWriteLocalizedStrings **names)
 {
     struct dwrite_fonttable os2, name;
     UINT16 fsselection;
     HRESULT hr;
 
-    opentype_get_font_table(stream_desc, MS_OS2_TAG, &os2);
     opentype_get_font_table(stream_desc, MS_NAME_TAG, &name);
 
     *names = NULL;
+    hr = E_FAIL;
+    if (model == DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE)
+    {
+        opentype_get_font_table(stream_desc, MS_OS2_TAG, &os2);
 
-    /* If Preferred Family doesn't conform to WWS model try WWS name. */
-    fsselection = os2.data ? table_read_be_word(&os2, FIELD_OFFSET(struct tt_os2, fsSelection)) : 0;
-    if (os2.data && !(fsselection & OS2_FSSELECTION_WWS))
-        hr = opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, names);
-    else
-        hr = E_FAIL;
+        /* If Preferred Family doesn't conform to WWS model try WWS name. */
+        fsselection = os2.data ? table_read_be_word(&os2, FIELD_OFFSET(struct tt_os2, fsSelection)) : 0;
+        if (os2.data && !(fsselection & OS2_FSSELECTION_WWS))
+            hr = opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_WWS_FAMILY_NAME, names);
+
+        if (os2.context)
+            IDWriteFontFileStream_ReleaseFileFragment(stream_desc->stream, os2.context);
+    }
 
     if (FAILED(hr))
         hr = opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_TYPOGRAPHIC_FAMILY_NAME, names);
     if (FAILED(hr))
         hr = opentype_get_font_strings_from_id(&name, OPENTYPE_STRING_FAMILY_NAME, names);
 
-    if (os2.context)
-        IDWriteFontFileStream_ReleaseFileFragment(stream_desc->stream, os2.context);
     if (name.context)
         IDWriteFontFileStream_ReleaseFileFragment(stream_desc->stream, name.context);
 

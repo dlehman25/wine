@@ -803,7 +803,7 @@ static HRESULT WINAPI dwritefactory_CreateCustomFontCollection(IDWriteFactory7 *
     if (FAILED(hr))
         return hr;
 
-    hr = create_font_collection(iface, enumerator, FALSE, (IDWriteFontCollection3 **)collection);
+    hr = create_font_collection(iface, enumerator, FALSE, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, (IDWriteFontCollection3 **)collection);
     IDWriteFontFileEnumerator_Release(enumerator);
     return hr;
 }

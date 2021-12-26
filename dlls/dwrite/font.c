@@ -333,6 +333,7 @@ struct dwrite_fontcollection
     LONG refcount;
 
     IDWriteFactory7 *factory;
+    DWRITE_FONT_FAMILY_MODEL model;
     struct dwrite_fontfamily_data **family_data;
     size_t size;
     size_t count;
@@ -3563,9 +3564,10 @@ static HRESULT fontcollection_add_family(struct dwrite_fontcollection *collectio
     return S_OK;
 }
 
-static HRESULT init_font_collection(struct dwrite_fontcollection *collection, BOOL is_system)
+static HRESULT init_font_collection(struct dwrite_fontcollection *collection, DWRITE_FONT_FAMILY_MODEL model, BOOL is_system)
 {
     collection->IDWriteFontCollection3_iface.lpVtbl = is_system ? &systemfontcollectionvtbl : &fontcollectionvtbl;
+    collection->model = model;
     collection->refcount = 1;
     collection->count = 0;
     collection->size = 0;
@@ -4309,7 +4311,8 @@ static BOOL font_apply_differentiation_rules(struct dwrite_font_data *font, WCHA
     return TRUE;
 }
 
-static HRESULT init_font_data(const struct fontface_desc *desc, struct dwrite_font_data **ret)
+static HRESULT init_font_data(const struct fontface_desc *desc, DWRITE_FONT_FAMILY_MODEL model,
+                              struct dwrite_font_data **ret)
 {
     static const float width_axis_values[] =
     {
@@ -4350,7 +4353,7 @@ static HRESULT init_font_data(const struct fontface_desc *desc, struct dwrite_fo
     opentype_get_font_facename(&stream_desc, props.lf.lfFaceName, &data->names);
 
     /* get family name from font file */
-    hr = opentype_get_font_familyname(&stream_desc, &data->family_names);
+    hr = opentype_get_font_familyname(&stream_desc, model, &data->family_names);
     if (FAILED(hr)) {
         WARN("unable to get family name from font\n");
         release_font_data(data);
@@ -4657,8 +4660,9 @@ static void fontcollection_add_replacements(struct dwrite_fontcollection *collec
     RegCloseKey(hkey);
 }
 
-HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerator *enumerator, BOOL is_system,
-    IDWriteFontCollection3 **ret)
+HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerator *enumerator,
+                               BOOL is_system, DWRITE_FONT_FAMILY_MODEL model,
+                               IDWriteFontCollection3 **ret)
 {
     struct fontfile_enum {
         struct list entry;
@@ -4676,7 +4680,7 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
     if (!(collection = calloc(1, sizeof(*collection))))
         return E_OUTOFMEMORY;
 
-    hr = init_font_collection(collection, is_system);
+    hr = init_font_collection(collection, model, is_system);
     if (FAILED(hr))
     {
         free(collection);
@@ -4752,7 +4756,7 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
             desc.font_data = NULL;
 
             /* Allocate an initialize new font data structure. */
-            hr = init_font_data(&desc, &font_data);
+            hr = init_font_data(&desc, model, &font_data);
             if (FAILED(hr))
             {
                 /* move to next one */
@@ -5025,7 +5029,7 @@ HRESULT get_system_fontcollection(IDWriteFactory7 *factory, IDWriteFontCollectio
         return hr;
 
     TRACE("building system font collection for factory %p\n", factory);
-    hr = create_font_collection(factory, enumerator, TRUE, collection);
+    hr = create_font_collection(factory, enumerator, TRUE, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, collection);
     IDWriteFontFileEnumerator_Release(enumerator);
     return hr;
 }
@@ -5093,7 +5097,7 @@ static HRESULT eudc_collection_add_family(IDWriteFactory7 *factory, struct dwrit
         desc.simulations = DWRITE_FONT_SIMULATIONS_NONE;
         desc.font_data = NULL;
 
-        hr = init_font_data(&desc, &font_data);
+        hr = init_font_data(&desc, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &font_data);
         if (FAILED(hr))
             continue;
 
@@ -5131,7 +5135,7 @@ HRESULT get_eudc_fontcollection(IDWriteFactory7 *factory, IDWriteFontCollection3
     if (!(collection = calloc(1, sizeof(*collection))))
         return E_OUTOFMEMORY;
 
-    hr = init_font_collection(collection, FALSE);
+    hr = init_font_collection(collection, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, FALSE);
     if (FAILED(hr))
     {
         free(collection);
@@ -5423,7 +5427,7 @@ HRESULT create_fontface(const struct fontface_desc *desc, struct list *cached_li
     }
     else
     {
-        hr = init_font_data(desc, &font_data);
+        hr = init_font_data(desc, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &font_data);
         if (FAILED(hr))
         {
             IDWriteFontFace5_Release(&fontface->IDWriteFontFace5_iface);

@@ -307,7 +307,7 @@ extern void    init_local_fontfile_loader(void) DECLSPEC_HIDDEN;
 extern IDWriteFontFileLoader *get_local_fontfile_loader(void) DECLSPEC_HIDDEN;
 extern HRESULT create_fontface(const struct fontface_desc *desc, struct list *cached_list,
         IDWriteFontFace5 **fontface) DECLSPEC_HIDDEN;
-extern HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerator *enumerator, BOOL is_system,
+extern HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerator *enumerator, BOOL is_system, DWRITE_FONT_FAMILY_MODEL model,
        IDWriteFontCollection3 **collection) DECLSPEC_HIDDEN;
 extern HRESULT create_glyphrunanalysis(const struct glyphrunanalysis_desc*,IDWriteGlyphRunAnalysis**) DECLSPEC_HIDDEN;
 extern BOOL    is_system_collection(IDWriteFontCollection*) DECLSPEC_HIDDEN;
@@ -398,7 +398,7 @@ extern void opentype_get_font_typo_metrics(struct file_stream_desc *stream_desc,
         unsigned int *descent) DECLSPEC_HIDDEN;
 extern HRESULT opentype_get_font_info_strings(const struct file_stream_desc *stream_desc,
         DWRITE_INFORMATIONAL_STRING_ID id, IDWriteLocalizedStrings **strings) DECLSPEC_HIDDEN;
-extern HRESULT opentype_get_font_familyname(struct file_stream_desc*,IDWriteLocalizedStrings**) DECLSPEC_HIDDEN;
+extern HRESULT opentype_get_font_familyname(struct file_stream_desc*,DWRITE_FONT_FAMILY_MODEL,IDWriteLocalizedStrings**) DECLSPEC_HIDDEN;
 extern HRESULT opentype_get_font_facename(struct file_stream_desc*,WCHAR*,IDWriteLocalizedStrings**) DECLSPEC_HIDDEN;
 extern void opentype_get_typographic_features(struct ot_gsubgpos_table *table, unsigned int script_index,
         unsigned int language_index, struct tag_array *tags) DECLSPEC_HIDDEN;
