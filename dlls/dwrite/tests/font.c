@@ -2743,6 +2743,8 @@ todo_wine
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
     todo_wine
         ok(c2 == collection2 && collection != (IDWriteFontCollection *)c2, "Unexpected collection instance.\n");
+    todo_wine
+        check_familymodel(collection2, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC);
         IDWriteFontCollection2_Release(c2);
         IDWriteFontCollection2_Release(collection2);
 
