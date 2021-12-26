@@ -3478,9 +3478,11 @@ static HRESULT WINAPI dwritefontcollection2_GetMatchingFonts(IDWriteFontCollecti
 
 static DWRITE_FONT_FAMILY_MODEL WINAPI dwritefontcollection2_GetFontFamilyModel(IDWriteFontCollection3 *iface)
 {
-    FIXME("%p.\n", iface);
+    struct dwrite_fontcollection *collection = impl_from_IDWriteFontCollection3(iface);
 
-    return DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE;
+    TRACE("%p.\n", iface);
+
+    return collection->model;
 }
 
 static HRESULT WINAPI dwritefontcollection2_GetFontSet(IDWriteFontCollection3 *iface, IDWriteFontSet1 **fontset)
