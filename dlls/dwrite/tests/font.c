@@ -2741,9 +2741,7 @@ todo_wine
     {
         hr = IDWriteFactory6_GetSystemFontCollection(factory6, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &c2);
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
-    todo_wine
         ok(c2 == collection2 && collection != (IDWriteFontCollection *)c2, "Unexpected collection instance.\n");
-    todo_wine
         check_familymodel(collection2, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC);
         IDWriteFontCollection2_Release(c2);
         IDWriteFontCollection2_Release(collection2);
@@ -2769,7 +2767,6 @@ todo_wine
     {
         hr = IDWriteFactory7_GetSystemFontCollection(factory7, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &c3);
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
-    todo_wine
         ok(c3 == collection3 && collection != (IDWriteFontCollection *)c3, "Unexpected collection instance.\n");
         ok(c3 == (IDWriteFontCollection3 *)c2, "Unexpected collection instance.\n");
         IDWriteFontCollection3_Release(c3);

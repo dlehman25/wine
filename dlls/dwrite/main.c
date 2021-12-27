@@ -599,6 +599,7 @@ struct dwritefactory
     LONG refcount;
 
     IDWriteFontCollection3 *system_collection;
+    IDWriteFontCollection3 *system_collection_typo;
     IDWriteFontCollection1 *eudc_collection;
     IDWriteGdiInterop1 *gdiinterop;
     IDWriteFontFallback1 *fallback;
@@ -656,6 +657,8 @@ static void release_dwritefactory(struct dwritefactory *factory)
 
     if (factory->system_collection)
         IDWriteFontCollection3_Release(factory->system_collection);
+    if (factory->system_collection_typo)
+        IDWriteFontCollection3_Release(factory->system_collection_typo);
     if (factory->eudc_collection)
         IDWriteFontCollection1_Release(factory->eudc_collection);
     if (factory->fallback)
@@ -708,9 +711,19 @@ static IDWriteFontCollection3 *factory_get_system_collection(struct dwritefactor
     IDWriteFontCollection3 *collection;
     HRESULT hr;
 
-    if (factory->system_collection) {
-        IDWriteFontCollection3_AddRef(factory->system_collection);
-        return factory->system_collection;
+    if (model == DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE)
+    {
+        if (factory->system_collection) {
+            IDWriteFontCollection3_AddRef(factory->system_collection);
+            return factory->system_collection;
+        }
+    }
+    else
+    {
+        if (factory->system_collection_typo) {
+            IDWriteFontCollection3_AddRef(factory->system_collection_typo);
+            return factory->system_collection_typo;
+        }
     }
 
     if (FAILED(hr = get_system_fontcollection(&factory->IDWriteFactory7_iface, model, &collection)))
@@ -719,10 +732,18 @@ static IDWriteFontCollection3 *factory_get_system_collection(struct dwritefactor
         return NULL;
     }
 
-    if (InterlockedCompareExchangePointer((void **)&factory->system_collection, collection, NULL))
-        IDWriteFontCollection3_Release(collection);
-
-    return factory->system_collection;
+    if (model == DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE)
+    {
+        if (InterlockedCompareExchangePointer((void **)&factory->system_collection, collection, NULL))
+            IDWriteFontCollection3_Release(collection);
+        return factory->system_collection;
+    }
+    else
+    {
+        if (InterlockedCompareExchangePointer((void **)&factory->system_collection_typo, collection, NULL))
+            IDWriteFontCollection3_Release(collection);
+        return factory->system_collection_typo;
+    }
 }
 
 static HRESULT WINAPI dwritefactory_QueryInterface(IDWriteFactory7 *iface, REFIID riid, void **obj)
@@ -2049,6 +2070,7 @@ static void init_dwritefactory(struct dwritefactory *factory, DWRITE_FACTORY_TYP
     factory->refcount = 1;
     factory->localfontfileloader = get_local_fontfile_loader();
     factory->system_collection = NULL;
+    factory->system_collection_typo = NULL;
     factory->eudc_collection = NULL;
     factory->gdiinterop = NULL;
     factory->fallback = NULL;
@@ -2065,6 +2087,7 @@ void factory_detach_fontcollection(IDWriteFactory7 *iface, IDWriteFontCollection
 {
     struct dwritefactory *factory = impl_from_IDWriteFactory7(iface);
     InterlockedCompareExchangePointer((void **)&factory->system_collection, NULL, collection);
+    InterlockedCompareExchangePointer((void **)&factory->system_collection_typo, NULL, collection);
     InterlockedCompareExchangePointer((void **)&factory->eudc_collection, NULL, collection);
     IDWriteFactory7_Release(iface);
 }
