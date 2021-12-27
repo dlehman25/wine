@@ -7540,6 +7540,8 @@ static IDWriteLocalizedStrings * fontset_entry_get_property(struct dwrite_fontse
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_DESIGN_SCRIPT_LANGUAGE_TAG, &value);
     else if (property == DWRITE_FONT_PROPERTY_ID_SUPPORTED_SCRIPT_LANGUAGE_TAG)
         opentype_get_font_info_strings(&stream_desc, DWRITE_INFORMATIONAL_STRING_SUPPORTED_SCRIPT_LANGUAGE_TAG, &value);
+    else if (property == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME)
+        opentype_get_font_familyname(&stream_desc, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &value);
     else
         WARN("Unsupported property %u.\n", property);
 

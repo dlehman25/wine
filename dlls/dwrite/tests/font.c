@@ -10012,8 +10012,7 @@ static void test_fontsetbuilder(void)
                 ok(hr == S_OK, "Failed to get property value, hr %#x.\n", hr);
 
                 if (id == DWRITE_FONT_PROPERTY_ID_WEIGHT || id == DWRITE_FONT_PROPERTY_ID_STRETCH
-                        || id == DWRITE_FONT_PROPERTY_ID_STYLE
-                        || id == DWRITE_FONT_PROPERTY_ID_WEIGHT_STRETCH_STYLE_FAMILY_NAME)
+                        || id == DWRITE_FONT_PROPERTY_ID_STYLE)
                 {
                 todo_wine
                     ok(exists, "Property %u expected to exist.\n", id);
