@@ -9831,11 +9831,13 @@ static void get_family_name(IDWriteFont3 *font, BOOL use_typo, WCHAR *buffer, UI
 static void test_fontsetbuilder(void)
 {
     IDWriteFontFaceReference *ref, *ref2, *ref3;
+    IDWriteFontCollection2 *collection2;
     IDWriteFontCollection1 *collection;
     IDWriteFontFaceReference1 *ref1;
     IDWriteFontSetBuilder1 *builder1;
     IDWriteFontSetBuilder *builder;
     DWRITE_FONT_AXIS_VALUE axis_values[4];
+    IDWriteFactory6 *factory6;
     IDWriteFactory3 *factory;
     UINT32 count, i, refcount;
     IDWriteFontSet *fontset;
@@ -9843,7 +9845,7 @@ static void test_fontsetbuilder(void)
     WCHAR *path;
     HRESULT hr;
 
-    factory = create_factory_iid(&IID_IDWriteFactory3);
+    factory = create_factory_iid(&IID_IDWriteFactory6);
     if (!factory)
     {
         win_skip("IDWriteFontSetBuilder is not supported.\n");
@@ -9894,6 +9896,21 @@ static void test_fontsetbuilder(void)
             ok(count == 1, "Unexpected family count %u.\n", count);
             IDWriteFontCollection1_Release(collection);
         }
+
+        hr = IDWriteFactory3_QueryInterface(factory, &IID_IDWriteFactory6, (void**)&factory6);
+        ok(hr == S_OK, "Unexpected hr %#x.\n",hr);
+
+        hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
+    todo_wine
+        ok(hr == S_OK, "Unexpected hr %#x.\n",hr);
+        if (SUCCEEDED(hr))
+        {
+            check_familymodel(collection2, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC);
+            count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+            ok(count == 1, "Unexpected family count %u.\n", count);
+            IDWriteFontCollection2_Release(collection2);
+        }
+        IDWriteFactory6_Release(factory6);
 
         /* No attempt to eliminate duplicates. */
         count = IDWriteFontSet_GetFontCount(fontset);
