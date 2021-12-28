@@ -661,6 +661,70 @@ static void _check_familymodel(void *iface_ptr, DWRITE_FONT_FAMILY_MODEL expecte
     }
 }
 
+static UINT32 get_num_fonts(void *iface_ptr)
+{
+    IDWriteFontCollection *collection;
+    IDWriteFontFamily *family;
+    UINT32 nfamilies;
+    UINT32 i, count;
+    HRESULT hr;
+
+    if (FAILED(IUnknown_QueryInterface((IUnknown *)iface_ptr, &IID_IDWriteFontCollection, (void **)&collection)))
+        return 0;
+
+    count = 0;
+    nfamilies = IDWriteFontCollection_GetFontFamilyCount(collection);
+    for (i = 0; i < nfamilies; i++)
+    {
+        hr = IDWriteFontCollection_GetFontFamily(collection, i, &family);
+        ok(hr == S_OK, "Failed to get font family, hr %#x.\n", hr);
+
+        count += IDWriteFontFamily_GetFontCount(family);
+        IDWriteFontFamily_Release(family);
+    }
+    IDWriteFontCollection_Release(collection);
+
+    return count;
+}
+
+static UINT32 get_num_fonts_no_simulations(void *iface_ptr)
+{
+    IDWriteFontCollection1 *collection;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFamily1 *family;
+    UINT32 nfamilies;
+    UINT32 nfonts;
+    UINT32 count;
+    UINT32 i, j;
+    HRESULT hr;
+
+    if (FAILED(IUnknown_QueryInterface((IUnknown *)iface_ptr, &IID_IDWriteFontCollection1, (void **)&collection)))
+        return 0;
+
+    count = 0;
+    nfamilies = IDWriteFontCollection1_GetFontFamilyCount(collection);
+    for (i = 0; i < nfamilies; i++)
+    {
+        hr = IDWriteFontCollection1_GetFontFamily(collection, i, &family);
+        ok(hr == S_OK, "Failed to get font family, hr %#x.\n", hr);
+
+        nfonts = IDWriteFontFamily1_GetFontCount(family);
+        for (j = 0; j < nfonts; j++)
+        {
+            hr = IDWriteFontFamily1_GetFontFaceReference(family, j, &ref);
+            ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+            if (!IDWriteFontFaceReference_GetSimulations(ref))
+                count++;
+            IDWriteFontFaceReference_Release(ref);
+        }
+        IDWriteFontFamily1_Release(family);
+    }
+    IDWriteFontCollection1_Release(collection);
+
+    return count;
+}
+
 struct test_fontenumerator
 {
     IDWriteFontFileEnumerator IDWriteFontFileEnumerator_iface;
@@ -10584,10 +10648,13 @@ static void test_family_font_set(void)
 static void test_system_font_set(void)
 {
     IDWriteFontSet *fontset, *filtered_set;
+    IDWriteFontCollection2 *collection2;
     IDWriteFontFaceReference *ref;
     IDWriteFontFace3 *fontface;
+    IDWriteFactory6 *factory6;
     IDWriteFactory3 *factory;
     DWRITE_FONT_PROPERTY p;
+    unsigned int count2;
     unsigned int count;
     HRESULT hr;
 
@@ -10621,6 +10688,41 @@ static void test_system_font_set(void)
     IDWriteFontFaceReference_Release(ref);
 
     IDWriteFontSet_Release(filtered_set);
+
+    /* test collections from font set */
+    if (SUCCEEDED(hr = IDWriteFactory3_QueryInterface(factory, &IID_IDWriteFactory6, (void **)&factory6)))
+    {
+        count = IDWriteFontSet_GetFontCount(fontset);
+
+        hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
+    todo_wine
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        if (SUCCEEDED(hr))
+        {
+            count2 = get_num_fonts_no_simulations(collection2);
+            ok(count == count2, "Expected %#x, got %#x\n", count, count2);
+            count2 = get_num_fonts(collection2);
+            ok(count == count2, "Expected %#x, got %#x\n", count, count2);
+            check_familymodel(collection2, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC);
+            IDWriteFontCollection2_Release(collection2);
+        }
+
+        hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2);
+    todo_wine
+        ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
+
+        if (SUCCEEDED(hr))
+        {
+            count2 = get_num_fonts_no_simulations(collection2);
+            ok(count == count2, "Expected %#x, got %#x\n", count, count2);
+            count2 = get_num_fonts(collection2);
+            ok(count < count2, "Expected %#x to be less than %#x\n", count, count2);
+            check_familymodel(collection2, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE);
+            IDWriteFontCollection2_Release(collection2);
+        }
+        IDWriteFactory6_Release(factory6);
+    }
 
     IDWriteFontSet_Release(fontset);
 
