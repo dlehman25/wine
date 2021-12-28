@@ -2534,7 +2534,9 @@ static void test_system_fontcollection(void)
     UINT32 nfonts;
     UINT32 count2;
     UINT32 count;
+    UINT32 index;
     UINT32 i, j;
+    BOOL exists;
     HRESULT hr;
     ULONG ref;
     BOOL ret;
@@ -2739,10 +2741,25 @@ todo_wine
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
     if (SUCCEEDED(hr))
     {
+        static const WCHAR *sitka[] = {
+            L"Sitka Banner",
+            L"Sitka Display",
+            L"Sitka Heading",
+            L"Sitka Small",
+            L"Sitka Subheading",
+            L"Sitka Text",
+        };
         hr = IDWriteFactory6_GetSystemFontCollection(factory6, FALSE, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &c2);
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
         ok(c2 == collection2 && collection != (IDWriteFontCollection *)c2, "Unexpected collection instance.\n");
         check_familymodel(collection2, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC);
+        count = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+
+        exists = FALSE;
+        hr = IDWriteFontCollection2_FindFamilyName(collection2, L"Sitka", &index, &exists);
+        ok(hr == S_OK, "Failed to get find Sitka, hr %#x.\n", hr);
+        ok(exists, "got exists %i\n", exists);
+
         IDWriteFontCollection2_Release(c2);
         IDWriteFontCollection2_Release(collection2);
 
@@ -2750,6 +2767,17 @@ todo_wine
                 &collection2);
         ok(hr == S_OK, "Failed to get collection, hr %#x.\n", hr);
         ok(collection == (IDWriteFontCollection *)collection2, "Unexpected collection instance.\n");
+        count2 = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+
+        ok(count2 >= count, "Expected at least more font families (typo %u wss %u)\n", count, count2);
+        for (i = 0; i < ARRAY_SIZE(sitka); i++)
+        {
+            exists = FALSE;
+            hr = IDWriteFontCollection2_FindFamilyName(collection2, sitka[i], &index, &exists);
+            ok(hr == S_OK, "Failed to get find %ls, hr %#x.\n", sitka[i], hr);
+            ok(exists, "got exists %i\n", exists);
+        }
+
         IDWriteFontCollection2_Release(collection2);
     }
         IDWriteFactory6_Release(factory6);
