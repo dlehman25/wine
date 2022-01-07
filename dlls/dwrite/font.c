@@ -4829,10 +4829,126 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
 
 HRESULT create_font_collection_from_set(IDWriteFactory7 *factory, IDWriteFontSet *fontset,
                                         DWRITE_FONT_FAMILY_MODEL model,
-                                        IDWriteFontCollection2 **collection)
+                                        IDWriteFontCollection2 **ret)
 {
-    FIXME("%p, %p, %d, %p\n", factory, fontset, model, collection);
-    return E_NOTIMPL;
+    struct dwrite_fontcollection *collection;
+    UINT32 i, j, count, face_count, index;
+    struct dwrite_font_data *font_data;
+    DWRITE_FONT_FACE_TYPE face_type;
+    DWRITE_FONT_FILE_TYPE file_type;
+    IDWriteFontFaceReference *ref;
+    IDWriteFontFileStream *stream;
+    struct fontface_desc desc;
+    IDWriteFontFile *file;
+    WCHAR familyW[255];
+    BOOL supported;
+    HRESULT hr;
+
+    FIXME("%p, %p, %d, %p\n", factory, fontset, model, ret);
+
+    *ret = NULL;
+
+    if (!(collection = calloc(1, sizeof(*collection))))
+        return E_OUTOFMEMORY;
+
+    hr = init_font_collection(collection, model, FALSE);
+    if (FAILED(hr))
+    {
+        free(collection);
+        return hr;
+    }
+
+    *ret = &collection->IDWriteFontCollection3_iface;
+
+    count = IDWriteFontSet_GetFontCount(fontset);
+    for (i = 0; i < count; i++)
+    {
+        if (FAILED(hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &ref)))
+            continue;
+
+        hr = IDWriteFontFaceReference_GetFontFile(ref, &file);
+        IDWriteFontFaceReference_Release(ref);
+        if (FAILED(hr))
+            continue;
+
+        if (FAILED(get_filestream_from_file(file, &stream)))
+        {
+            IDWriteFontFile_Release(file);
+            continue;
+        }
+
+        /* Unsupported formats are skipped. */
+        hr = opentype_analyze_font(stream, &supported, &file_type, &face_type, &face_count);
+        if (FAILED(hr) || !supported || face_count == 0) {
+            TRACE("Unsupported font (%p, 0x%08x, %d, %u)\n", file, hr, supported, face_count);
+            IDWriteFontFileStream_Release(stream);
+            IDWriteFontFile_Release(file);
+            hr = S_OK;
+            continue;
+        }
+
+        for (j = 0; j < face_count; j++)
+        {
+            desc.factory = factory;
+            desc.face_type = face_type;
+            desc.file = file;
+            desc.stream = stream;
+            desc.index = i;
+            desc.simulations = DWRITE_FONT_SIMULATIONS_NONE;
+            desc.font_data = NULL;
+
+            /* Allocate an initialize new font data structure. */
+            hr = init_font_data(&desc, model, &font_data);
+            if (FAILED(hr))
+            {
+                /* move to next one */
+                hr = S_OK;
+                continue;
+            }
+
+            fontstrings_get_en_string(font_data->family_names, familyW, ARRAY_SIZE(familyW));
+
+            /* ignore dot named faces */
+            if (familyW[0] == '.')
+            {
+                WARN("Ignoring face %s\n", debugstr_w(familyW));
+                release_font_data(font_data);
+                continue;
+            }
+
+            index = collection_find_family(collection, familyW);
+            if (index != ~0u)
+                hr = fontfamily_add_font(collection->family_data[index], font_data);
+            else {
+                struct dwrite_fontfamily_data *family_data;
+
+                /* create and init new family */
+                hr = init_fontfamily_data(font_data->family_names, &family_data);
+                if (hr == S_OK) {
+                    /* add font to family, family - to collection */
+                    hr = fontfamily_add_font(family_data, font_data);
+                    if (hr == S_OK)
+                        hr = fontcollection_add_family(collection, family_data);
+
+                    if (FAILED(hr))
+                        release_fontfamily_data(family_data);
+                }
+            }
+
+            if (FAILED(hr))
+            {
+                release_font_data(font_data);
+                break;
+            }
+        }
+
+        IDWriteFontFileStream_Release(stream);
+    }
+
+    collection->factory = factory;
+    IDWriteFactory7_AddRef(factory);
+
+    return hr;
 }
 
 struct system_fontfile_enumerator
