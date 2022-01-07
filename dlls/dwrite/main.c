@@ -1859,9 +1859,9 @@ static HRESULT WINAPI dwritefactory6_GetSystemFontCollection(IDWriteFactory7 *if
 static HRESULT WINAPI dwritefactory6_CreateFontCollectionFromFontSet(IDWriteFactory7 *iface, IDWriteFontSet *fontset,
         DWRITE_FONT_FAMILY_MODEL family_model, IDWriteFontCollection2 **collection)
 {
-    FIXME("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
+    TRACE("%p, %p, %d, %p.\n", iface, fontset, family_model, collection);
 
-    return E_NOTIMPL;
+    return create_font_collection_from_set(iface, fontset, family_model, collection);
 }
 
 static HRESULT WINAPI dwritefactory6_CreateFontSetBuilder(IDWriteFactory7 *iface, IDWriteFontSetBuilder2 **builder)

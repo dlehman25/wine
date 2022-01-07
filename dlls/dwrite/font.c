@@ -4827,6 +4827,14 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
     return hr;
 }
 
+HRESULT create_font_collection_from_set(IDWriteFactory7 *factory, IDWriteFontSet *fontset,
+                                        DWRITE_FONT_FAMILY_MODEL model,
+                                        IDWriteFontCollection2 **collection)
+{
+    FIXME("%p, %p, %d, %p\n", factory, fontset, model, collection);
+    return E_NOTIMPL;
+}
+
 struct system_fontfile_enumerator
 {
     IDWriteFontFileEnumerator IDWriteFontFileEnumerator_iface;
