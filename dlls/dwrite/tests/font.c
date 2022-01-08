@@ -10694,6 +10694,36 @@ static void test_system_font_set(void)
     {
         count = IDWriteFontSet_GetFontCount(fontset);
 
+{
+    IDWriteFontFaceReference *ref;
+    DWRITE_FONT_SIMULATIONS sim;
+    UINT32 i, j, size, index;
+    IDWriteFontFile *file;
+    wchar_t *key;
+
+    for (i = 0; i < count; i++)
+    {
+        hr = IDWriteFontSet_GetFontFaceReference(fontset, i, &ref);
+        ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+        sim = IDWriteFontFaceReference_GetSimulations(ref);
+        hr = IDWriteFontFaceReference_GetFontFile(ref, &file);
+        hr = IDWriteFontFile_GetReferenceKey(file, (const void**)&key, &size);
+        index = IDWriteFontFaceReference_GetFontFaceIndex(ref);
+
+        printf("[%d/%d] has sim %x idx %d size %u: ", i, count, sim, index, size);
+        for (j = 0; j < size/2; j++)
+        {
+            if (isprint(key[j]))
+                printf("%c", key[j]);
+            else
+                printf("%02x", key[j] & 0xff);
+        }
+        printf("\n");
+        IDWriteFontFaceReference_Release(ref);
+    }
+}
+
         hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
@@ -10807,6 +10837,7 @@ START_TEST(font)
         win_skip("failed to create factory\n");
         return;
     }
+test_system_font_set();return;
 
     test_object_lifetime();
     test_CreateFontFromLOGFONT();
