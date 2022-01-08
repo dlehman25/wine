@@ -10695,7 +10695,6 @@ static void test_system_font_set(void)
         count = IDWriteFontSet_GetFontCount(fontset);
 
         hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
-    todo_wine
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
         if (SUCCEEDED(hr))
@@ -10709,7 +10708,6 @@ static void test_system_font_set(void)
         }
 
         hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_WEIGHT_STRETCH_STYLE, &collection2);
-    todo_wine
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
         if (SUCCEEDED(hr))
