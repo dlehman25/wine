@@ -10695,10 +10695,14 @@ static void test_system_font_set(void)
         count = IDWriteFontSet_GetFontCount(fontset);
 
 {
+    IDWriteLocalizedStrings *names;
     IDWriteFontFaceReference *ref;
     DWRITE_FONT_SIMULATIONS sim;
     UINT32 i, j, size, index;
+    IDWriteFontFace3 *face;
     IDWriteFontFile *file;
+    WCHAR familyW[256];
+    WCHAR faceW[256];
     wchar_t *key;
 
     for (i = 0; i < count; i++)
@@ -10708,10 +10712,22 @@ static void test_system_font_set(void)
 
         sim = IDWriteFontFaceReference_GetSimulations(ref);
         hr = IDWriteFontFaceReference_GetFontFile(ref, &file);
-        hr = IDWriteFontFile_GetReferenceKey(file, (const void**)&key, &size);
-        index = IDWriteFontFaceReference_GetFontFaceIndex(ref);
+        ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
 
-        printf("[%d/%d] has sim %x idx %d size %u: ", i, count, sim, index, size);
+        hr = IDWriteFontFile_GetReferenceKey(file, (const void**)&key, &size);
+        ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+        hr = IDWriteFontFaceReference_CreateFontFace(ref, &face);
+        if (FAILED(hr)) continue; /* remote */
+
+        index = IDWriteFontFaceReference_GetFontFaceIndex(ref);
+        IDWriteFontFace3_GetFamilyNames(face, &names);
+        get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+        IDWriteFontFace3_GetFaceNames(face, &names);
+        get_enus_string(names, faceW, ARRAY_SIZE(faceW));
+
+        printf("[%d/%d] has sim %x idx %d [%ls] [%ls] size %u: ",
+            i, count, sim, index, familyW, faceW, size);
         for (j = 0; j < size/2; j++)
         {
             if (isprint(key[j]))
