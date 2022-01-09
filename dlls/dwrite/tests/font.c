@@ -10743,6 +10743,69 @@ static void test_system_font_set(void)
         hr = IDWriteFactory6_CreateFontCollectionFromFontSet(factory6, fontset, DWRITE_FONT_FAMILY_MODEL_TYPOGRAPHIC, &collection2);
         ok(hr == S_OK, "Unexpected hr %#x.\n", hr);
 
+{
+    IDWriteLocalizedStrings *names;
+    IDWriteFontFaceReference *ref;
+    DWRITE_FONT_SIMULATIONS sim;
+    IDWriteFontFamily2 *family;
+    UINT32 i, j, k, size, index;
+    IDWriteFontFace3 *face;
+    IDWriteFontFile *file;
+    WCHAR familyW[256];
+    WCHAR faceW[256];
+    wchar_t *key;
+    UINT32 nfamilies;
+    UINT32 count;
+    HRESULT hr;
+    UINT32 sum;
+
+
+    sum = 0;
+    nfamilies = IDWriteFontCollection2_GetFontFamilyCount(collection2);
+    for (i = 0; i < nfamilies; i++)
+    {
+        hr = IDWriteFontCollection2_GetFontFamily(collection2, i, &family);
+        ok(hr == S_OK, "Failed to get font family, hr %#x.\n", hr);
+
+        count = IDWriteFontFamily2_GetFontCount(family);
+        for (j = 0; j < count; j++)
+        {
+            hr = IDWriteFontFamily2_GetFontFaceReference(family, j, &ref);
+            ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+            sim = IDWriteFontFaceReference_GetSimulations(ref);
+            hr = IDWriteFontFaceReference_GetFontFile(ref, &file);
+            ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+            hr = IDWriteFontFile_GetReferenceKey(file, (const void**)&key, &size);
+            ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
+
+            hr = IDWriteFontFaceReference_CreateFontFace(ref, &face);
+            if (FAILED(hr)) continue; /* remote */
+
+            index = IDWriteFontFaceReference_GetFontFaceIndex(ref);
+            IDWriteFontFace3_GetFamilyNames(face, &names);
+            get_enus_string(names, familyW, ARRAY_SIZE(familyW));
+            IDWriteFontFace3_GetFaceNames(face, &names);
+            get_enus_string(names, faceW, ARRAY_SIZE(faceW));
+
+            printf("[%d] [%d/%d] [%d/%d] has sim %x idx %d [%ls] [%ls] size %u: ",
+                sum++, i, nfamilies, j, count, sim, index, familyW, faceW, size);
+            for (k = 0; k < size/2; k++)
+            {
+                if (isprint(key[k]))
+                    printf("%c", key[k]);
+                else
+                    printf("%02x", key[k] & 0xff);
+            }
+            printf("\n");
+            IDWriteFontFaceReference_Release(ref);
+        }
+        IDWriteFontFamily2_Release(family);
+    }
+    return;
+}
+
         if (SUCCEEDED(hr))
         {
             count2 = get_num_fonts_no_simulations(collection2);
