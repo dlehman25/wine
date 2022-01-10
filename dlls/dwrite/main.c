@@ -1018,16 +1018,28 @@ static HRESULT WINAPI dwritefactory_CreateFontFace(IDWriteFactory7 *iface, DWRIT
     *fontface = NULL;
 
     if (!is_face_type_supported(req_facetype))
+    {
+MESSAGE("%s: %d:\n", __FUNCTION__, __LINE__);
         return E_INVALIDARG;
+    }
 
     if (req_facetype != DWRITE_FONT_FACE_TYPE_OPENTYPE_COLLECTION && index)
+    {
+MESSAGE("%s: %d:\n", __FUNCTION__, __LINE__);
         return E_INVALIDARG;
+    }
 
     if (!is_simulation_valid(simulations))
+    {
+MESSAGE("%s: %d:\n", __FUNCTION__, __LINE__);
         return E_INVALIDARG;
+    }
 
     if (FAILED(hr = get_filestream_from_file(*font_files, &stream)))
+    {
+MESSAGE("%s: %d: hr 0x%x\n", __FUNCTION__, __LINE__, hr);
         return hr;
+    }
 
     /* check actual file/face type */
     is_supported = FALSE;
@@ -1061,6 +1073,7 @@ static HRESULT WINAPI dwritefactory_CreateFontFace(IDWriteFactory7 *iface, DWRIT
     hr = create_fontface(&desc, fontfaces, (IDWriteFontFace5 **)fontface);
 
 failed:
+MESSAGE("%s: %d: hr 0x%x\n", __FUNCTION__, __LINE__, hr);
     IDWriteFontFileStream_Release(stream);
     return hr;
 }

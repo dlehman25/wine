@@ -5402,6 +5402,7 @@ static HRESULT WINAPI dwritefontfile_Analyze(IDWriteFontFile *iface, BOOL *is_su
     *face_count = 0;
 
     hr = IDWriteFontFileLoader_CreateStreamFromKey(file->loader, file->reference_key, file->key_size, &stream);
+MESSAGE("%s: %d: hr 0x%x\n", __FUNCTION__, __LINE__, hr);
     if (FAILED(hr))
         return hr;
 
@@ -6891,8 +6892,10 @@ static HRESULT WINAPI fontfacereference_CreateFontFaceWithSimulations(IDWriteFon
     if (FAILED(hr))
         return hr;
 
+MESSAGE("%s: %d: hr 0x%x type %d num %d\n", __FUNCTION__, __LINE__, hr, face_type, face_num);
     hr = IDWriteFactory7_CreateFontFace(reference->factory, face_type, 1, &reference->file, reference->index,
             simulations, &fontface);
+MESSAGE("%s: %d: hr 0x%x\n", __FUNCTION__, __LINE__, hr);
     if (SUCCEEDED(hr))
     {
         hr = IDWriteFontFace_QueryInterface(fontface, &IID_IDWriteFontFace3, (void **)ret);

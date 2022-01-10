@@ -10694,6 +10694,7 @@ static void test_system_font_set(void)
     {
         count = IDWriteFontSet_GetFontCount(fontset);
 
+if (0)
 {
     IDWriteLocalizedStrings *names;
     IDWriteFontFaceReference *ref;
@@ -10781,6 +10782,7 @@ static void test_system_font_set(void)
             ok(hr == S_OK, "Failed to get font reference, hr %#x.\n", hr);
 
             hr = IDWriteFontFaceReference_CreateFontFace(ref, &face);
+printf("hr %x\n", hr);
             if (FAILED(hr)) continue; /* remote */
 
             index = IDWriteFontFaceReference_GetFontFaceIndex(ref);
