@@ -73,6 +73,7 @@ _ACRTIMP double __cdecl ldexp(double, int);
 _ACRTIMP double __cdecl frexp(double, int*);
 _ACRTIMP double __cdecl modf(double, double*);
 _ACRTIMP double __cdecl fdim(double, double);
+_ACRTIMP double __cdecl fma(double, double, double);
 _ACRTIMP double __cdecl fmod(double, double);
 _ACRTIMP double __cdecl fmin(double, double);
 _ACRTIMP double __cdecl fmax(double, double);
@@ -165,6 +166,7 @@ _ACRTIMP float __cdecl sqrtf(float);
 _ACRTIMP float __cdecl ceilf(float);
 _ACRTIMP float __cdecl floorf(float);
 _ACRTIMP float __cdecl modff(float, float*);
+_ACRTIMP float __cdecl fmaf(float, float, float);
 _ACRTIMP float __cdecl fmodf(float, float);
 
 _ACRTIMP int   __cdecl _finitef(float);
@@ -191,6 +193,7 @@ static inline float sqrtf(float x) { return sqrt(x); }
 static inline float ceilf(float x) { return ceil(x); }
 static inline float floorf(float x) { return floor(x); }
 static inline float modff(float x, float *y) { double yd, ret = modf(x, &yd); *y = yd; return ret; }
+static inline float fmaf(float x, float y, float z) { return fma(x, y, z); }
 static inline float fmodf(float x, float y) { return fmod(x, y); }
 
 static inline int   _finitef(float x) { return _finite(x); }
