@@ -73,6 +73,7 @@ _ACRTIMP double __cdecl fdim(double, double);
 _ACRTIMP double __cdecl fmod(double, double);
 _ACRTIMP double __cdecl fmin(double, double);
 _ACRTIMP double __cdecl fmax(double, double);
+_ACRTIMP double __cdecl fma(double, double, double);
 _ACRTIMP double __cdecl erf(double);
 _ACRTIMP double __cdecl remainder(double, double);
 _ACRTIMP double __cdecl remquo(double, double, int*);
@@ -159,6 +160,7 @@ _ACRTIMP float __cdecl floorf(float);
 _ACRTIMP float __cdecl frexpf(float, int*);
 _ACRTIMP float __cdecl modff(float, float*);
 _ACRTIMP float __cdecl fdimf(float, float);
+_ACRTIMP float __cdecl fmaf(float, float, float);
 _ACRTIMP float __cdecl fmodf(float, float);
 
 _ACRTIMP int   __cdecl _finitef(float);
