@@ -804,6 +804,8 @@ DECL_WIN_1252
 
 static const char nocontent[] = "no xml content here";
 
+static const char nodecl[] = "<nodecl/>";
+
 static const char szExampleXML[] =
 "<?xml version='1.0' encoding='utf-8'?>\n"
 "<root xmlns:foo='urn:uuid:86B2F87F-ACB6-45cd-8B77-9BDB92A01A29' a=\"attr a\" foo:b=\"attr b\" >\n"
@@ -10926,6 +10928,23 @@ static void test_load(void)
     ok(bstr1 == NULL, "got %p\n", bstr1);
 
     DeleteFileA(path);
+
+    /* load from existing path, no xml declaration */
+    write_to_file(path, nodecl);
+
+    V_VT(&src) = VT_BSTR;
+    V_BSTR(&src) = _bstr_(path);
+    b = VARIANT_FALSE;
+    hr = IXMLDOMDocument_load(doc, src, &b);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(b == VARIANT_TRUE, "got %d\n", b);
+
+    hr = IXMLDOMDocument_get_xml(doc, &bstr1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok( compareIgnoreReturns( bstr1, _bstr_(nodecl)), "Unexpected output\n");
+    SysFreeString(bstr1);
+    DeleteFileA(path);
+
     IXMLDOMDocument_Release(doc);
 
     doc = create_document(&IID_IXMLDOMDocument);
