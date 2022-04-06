@@ -14137,6 +14137,8 @@ START_TEST(domdoc)
         return;
     }
 
+    test_load();
+    return;
     test_createProcessingInstruction();
     test_load_with_site();
     test_domdoc();
