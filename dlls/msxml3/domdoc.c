@@ -2182,6 +2182,7 @@ static HRESULT domdoc_onDataAvailable(void *obj, char *ptr, DWORD len)
     domdoc *This = obj;
     xmlDocPtr xmldoc;
 
+printf("ptr %s\n", ptr);
     xmldoc = doparse(This, ptr, len, XML_CHAR_ENCODING_NONE);
     if(xmldoc) {
         xmldoc->_private = create_priv();

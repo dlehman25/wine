@@ -257,6 +257,36 @@ static void test_Load(void)
     IHTMLDocument2_Release(html_doc);
     html_doc = NULL;
     IPersistMoniker_Release(pers_mon);
+    
+    /* */
+    lstrcpyW(buf, L"res://");
+    GetModuleFileNameW(NULL, buf+lstrlenW(buf), ARRAY_SIZE(buf)-ARRAY_SIZE(L"res://"));
+    lstrcatW(buf, L"/xml/nodecl.xml");
+printf("buf %ls\n", buf);
+    
+    hres = CoCreateInstance(&CLSID_XMLView, NULL, CLSCTX_INPROC_SERVER|CLSCTX_INPROC_HANDLER,
+            &IID_IPersistMoniker, (void**)&pers_mon);
+    if(FAILED(hres)) {
+        win_skip("Failed to create XMLView instance\n");
+        return;
+    }
+    ok(hres == S_OK, "Unexpected hr %#lx.\n", hres);
+    
+    hres = CreateBindCtx(0, &bctx);
+    ok(hres == S_OK, "Unexpected hr %#lx.\n", hres);
+    hres = pCreateURLMoniker(NULL, buf, &mon);
+    ok(hres == S_OK, "Unexpected hr %#lx.\n", hres);
+    loaded = FALSE;
+    hres = IPersistMoniker_Load(pers_mon, TRUE, mon, bctx, 0);
+    ok(hres == S_OK, "Unexpected hr %#lx.\n", hres);
+    IBindCtx_Release(bctx);
+    IMoniker_Release(mon);
+
+    while(!loaded && GetMessageA(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+    IPersistMoniker_Release(pers_mon);
 }
 
 START_TEST(xmlview)
