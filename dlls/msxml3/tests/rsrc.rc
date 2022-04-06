@@ -21,3 +21,6 @@ xmlview.xml XML "xmlview.xml"
 
 /* @makedep: xmlview.xsl */
 xmlview.xsl XML "xmlview.xsl"
+
+/* @makedep: nodecl.xml */
+nodecl.xml XML "nodecl.xml"
