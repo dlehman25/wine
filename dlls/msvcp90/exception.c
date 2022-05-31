@@ -1031,7 +1031,36 @@ void __cdecl __ExceptionPtrRethrow(const exception_ptr *ep)
     RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & (~EH_UNWINDING),
             ep->rec->NumberParameters, ep->rec->ExceptionInformation);
 }
+
+/* Rethrow_future_exception@std@@YAXVexception_ptr@1@@Z */
+void __cdecl _Rethrow_future_exception(exception_ptr *ep)
+{
+    TRACE("(%p)\n", ep);
+    __ExceptionPtrRethrow(ep);
+}
+#elif _MSVCP_VER >= 110
+typedef struct
+{
+    EXCEPTION_RECORD *rec;
+    LONG *ref; /* not binary compatible with native */
+} exception_ptr;
+
+/* Rethrow_future_exception@std@@YAXVexception_ptr@1@@Z */
+void __cdecl _Rethrow_future_exception(exception_ptr *ep)
+{
+    TRACE("(%p)\n", ep);
+
+    if (!ep->rec)
+    {
+        throw_exception("bad exception");
+        return;
+    }
+
+    RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & (~EH_UNWINDING),
+            ep->rec->NumberParameters, ep->rec->ExceptionInformation);
+}
 #endif
+
 
 #if _MSVCP_VER >= 70 || defined(_MSVCIRT)
 #define EXCEPTION_VTABLE(name,funcs) __ASM_VTABLE(name,funcs)
