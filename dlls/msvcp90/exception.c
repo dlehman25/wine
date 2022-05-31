@@ -1013,6 +1013,24 @@ void __cdecl __ExceptionPtrDestroy(exception_ptr *ep)
         HeapFree(GetProcessHeap(), 0, ep->ref);
     }
 }
+
+/*********************************************************************
+ * ?__ExceptionPtrRethrow@@YAXPBX@Z
+ * ?__ExceptionPtrRethrow@@YAXPEBX@Z
+ */
+void __cdecl __ExceptionPtrRethrow(const exception_ptr *ep)
+{
+    TRACE("(%p)\n", ep);
+
+    if (!ep->rec)
+    {
+        throw_exception("bad exception");
+        return;
+    }
+
+    RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & (~EH_UNWINDING),
+            ep->rec->NumberParameters, ep->rec->ExceptionInformation);
+}
 #endif
 
 #if _MSVCP_VER >= 70 || defined(_MSVCIRT)
