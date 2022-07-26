@@ -448,6 +448,26 @@ typedef struct
 
 #endif
 
+/* compute the this pointer for a base class of a given type */
+static inline void *get_this_pointer( const this_ptr_offsets *off, void *object )
+{
+    if (!object) return NULL;
+
+    if (off->vbase_descr >= 0)
+    {
+        int *offset_ptr;
+
+        /* move this ptr to vbase descriptor */
+        object = (char *)object + off->vbase_descr;
+        /* and fetch additional offset from vbase descriptor */
+        offset_ptr = (int *)(*(char **)object + off->vbase_offset);
+        object = (char *)object + *offset_ptr;
+    }
+
+    object = (char *)object + off->this_offset;
+    return object;
+}
+
 #define CREATE_TYPE_INFO_VTABLE \
 DEFINE_THISCALL_WRAPPER(type_info_vector_dtor,8) \
 void * __thiscall type_info_vector_dtor(type_info * _this, unsigned int flags) \
