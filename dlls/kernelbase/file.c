@@ -2970,7 +2970,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetFileInformationByHandleEx( HANDLE handle, FILE_
     case FileCaseSensitiveInfo:
     case FileNormalizedNameInfo:
         FIXME( "%p, %u, %p, %lu\n", handle, class, info, size );
-        SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+        SetLastError( ERROR_NOT_SUPPORTED );
         return FALSE;
 
     case FileStreamInfo:
