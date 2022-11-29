@@ -26,10 +26,13 @@
 #include "winerror.h"
 #include "winnt.h"
 #include "winreg.h"
+#include "winternl.h"
 #include "sddl.h"
 #include "wmistr.h"
 #include "evntprov.h"
 #include "evntrace.h"
+#include "time.h"
+#define EVENT_EventlogStarted       0x80001775
 
 #include "wine/test.h"
 
@@ -1316,6 +1319,98 @@ done:
     DeleteFileA(filepath);
 }
 
+static void test_bootlog(void)
+{
+    void *buf;
+    HANDLE handle;
+    BOOL ret;
+    int found;
+    EVENTLOGRECORD *record;
+    SYSTEM_TIMEOFDAY_INFORMATION ti;
+    DWORD size, read, needed, boottime;
+    char *sourcename, *computername, *localcomputer;
+
+    size = MAX_COMPUTERNAME_LENGTH + 1;
+    localcomputer = HeapAlloc(GetProcessHeap(), 0, size);
+    GetComputerNameA(localcomputer, &size);
+
+    found = 0;
+    handle = OpenEventLogA(0, "System");
+    while (found < 10)
+    {
+        buf = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
+        if (!(ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ,
+                                  0, buf, sizeof(EVENTLOGRECORD), &read, &needed)) &&
+            GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+        {
+            buf = HeapReAlloc(GetProcessHeap(), 0, buf, needed);
+            ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ,
+                                0, buf, needed, &read, &needed);
+        }
+        if (ret)
+        {
+            record = (EVENTLOGRECORD *)buf;
+            if (record->EventID == EVENT_EventlogStarted)
+            {
+                ok(record->Length == read,
+                   "Expected %ld, got %ld\n", read, record->Length);
+                ok(record->Reserved == 0x654c664c,
+                   "Expected 0x654c664c, got %ld\n", record->Reserved);
+                ok(record->RecordNumber > 0,
+                    "Expected 1 or higher, got %ld\n", record->RecordNumber);
+                ok(record->TimeGenerated == record->TimeWritten,
+                    "Expected time values to be the same\n");
+                ok(record->EventType == EVENTLOG_INFORMATION_TYPE,
+                    "Expected %d, got %d\n", EVENTLOG_INFORMATION_TYPE, record->EventType);
+                ok(record->NumStrings == 0,
+                   "Expected 0, got %d\n", record->NumStrings);
+                ok(record->EventCategory == 0,
+                   "Expected 0, got %d\n", record->EventCategory);
+                ok(record->ReservedFlags == 0,
+                   "Expected 0, got %d\n", record->ReservedFlags);
+                ok(record->ClosingRecordNumber == 0,
+                   "Expected 0, got %ld\n", record->ClosingRecordNumber);
+                ok(record->StringOffset == record->UserSidOffset,
+                    "Expected offsets to be the same\n");
+                ok(record->UserSidLength == 0,
+                    "Expected 0, got %ld\n", record->UserSidLength);
+                todo_wine ok(record->DataLength == 24,
+                    "Expected 24, got %ld\n", record->DataLength);
+
+                sourcename = (char *)((BYTE *)buf + sizeof(EVENTLOGRECORD));
+                ok(!lstrcmpA(sourcename, "EventLog"),
+                    "Expected 'EventLog', got '%s'\n", sourcename);
+
+                computername = (char *)((BYTE *)buf + sizeof(EVENTLOGRECORD) + lstrlenA(sourcename) + 1);
+                ok(!lstrcmpiA(computername, localcomputer), "Expected '%s', got '%s'\n",
+                    localcomputer, computername);
+
+                size = sizeof(EVENTLOGRECORD) + lstrlenA(sourcename) + lstrlenA(computername) + 2;
+                size = (size + 7) & ~7;
+                ok(record->DataOffset == size,
+                    "Expected %ld, got %ld\n", size, record->DataOffset);
+
+                NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
+                RtlTimeToSecondsSince1970(&ti.BootTime, &boottime);
+                ok(record->TimeGenerated >= boottime,
+                    "Expected event log start %lu should be after boot %lu\n",
+                        record->TimeGenerated, boottime);
+                {
+                time_t lt = record->TimeGenerated;
+                time_t bt = boottime;
+                printf("boot %s", ctime(&bt));
+                printf("log  %s", ctime(&lt));
+                }
+                found++;
+            }
+        }
+        HeapFree(GetProcessHeap(), 0, buf);
+
+    }
+    CloseEventLog(handle);
+    HeapFree(GetProcessHeap(), 0, localcomputer);
+}
+
 START_TEST(eventlog)
 {
     SetLastError(0xdeadbeef);
@@ -1327,6 +1422,8 @@ START_TEST(eventlog)
     }
 
     init_function_pointers();
+    test_bootlog();
+return;
 
     /* Parameters only */
     test_open_close();
@@ -1349,4 +1446,6 @@ START_TEST(eventlog)
 
     /* Trace tests */
     test_start_trace();
+
+    test_bootlog();
 }

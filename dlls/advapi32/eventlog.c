@@ -29,6 +29,7 @@
 #include "wmistr.h"
 #include "evntrace.h"
 #include "evntprov.h"
+#define EVENT_EventlogStarted       0x80001775
 
 #include "wine/debug.h"
 
@@ -484,6 +485,50 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     return (HANDLE)0xcafe4242;
 }
 
+static EVENTLOGRECORD *fake_eventlog_start(BOOL unicode)
+{
+    static BYTE bufA[sizeof(EVENTLOGRECORD) + sizeof("EventLog") + MAX_COMPUTERNAME_LENGTH + 1] = {0};
+    static BYTE bufW[sizeof(EVENTLOGRECORD) + sizeof(L"EventLog") + sizeof(wchar_t) * (MAX_COMPUTERNAME_LENGTH + 1)] = {0};
+    EVENTLOGRECORD *recA = (EVENTLOGRECORD *)bufA;
+    EVENTLOGRECORD *recW = (EVENTLOGRECORD *)bufW;
+    SYSTEM_TIMEOFDAY_INFORMATION ti;
+    DWORD size;
+
+    if (!recA->Length)
+    {
+        FIXME("partial stub\n");
+
+        NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
+        RtlTimeToSecondsSince1970(&ti.BootTime, &recA->TimeGenerated);
+        recW->TimeGenerated = recA->TimeGenerated;
+
+        recW->Reserved = recA->Reserved = 0x654c664c; /* eLfL */
+        recW->Reserved = recA->RecordNumber = 1;
+        recW->TimeWritten = recA->TimeWritten = recA->TimeGenerated;
+        recW->EventID = recA->EventID = EVENT_EventlogStarted;
+        recW->EventType = recA->EventType = EVENTLOG_INFORMATION_TYPE;
+
+        strcpy((char *)(recA + 1), "EventLog");
+        wcscpy((wchar_t *)(recW + 1), L"EventLog");
+
+        size = MAX_COMPUTERNAME_LENGTH + 1;
+        recA->Length = sizeof(EVENTLOGRECORD) + sizeof("EventLog");
+        GetComputerNameA((char *)&bufA[recA->Length], &size);
+        bufA[recA->Length + size] = 0;
+        recA->Length += size + 1;
+        recA->DataOffset = (recA->Length + 7) & ~7;
+
+        size = MAX_COMPUTERNAME_LENGTH + 1;
+        recW->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
+        GetComputerNameW((wchar_t *)&bufW[recW->Length], &size);
+        bufW[recW->Length + size] = 0;
+        recW->Length += size + 1;
+        recW->DataOffset = (recW->Length + 7) & ~7;
+    }
+
+    return unicode ? recW : recA;
+}
+
 /******************************************************************************
  * ReadEventLogA [ADVAPI32.@]
  *
@@ -509,6 +554,22 @@ BOOL WINAPI ReadEventLogA( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOf
     FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
           dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
 
+    if (dwRecordOffset == 0)
+    {
+        EVENTLOGRECORD *rec = fake_eventlog_start(FALSE);
+
+        if (nNumberOfBytesToRead < rec->Length)
+        {
+            *pnMinNumberOfBytesNeeded = rec->Length;
+            SetLastError(ERROR_INSUFFICIENT_BUFFER);
+            return FALSE;
+        }
+
+        *pnBytesRead = rec->Length;
+        memcpy(lpBuffer, rec, rec->Length);
+        return TRUE;
+    }
+
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
 }
@@ -523,6 +584,22 @@ BOOL WINAPI ReadEventLogW( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOf
 {
     FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
           dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
+
+    if (dwRecordOffset == 0)
+    {
+        EVENTLOGRECORD *rec = fake_eventlog_start(TRUE);
+
+        if (nNumberOfBytesToRead < rec->Length)
+        {
+            *pnMinNumberOfBytesNeeded = rec->Length;
+            SetLastError(ERROR_INSUFFICIENT_BUFFER);
+            return FALSE;
+        }
+
+        *pnBytesRead = rec->Length;
+        memcpy(lpBuffer, rec, rec->Length);
+        return TRUE;
+    }
 
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
