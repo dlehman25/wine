@@ -503,11 +503,26 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
  *  Success: nonzero
  *  Failure: zero
  */
-BOOL WINAPI ReadEventLogA( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOffset,
-    LPVOID lpBuffer, DWORD nNumberOfBytesToRead, DWORD *pnBytesRead, DWORD *pnMinNumberOfBytesNeeded )
+BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
+    DWORD *numread, DWORD *needed )
 {
-    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
-          dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
+    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
+        toread, numread, needed);
+
+    if (!buffer || !flags ||
+        !(flags & (EVENTLOG_FORWARDS_READ|EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_FORWARDS_READ) && (flags & EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_SEQUENTIAL_READ) && (flags & EVENTLOG_SEEK_READ)))
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    if (!log)
+    {
+        SetLastError(ERROR_INVALID_HANDLE);
+        return FALSE;
+    }
 
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
@@ -518,11 +533,26 @@ BOOL WINAPI ReadEventLogA( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOf
  *
  * See ReadEventLogA.
  */
-BOOL WINAPI ReadEventLogW( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOffset,
-    LPVOID lpBuffer, DWORD nNumberOfBytesToRead, DWORD *pnBytesRead, DWORD *pnMinNumberOfBytesNeeded )
+BOOL WINAPI ReadEventLogW( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
+    DWORD *numread, DWORD *needed )
 {
-    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
-          dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
+    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
+          toread, numread, needed);
+
+    if (!buffer || !flags ||
+        !(flags & (EVENTLOG_FORWARDS_READ|EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_FORWARDS_READ) && (flags & EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_SEQUENTIAL_READ) && (flags & EVENTLOG_SEEK_READ)))
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    if (!log)
+    {
+        SetLastError(ERROR_INVALID_HANDLE);
+        return FALSE;
+    }
 
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
