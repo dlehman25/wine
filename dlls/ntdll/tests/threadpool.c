@@ -2380,13 +2380,46 @@ static void test_kernel32_tp_io(void)
     pTpReleasePool(pool);
 }
 
+static void CALLBACK perf_cb(TP_CALLBACK_INSTANCE *instance, void *userdata, TP_WORK *work)
+{
+    InterlockedIncrement64((LONGLONG *)userdata);
+}
+
+static void test_tp_perf(void)
+{
+    TP_WORK *work;
+    NTSTATUS status;
+    LONGLONG i, times, userdata;
+    ULONG64 s, e;
+
+    status = pTpAllocWork(&work, perf_cb, &userdata, NULL);
+    ok(!status, "TpAllocWork failed with status %lx\n", status);
+    ok(work != NULL, "expected work != NULL\n");
+    userdata = 0;
+    times = 10 * 1000 * 1000;
+    s = GetTickCount64();
+    for (i = 0; i < times; i++)
+        pTpPostWork(work);
+    pTpWaitForWork(work, FALSE);
+    e = GetTickCount64();
+    ok(userdata == times, "expected %llu, got %llu\n", times, userdata);
+    printf("time %llu\n", e - s);
+    pTpReleaseWork(work);
+}
+
 START_TEST(threadpool)
+{
+if (0)
 {
     test_RtlQueueWorkItem();
     test_RtlRegisterWait();
+}
 
     if (!init_threadpool())
         return;
+
+    test_tp_perf();
+return;
 
     test_tp_simple();
     test_tp_work();
