@@ -2387,10 +2387,20 @@ static void CALLBACK perf_cb(TP_CALLBACK_INSTANCE *instance, void *userdata, TP_
 
 static void test_tp_perf(void)
 {
+    TP_TIMER *timer;
     TP_WORK *work;
     NTSTATUS status;
     LONGLONG i, times, userdata;
     ULONG64 s, e;
+    HANDLE semaphore;
+    LARGE_INTEGER when;
+    DWORD result;
+
+    semaphore = CreateSemaphoreA(NULL, 0, 1, NULL);
+    ok(semaphore != NULL, "CreateSemaphoreA failed %lu\n", GetLastError());
+    status = pTpAllocTimer(&timer, timer_cb, semaphore, NULL);
+    ok(!status, "TpAllocTimer failed with status %lx\n", status);
+    ok(timer != NULL, "expected timer != NULL\n");
 
     status = pTpAllocWork(&work, perf_cb, &userdata, NULL);
     ok(!status, "TpAllocWork failed with status %lx\n", status);
@@ -2399,12 +2409,28 @@ static void test_tp_perf(void)
     times = 10 * 1000 * 1000;
     s = GetTickCount64();
     for (i = 0; i < times; i++)
+    {
         pTpPostWork(work);
+        if (i == times-1)
+        {
+            when.QuadPart = (ULONGLONG)200 * -10000;
+            pTpSetTimer(timer, &when, 0, 0);
+        }
+    }
+    pTpWaitForTimer(timer, FALSE);
+    result = WaitForSingleObject(semaphore, 100);
+    ok(result == WAIT_TIMEOUT, "WaitForSingleObject returned %lu\n", result);
+    result = WaitForSingleObject(semaphore, 200);
+    ok(result == WAIT_OBJECT_0, "WaitForSingleObject returned %lu\n", result);
+
     pTpWaitForWork(work, FALSE);
     e = GetTickCount64();
     ok(userdata == times, "expected %llu, got %llu\n", times, userdata);
     printf("time %llu\n", e - s);
     pTpReleaseWork(work);
+
+    pTpReleaseTimer(timer);
+    CloseHandle(semaphore);
 }
 
 START_TEST(threadpool)
