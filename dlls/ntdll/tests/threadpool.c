@@ -2407,6 +2407,57 @@ static void test_tp_perf(void)
     pTpReleaseWork(work);
 }
 
+static void CALLBACK work_wait_cb(TP_CALLBACK_INSTANCE *instance, void *userdata, TP_WORK *work)
+{
+    WaitForSingleObject(userdata, INFINITE);
+}
+
+/* test waiting in a work object */
+static void test_tp_work_wait(void)
+{
+    TP_WORK *work, *work2;
+    NTSTATUS status;
+    LONGLONG i;
+    HANDLE event;
+    LONGLONG userdata;
+
+    userdata = 0;
+    status = pTpAllocWork(&work2, perf_cb, &userdata, NULL);
+    ok(!status, "TpAllocWork failed with status %lx\n", status);
+    ok(work2 != NULL, "expected work != NULL\n");
+
+    event = CreateEventW(NULL, TRUE, FALSE, NULL);
+    ok(event != NULL, "failed to create event\n");
+
+    status = pTpAllocWork(&work, work_wait_cb, event, NULL);
+    ok(!status, "TpAllocWork failed with status %lx\n", status);
+    ok(work != NULL, "expected work != NULL\n");
+    for (i = 0; i < 12; i++)
+    {
+        printf("posting wait work %lld\n", i); fflush(stdout);
+        pTpPostWork(work);
+    }
+    for (i = 0; i < 12; i++)
+    {
+        printf("posting perf work %lld\n", i); fflush(stdout);
+        pTpPostWork(work2);
+    }
+    printf("waiting for perf work\n"); fflush(stdout);
+    pTpWaitForWork(work2, FALSE);
+    ok(userdata == 12, "got %llu\n", userdata);
+    printf("done waiting for perf work\n"); fflush(stdout);
+    getchar();
+
+    printf("setting event\n"); fflush(stdout);
+    SetEvent(event);
+    printf("waiting for wait work\n"); fflush(stdout);
+    pTpWaitForWork(work, FALSE);
+
+    pTpReleaseWork(work2);
+    pTpReleaseWork(work);
+    CloseHandle(event);
+}
+
 START_TEST(threadpool)
 {
 if (0)
@@ -2417,6 +2468,8 @@ if (0)
 
     if (!init_threadpool())
         return;
+    test_tp_work_wait();
+return;
 
     test_tp_perf();
 return;
