@@ -97,7 +97,7 @@ struct timer_queue
  */
 
 #define THREADPOOL_WORKER_TIMEOUT 5000
-#define BACKOFF_WORKER_TIMEOUT    (1000 / 4)
+#define BACKOFF_WORKER_TIMEOUT    (2 * 1000)
 #define MAXIMUM_WAITQUEUE_OBJECTS (MAXIMUM_WAIT_OBJECTS - 1)
 
 /* internal threadpool representation */
@@ -116,6 +116,7 @@ struct threadpool
     int                     num_workers;
     int                     num_busy_workers;
     int                     num_backoff_workers;
+    BOOL                    cancel_backoff;
     HANDLE                  compl_port;
     TP_POOL_STACK_INFORMATION stack_info;
 };
@@ -1689,6 +1690,7 @@ static NTSTATUS tp_threadpool_alloc( struct threadpool **out )
     pool->num_workers             = 0;
     pool->num_busy_workers        = 0;
     pool->num_backoff_workers     = 0;
+    pool->cancel_backoff          = FALSE;
     pool->stack_info.StackReserve = nt->OptionalHeader.SizeOfStackReserve;
     pool->stack_info.StackCommit  = nt->OptionalHeader.SizeOfStackCommit;
 
@@ -2012,6 +2014,8 @@ static void tp_object_submit( struct threadpool_object *object, BOOL signaled )
         (!pool->num_backoff_workers || object->type != TP_OBJECT_TYPE_WORK))
     {
         assert( pool->num_workers > 0 );
+        if (object->type != TP_OBJECT_TYPE_WORK)
+            pool->cancel_backoff = TRUE;
         RtlWakeConditionVariable( &pool->update_event );
     }
 
@@ -2376,16 +2380,19 @@ static void CALLBACK threadpool_worker_proc( void *param )
 
         /* If there is contention, back off from handling tasks a bit
          * but still wait on event to check for threadpool shutdown */
-        if (contention)
+        if (contention && !pool->cancel_backoff)
         {
             pool->num_backoff_workers++;
             timeout.QuadPart = (ULONGLONG)BACKOFF_WORKER_TIMEOUT * -10000;
-            while (!pool->shutdown)
+            while (!pool->shutdown && !pool->cancel_backoff)
             {
                 if (RtlSleepConditionVariableCS( &pool->update_event, &pool->cs, &timeout ) == STATUS_TIMEOUT)
                     break;
             }
             pool->num_backoff_workers--;
+
+            if (!pool->num_backoff_workers)
+                pool->cancel_backoff = FALSE;
 
             if (pool->shutdown)
                 break;
