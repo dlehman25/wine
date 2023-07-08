@@ -97,7 +97,6 @@ struct timer_queue
  */
 
 #define THREADPOOL_WORKER_TIMEOUT 5000
-#define BACKOFF_WORKER_TIMEOUT    (2 * 1000)
 #define MAXIMUM_WAITQUEUE_OBJECTS (MAXIMUM_WAIT_OBJECTS - 1)
 
 /* internal threadpool representation */
@@ -115,8 +114,6 @@ struct threadpool
     int                     min_workers;
     int                     num_workers;
     int                     num_busy_workers;
-    int                     num_backoff_workers;
-    BOOL                    cancel_backoff;
     HANDLE                  compl_port;
     TP_POOL_STACK_INFORMATION stack_info;
 };
@@ -366,7 +363,7 @@ static inline struct threadpool_instance *impl_from_TP_CALLBACK_INSTANCE( TP_CAL
 
 static void CALLBACK threadpool_worker_proc( void *param );
 static void tp_object_submit( struct threadpool_object *object, BOOL signaled );
-static BOOL tp_object_execute( struct threadpool_object *object, BOOL wait_thread );
+static void tp_object_execute( struct threadpool_object *object, BOOL wait_thread );
 static void tp_object_prepare_shutdown( struct threadpool_object *object );
 static BOOL tp_object_release( struct threadpool_object *object );
 static struct threadpool *default_threadpool = NULL;
@@ -1689,8 +1686,6 @@ static NTSTATUS tp_threadpool_alloc( struct threadpool **out )
     pool->min_workers             = 0;
     pool->num_workers             = 0;
     pool->num_busy_workers        = 0;
-    pool->num_backoff_workers     = 0;
-    pool->cancel_backoff          = FALSE;
     pool->stack_info.StackReserve = nt->OptionalHeader.SizeOfStackReserve;
     pool->stack_info.StackCommit  = nt->OptionalHeader.SizeOfStackCommit;
 
@@ -1996,7 +1991,6 @@ static void tp_object_submit( struct threadpool_object *object, BOOL signaled )
 
     /* Start new worker threads if required. */
     if (pool->num_busy_workers >= pool->num_workers &&
-        !pool->num_backoff_workers &&
         pool->num_workers < pool->max_workers)
         status = tp_new_worker_thread( pool );
 
@@ -2009,13 +2003,10 @@ static void tp_object_submit( struct threadpool_object *object, BOOL signaled )
     if (object->type == TP_OBJECT_TYPE_WAIT && signaled)
         object->u.wait.signaled++;
 
-    /* No new thread started - wake up one existing thread if no contention or submitting io. */
-    if (status != STATUS_SUCCESS &&
-        (!pool->num_backoff_workers || object->type != TP_OBJECT_TYPE_WORK))
+    /* No new thread started - wake up one existing thread. */
+    if (status != STATUS_SUCCESS)
     {
         assert( pool->num_workers > 0 );
-        if (object->type != TP_OBJECT_TYPE_WORK)
-            pool->cancel_backoff = TRUE;
         RtlWakeConditionVariable( &pool->update_event );
     }
 
@@ -2181,14 +2172,13 @@ static struct list *threadpool_get_next_item( const struct threadpool *pool )
  * Executes a threadpool object callback, object->pool->cs has to be
  * held.
  */
-static BOOL tp_object_execute( struct threadpool_object *object, BOOL wait_thread )
+static void tp_object_execute( struct threadpool_object *object, BOOL wait_thread )
 {
     TP_CALLBACK_INSTANCE *callback_instance;
     struct threadpool_instance instance;
     struct io_completion completion;
     struct threadpool *pool = object->pool;
     TP_WAIT_RESULT wait_result = 0;
-    DWORD contention;
     NTSTATUS status;
 
     object->num_pending_callbacks--;
@@ -2208,7 +2198,6 @@ static BOOL tp_object_execute( struct threadpool_object *object, BOOL wait_threa
     /* Leave critical section and do the actual callback. */
     object->num_associated_callbacks++;
     object->num_running_callbacks++;
-    contention = pool->cs.DebugInfo->ContentionCount;
     RtlLeaveCriticalSection( &pool->cs );
     if (wait_thread) RtlLeaveCriticalSection( &waitqueue.cs );
 
@@ -2334,8 +2323,6 @@ skip_cleanup:
         if (object_is_finished( object, FALSE ))
             RtlWakeAllConditionVariable( &object->finished_event );
     }
-
-    return contention != pool->cs.DebugInfo->ContentionCount;
 }
 
 /***********************************************************************
@@ -2346,7 +2333,6 @@ static void CALLBACK threadpool_worker_proc( void *param )
     struct threadpool *pool = param;
     LARGE_INTEGER timeout;
     struct list *ptr;
-    BOOL contention;
 
     TRACE( "starting worker thread for pool %p\n", pool );
     set_thread_name(L"wine_threadpool_worker");
@@ -2354,8 +2340,7 @@ static void CALLBACK threadpool_worker_proc( void *param )
     RtlEnterCriticalSection( &pool->cs );
     for (;;)
     {
-        contention = FALSE;
-        while (!contention && (ptr = threadpool_get_next_item( pool )))
+        while ((ptr = threadpool_get_next_item( pool )))
         {
             struct threadpool_object *object = LIST_ENTRY( ptr, struct threadpool_object, pool_entry );
             assert( object->num_pending_callbacks > 0 );
@@ -2366,7 +2351,7 @@ static void CALLBACK threadpool_worker_proc( void *param )
             if (object->num_pending_callbacks > 1)
                 tp_object_prio_queue( object );
 
-            contention = tp_object_execute( object, FALSE );
+            tp_object_execute( object, FALSE );
 
             assert(pool->num_busy_workers);
             pool->num_busy_workers--;
@@ -2377,31 +2362,6 @@ static void CALLBACK threadpool_worker_proc( void *param )
         /* Shutdown worker thread if requested. */
         if (pool->shutdown)
             break;
-
-        /* If there is contention, back off from handling tasks a bit
-         * but still wait on event to check for threadpool shutdown */
-        if (contention && !pool->cancel_backoff)
-        {
-            pool->num_backoff_workers++;
-            timeout.QuadPart = (ULONGLONG)BACKOFF_WORKER_TIMEOUT * -10000;
-            while (!pool->shutdown && !pool->cancel_backoff)
-            {
-                if (RtlSleepConditionVariableCS( &pool->update_event, &pool->cs, &timeout ) == STATUS_TIMEOUT)
-                    break;
-            }
-            pool->num_backoff_workers--;
-
-            if (!pool->num_backoff_workers)
-                pool->cancel_backoff = FALSE;
-
-            if (pool->shutdown)
-                break;
-
-            /* Check for any work that was queued while we were asleep.  update_event would not have
-             * been signaled.  If there's still contention, we'll end up back here.  If there's no work
-             * we'll end up waiting for work below */
-            continue;
-        }
 
         /* Wait for new tasks or until the timeout expires. A thread only terminates
          * when no new tasks are available, and the number of threads can be
