@@ -2007,8 +2007,9 @@ static void tp_object_submit( struct threadpool_object *object, BOOL signaled )
     if (object->type == TP_OBJECT_TYPE_WAIT && signaled)
         object->u.wait.signaled++;
 
-    /* No new thread started - wake up one existing thread if no contention */
-    if (status != STATUS_SUCCESS && !pool->num_backoff_workers)
+    /* No new thread started - wake up one existing thread if no contention or submitting io. */
+    if (status != STATUS_SUCCESS &&
+        (!pool->num_backoff_workers || object->type != TP_OBJECT_TYPE_WORK))
     {
         assert( pool->num_workers > 0 );
         RtlWakeConditionVariable( &pool->update_event );
