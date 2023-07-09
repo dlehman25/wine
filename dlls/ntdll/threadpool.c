@@ -1990,7 +1990,7 @@ static void tp_object_submit( struct threadpool_object *object, BOOL signaled )
     RtlEnterCriticalSection( &pool->cs );
 
     /* Start new worker threads if required. */
-    if (pool->num_busy_workers >= pool->num_workers &&
+    if (pool->num_busy_workers + object->num_pending_callbacks >= pool->num_workers &&
         pool->num_workers < pool->max_workers)
         status = tp_new_worker_thread( pool );
 
