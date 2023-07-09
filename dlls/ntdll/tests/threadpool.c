@@ -20,6 +20,7 @@
 
 #include "ntdll_test.h"
 #include "wine/list.h"
+#include "tlhelp32.h"
 
 static NTSTATUS (WINAPI *pTpAllocCleanupGroup)(TP_CLEANUP_GROUP **);
 static NTSTATUS (WINAPI *pTpAllocIoCompletion)(TP_IO **,HANDLE,PTP_IO_CALLBACK,void *,TP_CALLBACK_ENVIRON *);
@@ -2536,19 +2537,44 @@ void tpool_cb(void *data)
     InterlockedIncrement64(data);
 }
 
+DWORD count_threads(void)
+{
+    DWORD count;
+    HANDLE snapshot;
+    THREADENTRY32 te;
+
+    count = 0;
+    snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    memset(&te, 0, sizeof(te));
+    te.dwSize = sizeof(te);
+    if (Thread32First(snapshot, &te))
+    {
+        do
+        {
+            if (te.th32OwnerProcessID == GetCurrentProcessId())
+                count++;
+        }
+        while (Thread32Next(snapshot, &te));
+    }
+    CloseHandle(snapshot);
+
+    return count;
+}
+
 static void test_tp_cheap_tpool(void)
 {
     queue_t queue;
     TP_WORK *work;
     NTSTATUS status;
-    LONGLONG i, data, ntasks;
+    LONGLONG i, j, data, ntasks, nbursts;
     task_t *task;
-    int done;
 
     p_Mtx_init(&queue.mtx, 0);
     p_Cnd_init(&queue.cnd);
     list_init(&queue.fifo);
     queue.done = FALSE;
+
+    printf("fresh start %lu\n", count_threads());
 
     /* spawn worker threads */
     status = pTpAllocWork(&work, cheap_tpool_cb, &queue, NULL);
@@ -2556,34 +2582,34 @@ static void test_tp_cheap_tpool(void)
     for (i = 0; i < 12; i++)
         TpPostWork(work);
 
+    printf("workers started %lu\n", count_threads());
+
     /* enqueue work */
-    data = 0;
-    ntasks = 1;
-    for (i = 0; i < ntasks; i++)
+    ntasks = 1000;
+    nbursts = 10;
+    for (i = 0; i < nbursts; i++)
     {
-        task = malloc(sizeof(*task));
-        task->func = tpool_cb;
-        task->data = &data;
-        p_Mtx_lock(queue.mtx);
-        list_add_tail(&queue.fifo, &task->entry);
-        p_Mtx_unlock(queue.mtx);
-    }
+        data = 0;
+        for (j = 0; j < ntasks; j++)
+        {
+            task = malloc(sizeof(*task));
+            task->func = tpool_cb;
+            task->data = &data;
+            p_Mtx_lock(queue.mtx);
+            list_add_tail(&queue.fifo, &task->entry);
+            p_Mtx_unlock(queue.mtx);
+        }
 
-    /* start work */
-    p_Mtx_lock(queue.mtx);
-    p_Cnd_broadcast(queue.cnd);
-    p_Mtx_unlock(queue.mtx);
-
-    /* wait for work to be done */
-    done = 0;
-    while (!done)
-    {
+        /* start work */
         p_Mtx_lock(queue.mtx);
-        done = list_empty(&queue.fifo);
+        p_Cnd_broadcast(queue.cnd);
         p_Mtx_unlock(queue.mtx);
-        Sleep(500);
+
+        /* wait for work to be done */
+        while (data != ntasks)
+            Sleep(100);
     }
-    ok(data == ntasks, "expected %lld, got %lld\n", ntasks, data);
+    printf("all work done %lu\n", count_threads());
 
     /* kill pool */
     queue.done = TRUE;
@@ -2591,6 +2617,8 @@ static void test_tp_cheap_tpool(void)
     p_Cnd_broadcast(queue.cnd);
     p_Mtx_unlock(queue.mtx);
     pTpWaitForWork(work, FALSE);
+
+    printf("pool killed %lu\n", count_threads());
 
     p_Cnd_destroy(queue.cnd);
     p_Mtx_destroy(queue.mtx);
