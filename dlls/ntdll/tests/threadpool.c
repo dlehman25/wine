@@ -2568,6 +2568,7 @@ static void test_tp_cheap_tpool(void)
     NTSTATUS status;
     LONGLONG i, j, data, ntasks, nbursts;
     task_t *task;
+    DWORD last;
 
     p_Mtx_init(&queue.mtx, 0);
     p_Cnd_init(&queue.cnd);
@@ -2579,9 +2580,13 @@ static void test_tp_cheap_tpool(void)
     /* spawn worker threads */
     status = pTpAllocWork(&work, cheap_tpool_cb, &queue, NULL);
     ok(!status, "TpAllocWork failed with status %lx\n", status);
+    last = count_threads();
     for (i = 0; i < 12; i++)
+    {
         TpPostWork(work);
-
+        while (count_threads() == last)
+            NtYieldExecution();
+    }
     printf("workers started %lu\n", count_threads());
 
     /* enqueue work */
