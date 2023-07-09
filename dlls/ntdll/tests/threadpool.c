@@ -19,6 +19,7 @@
  */
 
 #include "ntdll_test.h"
+#include "wine/list.h"
 
 static NTSTATUS (WINAPI *pTpAllocCleanupGroup)(TP_CLEANUP_GROUP **);
 static NTSTATUS (WINAPI *pTpAllocIoCompletion)(TP_IO **,HANDLE,PTP_IO_CALLBACK,void *,TP_CALLBACK_ENVIRON *);
@@ -56,6 +57,22 @@ static void (WINAPI *pCloseThreadpoolIo)(TP_IO *);
 static TP_IO *(WINAPI *pCreateThreadpoolIo)(HANDLE, PTP_WIN32_IO_CALLBACK, void *, TP_CALLBACK_ENVIRON *);
 static void (WINAPI *pStartThreadpoolIo)(TP_IO *);
 static void (WINAPI *pWaitForThreadpoolIoCallbacks)(TP_IO *, BOOL);
+
+typedef struct
+{
+    void *pad[10];
+} *_Mtx_t;
+typedef void *_Cnd_t;
+
+static int (__cdecl *p_Mtx_init)(_Mtx_t*, int);
+static void (__cdecl *p_Mtx_destroy)(_Mtx_t);
+static int (__cdecl *p_Mtx_lock)(_Mtx_t);
+static int (__cdecl *p_Mtx_unlock)(_Mtx_t);
+static int (__cdecl *p_Cnd_init)(_Cnd_t*);
+static void (__cdecl *p_Cnd_destroy)(_Cnd_t);
+static int (__cdecl *p_Cnd_wait)(_Cnd_t, _Mtx_t);
+static int (__cdecl *p_Cnd_broadcast)(_Cnd_t);
+static int (__cdecl *p_Cnd_signal)(_Cnd_t);
 
 #define GET_PROC(func) \
     do \
@@ -105,6 +122,17 @@ static BOOL init_threadpool(void)
     GET_PROC(CreateThreadpoolIo);
     GET_PROC(StartThreadpoolIo);
     GET_PROC(WaitForThreadpoolIoCallbacks);
+
+    module = LoadLibraryA("msvcp140");
+    GET_PROC(_Mtx_init);
+    GET_PROC(_Mtx_destroy);
+    GET_PROC(_Mtx_lock);
+    GET_PROC(_Mtx_unlock);
+    GET_PROC(_Cnd_init);
+    GET_PROC(_Cnd_destroy);
+    GET_PROC(_Cnd_wait);
+    GET_PROC(_Cnd_broadcast);
+    GET_PROC(_Cnd_signal);
 
     if (!pTpAllocPool)
     {
@@ -2458,6 +2486,118 @@ static void test_tp_work_wait(void)
     CloseHandle(event);
 }
 
+typedef void (*__cdecl task_func_t)(void *);
+
+typedef struct
+{
+    task_func_t func;
+    void *data;
+    struct list entry;
+} task_t;
+
+typedef struct
+{
+    _Mtx_t mtx;
+    _Cnd_t cnd;
+    struct list fifo;
+    int done;
+} queue_t;
+
+static void CALLBACK cheap_tpool_cb(TP_CALLBACK_INSTANCE *instance, void *userdata, TP_WORK *work)
+{
+    queue_t *queue = userdata;
+    struct list *head;
+    task_t *task;
+
+    while (!queue->done)
+    {
+        p_Mtx_lock(queue->mtx);
+        while (!queue->done && !(head = list_head(&queue->fifo)))
+            p_Cnd_wait(queue->cnd, queue->mtx);
+        if (head)
+        {
+            list_remove(head);
+            task = LIST_ENTRY(head, task_t, entry);
+        }
+        else
+            task = NULL;
+        p_Mtx_unlock(queue->mtx);
+
+        if (task)
+        {
+            task->func(task->data);
+            free(task);
+        }
+    }
+}
+
+void tpool_cb(void *data)
+{
+    InterlockedIncrement64(data);
+}
+
+static void test_tp_cheap_tpool(void)
+{
+    queue_t queue;
+    TP_WORK *work;
+    NTSTATUS status;
+    LONGLONG i, data, ntasks;
+    task_t *task;
+    int done;
+
+    p_Mtx_init(&queue.mtx, 0);
+    p_Cnd_init(&queue.cnd);
+    list_init(&queue.fifo);
+    queue.done = FALSE;
+
+    /* spawn worker threads */
+    status = pTpAllocWork(&work, cheap_tpool_cb, &queue, NULL);
+    ok(!status, "TpAllocWork failed with status %lx\n", status);
+    for (i = 0; i < 12; i++)
+        TpPostWork(work);
+
+    /* enqueue work */
+    data = 0;
+    ntasks = 1;
+    for (i = 0; i < ntasks; i++)
+    {
+        task = malloc(sizeof(*task));
+        task->func = tpool_cb;
+        task->data = &data;
+        p_Mtx_lock(queue.mtx);
+        list_add_tail(&queue.fifo, &task->entry);
+        p_Mtx_unlock(queue.mtx);
+    }
+
+    /* start work */
+    p_Mtx_lock(queue.mtx);
+    p_Cnd_broadcast(queue.cnd);
+    p_Mtx_unlock(queue.mtx);
+
+    /* wait for work to be done */
+    done = 0;
+    while (!done)
+    {
+        p_Mtx_lock(queue.mtx);
+        done = list_empty(&queue.fifo);
+        p_Mtx_unlock(queue.mtx);
+        Sleep(500);
+    }
+    ok(data == ntasks, "expected %lld, got %lld\n", ntasks, data);
+
+    /* kill pool */
+    queue.done = TRUE;
+    p_Mtx_lock(queue.mtx);
+    p_Cnd_broadcast(queue.cnd);
+    p_Mtx_unlock(queue.mtx);
+    pTpWaitForWork(work, FALSE);
+
+    p_Cnd_destroy(queue.cnd);
+    p_Mtx_destroy(queue.mtx);
+
+    pTpReleaseWork(work);
+}
+
 START_TEST(threadpool)
 {
 if (0)
@@ -2468,6 +2608,10 @@ if (0)
 
     if (!init_threadpool())
         return;
+
+    test_tp_cheap_tpool();
+return;
+
     test_tp_work_wait();
 return;
 
