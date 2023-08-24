@@ -488,49 +488,38 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 #define DATALEN    24
 #define STRINGSLEN (sizeof("EventLog") + MAX_COMPUTERNAME_LENGTH + 1)
 #define ALIGN(x)   (((x) + 7) & ~7)
-static const EVENTLOGRECORD *fake_eventlog_start(BOOL unicode)
+static const EVENTLOGRECORD *fake_eventlog_start(void)
 {
-    static BYTE bufA[ALIGN(sizeof(EVENTLOGRECORD) + STRINGSLEN) + DATALEN] = {0};
-    static BYTE bufW[ALIGN(sizeof(EVENTLOGRECORD) + STRINGSLEN * sizeof(WCHAR)) + DATALEN] = {0};
-    EVENTLOGRECORD *recA = (EVENTLOGRECORD *)bufA;
-    EVENTLOGRECORD *recW = (EVENTLOGRECORD *)bufW;
+    static BYTE buf[ALIGN(sizeof(EVENTLOGRECORD) + STRINGSLEN * sizeof(WCHAR)) + DATALEN] = {0};
+    EVENTLOGRECORD *rec = (EVENTLOGRECORD *)buf;
     SYSTEM_TIMEOFDAY_INFORMATION ti;
     DWORD size;
 
     if (!recA->Length)
     {
         NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
-        RtlTimeToSecondsSince1970(&ti.BootTime, &recA->TimeGenerated);
-        recW->TimeGenerated = recA->TimeGenerated;
+        RtlTimeToSecondsSince1970(&ti.BootTime, &rec->TimeGenerated);
+        rec->TimeGenerated = recA->TimeGenerated;
 
-        recW->Reserved = recA->Reserved = 0x654c664c; /* LfLe */
-        recW->RecordNumber = recA->RecordNumber = 1;
-        recW->TimeWritten = recA->TimeWritten = recA->TimeGenerated;
-        recW->EventID = recA->EventID = EVENT_EventlogStarted;
-        recW->EventType = recA->EventType = EVENTLOG_INFORMATION_TYPE;
-        recW->DataLength = recA->DataLength = DATALEN;
+        rec->Reserved = 0x654c664c; /* LfLe */
+        rec->RecordNumber =  1;
+        rec->TimeWritten = rec->TimeGenerated;
+        rec->EventID = EVENT_EventlogStarted;
+        rec->EventType = EVENTLOG_INFORMATION_TYPE;
+        rec->DataLength =  DATALEN;
 
-        strcpy((char *)(recA + 1), "EventLog");
-        wcscpy((WCHAR *)(recW + 1), L"EventLog");
-
-        size = MAX_COMPUTERNAME_LENGTH + 1;
-        recA->Length = sizeof(EVENTLOGRECORD) + sizeof("EventLog");
-        GetComputerNameA((char *)&bufA[recA->Length], &size);
-        recA->Length += size + 1;
-        recA->DataOffset = ALIGN(recA->Length);
-        recA->StringOffset = recA->DataOffset;
-        recA->UserSidOffset = recA->DataOffset;
+        wcscpy((WCHAR *)(rec + 1), L"EventLog");
 
         size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
-        recW->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
-        GetComputerNameW((WCHAR *)&bufW[recW->Length], &size);
-        recW->Length += (size + 1) * sizeof(WCHAR);
-        recW->DataOffset = ALIGN(recW->Length);
-        recW->StringOffset = recW->DataOffset;
-        recW->UserSidOffset = recW->DataOffset;
+        rec->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
+        GetComputerNameW((WCHAR *)&buf[rec->Length], &size);
+        rec->Length += (size + 1) * sizeof(WCHAR);
+        rec->DataOffset = ALIGN(rec->Length);
+        rec->StringOffset = rec->DataOffset;
+        rec->UserSidOffset = rec->DataOffset;
     }
 
-    return unicode ? recW : recA;
+    return rec;
 }
 
 /******************************************************************************
@@ -573,9 +562,9 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         return FALSE;
     }
 
-    if (offset == 0)
+    if (0 && offset == 0) /* TODO */
     {
-        const EVENTLOGRECORD *rec = fake_eventlog_start(FALSE);
+        const EVENTLOGRECORD *rec = NULL; //fake_eventlog_start(FALSE);
 
         if (toread < rec->Length)
         {
