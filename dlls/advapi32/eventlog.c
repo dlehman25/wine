@@ -486,9 +486,9 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 }
 
 #define DATALEN             24
-#define STRINGSLEN          (sizeof("EventLog") + MAX_COMPUTERNAME_LENGTH + 1)
 #define ALIGN(x)            (((x) + 7) & ~7)
-#define EVENTLOGRECORD_MAX  ((sizeof(EVENTLOGRECORD) + STRINGSLEN * sizeof(WCHAR)) + DATALEN)
+#define EVENTLOGRECORD_MAX  (sizeof(EVENTLOGRECORD) + sizeof(L"EventLog") + \
+                            ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + DATALEN)
 static const EVENTLOGRECORD *fake_eventlog_start(void)
 {
     SYSTEM_TIMEOFDAY_INFORMATION ti;
@@ -504,11 +504,11 @@ static const EVENTLOGRECORD *fake_eventlog_start(void)
     rec->TimeGenerated = rec->TimeGenerated;
 
     rec->Reserved = 0x654c664c; /* LfLe */
-    rec->RecordNumber =  1;
+    rec->RecordNumber = 1;
     rec->TimeWritten = rec->TimeGenerated;
     rec->EventID = EVENT_EventlogStarted;
     rec->EventType = EVENTLOG_INFORMATION_TYPE;
-    rec->DataLength =  DATALEN;
+    rec->DataLength = DATALEN;
 
     wcscpy((WCHAR *)(rec + 1), L"EventLog");
 
@@ -521,6 +521,10 @@ static const EVENTLOGRECORD *fake_eventlog_start(void)
     rec->UserSidOffset = rec->DataOffset;
 
     return rec;
+}
+
+static void fake_eventlog_convert(EVENTLOGRECORD *out, const EVENTLOGRECORD *in)
+{
 }
 
 /******************************************************************************
@@ -563,8 +567,17 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         return FALSE;
     }
 
-    if (0 && offset == 0) /* TODO */
+    /* TODO 0x7ffff */
     {
+        if (!ReadEventLogW( log, flags, offset, NULL, 0, NULL, needed ))
+            return FALSE;
+    }
+
+/*
+    if (offset == 0)
+    {
+        
+
         const EVENTLOGRECORD *rec = NULL; //fake_eventlog_start(FALSE);
 
         if (toread < rec->Length)
@@ -578,7 +591,7 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         memcpy(buffer, rec, rec->Length);
         return TRUE;
     }
-
+*/
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
 }
@@ -612,6 +625,11 @@ BOOL WINAPI ReadEventLogW( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
     if (offset == 0)
     {
         const EVENTLOGRECORD *rec = fake_eventlog_start();
+        if (!rec)
+        {
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            return FALSE;
+        }
 
         if (toread < rec->Length)
         {
