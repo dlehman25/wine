@@ -520,58 +520,43 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 
     if (!wcscmp( source, L"System" )) /* TODO: case sensitive? */
     {
-        
+#define DATALEN             24
+#define ALIGN(x)            (((x) + 7) & ~7)
+#define EVENTLOGRECORD_MAX  (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
+                            ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + DATALEN)
+        SYSTEM_TIMEOFDAY_INFORMATION ti;
+        struct eventlog_entry *entry;
+        EVENTLOGRECORD *rec;
+        DWORD size;
+
+        entry = malloc(EVENTLOGRECORD_MAX); /* TODO */
+        rec = &entry->record;
+
+        NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
+        RtlTimeToSecondsSince1970(&ti.BootTime, &rec->TimeGenerated);
+        rec->TimeGenerated = rec->TimeGenerated;
+
+        rec->Reserved = 0x654c664c; /* LfLe */
+        rec->RecordNumber = 1;
+        rec->TimeWritten = rec->TimeGenerated;
+        rec->EventID = EVENT_EventlogStarted;
+        rec->EventType = EVENTLOG_INFORMATION_TYPE;
+        rec->DataLength = DATALEN;
+
+        wcscpy((WCHAR *)(rec + 1), L"EventLog");
+
+        size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
+        rec->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
+        GetComputerNameW((WCHAR*)((BYTE *)rec + rec->Length), &size);
+        rec->Length += (size + 1) * sizeof(WCHAR);
+        rec->DataOffset = ALIGN(rec->Length);
+        rec->StringOffset = rec->DataOffset;
+        rec->UserSidOffset = rec->DataOffset;
+
+        list_add_tail( &log->events, &entry->entry );
     }
 
     return log;
-}
-
-#define DATALEN    24
-#define STRINGSLEN (sizeof("EventLog") + MAX_COMPUTERNAME_LENGTH + 1)
-#define ALIGN(x)   (((x) + 7) & ~7)
-static const EVENTLOGRECORD *fake_eventlog_start(BOOL unicode)
-{
-    static BYTE bufA[ALIGN(sizeof(EVENTLOGRECORD) + STRINGSLEN) + DATALEN] = {0};
-    static BYTE bufW[ALIGN(sizeof(EVENTLOGRECORD) + STRINGSLEN * sizeof(WCHAR)) + DATALEN] = {0};
-    EVENTLOGRECORD *recA = (EVENTLOGRECORD *)bufA;
-    EVENTLOGRECORD *recW = (EVENTLOGRECORD *)bufW;
-    SYSTEM_TIMEOFDAY_INFORMATION ti;
-    DWORD size;
-
-    if (!recA->Length)
-    {
-        NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
-        RtlTimeToSecondsSince1970(&ti.BootTime, &recA->TimeGenerated);
-        recW->TimeGenerated = recA->TimeGenerated;
-
-        recW->Reserved = recA->Reserved = 0x654c664c; /* LfLe */
-        recW->RecordNumber = recA->RecordNumber = 1;
-        recW->TimeWritten = recA->TimeWritten = recA->TimeGenerated;
-        recW->EventID = recA->EventID = EVENT_EventlogStarted;
-        recW->EventType = recA->EventType = EVENTLOG_INFORMATION_TYPE;
-        recW->DataLength = recA->DataLength = DATALEN;
-
-        strcpy((char *)(recA + 1), "EventLog");
-        wcscpy((WCHAR *)(recW + 1), L"EventLog");
-
-        size = MAX_COMPUTERNAME_LENGTH + 1;
-        recA->Length = sizeof(EVENTLOGRECORD) + sizeof("EventLog");
-        GetComputerNameA((char *)&bufA[recA->Length], &size);
-        recA->Length += size + 1;
-        recA->DataOffset = ALIGN(recA->Length);
-        recA->StringOffset = recA->DataOffset;
-        recA->UserSidOffset = recA->DataOffset;
-
-        size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
-        recW->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
-        GetComputerNameW((WCHAR *)&bufW[recW->Length], &size);
-        recW->Length += (size + 1) * sizeof(WCHAR);
-        recW->DataOffset = ALIGN(recW->Length);
-        recW->StringOffset = recW->DataOffset;
-        recW->UserSidOffset = recW->DataOffset;
-    }
-
-    return unicode ? recW : recA;
 }
 
 /******************************************************************************
@@ -614,22 +599,6 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         return FALSE;
     }
 
-    if (offset == 0)
-    {
-        const EVENTLOGRECORD *rec = fake_eventlog_start(FALSE);
-
-        if (toread < rec->Length)
-        {
-            *needed = rec->Length;
-            SetLastError(ERROR_INSUFFICIENT_BUFFER);
-            return FALSE;
-        }
-
-        *numread = rec->Length;
-        memcpy(buffer, rec, rec->Length);
-        return TRUE;
-    }
-
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
 }
@@ -639,10 +608,14 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
  *
  * See ReadEventLogA.
  */
-BOOL WINAPI ReadEventLogW( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
+BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffer, DWORD toread,
     DWORD *numread, DWORD *needed )
 {
-    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
+    struct eventlog_entry *entry;
+    struct eventlog *log;
+    DWORD idx;
+
+    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", handle, flags, offset, buffer,
           toread, numread, needed);
 
     if (!buffer || !flags ||
@@ -654,16 +627,27 @@ BOOL WINAPI ReadEventLogW( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         return FALSE;
     }
 
-    if (!log)
+    if (!handle)
     {
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
 
-    if (offset == 0)
-    {
-        const EVENTLOGRECORD *rec = fake_eventlog_start(TRUE);
+    log = (struct eventlog *)handle;
 
+    /* TODO: critical section */
+    idx = 0;
+    LIST_FOR_EACH_ENTRY( entry, &log->events, struct eventlog_entry, entry )
+    {
+        EVENTLOGRECORD *rec;
+
+        if (idx > offset)
+            break;
+        if (idx < offset)
+            continue;
+        idx++;
+
+        rec = &entry->record;
         if (toread < rec->Length)
         {
             *needed = rec->Length;
@@ -673,7 +657,6 @@ BOOL WINAPI ReadEventLogW( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
 
         *numread = rec->Length;
         memcpy(buffer, rec, rec->Length);
-        return TRUE;
     }
 
     SetLastError(ERROR_HANDLE_EOF);

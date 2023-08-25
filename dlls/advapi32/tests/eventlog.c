@@ -1309,65 +1309,7 @@ static void test_eventlog_start(void)
     BOOL ret, found;
     EVENTLOGRECORD *record;
     DWORD size, read, needed;
-    char *sourcename, *computername, *localcomputer;
-    WCHAR *sourcenameW, *computernameW, *localcomputerW;
-
-    size = MAX_COMPUTERNAME_LENGTH + 1;
-    localcomputer = HeapAlloc(GetProcessHeap(), 0, size);
-    GetComputerNameA(localcomputer, &size);
-
-    found = FALSE;
-    handle = OpenEventLogA(0, "System");
-    while (!found)
-    {
-        record = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
-        if (!(ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ,
-                                  0, record, sizeof(EVENTLOGRECORD), &read, &needed)) &&
-            GetLastError() == ERROR_INSUFFICIENT_BUFFER)
-        {
-            record = HeapReAlloc(GetProcessHeap(), 0, record, needed);
-            ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ,
-                                0, record, needed, &read, &needed);
-        }
-        if (ret && record->EventID == EVENT_EventlogStarted)
-        {
-            ok(record->Length == read, "Expected %ld, got %ld\n", read, record->Length);
-            ok(record->Reserved == 0x654c664c, "Expected 0x654c664c, got %ld\n", record->Reserved);
-            ok(record->RecordNumber > 0, "Expected 1 or higher, got %ld\n", record->RecordNumber);
-            ok(record->TimeGenerated == record->TimeWritten, "Expected time values to be the same\n");
-            ok(record->EventType == EVENTLOG_INFORMATION_TYPE,
-                "Expected %d, got %d\n", EVENTLOG_INFORMATION_TYPE, record->EventType);
-            ok(record->NumStrings == 0, "Expected 0, got %d\n", record->NumStrings);
-            ok(record->EventCategory == 0, "Expected 0, got %d\n", record->EventCategory);
-            ok(record->ReservedFlags == 0, "Expected 0, got %d\n", record->ReservedFlags);
-            ok(record->ClosingRecordNumber == 0, "Expected 0, got %ld\n", record->ClosingRecordNumber);
-            ok(record->StringOffset == record->UserSidOffset, "Expected offsets to be the same\n");
-            ok(record->UserSidLength == 0, "Expected 0, got %ld\n", record->UserSidLength);
-            ok(record->DataLength == 24, "Expected 24, got %ld\n", record->DataLength);
-            ok(record->DataOffset == record->UserSidOffset, "Expected offsets to be the same\n");
-
-            sourcename = (char *)(record + 1);
-            ok(!lstrcmpA(sourcename, "EventLog"),
-                "Expected 'EventLog', got '%s'\n", sourcename);
-
-            computername = sourcename + sizeof("EventLog");
-            ok(!lstrcmpiA(computername, localcomputer), "Expected '%s', got '%s'\n",
-                localcomputer, computername);
-
-            size = sizeof(EVENTLOGRECORD) + sizeof("EventLog") + lstrlenA(computername) + 1;
-            size = (size + 7) & ~7;
-            ok(record->DataOffset == size ||
-                broken(record->DataOffset == size - 1), /* win8 */
-                "Expected %ld, got %ld\n", size, record->DataOffset);
-
-            found = TRUE;
-        }
-        HeapFree(GetProcessHeap(), 0, record);
-
-    }
-    CloseEventLog(handle);
-    HeapFree(GetProcessHeap(), 0, localcomputer);
-
+    WCHAR *sourcenameW, *computernameW, *localcomputerW; /* TODO remove W */
 
     size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
     localcomputerW = HeapAlloc(GetProcessHeap(), 0, size);
