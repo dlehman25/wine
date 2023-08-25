@@ -517,6 +517,11 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     }
     list_init( &log->events );
 
+    if (!wcscmp( source, L"System" )) /* TODO: case sensitive? */
+    {
+        
+    }
+
     return log;
 }
 
