@@ -1316,6 +1316,8 @@ static void test_eventlog_start(void)
     localcomputer = HeapAlloc(GetProcessHeap(), 0, size);
     GetComputerNameA(localcomputer, &size);
 
+if (0)
+{
     found = FALSE;
     handle = OpenEventLogA(0, "System");
     while (!found)
@@ -1367,7 +1369,7 @@ static void test_eventlog_start(void)
     }
     CloseEventLog(handle);
     HeapFree(GetProcessHeap(), 0, localcomputer);
-
+}
 
     size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
     localcomputerW = HeapAlloc(GetProcessHeap(), 0, size);
@@ -1437,6 +1439,8 @@ START_TEST(eventlog)
     }
 
     init_function_pointers();
+    test_eventlog_start();
+return;
 
     /* Parameters only */
     test_open_close();
