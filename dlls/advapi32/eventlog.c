@@ -657,6 +657,7 @@ BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffe
 
         *numread = rec->Length;
         memcpy(buffer, rec, rec->Length);
+        return TRUE;
     }
 
     SetLastError(ERROR_HANDLE_EOF);
