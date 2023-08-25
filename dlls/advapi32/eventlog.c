@@ -31,12 +31,25 @@
 #include "evntprov.h"
 #include "netevent.h"
 
+#include "wine/list.h"
 #include "wine/debug.h"
 
 #include "advapi32_misc.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(advapi);
 WINE_DECLARE_DEBUG_CHANNEL(eventlog);
+
+struct eventlog
+{
+    struct list events;
+};
+
+struct eventlog_entry
+{
+    struct list entry;
+    EVENTLOGRECORD record;
+    /* record bytes */
+};
 
 /******************************************************************************
  * BackupEventLogA [ADVAPI32.@]
@@ -151,15 +164,28 @@ BOOL WINAPI ClearEventLogW( HANDLE hEventLog, LPCWSTR lpBackupFileName )
  *  Success: nonzero
  *  Failure: zero
  */
-BOOL WINAPI CloseEventLog( HANDLE hEventLog )
+BOOL WINAPI CloseEventLog( HANDLE handle )
 {
-    FIXME("(%p) stub\n", hEventLog);
+    struct eventlog *log;
+    struct list *head;
 
-    if (!hEventLog)
+    TRACE("(%p)\n", handle);
+
+    if (!handle)
     {
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
+
+    log = (struct eventlog *)handle;
+    head = list_head( &log->events );
+    while (head)
+    {
+        list_remove( head );
+        free( head );
+        head = list_head( &log->events );
+    }
+    free( log );
 
     return TRUE;
 }
@@ -467,7 +493,9 @@ HANDLE WINAPI OpenEventLogA( LPCSTR uncname, LPCSTR source )
  */
 HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 {
-    FIXME("(%s,%s) stub\n", debugstr_w(uncname), debugstr_w(source));
+    struct eventlog *log;
+
+    TRACE("(%s,%s)\n", debugstr_w(uncname), debugstr_w(source));
 
     if (!source)
     {
@@ -482,7 +510,15 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
-    return (HANDLE)0xcafe4242;
+    log = malloc(sizeof(*log));
+    if (!log)
+    {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        return NULL;
+    }
+    list_init( &log->events );
+
+    return log;
 }
 
 #define DATALEN             24
