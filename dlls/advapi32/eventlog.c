@@ -490,19 +490,19 @@ HANDLE WINAPI OpenEventLogA( LPCSTR uncname, LPCSTR source )
 
 static BOOL open_system_log( struct eventlog *log )
 {
-#define DATALEN             24
-#define EVENTLOGRECORD_MAX  (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
-                            ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + DATALEN)
+#define EVENTLOGSTARTED_DATALEN 24
+#define EVENTLOGRSTARTEDW_MAX   (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
+                                ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + EVENTLOGSTARTED_DATALEN)
     SYSTEM_TIMEOFDAY_INFORMATION ti;
     struct eventlog_entry *entry;
     EVENTLOGRECORD *rec;
     DWORD size;
 
-    entry = malloc(EVENTLOGRECORD_MAX);
+    entry = malloc(EVENTLOGRSTARTEDW_MAX);
     if (!entry)
         return FALSE;
 
-    memset(entry, 0, EVENTLOGRECORD_MAX);
+    memset(entry, 0, EVENTLOGRSTARTEDW_MAX);
     rec = &entry->record;
 
     NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
@@ -514,7 +514,7 @@ static BOOL open_system_log( struct eventlog *log )
     rec->TimeWritten = rec->TimeGenerated;
     rec->EventID = EVENT_EventlogStarted;
     rec->EventType = EVENTLOG_INFORMATION_TYPE;
-    rec->DataLength = DATALEN;
+    rec->DataLength = EVENTLOGSTARTED_DATALEN;
 
     wcscpy((WCHAR *)(rec + 1), L"EventLog");
 
@@ -572,6 +572,42 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     return log;
 }
 
+static BOOL convert_EventlogStarted( const EVENTLOGRECORD *src, DWORD recsize,
+    void *buffer, DWORD toread, DWORD *numread, DWORD *needed )
+{
+#define EVENTLOGRSTARTEDA_MAX (sizeof(EVENTLOGRECORD) + sizeof("EventLog") + \
+                              (MAX_COMPUTERNAME_LENGTH + 1) + EVENTLOGSTARTED_DATALEN)
+    EVENTLOGRECORD *dst = (EVENTLOGRECORD *)buffer;
+    DWORD namelen = 0;
+    DWORD dstsize = 0;
+
+    if (toread > EVENTLOGRSTARTEDA_MAX) /* TODO: needed? */
+    {
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        return FALSE;
+    }
+
+    namelen = 0; /* TODO: needed? */
+    GetComputerNameA(NULL, &namelen);
+    dstsize = namelen + sizeof(EVENTLOGRECORD) + sizeof("EventLog") + EVENTLOGSTARTED_DATALEN;
+    if (toread > dstsize)
+    {
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        return FALSE;
+    }
+
+    memcpy(dst, src, sizeof(EVENTLOGRECORD));
+    strcpy((char *)(dst + 1), "EventLog");
+    dst->Length = sizeof(EVENTLOGRECORD) + sizeof("EventLog");
+    GetComputerNameA((char *)dst + dst->Length, &namelen);
+    dst->Length += (namelen + 1);
+    dst->DataOffset = (dst->Length + 7) & ~7;
+    dst->StringOffset = dst->DataOffset;
+    dst->UserSidOffset = dst->DataOffset;
+
+    return TRUE;
+}
+
 /******************************************************************************
  * ReadEventLogA [ADVAPI32.@]
  *
@@ -594,6 +630,10 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
     DWORD *numread, DWORD *needed )
 {
+    BYTE local[EVENTLOGRECORD_MAX];
+    DWORD localread = sizeof(local);
+    EVENTLOGRECORD *rec = (EVENTLOGRECORD *)local;
+
     FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
         toread, numread, needed);
 
@@ -616,6 +656,16 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
     {
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
+    }
+
+    if (!ReadEventLogW( log, flags, offset, local, EVENTLOGRECORD_MAX, &localread, needed ))
+        return FALSE;
+
+    switch (rec->EventID)
+    {
+        case EVENT_EventlogStarted:
+            return convert_EventlogStarted( rec, localread, buffer, toread, numread, needed );
+            break;
     }
 
     SetLastError(ERROR_HANDLE_EOF);
