@@ -486,6 +486,48 @@ HANDLE WINAPI OpenEventLogA( LPCSTR uncname, LPCSTR source )
     return handle;
 }
 
+static BOOL open_system_log( struct eventlog *log )
+{
+#define DATALEN             24
+#define EVENTLOGRECORD_MAX  (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
+                            ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + DATALEN)
+    SYSTEM_TIMEOFDAY_INFORMATION ti;
+    struct eventlog_entry *entry;
+    EVENTLOGRECORD *rec;
+    DWORD size;
+
+    entry = malloc(EVENTLOGRECORD_MAX);
+    if (!entry)
+        return FALSE;
+
+    memset(entry, 0, EVENTLOGRECORD_MAX);
+    rec = &entry->record;
+
+    NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
+    RtlTimeToSecondsSince1970(&ti.BootTime, &rec->TimeGenerated);
+    rec->TimeGenerated = rec->TimeGenerated;
+
+    rec->Reserved = 0x654c664c; /* LfLe */
+    rec->RecordNumber = 1;
+    rec->TimeWritten = rec->TimeGenerated;
+    rec->EventID = EVENT_EventlogStarted;
+    rec->EventType = EVENTLOG_INFORMATION_TYPE;
+    rec->DataLength = DATALEN;
+
+    wcscpy((WCHAR *)(rec + 1), L"EventLog");
+
+    size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
+    rec->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
+    GetComputerNameW((WCHAR*)((BYTE *)rec + rec->Length), &size);
+    rec->Length += (size + 1) * sizeof(WCHAR);
+    rec->DataOffset = (rec->Length + 7) & ~7;
+    rec->StringOffset = rec->DataOffset;
+    rec->UserSidOffset = rec->DataOffset;
+
+    list_add_tail( &log->events, &entry->entry );
+    return TRUE;
+}
+
 /******************************************************************************
  * OpenEventLogW [ADVAPI32.@]
  *
@@ -516,44 +558,13 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         return NULL;
     }
-    list_init( &log->events );
+    list_init(&log->events);
 
-    if (!_wcsicmp( source, L"System" ))
+    if (!_wcsicmp(source, L"System") && !open_system_log(log))
     {
-#define DATALEN             24
-#define ALIGN(x)            (((x) + 7) & ~7)
-#define EVENTLOGRECORD_MAX  (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
-                            ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + DATALEN)
-        SYSTEM_TIMEOFDAY_INFORMATION ti;
-        struct eventlog_entry *entry;
-        EVENTLOGRECORD *rec;
-        DWORD size;
-
-        entry = malloc(EVENTLOGRECORD_MAX); /* TODO */
-        rec = &entry->record;
-
-        NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
-        RtlTimeToSecondsSince1970(&ti.BootTime, &rec->TimeGenerated);
-        rec->TimeGenerated = rec->TimeGenerated;
-
-        rec->Reserved = 0x654c664c; /* LfLe */
-        rec->RecordNumber = 1;
-        rec->TimeWritten = rec->TimeGenerated;
-        rec->EventID = EVENT_EventlogStarted;
-        rec->EventType = EVENTLOG_INFORMATION_TYPE;
-        rec->DataLength = DATALEN;
-
-        wcscpy((WCHAR *)(rec + 1), L"EventLog");
-
-        size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
-        rec->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
-        GetComputerNameW((WCHAR*)((BYTE *)rec + rec->Length), &size);
-        rec->Length += (size + 1) * sizeof(WCHAR);
-        rec->DataOffset = ALIGN(rec->Length);
-        rec->StringOffset = rec->DataOffset;
-        rec->UserSidOffset = rec->DataOffset;
-
-        list_add_tail( &log->events, &entry->entry );
+        free(log);
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        return NULL;
     }
 
     return log;
