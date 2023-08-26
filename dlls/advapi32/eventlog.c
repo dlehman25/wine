@@ -518,7 +518,7 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     }
     list_init( &log->events );
 
-    if (!wcscmp( source, L"System" )) /* TODO: case sensitive? */
+    if (!_wcsicmp( source, L"System" ))
     {
 #define DATALEN             24
 #define ALIGN(x)            (((x) + 7) & ~7)
