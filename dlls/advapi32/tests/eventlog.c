@@ -492,6 +492,17 @@ static void test_read(void)
 
     HeapFree(GetProcessHeap(), 0, buf);
 
+    read = 0x7ffff + 1; /* more than documented limit */
+    buf = HeapAlloc(GetProcessHeap(), 0, read);
+    SetLastError(0xdeadbeef);
+    needed = 0xdeadbeef;
+    ret = ReadEventLogA(handle, EVENTLOG_SEEK_READ | EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
+                        0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
+    ok(!ret, "Expected failure\n");
+    ok(needed == 0xdeadbeef, "Expected no change to needed\n");
+    ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
+    HeapFree(GetProcessHeap(), 0, buf);
+
     /* First check if there are any records (in practice only on Wine: FIXME) */
     count = 0;
     GetNumberOfEventLogRecords(handle, &count);
