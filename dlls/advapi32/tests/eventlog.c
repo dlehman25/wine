@@ -1305,18 +1305,21 @@ done:
 
 static void test_eventlog_start(void)
 {
-    HANDLE handle;
     BOOL ret, found;
+    HANDLE handle, handle2;
     EVENTLOGRECORD *record;
     DWORD size, read, needed;
-    WCHAR *sourcenameW, *computernameW, *localcomputerW; /* TODO remove W */
+    WCHAR *sourcename, *computername, *localcomputer;
 
     size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
-    localcomputerW = HeapAlloc(GetProcessHeap(), 0, size);
-    GetComputerNameW(localcomputerW, &size);
+    localcomputer = HeapAlloc(GetProcessHeap(), 0, size);
+    GetComputerNameW(localcomputer, &size);
 
     found = FALSE;
     handle = OpenEventLogW(0, L"System");
+    handle2 = OpenEventLogW(0, L"System");
+    ok(handle != handle2, "Expected different handle\n");
+    CloseEventLog(handle2);
     while (!found)
     {
         record = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
@@ -1345,16 +1348,16 @@ static void test_eventlog_start(void)
             ok(record->DataLength == 24, "Expected 24, got %ld\n", record->DataLength);
             ok(record->DataOffset == record->UserSidOffset, "Expected offsets to be the same\n");
 
-            sourcenameW = (WCHAR *)(record + 1);
-            ok(!lstrcmpW(sourcenameW, L"EventLog"),
-                "Expected 'EventLog', got '%ls'\n", sourcenameW);
+            sourcename = (WCHAR *)(record + 1);
+            ok(!lstrcmpW(sourcename, L"EventLog"),
+                "Expected 'EventLog', got '%ls'\n", sourcename);
 
-            computernameW = sourcenameW + sizeof("EventLog");
-            ok(!lstrcmpiW(computernameW, localcomputerW), "Expected '%ls', got '%ls'\n",
-                localcomputerW, computernameW);
+            computername = sourcename + sizeof("EventLog");
+            ok(!lstrcmpiW(computername, localcomputer), "Expected '%ls', got '%ls'\n",
+                localcomputer, computername);
 
             size = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog") +
-                (lstrlenW(computernameW) + 1) * sizeof(WCHAR);
+                (lstrlenW(computername) + 1) * sizeof(WCHAR);
             size = (size + 7) & ~7;
             ok(record->DataOffset == size ||
                 broken(record->DataOffset == size - sizeof(WCHAR)), /* win8 */
@@ -1365,7 +1368,7 @@ static void test_eventlog_start(void)
         HeapFree(GetProcessHeap(), 0, record);
     }
     CloseEventLog(handle);
-    HeapFree(GetProcessHeap(), 0, localcomputerW);
+    HeapFree(GetProcessHeap(), 0, localcomputer);
 }
 
 START_TEST(eventlog)
