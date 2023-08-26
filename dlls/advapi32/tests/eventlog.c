@@ -1320,6 +1320,11 @@ static void test_eventlog_start(void)
     handle2 = OpenEventLogW(0, L"System");
     ok(handle != handle2, "Expected different handle\n");
     CloseEventLog(handle2);
+
+    handle2 = OpenEventLogW(0, L"SYSTEM");
+    ok(!!handle2, "Expected valid handle\n");
+    CloseEventLog(handle2);
+
     while (!found)
     {
         record = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
