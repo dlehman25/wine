@@ -51,6 +51,8 @@ struct eventlog_entry
     /* record bytes */
 };
 
+#define EVENTLOGRECORD_MAX  0x7ffff
+
 /******************************************************************************
  * BackupEventLogA [ADVAPI32.@]
  *
@@ -604,6 +606,12 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         return FALSE;
     }
 
+    if (toread > EVENTLOGRECORD_MAX)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
     if (!log)
     {
         SetLastError(ERROR_INVALID_HANDLE);
@@ -633,6 +641,12 @@ BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffe
         !(flags & (EVENTLOG_FORWARDS_READ|EVENTLOG_BACKWARDS_READ)) ||
         ((flags & EVENTLOG_FORWARDS_READ) && (flags & EVENTLOG_BACKWARDS_READ)) ||
         ((flags & EVENTLOG_SEQUENTIAL_READ) && (flags & EVENTLOG_SEEK_READ)))
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    if (toread > EVENTLOGRECORD_MAX)
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return FALSE;
