@@ -1387,6 +1387,10 @@ static void test_eventlog_start(void)
     CloseEventLog(handle);
     HeapFree(GetProcessHeap(), 0, localcomputer);
 
+    size = MAX_COMPUTERNAME_LENGTH + 1;
+    localcomputerA = HeapAlloc(GetProcessHeap(), 0, size);
+    GetComputerNameA(localcomputerA, &size);
+
     found = FALSE;
     handle = OpenEventLogA(0, "System");
     while (!found)
@@ -1418,18 +1422,17 @@ static void test_eventlog_start(void)
             ok(record->DataOffset == record->UserSidOffset, "Expected offsets to be the same\n");
 
             sourcenameA = (char *)(record + 1);
-            ok(!lstrcmpW(sourcenameA, "EventLog"),
+            ok(!strcmp(sourcenameA, "EventLog"),
                 "Expected 'EventLog', got '%s'\n", sourcenameA);
 
-            computername = sourcename + sizeof("EventLog");
-            ok(!lstrcmpiW(computername, localcomputer), "Expected '%ls', got '%ls'\n",
-                localcomputer, computername);
+            computernameA = sourcenameA + sizeof("EventLog");
+            ok(!_stricmp(computernameA, localcomputerA), "Expected '%s', got '%s'\n",
+                localcomputerA, computernameA);
 
-            size = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog") +
-                (lstrlenW(computername) + 1) * sizeof(WCHAR);
+            size = sizeof(EVENTLOGRECORD) + sizeof("EventLog") + strlen(computernameA) + 1;
             size = (size + 7) & ~7;
             ok(record->DataOffset == size ||
-                broken(record->DataOffset == size - sizeof(WCHAR)), /* win8 */
+                broken(record->DataOffset == size - 1), /* win8 */
                 "Expected %ld, got %ld\n", size, record->DataOffset);
 
             found = TRUE;
@@ -1437,7 +1440,7 @@ static void test_eventlog_start(void)
         HeapFree(GetProcessHeap(), 0, record);
     }
     CloseEventLog(handle);
-    HeapFree(GetProcessHeap(), 0, localcomputer);
+    HeapFree(GetProcessHeap(), 0, localcomputerA);
 }
 
 START_TEST(eventlog)
