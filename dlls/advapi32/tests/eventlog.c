@@ -395,6 +395,7 @@ static void test_read(void)
     BOOL ret;
     DWORD count, toread, read, needed;
     void *buf;
+    EVENTLOGRECORD *rec;
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(NULL, 0, 0, NULL, 0, NULL, NULL);
@@ -514,7 +515,7 @@ static void test_read(void)
     }
 
     /* Get the buffer size for the first record */
-    buf = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
+    rec = buf = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
     read = needed = 0xdeadbeef;
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
@@ -526,7 +527,7 @@ static void test_read(void)
 
     /* Read the first record */
     toread = needed;
-    buf = HeapReAlloc(GetProcessHeap(), 0, buf, toread);
+    rec = buf = HeapReAlloc(GetProcessHeap(), 0, buf, toread);
     read = needed = 0xdeadbeef;
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, buf, toread, &read, &needed);
@@ -535,6 +536,57 @@ static void test_read(void)
        broken(read < toread), /* NT4 wants a buffer size way bigger than just 1 record */
        "Expected the requested size to be read\n");
     ok(needed == 0, "Expected no extra bytes to be read\n");
+    ok(rec->RecordNumber == 1, "Expected 1, got %lu\n", rec->RecordNumber);
+
+    /* Change how to read after first read */
+    read = needed = 0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = ReadEventLogA(handle, EVENTLOG_SEEK_READ | EVENTLOG_FORWARDS_READ, 0, buf, toread, &read, &needed);
+    ok(!ret, "Expected failure\n");
+    ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
+    ok(read == 0, "Expected no bytes read\n");
+    ok(needed == 0, "Expected no extra bytes to be read\n");
+
+    /* Change direction */
+    read = needed = 0xdeadbeef;
+    ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, buf, toread, &read, &needed);
+    ok(ret, "Expected success : %ld\n", GetLastError());
+    ok(rec->RecordNumber == 2, "Expected 2, got %lu\n", rec->RecordNumber);
+
+    read = needed = 0xdeadbeef;
+    ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ, 0, buf, toread, &read, &needed);
+    ok(ret, "Expected success : %ld\n", GetLastError());
+    ok(rec->RecordNumber == 2, "Expected 2, got %lu\n", rec->RecordNumber);
+    CloseEventLog(handle);
+
+    /* Get the buffer size for the last record */
+    handle = OpenEventLogA(NULL, "Application");
+
+    rec = buf = HeapAlloc(GetProcessHeap(), 0, sizeof(EVENTLOGRECORD));
+    read = needed = 0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ,
+                        0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
+    ok(!ret, "Expected failure\n");
+    ok(read == 0, "Expected no bytes read\n");
+    ok(needed > sizeof(EVENTLOGRECORD), "Expected the needed buffersize to be bigger than sizeof(EVENTLOGRECORD)\n");
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "Expected ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
+
+    /* Read the last record */
+    toread = needed;
+    rec = buf = HeapReAlloc(GetProcessHeap(), 0, buf, toread);
+    read = needed = 0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ, 0, buf, toread, &read, &needed);
+    ok(ret, "Expected success : %ld\n", GetLastError());
+    ok(read == toread ||
+       broken(read < toread), /* NT4 wants a buffer size way bigger than just 1 record */
+       "Expected the requested size to be read\n");
+    ok(needed == 0, "Expected no extra bytes to be read\n");
+
+    count = 0;
+    GetNumberOfEventLogRecords(handle, &count);
+    ok(rec->RecordNumber == count, "Expected %lu, got %lu\n", count, rec->RecordNumber);
     HeapFree(GetProcessHeap(), 0, buf);
 
     CloseEventLog(handle);
