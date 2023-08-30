@@ -549,8 +549,16 @@ static void test_read(void)
 
     /* Change direction */
     read = needed = 0xdeadbeef;
+    SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, buf, toread, &read, &needed);
-    ok(ret, "Expected success : %ld\n", GetLastError());
+    ok(ret || GetLastError() == ERROR_INSUFFICIENT_BUFFER, "Expected success : %ld\n", GetLastError());
+    if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+    {
+        toread = needed;
+        rec = buf = HeapReAlloc(GetProcessHeap(), 0, buf, toread);
+        ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, buf, toread, &read, &needed);
+        ok(ret, "Expected success : %ld\n", GetLastError());
+    }
     ok(rec->RecordNumber == 2, "Expected 2, got %lu\n", rec->RecordNumber);
 
     read = needed = 0xdeadbeef;
