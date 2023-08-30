@@ -589,9 +589,10 @@ static BOOL convert_EventlogStarted( const EVENTLOGRECORD *src, DWORD recsize,
 
     namelen = 0; /* TODO: needed? */
     GetComputerNameA(NULL, &namelen);
-    dstsize = namelen + sizeof(EVENTLOGRECORD) + sizeof("EventLog") + EVENTLOGSTARTED_DATALEN;
+    dstsize = sizeof(EVENTLOGRECORD) + sizeof("EventLog") + (namelen + 1) + EVENTLOGSTARTED_DATALEN;
     if (toread > dstsize)
     {
+        *needed = dstsize;
         SetLastError(ERROR_INSUFFICIENT_BUFFER);
         return FALSE;
     }
@@ -604,6 +605,7 @@ static BOOL convert_EventlogStarted( const EVENTLOGRECORD *src, DWORD recsize,
     dst->DataOffset = (dst->Length + 7) & ~7;
     dst->StringOffset = dst->DataOffset;
     dst->UserSidOffset = dst->DataOffset;
+    *numread = dst->Length;
 
     return TRUE;
 }
