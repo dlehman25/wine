@@ -1372,7 +1372,7 @@ static void test_eventlog_start(void)
     }
     ok(handle != NULL, "OpenEventLogW(System) failed : %ld\n", GetLastError());
     handle2 = OpenEventLogW(0, L"System");
-    todo_wine ok(handle != handle2, "Expected different handle\n");
+    ok(handle != handle2, "Expected different handle\n");
     CloseEventLog(handle2);
 
     handle2 = OpenEventLogW(0, L"SYSTEM");
@@ -1445,7 +1445,7 @@ static void test_eventlog_start(void)
 
     handle = OpenEventLogA(0, "System");
     handle2 = OpenEventLogA(0, "SYSTEM");
-    todo_wine ok(handle != handle2, "Expected different handle\n");
+    ok(handle != handle2, "Expected different handle\n");
     CloseEventLog(handle2);
 
     ret = TRUE;
