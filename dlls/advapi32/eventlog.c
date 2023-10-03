@@ -609,12 +609,60 @@ BOOL WINAPI ReadEventLogA( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOf
  *
  * See ReadEventLogA.
  */
-BOOL WINAPI ReadEventLogW( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOffset,
-    LPVOID lpBuffer, DWORD nNumberOfBytesToRead, DWORD *pnBytesRead, DWORD *pnMinNumberOfBytesNeeded )
+BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffer, DWORD toread,
+    DWORD *numread, DWORD *needed )
 {
-    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
-          dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
+    struct eventlog_entry *entry;
+    struct eventlog *log;
+    DWORD idx;
 
+    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", handle, flags, offset, buffer,
+          toread, numread, needed);
+
+    if (!buffer || !flags ||
+        !(flags & (EVENTLOG_FORWARDS_READ|EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_FORWARDS_READ) && (flags & EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_SEQUENTIAL_READ) && (flags & EVENTLOG_SEEK_READ)))
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    if (!handle)
+    {
+        SetLastError(ERROR_INVALID_HANDLE);
+        return FALSE;
+    }
+
+    log = (struct eventlog *)handle;
+    EnterCriticalSection(&log->cs);
+    idx = 0;
+    LIST_FOR_EACH_ENTRY( entry, &log->events, struct eventlog_entry, entry )
+    {
+        EVENTLOGRECORD *rec;
+
+        if (idx > offset)
+            break;
+        if (idx < offset)
+            continue;
+        idx++;
+
+        rec = &entry->record;
+        if (toread < rec->Length)
+        {
+            *needed = rec->Length;
+            SetLastError(ERROR_INSUFFICIENT_BUFFER);
+            LeaveCriticalSection(&log->cs);
+            return FALSE;
+        }
+
+        *numread = rec->Length;
+        *needed = 0;
+        memcpy(buffer, rec, rec->Length);
+        LeaveCriticalSection(&log->cs);
+        return TRUE;
+    }
+    LeaveCriticalSection(&log->cs);
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
 }

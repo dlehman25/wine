@@ -1423,7 +1423,7 @@ static void test_eventlog_start(void)
         }
         free(record);
     }
-    todo_wine ok(found, "EventlogStarted event not found\n");
+    ok(found, "EventlogStarted event not found\n");
     CloseEventLog(handle);
     free(localcomputer);
 
@@ -1515,6 +1515,7 @@ static void test_eventlog_start(void)
     /* changing how is an error */
     SetLastError(0xdeadbeef);
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_BACKWARDS_READ, 0, &record, &size);
+    todo_wine
     ok(!ret, "Expected failure\n");
     todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
@@ -1529,11 +1530,10 @@ static void test_eventlog_start(void)
     ok(count, "Zero records in log\n");
 
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ, 100, &record, &size);
-    todo_wine
+    todo_wine {
     ok(ret, "Expected success : %ld\n", GetLastError());
     ok(record->RecordNumber == count, "Expected %lu, got %lu\n", count, record->RecordNumber);
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ, 100, &record, &size);
-    todo_wine {
     ok(ret, "Expected success : %ld\n", GetLastError());
     ok(record->RecordNumber == count - 1, "Expected %lu, got %lu\n", count - 1, record->RecordNumber);
     }
@@ -1543,9 +1543,10 @@ static void test_eventlog_start(void)
     /* SEEK | FORWARDS */
     /* bogus offset */
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_FORWARDS_READ, 0, &record, &size);
+    todo_wine {
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
+    }
 
     count = 0xdeadbeef;
     ret = GetNumberOfEventLogRecords(handle, &count);
@@ -1583,11 +1584,10 @@ static void test_eventlog_start(void)
     handle = OpenEventLogW(0, L"system");
     /* bogus offset */
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_BACKWARDS_READ, 0, &record, &size);
+    todo_wine {
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
-    todo_wine {
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_BACKWARDS_READ, 5, &record, &size);
     ok(ret, "Expected success : %ld\n", GetLastError());
     ok(record->RecordNumber == 5, "Expected 5, got %lu\n", record->RecordNumber);
