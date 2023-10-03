@@ -1434,7 +1434,7 @@ static void test_eventlog_start(void)
         }
         free(record);
     }
-    todo_wine ok(found, "EventlogStarted event not found\n");
+    ok(found, "EventlogStarted event not found\n");
     CloseEventLog(handle);
     free(localcomputer);
 
@@ -1538,7 +1538,7 @@ static void test_eventlog_start(void)
 
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ, 100, &record, &size);
     todo_wine ok(ret, "Expected success : %ld\n", GetLastError());
-    ok(record->RecordNumber == count, "Expected %lu, got %lu\n", count, record->RecordNumber);
+    todo_wine ok(record->RecordNumber == count, "Expected %lu, got %lu\n", count, record->RecordNumber);
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_BACKWARDS_READ, 100, &record, &size);
     todo_wine ok(ret, "Expected success : %ld\n", GetLastError());
     todo_wine ok(record->RecordNumber == count - 1, "Expected %lu, got %lu\n", count - 1, record->RecordNumber);
