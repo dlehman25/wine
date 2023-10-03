@@ -574,6 +574,38 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     return log;
 }
 
+static BOOL convert_EventlogStarted( const EVENTLOGRECORD *src, DWORD recsize,
+    void *buffer, DWORD bufsize, DWORD *numread, DWORD *needed )
+{
+    EVENTLOGRECORD *dst = buffer;
+    DWORD namelen = 0;
+    DWORD dstsize = 0;
+
+    GetComputerNameA(NULL, &namelen);
+    dstsize = sizeof(EVENTLOGRECORD) + sizeof("EventLog") + namelen + 1;
+    dstsize = ((dstsize + 7) & ~7) + EVENTLOGSTARTED_DATALEN;
+    if (bufsize < dstsize)
+    {
+        *needed = dstsize;
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        return FALSE;
+    }
+
+    memcpy(dst, src, sizeof(EVENTLOGRECORD));
+    strcpy((char *)(dst + 1), "EventLog");
+    dst->Length = sizeof(EVENTLOGRECORD) + sizeof("EventLog");
+    GetComputerNameA((char *)dst + dst->Length, &namelen);
+    dst->Length += namelen + 1;
+    dst->DataOffset = (dst->Length + 7) & ~7;
+    dst->StringOffset = dst->DataOffset;
+    dst->UserSidOffset = dst->DataOffset;
+    dst->Length = dst->DataOffset + dst->DataLength;
+    *numread = dst->Length;
+    *needed = 0;
+
+    return TRUE;
+}
+
 /******************************************************************************
  * ReadEventLogA [ADVAPI32.@]
  *
@@ -593,11 +625,68 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
  *  Success: nonzero
  *  Failure: zero
  */
-BOOL WINAPI ReadEventLogA( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOffset,
-    LPVOID lpBuffer, DWORD nNumberOfBytesToRead, DWORD *pnBytesRead, DWORD *pnMinNumberOfBytesNeeded )
+BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
+    DWORD *numread, DWORD *needed )
 {
-    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
-          dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
+    EVENTLOGRECORD *rec, *tmp;
+    DWORD recsz, recneed;
+    BOOL ret;
+
+    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
+        toread, numread, needed);
+
+    if (!buffer || !flags ||
+        !(flags & (EVENTLOG_FORWARDS_READ|EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_FORWARDS_READ) && (flags & EVENTLOG_BACKWARDS_READ)) ||
+        ((flags & EVENTLOG_SEQUENTIAL_READ) && (flags & EVENTLOG_SEEK_READ)))
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    if (!log)
+    {
+        SetLastError(ERROR_INVALID_HANDLE);
+        return FALSE;
+    }
+
+    recsz = 0x1000;
+    rec = malloc(recsz);
+    if (!rec)
+    {
+        SetLastError(ERROR_OUTOFMEMORY);
+        return FALSE;
+    }
+
+    recneed = 0;
+    if (!ReadEventLogW( log, flags, offset, rec, recsz, &recsz, &recneed ))
+    {
+        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+            return FALSE;
+        tmp = realloc(rec, recsz);
+        if (!tmp)
+        {
+            free(rec);
+            SetLastError(ERROR_OUTOFMEMORY);
+            return FALSE;
+        }
+        recsz = recneed;
+        rec = tmp;
+        if (!ReadEventLogW( log, flags, offset, rec, recsz, &recsz, &recneed ))
+        {
+            free(rec);
+            return FALSE;
+        }
+    }
+
+    switch (rec->EventID)
+    {
+        case EVENT_EventlogStarted:
+            ret = convert_EventlogStarted( rec, recsz, buffer, toread, numread, needed );
+            free(rec);
+            return ret;
+            break;
+    }
 
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
