@@ -54,20 +54,6 @@ static CRITICAL_SECTION logs_cs = { &logs_debug, -1, 0, 0, 0, 0 };
 struct eventlog
 {
     CRITICAL_SECTION cs;
-    WCHAR *source;
-    struct list events;
-};
-
-struct eventlog_entry
-{
-    struct list entry;
-    EVENTLOGRECORD record;
-    /* record bytes */
-};
-
-struct eventlog2
-{
-    CRITICAL_SECTION cs;
     struct list entry;
     WCHAR *name;
     DWORD numrec;
@@ -77,7 +63,7 @@ struct eventlog2
 
 struct eventlog_access
 {
-    struct eventlog2 *log;
+    struct eventlog *log;
     BOOL reading;
     BOOL fwd;
     BOOL seq;
@@ -200,8 +186,7 @@ BOOL WINAPI ClearEventLogW( HANDLE hEventLog, LPCWSTR lpBackupFileName )
  */
 BOOL WINAPI CloseEventLog( HANDLE handle )
 {
-    struct eventlog *log;
-    struct list *head;
+    struct eventlog_access *access;
 
     TRACE("(%p)\n", handle);
 
@@ -211,16 +196,9 @@ BOOL WINAPI CloseEventLog( HANDLE handle )
         return FALSE;
     }
 
-    log = (struct eventlog *)handle;
-    head = list_head(&log->events);
-    while (head)
-    {
-        list_remove(head);
-        free(head);
-        head = list_head(&log->events);
-    }
-    DeleteCriticalSection(&log->cs);
-    free(log);
+    access = (struct eventlog_access *)handle;
+    free(access->source);
+    free(access);
 
     return TRUE;
 }
@@ -360,6 +338,7 @@ BOOL WINAPI GetEventLogInformation( HANDLE hEventLog, DWORD dwInfoLevel, LPVOID 
  */
 BOOL WINAPI GetNumberOfEventLogRecords( HANDLE hEventLog, PDWORD NumberOfRecords )
 {
+    struct eventlog_access *access;
     struct eventlog *log;
 
     FIXME("(%p,%p) stub\n", hEventLog, NumberOfRecords);
@@ -381,22 +360,12 @@ BOOL WINAPI GetNumberOfEventLogRecords( HANDLE hEventLog, PDWORD NumberOfRecords
     if (hEventLog == (HANDLE)0xcafe4242)
         return TRUE;
 
-    if (1)
-    {
-        struct eventlog_access *access = (struct eventlog_access *)hEventLog;
-        struct eventlog2 *log = access->log;
+    access = (struct eventlog_access *)hEventLog;
+    log = access->log;
 
-        EnterCriticalSection(&log->cs);
-        *NumberOfRecords = log->numrec;
-        LeaveCriticalSection(&log->cs);
-    }
-    else
-    {
-        log = (struct eventlog *)hEventLog;
-        EnterCriticalSection(&log->cs);
-        *NumberOfRecords = list_count(&log->events);
-        LeaveCriticalSection(&log->cs);
-    }
+    EnterCriticalSection(&log->cs);
+    *NumberOfRecords = log->numrec;
+    LeaveCriticalSection(&log->cs);
 
     return TRUE;
 }
@@ -546,19 +515,18 @@ HANDLE WINAPI OpenEventLogA( LPCSTR uncname, LPCSTR source )
 static BOOL open_system_log( struct eventlog *log )
 {
 #define EVENTLOGSTARTED_DATALEN 24
-#define EVENTLOGRSTARTEDW_MAX   (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
-                                ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + EVENTLOGSTARTED_DATALEN)
+#define EVENTLOGRSTARTEDW_MAX   (sizeof(EVENTLOGRECORD) + sizeof(L"EventLog") + \
+                                ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + \
+                                EVENTLOGSTARTED_DATALEN)
     SYSTEM_TIMEOFDAY_INFORMATION ti;
-    struct eventlog_entry *entry;
     EVENTLOGRECORD *rec;
     DWORD size;
 
-    entry = malloc(EVENTLOGRSTARTEDW_MAX);
-    if (!entry)
+    rec = malloc(EVENTLOGRSTARTEDW_MAX);
+    if (!rec)
         return FALSE;
 
-    memset(entry, 0, EVENTLOGRSTARTEDW_MAX);
-    rec = &entry->record;
+    memset(rec, 0, EVENTLOGRSTARTEDW_MAX);
 
     NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
     RtlTimeToSecondsSince1970(&ti.BootTime, &rec->TimeGenerated);
@@ -582,7 +550,7 @@ static BOOL open_system_log( struct eventlog *log )
     rec->UserSidOffset = rec->DataOffset;
     rec->Length = rec->DataOffset + rec->DataLength;
 
-    list_add_tail( &log->events, &entry->entry );
+    /* TODO: list_add_tail( &log->events, &entry->entry ); */
     return TRUE;
 }
 
@@ -633,16 +601,16 @@ static BOOL source_to_logname( const WCHAR *source, WCHAR *logname, size_t size 
     return FALSE;
 }
 
-static struct eventlog2 *source_to_log(const WCHAR *source)
+static struct eventlog *source_to_log(const WCHAR *source)
 {
-    struct eventlog2 *log;
+    struct eventlog *log;
     WCHAR logname[MAX_PATH];
 
     if (!source_to_logname(source, logname, ARRAY_SIZE(logname)))
         return NULL;
 
     EnterCriticalSection(&logs_cs);
-    LIST_FOR_EACH_ENTRY(log, &logs, struct eventlog2, entry)
+    LIST_FOR_EACH_ENTRY(log, &logs, struct eventlog, entry)
     {
         if (!wcsicmp(log->name, logname))
         {
@@ -665,50 +633,6 @@ static struct eventlog2 *source_to_log(const WCHAR *source)
     return log;
 }
 
-static BOOL source_exists( const WCHAR *source )
-{
-    DWORD index, indexsub;
-    WCHAR buffer[128]; // TODO
-    HKEY key, subkey;
-    LSTATUS ret;
-
-    ret = RegOpenKeyW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\Eventlog", &key);
-    if (ret)
-        return FALSE;
-
-    index = 0;
-    while (!(ret = RegEnumKeyW(key, index, buffer, ARRAY_SIZE(buffer))))
-    {
-        if (!wcsicmp(buffer, source))
-        {
-            RegCloseKey(key);
-            return TRUE;
-        }
-        ret = RegOpenKeyW(key, buffer, &subkey);
-        if (ret)
-        {
-            RegCloseKey(key);
-            return FALSE;
-        }
-
-        indexsub = 0;
-        while (!(ret = RegEnumKeyW(subkey, indexsub, buffer, ARRAY_SIZE(buffer))))
-        {
-            if (!wcsicmp(buffer, source))
-            {
-                RegCloseKey(subkey);
-                RegCloseKey(key);
-                return TRUE;
-            }
-            indexsub++;
-        }
-        RegCloseKey(subkey);
-        index++;
-    }
-    RegCloseKey(key);
-    return FALSE;
-}
-
 /******************************************************************************
  * OpenEventLogW [ADVAPI32.@]
  *
@@ -716,9 +640,11 @@ static BOOL source_exists( const WCHAR *source )
  */
 HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 {
+    BOOL ret;
+    static int once;
     struct eventlog *log;
-    struct eventlog2 *log2;
     struct eventlog_access *access;
+    WCHAR logname[MAX_PATH];
 
     FIXME("(%s,%s) partial stub\n", debugstr_w(uncname), debugstr_w(source));
 
@@ -735,7 +661,10 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
-    if (!(log2 = source_to_log(source)))
+    if (!source_to_logname(source, logname, ARRAY_SIZE(logname)))
+        wcscpy(logname, L"Application");
+
+    if (!(log = source_to_log(source)))
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return NULL;
@@ -747,40 +676,27 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
-    access->log = log2;
+    access->log = log;
     access->reading = FALSE;
     access->fwd = FALSE;
     access->seq = FALSE;
     access->cur = 0;
-    access->source = wcsdup(source); /* TODO */
+    if (!(access->source = wcsdup(logname)))
+    {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        free(access);
+        return NULL;
+    }
+
+    if (!wcscmp(logname, L"System") && !once)
+    {
+        char unknown[24];
+        ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 0, EVENT_EventlogStarted,
+                     NULL, 0, sizeof(unknown), NULL, unknown);
+        once = TRUE;
+    }
 
     return (HANDLE)access;
-
-
-    if (!source_exists(source))
-    {
-        SetLastError(ERROR_INVALID_PARAMETER);
-        return NULL;
-    }
-
-    log = malloc(sizeof(*log));
-    if (!log)
-    {
-        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-        return NULL;
-    }
-    InitializeCriticalSection(&log->cs);
-    log->source = wcsdup(source);
-    list_init(&log->events);
-
-    if (!_wcsicmp(source, L"System") && !open_system_log(log))
-    {
-        free(log);
-        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-        return NULL;
-    }
-
-    return log;
 }
 
 static BOOL convert_EventlogStarted( const EVENTLOGRECORD *src, DWORD recsize,
@@ -909,9 +825,9 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
 BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffer, DWORD toread,
     DWORD *numread, DWORD *needed )
 {
-    struct eventlog_entry *entry;
+    struct eventlog_access *access;
     struct eventlog *log;
-    DWORD idx;
+    EVENTLOGRECORD *rec;
 
     FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", handle, flags, offset, buffer,
           toread, numread, needed);
@@ -931,75 +847,24 @@ BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffe
         return FALSE;
     }
 
-    if (1)
+    access = (struct eventlog_access *)handle;
+    log = access->log;
+    if (flags & EVENTLOG_SEQUENTIAL_READ)
     {
-        struct eventlog_access *access = (struct eventlog_access *)handle;
-        struct eventlog2 *log = access->log;
-        EVENTLOGRECORD *rec;
-
-        if (flags & EVENTLOG_SEQUENTIAL_READ)
+        EnterCriticalSection(&log->cs);
+        if (!log->numrec)
         {
-            EnterCriticalSection(&log->cs);
-            rec = log->recs[access->cur]; /* TODO wrong cs */
-            if (flags & EVENTLOG_FORWARDS_READ)
-                access->cur++; /* TODO: advanced on error? */
-            else
-                access->cur--;
-            access->cur %= log->numrec;
-            if (toread < rec->Length)
-            {
-                *needed = rec->Length;
-                SetLastError(ERROR_INSUFFICIENT_BUFFER);
-                LeaveCriticalSection(&log->cs);
-                return FALSE;
-            }
-
-            *numread = rec->Length;
-            *needed = 0;
-            memcpy(buffer, rec, rec->Length);
+            SetLastError(ERROR_INSUFFICIENT_BUFFER); /* TODO */
             LeaveCriticalSection(&log->cs);
-            return TRUE;
+            return FALSE;
         }
+
+        rec = log->recs[access->cur]; /* TODO wrong cs */
+        if (flags & EVENTLOG_FORWARDS_READ)
+            access->cur++; /* TODO: advanced on error? */
         else
-        {
-            EnterCriticalSection(&log->cs);
-            if (offset < log->numrec)
-            {
-                rec = log->recs[offset]; /* TODO: wrong cs */
-                if (toread < rec->Length)
-                {
-                    *needed = rec->Length;
-                    SetLastError(ERROR_INSUFFICIENT_BUFFER);
-                    LeaveCriticalSection(&log->cs);
-                    return FALSE;
-                }
-
-                *numread = rec->Length;
-                *needed = 0;
-                memcpy(buffer, rec, rec->Length);
-                LeaveCriticalSection(&log->cs);
-                return TRUE;
-            }
-        }
-
-        SetLastError(ERROR_HANDLE_EOF);
-        return FALSE;
-    }
-
-    log = (struct eventlog *)handle;
-    EnterCriticalSection(&log->cs);
-    idx = 0;
-    LIST_FOR_EACH_ENTRY( entry, &log->events, struct eventlog_entry, entry )
-    {
-        EVENTLOGRECORD *rec;
-
-        if (idx > offset)
-            break;
-        if (idx < offset)
-            continue;
-        idx++;
-
-        rec = &entry->record;
+            access->cur--;
+        access->cur %= log->numrec;
         if (toread < rec->Length)
         {
             *needed = rec->Length;
@@ -1014,7 +879,28 @@ BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffe
         LeaveCriticalSection(&log->cs);
         return TRUE;
     }
-    LeaveCriticalSection(&log->cs);
+    else
+    {
+        EnterCriticalSection(&log->cs);
+        if (offset < log->numrec)
+        {
+            rec = log->recs[offset]; /* TODO: wrong cs */
+            if (toread < rec->Length)
+            {
+                *needed = rec->Length;
+                SetLastError(ERROR_INSUFFICIENT_BUFFER);
+                LeaveCriticalSection(&log->cs);
+                return FALSE;
+            }
+
+            *numread = rec->Length;
+            *needed = 0;
+            memcpy(buffer, rec, rec->Length);
+            LeaveCriticalSection(&log->cs);
+            return TRUE;
+        }
+    }
+
     SetLastError(ERROR_HANDLE_EOF);
     return FALSE;
 }
@@ -1122,19 +1008,19 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     PSID lpUserSid, WORD wNumStrings, DWORD dwDataSize, LPCWSTR *lpStrings, LPVOID lpRawData )
 {
     UINT i;
+    DWORD len;
     size_t off, size;
     EVENTLOGRECORD *rec;
+    EVENTLOGRECORD **recs;
     struct eventlog *log;
-    struct eventlog_entry *entry;
+    struct eventlog_access *access;
     SYSTEM_TIMEOFDAY_INFORMATION ti;
+    WCHAR compname[MAX_COMPUTERNAME_LENGTH + 1];
 
     FIXME("(%p,0x%04x,0x%04x,0x%08lx,%p,0x%04x,0x%08lx,%p,%p): stub\n", hEventLog,
           wType, wCategory, dwEventID, lpUserSid, wNumStrings, dwDataSize, lpStrings, lpRawData);
 
     /* partial stub */
-
-    if (wNumStrings == 0) return TRUE;
-    if (!lpStrings) return TRUE;
 
     for (i = 0; i < wNumStrings; i++)
     {
@@ -1172,15 +1058,19 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     if (hEventLog == (HANDLE)0xcafe4242)
         return TRUE;
 
+    access = (struct eventlog_access *)hEventLog;
+    log = access->log;
     size = sizeof(*rec) + dwDataSize;
+    size += (wcslen(log->name) + 1) * sizeof(WCHAR);
+    GetComputerNameW(compname, &len);
+    size += (len + 1) * sizeof(WCHAR);
     for (i = 0; i < wNumStrings; i++)
         size += (wcslen(lpStrings[i]) + 1) * sizeof(WCHAR);
     if (lpUserSid)
         size += GetLengthSid(lpUserSid);
-    entry = malloc(size + sizeof(*entry) - sizeof(*rec));
-    if (!entry)
+    rec = malloc(size);
+    if (!rec)
         return ERROR_NOT_ENOUGH_MEMORY;
-    rec = &entry->record;
 
     rec->Length = size;
     rec->Reserved = 0x654c664c;
@@ -1193,64 +1083,62 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     rec->EventCategory = wCategory;
     rec->ReservedFlags = 0;
     rec->ClosingRecordNumber = 0;
-    rec->StringOffset = off = sizeof(*rec);
+
+    /* TODO: provider */
+    off = sizeof(*rec);
+    wcscpy((wchar_t *)((char *)rec + off), log->name);
+    off += (wcslen(log->name) + 1) * sizeof(WCHAR);
+
+    wcscpy((wchar_t *)((char *)rec + off), compname);
+    off += (len + 1) * sizeof(WCHAR);
+    off = (off + 7) & ~7;
+
+    rec->StringOffset = off;
     for (i = 0; i < wNumStrings; i++)
     {
         size = (wcslen(lpStrings[i]) + 1) * sizeof(WCHAR);
         memcpy((char *)rec + off, lpStrings[i], size);
         off += size;
     }
+
+    off = (off + 7) & ~7;
+    rec->UserSidOffset = off;
     if (lpUserSid)
     {
         rec->UserSidLength = GetLengthSid(lpUserSid);
-        rec->UserSidOffset = off;
         memcpy((char *)rec + off, lpUserSid, rec->UserSidLength);
         off += rec->UserSidLength;
     }
     else
-    {
         rec->UserSidLength = 0;
-        rec->UserSidOffset = 0;
-    }
 
+    off = (off + 7) & ~7;
+    rec->DataOffset = off;
     if (lpRawData)
     {
         rec->DataLength = dwDataSize;
-        rec->DataOffset = off;
         memcpy((char *)rec + off, lpRawData, dwDataSize);
     }
     else
-    {
         rec->DataLength = 0;
-        rec->DataOffset = 0;
-    }
+    off += rec->DataLength;
+    off = (off + 7) & ~7;
+    rec->Length = off;
 
-    if (1)
+    access = (struct eventlog_access *)hEventLog;
+    log = access->log;
+
+    EnterCriticalSection(&log->cs);
+    if (log->numrec >= log->maxrec)
     {
-        struct eventlog_access *access = (struct eventlog_access *)hEventLog;
-        struct eventlog2 *log = access->log;
-        EVENTLOGRECORD **recs;
-
-        EnterCriticalSection(&log->cs);
-        if (log->numrec >= log->maxrec)
-        {
-            log->maxrec += 20;
-            recs = realloc(log->recs, log->maxrec * sizeof(*recs)); /* TODO */
-            log->recs = recs;
-        }
-
-        rec->RecordNumber = log->numrec;
-        log->recs[log->numrec++] = rec;
-        LeaveCriticalSection(&log->cs);
+        log->maxrec += 20;
+        recs = realloc(log->recs, log->maxrec * sizeof(*recs)); /* TODO */
+        log->recs = recs;
     }
-    else
-    {
-        log = (struct eventlog *)hEventLog;
-        EnterCriticalSection(&log->cs);
-        rec->RecordNumber = list_count(&log->events);
-        list_add_tail(&log->events, &entry->entry);
-        LeaveCriticalSection(&log->cs);
-    }
+
+    rec->RecordNumber = ++log->numrec;
+    log->recs[log->numrec-1] = rec;
+    LeaveCriticalSection(&log->cs);
 
     return TRUE;
 }
