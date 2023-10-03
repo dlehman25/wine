@@ -29,6 +29,7 @@
 #include "wmistr.h"
 #include "evntrace.h"
 #include "evntprov.h"
+#include "netevent.h"
 
 #include "wine/list.h"
 #include "wine/debug.h"
@@ -487,6 +488,49 @@ HANDLE WINAPI OpenEventLogA( LPCSTR uncname, LPCSTR source )
     return handle;
 }
 
+static BOOL open_system_log( struct eventlog *log )
+{
+#define EVENTLOGSTARTED_DATALEN 24
+#define EVENTLOGRSTARTEDW_MAX   (sizeof(struct eventlog_entry) + sizeof(L"EventLog") + \
+                                ((MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR)) + EVENTLOGSTARTED_DATALEN)
+    SYSTEM_TIMEOFDAY_INFORMATION ti;
+    struct eventlog_entry *entry;
+    EVENTLOGRECORD *rec;
+    DWORD size;
+
+    entry = malloc(EVENTLOGRSTARTEDW_MAX);
+    if (!entry)
+        return FALSE;
+
+    memset(entry, 0, EVENTLOGRSTARTEDW_MAX);
+    rec = &entry->record;
+
+    NtQuerySystemInformation(SystemTimeOfDayInformation, &ti, sizeof(ti), NULL);
+    RtlTimeToSecondsSince1970(&ti.BootTime, &rec->TimeGenerated);
+    rec->TimeGenerated = rec->TimeGenerated;
+
+    rec->Reserved = 0x654c664c; /* LfLe */
+    rec->RecordNumber = 1;
+    rec->TimeWritten = rec->TimeGenerated;
+    rec->EventID = EVENT_EventlogStarted;
+    rec->EventType = EVENTLOG_INFORMATION_TYPE;
+    rec->DataLength = EVENTLOGSTARTED_DATALEN;
+
+    wcscpy((WCHAR *)(rec + 1), L"EventLog");
+
+    size = (MAX_COMPUTERNAME_LENGTH + 1) * sizeof(WCHAR);
+    rec->Length = sizeof(EVENTLOGRECORD) + sizeof(L"EventLog");
+    GetComputerNameW((WCHAR*)((BYTE *)rec + rec->Length), &size);
+    rec->Length += (size + 1) * sizeof(WCHAR);
+    rec->DataOffset = (rec->Length + 7) & ~7;
+    rec->StringOffset = rec->DataOffset;
+    rec->UserSidOffset = rec->DataOffset;
+    rec->Length = rec->DataOffset + rec->DataLength;
+
+    list_add_tail( &log->events, &entry->entry );
+    return TRUE;
+}
+
 /******************************************************************************
  * OpenEventLogW [ADVAPI32.@]
  *
@@ -519,6 +563,13 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     }
     InitializeCriticalSection(&log->cs);
     list_init(&log->events);
+
+    if (!_wcsicmp(source, L"System") && !open_system_log(log))
+    {
+        free(log);
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        return NULL;
+    }
 
     return log;
 }
