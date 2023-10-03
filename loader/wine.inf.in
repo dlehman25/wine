@@ -490,6 +490,7 @@ HKLM,%Control%\Session Manager\Environment,"windir",0x00020000,"%SystemRoot%"
 HKLM,%Control%\Session Manager\Environment,"winsysdir",,"%11%"
 HKLM,%Control%\Session Manager\Memory Management,PagingFiles,,"%24%\pagefile.sys 27 77"
 HKLM,%Control%\Session Manager\Memory Management,WriteWatch,0x00040002,1
+HKLM,%Control%\Session Manager\Memory Management\PrefetchParameters,BootId,0x00040002,1
 
 [Fonts]
 HKLM,%FontSubStr%,"Arial Baltic,186",,"Arial,186"
