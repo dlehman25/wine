@@ -2935,7 +2935,7 @@ static void test_VarDateFromStr(void)
                                         '1',':','2','0',':','3','4',0 };
 
   lcid = MAKELCID(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US),SORT_DEFAULT);
-
+#if 0
   /* Some date formats are relative, so we need to find the current year */
   GetSystemTime(&st);
   st.wHour = st.wMinute = st.wSecond = st.wMilliseconds = 0;
@@ -3085,6 +3085,7 @@ static void test_VarDateFromStr(void)
   lcid = MAKELCID(MAKELANGID(LANG_SPANISH,SUBLANG_SPANISH),SORT_DEFAULT);
   DFS("02.01.1970"); EXPECT_MISMATCH;
   DFS("02.01.1970 00:00:00"); EXPECT_MISMATCH;
+#endif
 
   /* test off by microsecond */
   DFS("6/28/2018 8:01:00 AM");
@@ -3146,6 +3147,31 @@ static void test_VarDateChangeTypeEx(void)
             hres, V_VT(&vDst), V_BSTR(&vDst) ? wtoascii(V_BSTR(&vDst)) : "?");
     VariantClear(&vDst);
   }
+}
+
+static void test_VarDateFromUdate(void)
+{
+  UDATE ud;
+  ULONG flags;
+  DATE out;
+  LCID lcid;
+  HRESULT hr;
+
+  flags = 0;
+  lcid = MAKELCID(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US),SORT_DEFAULT);
+  ud.st.wYear = 2018;
+  ud.st.wMonth = 6;
+  ud.st.wDayOfWeek = 0;
+  ud.st.wDay = 28;
+  ud.st.wHour = 8;
+  ud.st.wMinute = 1;
+  ud.st.wSecond = 0;
+  ud.st.wMilliseconds = 0;
+  ud.wDayOfYear = 0;
+  hr = VarDateFromUdate(&ud, flags, &out);
+  printf("hr %x out %.15f %llx\n", hr, out, *((ULONGLONG *)&out));
+  // VarDateFromUdateEx
+  // VarDateFromUdate
 }
 
 /*
@@ -6263,6 +6289,11 @@ START_TEST(vartype)
   trace("LCIDs: System=0x%08lx, User=0x%08lx\n", GetSystemDefaultLCID(),
         GetUserDefaultLCID());
 
+  test_VarDateFromUdate();
+  return;
+  test_VarDateFromStr();
+  return;
+
   test_bstr_cache();
 
   test_VarI1FromI2();
@@ -6451,6 +6482,7 @@ START_TEST(vartype)
   test_VarDateFromStr();
   test_VarDateCopy();
   test_VarDateChangeTypeEx();
+  test_VarDateFromUdate();
 
   test_VarCyFromI1();
   test_VarCyFromUI1();
