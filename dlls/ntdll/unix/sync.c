@@ -1160,7 +1160,7 @@ NTSTATUS WINAPI NtQueryDirectoryObject( HANDLE handle, DIRECTORY_BASIC_INFORMATI
                                         ULONG size, BOOLEAN single_entry, BOOLEAN restart,
                                         ULONG *context, ULONG *ret_size )
 {
-    ULONG index = restart ? 0 : *context;
+    ULONG index = *(volatile BOOLEAN *)&restart ? 0 : *context; /* HACK: work around llvm that reads 4 bytes from restart */
     unsigned int ret;
 
     if (single_entry)
