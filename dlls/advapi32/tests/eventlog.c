@@ -1635,6 +1635,9 @@ static void test_eventlog_start(void)
     CloseEventLog(handle);
 
     free(record2);
+    /* TODO: test seek of count + 1 */
+    /* TODO: test of 2 handles with different how/dir */
+
     free(record);
 }
 
@@ -1649,6 +1652,49 @@ START_TEST(eventlog)
     }
 
     init_function_pointers();
+if (1)
+{
+    HANDLE handle;
+    DWORD read, needed, count;
+    BOOL ret;
+    const WCHAR *strings[] = { L"strings" };
+    BYTE buffer[sizeof(EVENTLOGRECORD) + 128];
+    EVENTLOGRECORD *record = (EVENTLOGRECORD *)buffer;
+
+    handle = OpenEventLogW(NULL, L"Wine");
+    printf("%p\n", handle);
+
+    count = 0;
+    ret = GetNumberOfEventLogRecords(handle, &count);
+    printf("ret %d count %lu\n", ret, count);
+
+    SetLastError(0xdeadbeef);
+    ret = ReportEventW(handle, EVENTLOG_SUCCESS, 1, 1, NULL, 1, 0, strings, NULL);
+    printf("ret %d gle %ld\n", ret, GetLastError());
+    
+    ret = GetNumberOfEventLogRecords(handle, &count);
+    printf("ret %d count %lu\n", ret, count);
+
+    ret = ReportEventW(handle, EVENTLOG_SUCCESS, 1, 2, NULL, 1, 0, strings, NULL);
+    printf("ret %d gle %ld\n", ret, GetLastError());
+
+    ret = ReadEventLogW(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
+                        0, record, sizeof(buffer), &read, &needed);
+    printf("ret %d gle %ld\n", ret, GetLastError());
+    printf("Length %ld\n", record->Length);
+    printf("Record %ld\n", record->RecordNumber);
+
+    ret = ReadEventLogW(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
+                        0, record, sizeof(buffer), &read, &needed);
+    printf("ret %d gle %ld\n", ret, GetLastError());
+    printf("Length %ld\n", record->Length);
+    printf("Record %ld\n", record->RecordNumber);
+return;
+    ClearEventLogW(handle, NULL);
+
+    CloseEventLog(handle);
+return;
+}
 
     /* Parameters only */
     test_open_close();
