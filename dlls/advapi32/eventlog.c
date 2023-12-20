@@ -735,7 +735,8 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
-    if (!(log2 = source_to_log(source)))
+    if (!(log2 = source_to_log(source)) &&
+        !(log2 = source_to_log(L"Application")))
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return NULL;
