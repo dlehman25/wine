@@ -1123,11 +1123,15 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     PSID lpUserSid, WORD wNumStrings, DWORD dwDataSize, LPCWSTR *lpStrings, LPVOID lpRawData )
 {
     UINT i;
+    DWORD len;
     size_t off, size;
     EVENTLOGRECORD *rec;
     struct eventlog *log;
+    struct eventlog2 *log2;
     struct eventlog_entry *entry;
+    struct eventlog_access *access;
     SYSTEM_TIMEOFDAY_INFORMATION ti;
+    WCHAR compname[MAX_COMPUTERNAME_LENGTH + 1];
 
     FIXME("(%p,0x%04x,0x%04x,0x%08lx,%p,0x%04x,0x%08lx,%p,%p): stub\n", hEventLog,
           wType, wCategory, dwEventID, lpUserSid, wNumStrings, dwDataSize, lpStrings, lpRawData);
@@ -1173,7 +1177,12 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     if (hEventLog == (HANDLE)0xcafe4242)
         return TRUE;
 
+    access = (struct eventlog_access *)hEventLog;
+    log2 = access->log;
     size = sizeof(*rec) + dwDataSize;
+    size += (wcslen(log2->name) + 1) * sizeof(WCHAR);
+    GetComputerNameW(compname, &len);
+    size += (len + 1) * sizeof(WCHAR);
     for (i = 0; i < wNumStrings; i++)
         size += (wcslen(lpStrings[i]) + 1) * sizeof(WCHAR);
     if (lpUserSid)
@@ -1194,37 +1203,47 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     rec->EventCategory = wCategory;
     rec->ReservedFlags = 0;
     rec->ClosingRecordNumber = 0;
-    rec->StringOffset = off = sizeof(*rec);
+
+    off = sizeof(*rec);
+    wcscpy((wchar_t *)((char *)rec + off), log2->name);
+    off += (wcslen(log2->name) + 1) * sizeof(WCHAR);
+
+    wcscpy((wchar_t *)((char *)rec + off), compname);
+    off += (len + 1) * sizeof(WCHAR);
+    off = (off + 7) & ~7;
+
+    rec->StringOffset = off;
     for (i = 0; i < wNumStrings; i++)
     {
         size = (wcslen(lpStrings[i]) + 1) * sizeof(WCHAR);
         memcpy((char *)rec + off, lpStrings[i], size);
         off += size;
     }
+
+    off = (off + 7) & ~7;
+    rec->UserSidOffset = off;
     if (lpUserSid)
     {
         rec->UserSidLength = GetLengthSid(lpUserSid);
-        rec->UserSidOffset = off;
         memcpy((char *)rec + off, lpUserSid, rec->UserSidLength);
         off += rec->UserSidLength;
     }
     else
-    {
         rec->UserSidLength = 0;
-        rec->UserSidOffset = 0;
-    }
 
+    off = (off + 7) & ~7;
+    rec->DataOffset = off;
     if (lpRawData)
     {
         rec->DataLength = dwDataSize;
-        rec->DataOffset = off;
         memcpy((char *)rec + off, lpRawData, dwDataSize);
     }
     else
-    {
         rec->DataLength = 0;
-        rec->DataOffset = 0;
-    }
+    off += rec->DataLength;
+    off = (off + 7) & ~7;
+    rec->Length = off;
+
 
     if (1)
     {
