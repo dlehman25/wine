@@ -1661,7 +1661,7 @@ if (1)
     BYTE buffer[sizeof(EVENTLOGRECORD) + 128];
     EVENTLOGRECORD *record = (EVENTLOGRECORD *)buffer;
 
-    handle = OpenEventLogW(NULL, L"Wine");
+    handle = OpenEventLogW(NULL, L"WINE");
     printf("%p\n", handle);
 
     count = 0;
@@ -1683,12 +1683,26 @@ if (1)
     printf("ret %d gle %ld\n", ret, GetLastError());
     printf("Length %ld\n", record->Length);
     printf("Record %ld\n", record->RecordNumber);
+    printf("NumStrings %d\n", record->NumStrings);
+    printf("DataOffset %ld\n", record->DataOffset);
+    printf("DataLength %ld\n", record->DataLength);
+    printf("StringOffset %ld\n", record->StringOffset);
+    printf("UserSidOffset %ld\n", record->UserSidOffset);
+    printf("UserSidLength %ld\n", record->UserSidLength);
+    printf("string %ls\n", (const wchar_t *)(record+1));
+    printf("name %ls\n", ((const wchar_t *)(record+1)) + 5);
 
     ret = ReadEventLogW(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
                         0, record, sizeof(buffer), &read, &needed);
     printf("ret %d gle %ld\n", ret, GetLastError());
     printf("Length %ld\n", record->Length);
     printf("Record %ld\n", record->RecordNumber);
+    printf("NumStrings %d\n", record->NumStrings);
+    printf("DataOffset %ld\n", record->DataOffset);
+    printf("DataLength %ld\n", record->DataLength);
+    printf("StringOffset %ld\n", record->StringOffset);
+    printf("UserSidOffset %ld\n", record->UserSidOffset);
+    printf("UserSidLength %ld\n", record->UserSidLength);
 return;
     ClearEventLogW(handle, NULL);
 
