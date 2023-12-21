@@ -688,11 +688,11 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
-    if (!wcscmp(source, L"System") && !once)
+    if (!wcscmp(logname, L"System") && !once)
     {
         char unknown[24];
-        ret = ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 0, EVENT_EventlogStarted,
-                            NULL, 0, sizeof(unknown), NULL, unknown);
+        ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 0, EVENT_EventlogStarted,
+                     NULL, 0, sizeof(unknown), NULL, unknown);
         once = TRUE;
     }
 
