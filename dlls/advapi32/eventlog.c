@@ -187,8 +187,6 @@ BOOL WINAPI ClearEventLogW( HANDLE hEventLog, LPCWSTR lpBackupFileName )
 BOOL WINAPI CloseEventLog( HANDLE handle )
 {
     struct eventlog_access *access;
-    struct eventlog *log;
-    DWORD i;
 
     TRACE("(%p)\n", handle);
 
@@ -199,15 +197,8 @@ BOOL WINAPI CloseEventLog( HANDLE handle )
     }
 
     access = (struct eventlog_access *)handle;
-    log = access->log;
-    EnterCriticalSection(&logs_cs);
-    list_remove(&log->entry);
-    LeaveCriticalSection(&logs_cs);
-
-    for (i = 0; i < log->numrec; i++)
-        free(log->recs[i]);
-    DeleteCriticalSection(&log->cs);
-    free(log);
+    free(access->source);
+    free(access);
 
     return TRUE;
 }
