@@ -852,6 +852,13 @@ BOOL WINAPI ReadEventLogW( HANDLE handle, DWORD flags, DWORD offset, void *buffe
     if (flags & EVENTLOG_SEQUENTIAL_READ)
     {
         EnterCriticalSection(&log->cs);
+        if (!log->numrec)
+        {
+            SetLastError(ERROR_INSUFFICIENT_BUFFER); /* TODO */
+            LeaveCriticalSection(&log->cs);
+            return FALSE;
+        }
+
         rec = log->recs[access->cur]; /* TODO wrong cs */
         if (flags & EVENTLOG_FORWARDS_READ)
             access->cur++; /* TODO: advanced on error? */
