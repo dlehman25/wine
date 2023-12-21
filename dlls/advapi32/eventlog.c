@@ -641,8 +641,10 @@ static struct eventlog *source_to_log(const WCHAR *source)
 HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 {
     BOOL ret;
+    static int once;
     struct eventlog *log;
     struct eventlog_access *access;
+    WCHAR logname[MAX_PATH];
 
     FIXME("(%s,%s) partial stub\n", debugstr_w(uncname), debugstr_w(source));
 
@@ -659,8 +661,10 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
-    if (!(log = source_to_log(source)) &&
-        !(log = source_to_log(L"Application")))
+    if (!source_to_logname(source, logname, ARRAY_SIZE(logname)))
+        wcscpy(logname, L"Application");
+
+    if (!(log = source_to_log(source)))
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return NULL;
@@ -677,15 +681,19 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     access->fwd = FALSE;
     access->seq = FALSE;
     access->cur = 0;
-    access->source = wcsdup(source); /* TODO */
+    if (!(access->source = wcsdup(logname)))
+    {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        free(access);
+        return NULL;
+    }
 
-    /* TODO: only first */
-    if (!wcscmp(source, L"System"))
+    if (!wcscmp(source, L"System") && !once)
     {
         char unknown[24];
-        ret = ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 1 /* TODO */, EVENT_EventlogStarted,
-                NULL, 0, sizeof(unknown), NULL, unknown);
-        /* TODO: init once? */
+        ret = ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 0, EVENT_EventlogStarted,
+                            NULL, 0, sizeof(unknown), NULL, unknown);
+        once = TRUE;
     }
 
     return (HANDLE)access;
