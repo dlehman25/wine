@@ -1022,9 +1022,6 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
 
     /* partial stub */
 
-    if (wNumStrings == 0) return TRUE;
-    if (!lpStrings) return TRUE;
-
     for (i = 0; i < wNumStrings; i++)
     {
         const WCHAR *line = lpStrings[i];
@@ -1138,8 +1135,8 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
         log->recs = recs;
     }
 
-    rec->RecordNumber = log->numrec;
-    log->recs[log->numrec++] = rec;
+    rec->RecordNumber = ++log->numrec;
+    log->recs[log->numrec-1] = rec;
     LeaveCriticalSection(&log->cs);
 
     return TRUE;
