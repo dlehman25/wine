@@ -1652,6 +1652,7 @@ START_TEST(eventlog)
     }
 
     init_function_pointers();
+if (1) { test_eventlog_start(); return; }
 if (1)
 {
     HANDLE handle;

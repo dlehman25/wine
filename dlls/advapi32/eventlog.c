@@ -186,6 +186,7 @@ BOOL WINAPI ClearEventLogW( HANDLE hEventLog, LPCWSTR lpBackupFileName )
  */
 BOOL WINAPI CloseEventLog( HANDLE handle )
 {
+    struct eventlog_access *access;
     struct eventlog *log;
     DWORD i;
 
@@ -197,7 +198,8 @@ BOOL WINAPI CloseEventLog( HANDLE handle )
         return FALSE;
     }
 
-    log = (struct eventlog *)handle;
+    access = (struct eventlog_access *)handle;
+    log = access->log;
     EnterCriticalSection(&logs_cs);
     list_remove(&log->entry);
     LeaveCriticalSection(&logs_cs);
@@ -647,6 +649,7 @@ static struct eventlog *source_to_log(const WCHAR *source)
  */
 HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
 {
+    BOOL ret;
     struct eventlog *log;
     struct eventlog_access *access;
 
@@ -684,6 +687,15 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     access->seq = FALSE;
     access->cur = 0;
     access->source = wcsdup(source); /* TODO */
+
+    /* TODO: only first */
+    if (!wcscmp(source, L"System"))
+    {
+        char unknown[24];
+        ret = ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 1 /* TODO */, EVENT_EventlogStarted,
+                NULL, 0, sizeof(unknown), NULL, unknown);
+        /* TODO: init once? */
+    }
 
     return (HANDLE)access;
 }
