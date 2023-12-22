@@ -1084,6 +1084,7 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     rec->ReservedFlags = 0;
     rec->ClosingRecordNumber = 0;
 
+    /* TODO: provider */
     off = sizeof(*rec);
     wcscpy((wchar_t *)((char *)rec + off), log->name);
     off += (wcslen(log->name) + 1) * sizeof(WCHAR);
