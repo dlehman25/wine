@@ -1350,11 +1350,11 @@ HRESULT WINAPI VarDateFromUdateEx(UDATE *pUdateIn, LCID lcid, ULONG dwFlags, DAT
   if ((dwFlags & VAR_TIMEVALUEONLY) || !(dwFlags & VAR_DATEVALUEONLY))
   {
     double dateSign = (dateVal < 0.0) ? -1.0 : 1.0;
-    double sec = ud.st.wHour * 3600.0 +
-                 ud.st.wMinute * 60.0 +
-                 ud.st.wSecond;
 
-    dateVal += sec / 86400.0 * dateSign;
+    /* Time */
+    dateVal += ud.st.wHour / 24.0 * dateSign;
+    dateVal += ud.st.wMinute / 1440.0 * dateSign;
+    dateVal += ud.st.wSecond / 86400.0 * dateSign;
   }
 
   TRACE("Returning %g\n", dateVal);

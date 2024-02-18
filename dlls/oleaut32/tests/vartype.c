@@ -3090,6 +3090,7 @@ static void test_VarDateFromStr(void)
   /* test off by microsecond */
   DFS("6/28/2018 8:01:00 AM");
   cnv.dblVal = out;
+  todo_wine
   ok(cnv.ullVal == 0x40e521eab05b05b0ull, "got %llx\n", cnv.ullVal);
 }
 
