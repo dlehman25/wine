@@ -1324,7 +1324,7 @@ HRESULT WINAPI VarDateFromUdateEx(UDATE *pUdateIn, LCID lcid, ULONG dwFlags, DAT
   UDATE ud;
   double dateVal = 0;
 
-  TRACE("%p, %d/%d/%d, %d:%d:%d:%d, %#x, %d, %#lx, %#lx, %p.\n", pUdateIn,
+  MESSAGE("XXX %p, %d/%d/%d, %d:%d:%d:%d, %#x, %d, %#lx, %#lx, %p.\n", pUdateIn,
         pUdateIn->st.wMonth, pUdateIn->st.wDay, pUdateIn->st.wYear,
         pUdateIn->st.wHour, pUdateIn->st.wMinute, pUdateIn->st.wSecond,
         pUdateIn->st.wMilliseconds, pUdateIn->st.wDayOfWeek,
