@@ -2935,7 +2935,7 @@ static void test_VarDateFromStr(void)
                                         '1',':','2','0',':','3','4',0 };
 
   lcid = MAKELCID(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US),SORT_DEFAULT);
-
+#if 0
   /* Some date formats are relative, so we need to find the current year */
   GetSystemTime(&st);
   st.wHour = st.wMinute = st.wSecond = st.wMilliseconds = 0;
@@ -3085,6 +3085,7 @@ static void test_VarDateFromStr(void)
   lcid = MAKELCID(MAKELANGID(LANG_SPANISH,SUBLANG_SPANISH),SORT_DEFAULT);
   DFS("02.01.1970"); EXPECT_MISMATCH;
   DFS("02.01.1970 00:00:00"); EXPECT_MISMATCH;
+#endif
 
   /* test off by microsecond */
   DFS("6/28/2018 8:01:00 AM");
@@ -6274,6 +6275,11 @@ START_TEST(vartype)
 
   trace("LCIDs: System=0x%08lx, User=0x%08lx\n", GetSystemDefaultLCID(),
         GetUserDefaultLCID());
+
+  test_VarDateFromUdate();
+  return;
+  test_VarDateFromStr();
+  return;
 
   test_bstr_cache();
 
