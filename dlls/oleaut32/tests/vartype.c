@@ -3156,10 +3156,17 @@ static void test_VarDateFromUdate(void)
   ULONG flags;
   HRESULT hres;
   DATE out;
+  VARIANT cnv;
 
   flags = 0;
   hres = VarDateFromUdate(&ud, flags, &out);
   EXPECT_DBL(43279.334027777775191);
+  cnv.dblVal = out;
+  ok(cnv.ullVal == 0x40e521eab05b05b0ull, "got %llx\n", cnv.ullVal);
+  printf("%.16f %llx\n", cnv.dblVal, cnv.ullVal);
+
+  cnv.dblVal = 43279.334027777775191;
+  printf("%.16f %llx\n", cnv.dblVal, cnv.ullVal);
 }
 
 /*
@@ -4823,7 +4830,7 @@ static void test_VarBstrFromDate(void)
   BSTR_DATE(-657434.0, "1/1/100");
   BSTR_DATE(2958465.0, "12/31/9999");
 
-#undef BSTR_DATE
+// #undef BSTR_DATE
 }
 
 static void _BSTR_CY(LONG a, LONG b, const char *str, LCID lcid, int line)
@@ -6282,11 +6289,17 @@ DATE out;
   OLECHAR buff[128];
 HRESULT hres;
 LCID lcid;
+VARIANT cnv;
   lcid = MAKELCID(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US),SORT_DEFAULT);
   DFS("6/28/2018 8:01:00 AM");
+  BSTR_DATE(out, "6/28/2018 8:01:00 AM");
+
+  cnv.ullVal = 0x40e521eab05b05b1ull;
+  BSTR_DATE(cnv.dblVal, "6/28/2018 8:01:00 AM");
+  cnv.ullVal = 0x40e521eab05b05b0ull;
+  BSTR_DATE(cnv.dblVal, "6/28/2018 8:01:00 AM");
 }
   test_VarDateFromUdate();
-  return;
   test_VarDateFromStr();
   return;
 
