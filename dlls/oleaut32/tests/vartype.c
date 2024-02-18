@@ -3151,7 +3151,7 @@ static void test_VarDateChangeTypeEx(void)
 
 static void test_VarDateFromUdate(void)
 {
-  UDATE ud = { { 2018, 6, 0, 28, 8, 1, 0, 0 }, 0 };
+  UDATE ud = { { 2018, 6, 0, 28, 8, 1, 0, 0 }, 46128 };
   ULONG flags;
   HRESULT hres;
   DATE out;
@@ -6276,6 +6276,14 @@ START_TEST(vartype)
   trace("LCIDs: System=0x%08lx, User=0x%08lx\n", GetSystemDefaultLCID(),
         GetUserDefaultLCID());
 
+{
+DATE out;
+  OLECHAR buff[128];
+HRESULT hres;
+LCID lcid;
+  lcid = MAKELCID(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US),SORT_DEFAULT);
+  DFS("6/28/2018 8:01:00 AM");
+}
   test_VarDateFromUdate();
   return;
   test_VarDateFromStr();
