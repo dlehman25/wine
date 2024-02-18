@@ -3148,6 +3148,18 @@ static void test_VarDateChangeTypeEx(void)
   }
 }
 
+static void test_VarDateFromUdate(void)
+{
+  UDATE ud = { { 2018, 6, 0, 28, 8, 1, 0, 0 }, 0 };
+  ULONG flags;
+  HRESULT hres;
+  DATE out;
+
+  flags = 0;
+  hres = VarDateFromUdate(&ud, flags, &out);
+  EXPECT_DBL(43279.334027777775191);
+}
+
 /*
  * VT_CY
  */
@@ -6451,6 +6463,7 @@ START_TEST(vartype)
   test_VarDateFromStr();
   test_VarDateCopy();
   test_VarDateChangeTypeEx();
+  test_VarDateFromUdate();
 
   test_VarCyFromI1();
   test_VarCyFromUI1();
