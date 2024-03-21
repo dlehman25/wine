@@ -201,7 +201,7 @@ typedef struct NoStatStreamImpl
 static IStream* NoStatStream_Construct(HGLOBAL hGlobal);
 
 static void
-test_pic_with_stream(LPSTREAM stream, unsigned int imgsize)
+test_pic_with_stream(LPSTREAM stream, unsigned int imgsize, int bpp, BOOL todo)
 {
 	IPicture*	pic = NULL;
 	HRESULT		hres;
@@ -238,8 +238,20 @@ test_pic_with_stream(LPSTREAM stream, unsigned int imgsize)
         if (handle)
         {
             BITMAP bmp;
+            DIBSECTION dib;
+
             GetObjectA(UlongToHandle(handle), sizeof(BITMAP), &bmp);
-            todo_wine ok(bmp.bmBits != 0, "not a dib\n");
+            todo_wine_if(todo) {
+            ok(bmp.bmBitsPixel == bpp, "expected %d, got %d\n", bpp, bmp.bmBitsPixel);
+            ok(bmp.bmBits != 0, "not a dib\n");
+            }
+
+            GetObjectA(UlongToHandle(handle), sizeof(DIBSECTION), &dib);
+            todo_wine_if(todo) {
+            ok(dib.dsBm.bmBitsPixel == bpp, "expected %d, got %d\n", bpp, dib.dsBm.bmBitsPixel);
+            ok(dib.dsBm.bmBits != 0, "not a dib\n");
+            ok(dib.dsBmih.biBitCount == bpp, "expected %d, got %d\n", bpp, dib.dsBmih.biBitCount);
+            }
         }
 
 	width = 0;
@@ -273,7 +285,7 @@ test_pic_with_stream(LPSTREAM stream, unsigned int imgsize)
 }
 
 static void
-test_pic(const unsigned char *imgdata, unsigned int imgsize)
+test_pic(const unsigned char *imgdata, unsigned int imgsize, int bpp, BOOL todo)
 {
 	LPSTREAM 	stream;
 	HGLOBAL		hglob;
@@ -296,14 +308,14 @@ test_pic(const unsigned char *imgdata, unsigned int imgsize)
 	memset(&seekto,0,sizeof(seekto));
 	hres = IStream_Seek(stream,seekto,SEEK_CUR,&newpos1);
 	ok (hres == S_OK, "istream seek failed? doubt it... hres 0x%08lx\n", hres);
-	test_pic_with_stream(stream, imgsize);
-	
+	test_pic_with_stream(stream, imgsize, bpp, todo);
+
 	IStream_Release(stream);
 
 	/* again with Non Statable and Non Seekable stream */
 	stream = NoStatStream_Construct(hglob);
 	hglob = 0;  /* Non-statable impl always deletes on release */
-	test_pic_with_stream(stream, 0);
+	test_pic_with_stream(stream, 0, bpp, todo);
 
 	IStream_Release(stream);
 	for (i = 1; i <= 8; i++) {
@@ -327,14 +339,14 @@ test_pic(const unsigned char *imgdata, unsigned int imgsize)
 		memset(&seekto,0,sizeof(seekto));
 		hres = IStream_Seek(stream,seekto,SEEK_CUR,&newpos1);
 		ok (hres == S_OK, "istream seek failed? doubt it... hres 0x%08lx\n", hres);
-		test_pic_with_stream(stream, imgsize);
-	
+		test_pic_with_stream(stream, imgsize, bpp, todo);
+
 		IStream_Release(stream);
 
 		/* again with Non Statable and Non Seekable stream */
 		stream = NoStatStream_Construct(hglob);
 		hglob = 0;  /* Non-statable impl always deletes on release */
-		test_pic_with_stream(stream, 0);
+		test_pic_with_stream(stream, 0, bpp, todo);
 
 		IStream_Release(stream);
 	}
@@ -1508,12 +1520,12 @@ START_TEST(olepicture)
     }
 
     /* Test regular 1x1 pixel images of gif, jpg, bmp type */
-    test_pic(gifimage, sizeof(gifimage));
-    test_pic(jpgimage, sizeof(jpgimage));
-    test_pic(bmpimage, sizeof(bmpimage));
-    test_pic(gif4pixel, sizeof(gif4pixel));
+    test_pic(gifimage, sizeof(gifimage), 1, TRUE);
+    test_pic(jpgimage, sizeof(jpgimage), 24, TRUE);
+    test_pic(bmpimage, sizeof(bmpimage), 1, TRUE);
+    test_pic(gif4pixel, sizeof(gif4pixel), 4, TRUE);
     /* FIXME: No PNG support in Windows... */
-    if (0) test_pic(pngimage, sizeof(pngimage));
+    if (0) test_pic(pngimage, sizeof(pngimage), 32, TRUE);
     test_empty_image();
     test_empty_image_2();
     if (pOleLoadPictureEx)
