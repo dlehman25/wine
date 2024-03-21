@@ -983,25 +983,27 @@ static HRESULT WINAPI OLEPictureImpl_IsDirty(
 
 static HRESULT OLEPictureImpl_LoadDIB(OLEPictureImpl *This, BYTE *xbuf, ULONG xread)
 {
-    BITMAPFILEHEADER	*bfh = (BITMAPFILEHEADER*)xbuf;
-    BITMAPINFO		*bi = (BITMAPINFO*)(bfh+1);
-    HDC			hdcref;
+    BITMAPFILEHEADER *bfh = (BITMAPFILEHEADER*)xbuf;
+    BITMAPINFO *bi = (BITMAPINFO*)(bfh+1);
+    HDC hdcref;
+    HBITMAP hbmp;
+    void *bits = NULL;
 
     /* Does not matter whether this is a coreheader or not, we only use
      * components which are in both
      */
-    hdcref = GetDC(0);
-    This->desc.bmp.hbitmap = CreateDIBitmap(
-	hdcref,
-	&(bi->bmiHeader),
-	CBM_INIT,
-	xbuf+bfh->bfOffBits,
-	bi,
-       DIB_RGB_COLORS
-    );
-    ReleaseDC(0, hdcref);
-    if (This->desc.bmp.hbitmap == 0)
+    hdcref = CreateCompatibleDC(0);
+    hbmp = CreateDIBSection(hdcref, bi, DIB_RGB_COLORS, &bits, NULL, 0);
+    if (hbmp && !SetDIBits(hdcref, hbmp, 0, bi->bmiHeader.biHeight,
+                           xbuf + bfh->bfOffBits, bi, DIB_RGB_COLORS))
+    {
+        DeleteObject(hbmp);
+        hbmp = 0;
+    }
+    DeleteDC(hdcref);
+    if (!hbmp)
         return E_FAIL;
+    This->desc.bmp.hbitmap = hbmp;
     This->desc.picType = PICTYPE_BITMAP;
     OLEPictureImpl_SetBitmap(This);
     return S_OK;
