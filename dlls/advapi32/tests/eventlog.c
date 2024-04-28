@@ -1668,6 +1668,29 @@ START_TEST(eventlog)
     }
 
     init_function_pointers();
+if (0)
+{
+    HANDLE handle;
+    BOOL ret;
+    DWORD i, count, read, needed;
+    BYTE buffer[65536];
+    EVENTLOGRECORD *record = buffer;
+
+    handle = OpenEventLogW(NULL, L"Microsoft-Windows-Kernel-Bootddd");
+    printf("%p\n", handle);
+    
+    count = 0;
+    ret = GetNumberOfEventLogRecords(handle, &count);
+    
+    ret = ReadEventLogW(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
+                        0, buffer, sizeof(buffer), &read, &needed);
+    while (record->Length)
+    {
+        printf("%p %x %u %ls\n", record, record->Reserved, record->RecordNumber, record + 1);
+        record = (EVENTLOGRECORD *)((BYTE *)record + record->Length);
+    }
+    return;
+}
 if (1) { test_eventlog_start(); return; }
 if (1)
 {
