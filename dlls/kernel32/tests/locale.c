@@ -2872,6 +2872,9 @@ static void test_LCMapStringEx(void)
 {
     int ret;
     WCHAR buf[256];
+    LPARAM handle_en;
+    LPARAM handle_tr;
+    LPARAM handle;
 
     if (!pLCMapStringEx)
     {
@@ -2893,12 +2896,14 @@ static void test_LCMapStringEx(void)
     ok(ret, "LCMapStringEx should not fail with bad locale name\n");
 
     /* test reserved parameters */
+    memset(buf, 0, sizeof(buf));
     ret = pLCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_LOWERCASE,
                          upper_case, -1, buf, ARRAY_SIZE(buf), NULL, NULL, 1);
     ok(ret == lstrlenW(upper_case) + 1, "ret %d, error %ld, expected value %d\n",
        ret, GetLastError(), lstrlenW(upper_case) + 1);
     ok(!lstrcmpW(buf, lower_case), "string compare mismatch\n");
 
+    memset(buf, 0, sizeof(buf));
     ret = pLCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_LOWERCASE,
                          upper_case, -1, buf, ARRAY_SIZE(buf), NULL, (void*)1, 0);
     ok(ret == lstrlenW(upper_case) + 1, "ret %d, error %ld, expected value %d\n",
@@ -2911,6 +2916,102 @@ static void test_LCMapStringEx(void)
                              upper_case, -1, buf, ARRAY_SIZE(buf), (void*)1, NULL, 0);
 
     test_lcmapstring_unicode(LCMapStringEx_wrapper, "LCMapStringEx:");
+
+    /* using SORTHANDLE */
+    SetLastError(0xdeadbeef);
+    handle = 0xdeadbeef;
+    ret = pLCMapStringEx(L"en-US", LCMAP_SORTHANDLE, NULL, 0,
+                         (LPWSTR)&handle, sizeof(handle), NULL, NULL, 0);
+    if(broken(!ret && GetLastError() == ERROR_INVALID_PARAMETER)) {
+        /* win7 */
+        win_skip("LPMAP_SORTHANDLE not supported\n");
+        return;
+    }
+
+    ok(!!handle, "error %ld\n", GetLastError());
+    todo_wine
+    ok(handle == ret, "ret %x, handle %#Ix, error %ld\n", ret, handle, GetLastError());
+    handle_en = handle;
+
+    SetLastError(0xdeadbeef);
+    handle = 0xdeadbeef;
+    ret = pLCMapStringEx(L"tr-TR", LCMAP_SORTHANDLE, NULL, 0,
+                         (LPWSTR)&handle, sizeof(handle), NULL, NULL, 0);
+    ok(!!handle, "error %ld\n", GetLastError());
+    todo_wine
+    ok(handle == ret, "ret %x, handle %#Ix, error %ld\n", ret, handle, GetLastError());
+    handle_tr = handle;
+    todo_wine
+    ok(handle_en != handle_tr, "handle_en %#Ix, handle_tr %#Ix\n", handle_en, handle_tr);
+
+    SetLastError(0xdeadbeef);
+    memset(buf, 0, sizeof(buf));
+    ret = pLCMapStringEx(NULL, LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING,
+                         L"I", -1, buf, ARRAY_SIZE(buf), NULL, NULL, handle_en);
+    ok(ret == 2, "ret %d, error %ld\n", ret, GetLastError());
+    ok(!lstrcmpW(buf, L"i"), "string compare mismatch\n");
+
+    SetLastError(0xdeadbeef);
+    memset(buf, 0, sizeof(buf));
+    ret = pLCMapStringEx(NULL, LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING,
+                         L"I", -1, buf, ARRAY_SIZE(buf), NULL, NULL, handle_tr);
+    ok(ret == 2, "ret %d, error %ld\n", ret, GetLastError());
+    todo_wine
+    ok(!lstrcmpW(buf, L"\x0131"), "string compare mismatch\n");
+
+    SetLastError(0xdeadbeef);
+    handle = 0xdeadbeef;
+    ret = pLCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_SORTHANDLE, NULL, 0,
+                         (LPWSTR)&handle, sizeof(handle), NULL, NULL, 0);
+    todo_wine {
+    ok(!!ret, "error %ld\n", GetLastError());
+    ok(handle == ret, "ret %x, handle %#Ix, error %ld\n", ret, handle, GetLastError());
+    }
+
+    /* bogus parms with SORTHANDLE */
+    handle = 0xdeadbeef;
+    ret = pLCMapStringEx(L"en-US", LCMAP_SORTHANDLE, NULL, 0,
+                         (LPWSTR)&handle, sizeof(handle), NULL, NULL, handle_tr);
+    ok(handle == handle_en, "handle %#Ix, handle_en %#Ix, handle_tr %#Ix\n",
+       handle, handle_en, handle_tr);
+
+    SetLastError(0xdeadbeef);
+    handle = 0xdeadbeef;
+    ret = pLCMapStringEx(L"en-US", LCMAP_SORTHANDLE, L"I", -1,
+                         (LPWSTR)&handle, sizeof(handle), NULL, NULL, 0);
+    todo_wine
+    ok(!ret && GetLastError() == ERROR_INVALID_PARAMETER, "ret %d, error %ld\n", ret, GetLastError());
+    ok(handle == 0xdeadbeef, "handle %#Ix\n", handle);
+
+    SetLastError(0xdeadbeef);
+    handle = 0xdeadbeef;
+    ret = pLCMapStringEx(L"en-US", LCMAP_SORTHANDLE, NULL, 0, (LPWSTR)&handle, 0, NULL, NULL, 0);
+    ok(!ret && GetLastError() == ERROR_INVALID_PARAMETER, "ret %d, error %ld\n", ret, GetLastError());
+    ok(handle == 0xdeadbeef, "handle %#Ix\n", handle);
+
+    SetLastError(0xdeadbeef);
+    ret = pLCMapStringEx(L"en-US", LCMAP_SORTHANDLE, NULL, 0, NULL, sizeof(handle), NULL, NULL, 0);
+    ok(!ret && GetLastError() == ERROR_INVALID_PARAMETER, "ret %d, error %ld\n", ret, GetLastError());
+
+    SetLastError(0xdeadbeef);
+    memset(buf, 0, sizeof(buf));
+    ret = pLCMapStringEx(L"en-US", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING,
+                         L"I", -1, buf, ARRAY_SIZE(buf), NULL, NULL, handle_en);
+    todo_wine {
+    ok(!ret && GetLastError() == ERROR_INVALID_PARAMETER,
+        "ret %d, error %ld\n", ret, GetLastError());
+    ok(!buf[0], "buf %x\n", buf[0]);
+    }
+
+    SetLastError(0xdeadbeef);
+    memset(buf, 0, sizeof(buf));
+    ret = pLCMapStringEx(NULL, LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING,
+                         L"I", -1, buf, ARRAY_SIZE(buf), NULL, NULL, 0xdeadbeef);
+    todo_wine {
+    ok(!ret && GetLastError() == ERROR_INVALID_PARAMETER,
+       "ret %d, error %ld\n", ret, GetLastError());
+    ok(!buf[0], "buf %x\n", buf[0]);
+    }
 }
 
 struct neutralsublang_name_t {
