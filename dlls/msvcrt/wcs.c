@@ -121,6 +121,9 @@ wint_t CDECL towlower(wint_t c)
 INT CDECL _wcsicmp_l(const wchar_t *str1, const wchar_t *str2, _locale_t locale)
 {
     _locale_tstruct tmp = {0};
+    pthreadlocinfo locinfo;
+    NLSVERSIONINFO info;
+    LPARAM handle;
     wchar_t c1, c2;
 
     if(!MSVCRT_CHECK_PMT(str1 != NULL) || !MSVCRT_CHECK_PMT(str2 != NULL))
@@ -128,12 +131,36 @@ INT CDECL _wcsicmp_l(const wchar_t *str1, const wchar_t *str2, _locale_t locale)
 
     if(!locale)
         locale = get_current_locale_noalloc(&tmp);
+    locinfo = locale->locinfo;
 
-    do
-    {
-        c1 = _towlower_l(*str1++, locale);
-        c2 = _towlower_l(*str2++, locale);
-    } while(c1 && (c1 == c2));
+    if(!locinfo->lc_handle[LC_CTYPE]) {
+        do
+        {
+            c1 = *str1++;
+            c2 = *str2++;
+            if(c1 >= 'A' && c1 <= 'Z')
+                c1 += 'a' - 'A';
+            if(c2 >= 'A' && c2 <= 'Z')
+                c2 += 'a' - 'A';
+        } while(c1 && (c1 == c2));
+    } else {
+        info.dwNLSVersionInfoSize = sizeof(info);
+        if(!GetNLSVersion(COMPARE_STRING, locinfo->lc_handle[LC_CTYPE], &info))
+            return _NLSCMPERROR;
+
+        if(!LCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_SORTHANDLE, NULL, 0,
+                          (LPWSTR)&handle, sizeof(handle), &info, NULL, 0))
+            return _NLSCMPERROR;
+
+        do {
+            if(!LCMapStringEx(NULL, LCMAP_LOWERCASE, str1, 1, &c1, 1, &info, NULL, handle))
+               c1 = *str1;
+            if(!LCMapStringEx(NULL, LCMAP_LOWERCASE, str2, 1, &c2, 1, &info, NULL, handle))
+               c2 = *str2;
+            str1++;
+            str2++;
+        } while(c1 && (c1 == c2));
+    }
 
     free_locale_noalloc(&tmp);
     return c1 - c2;
