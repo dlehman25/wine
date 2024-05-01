@@ -6611,7 +6611,6 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
 {
     const struct sortguid *sortid = NULL;
 
-    if (version) FIXME( "unsupported version structure %p\n", version );
     if (reserved) FIXME( "unsupported reserved pointer %p\n", reserved );
     if (handle)
     {
@@ -6639,7 +6638,9 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
     }
     if (flags & (LCMAP_LOWERCASE | LCMAP_UPPERCASE | LCMAP_SORTKEY))
     {
-        if (!(sortid = get_language_sort( locale ))) return 0;
+        if (version)
+            sortid = find_sortguid( &version->guidCustomVersion );
+        if (!sortid && !(sortid = get_language_sort( locale ))) return 0;
     }
     if (flags & LCMAP_HASH)
     {

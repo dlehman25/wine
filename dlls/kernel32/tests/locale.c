@@ -2883,12 +2883,11 @@ static void test_LCMapStringEx(void)
         const WCHAR *exp;
         DWORD flags;
         LCID lcid;
-        BOOL todo;
     } tests[] = {
         {L"I", L"i",      LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_en},
-        {L"I", L"\x0131", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr, TRUE},
+        {L"I", L"\x0131", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr},
         {L"i", L"I",      LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_en},
-        {L"i", L"\x0130", LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr, TRUE},
+        {L"i", L"\x0130", LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr},
     };
 
     if (!pLCMapStringEx)
@@ -2948,7 +2947,6 @@ static void test_LCMapStringEx(void)
         ret = pLCMapStringEx(L"de-DE", tests[i].flags, tests[i].orig, -1, buf, ARRAY_SIZE(buf), &info, NULL, 0);
         ok(ret == lstrlenW(tests[i].orig) + 1, "ret %d, error %ld, expected value %d, lcid %lx\n",
                            ret, GetLastError(), lstrlenW(tests[i].orig) + 1, tests[i].lcid);
-        todo_wine_if(tests[i].todo)
         ok(!lstrcmpW(buf, tests[i].exp), "string compare mismatch %s for lcid %lx\n",
                      wine_dbgstr_w(buf), tests[i].lcid);
     }
