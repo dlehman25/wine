@@ -1391,12 +1391,10 @@ static void test_eventlog_start(void)
             ok(record->DataOffset == record->UserSidOffset, "Expected offsets to be the same\n");
 
             sourcename = (WCHAR *)(record + 1);
-            todo_wine
             ok(!lstrcmpW(sourcename, L"EventLog"),
                 "Expected 'EventLog', got '%ls'\n", sourcename);
 
             computername = sourcename + sizeof("EventLog");
-            todo_wine
             ok(!lstrcmpiW(computername, localcomputer), "Expected '%ls', got '%ls'\n",
                 localcomputer, computername);
 
@@ -1633,19 +1631,15 @@ static void test_eventlog_start(void)
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, &record, &size);
     ok(ret, "Expected success : %ld\n", GetLastError());
     ret = read_record(handle2, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, &record2, &size2);
-    todo_wine
     ok(ret, "Expected success : %ld\n", GetLastError());
     ok(size == size2, "Expected %lu, got %lu\n", size, size2);
-    todo_wine
     ok(!memcmp(record, record2, min(size, size2)), "Records miscompare\n");
     count = 0xdeadbeef;
     count2 = 0xdeadbeef;
     ret = GetNumberOfEventLogRecords(handle, &count);
     ok(ret, "Expected success : %ld\n", GetLastError());
     ret = GetNumberOfEventLogRecords(handle2, &count2);
-    todo_wine
     ok(ret, "Expected success : %ld\n", GetLastError());
-    todo_wine
     ok(count == count2, "Expected %lu, got %lu\n", count, count2);
     CloseEventLog(handle2);
     CloseEventLog(handle);

@@ -55,7 +55,8 @@ struct eventlog
 {
     CRITICAL_SECTION cs;
     struct list entry;
-    WCHAR *name;
+    WCHAR *logname;
+    WCHAR *srcname;
     DWORD numrec;
     DWORD maxrec;
     EVENTLOGRECORD **recs;
@@ -612,7 +613,7 @@ static struct eventlog *source_to_log(const WCHAR *source)
     EnterCriticalSection(&logs_cs);
     LIST_FOR_EACH_ENTRY(log, &logs, struct eventlog, entry)
     {
-        if (!wcsicmp(log->name, logname))
+        if (!wcsicmp(log->logname, logname))
         {
             LeaveCriticalSection(&logs_cs);
             return log;
@@ -624,7 +625,8 @@ static struct eventlog *source_to_log(const WCHAR *source)
         InitializeCriticalSection(&log->cs);
         log->numrec = 0;
         log->maxrec = 20;
-        log->name = wcsdup(logname);
+        log->logname = wcsdup(logname);
+        log->srcname = wcsdup(source);
         log->recs = malloc(log->maxrec * sizeof(*log->recs)); /* TODO */
         list_add_tail(&logs, &log->entry);
     }
@@ -661,6 +663,19 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         return NULL;
     }
 
+    if (!once)
+    {
+        char unknown[24];
+        HANDLE handle;
+
+        once = TRUE;
+        handle = OpenEventLogW(NULL, L"EventLog");
+        ReportEventW(handle, EVENTLOG_INFORMATION_TYPE, 0, EVENT_EventlogStarted,
+                     NULL, 0, sizeof(unknown), NULL, unknown);
+        CloseEventLog(handle);
+    }
+
+
     if (!source_to_logname(source, logname, ARRAY_SIZE(logname)))
         wcscpy(logname, L"Application");
 
@@ -686,14 +701,6 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         free(access);
         return NULL;
-    }
-
-    if (!wcscmp(logname, L"System") && !once)
-    {
-        char unknown[24];
-        ReportEventW((HANDLE)access, EVENTLOG_INFORMATION_TYPE, 0, EVENT_EventlogStarted,
-                     NULL, 0, sizeof(unknown), NULL, unknown);
-        once = TRUE;
     }
 
     return (HANDLE)access;
@@ -1061,7 +1068,7 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     access = (struct eventlog_access *)hEventLog;
     log = access->log;
     size = sizeof(*rec) + dwDataSize;
-    size += (wcslen(log->name) + 1) * sizeof(WCHAR);
+    size += (wcslen(log->srcname) + 1) * sizeof(WCHAR);
     GetComputerNameW(compname, &len);
     size += (len + 1) * sizeof(WCHAR);
     for (i = 0; i < wNumStrings; i++)
@@ -1084,11 +1091,11 @@ BOOL WINAPI ReportEventW( HANDLE hEventLog, WORD wType, WORD wCategory, DWORD dw
     rec->ReservedFlags = 0;
     rec->ClosingRecordNumber = 0;
 
-    /* TODO: provider */
     off = sizeof(*rec);
-    wcscpy((wchar_t *)((char *)rec + off), log->name);
-    off += (wcslen(log->name) + 1) * sizeof(WCHAR);
+    wcscpy((wchar_t *)((char *)rec + off), log->srcname);
+    off += (wcslen(log->srcname) + 1) * sizeof(WCHAR);
 
+    GetComputerNameW(compname, &len); // TODO
     wcscpy((wchar_t *)((char *)rec + off), compname);
     off += (len + 1) * sizeof(WCHAR);
     off = (off + 7) & ~7;
