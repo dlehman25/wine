@@ -2886,12 +2886,11 @@ static void test_LCMapStringEx(void)
         const WCHAR *exp;
         DWORD flags;
         LCID lcid;
-        BOOL todo;
     } tests[] = {
         {L"I", L"i",      LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_en},
-        {L"I", L"\x0131", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr, TRUE},
+        {L"I", L"\x0131", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr},
         {L"i", L"I",      LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_en},
-        {L"i", L"\x0130", LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr, TRUE},
+        {L"i", L"\x0130", LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr},
     };
 
     if (!pLCMapStringEx)
@@ -3036,10 +3035,27 @@ static void test_LCMapStringEx(void)
         ret = pLCMapStringEx(L"de-DE", tests[i].flags, tests[i].orig, -1, buf, ARRAY_SIZE(buf), &info, NULL, 0);
         ok(ret == lstrlenW(tests[i].orig) + 1, "ret %d, error %ld, expected value %d, lcid %lx\n",
                            ret, GetLastError(), lstrlenW(tests[i].orig) + 1, tests[i].lcid);
-        todo_wine_if(tests[i].todo)
         ok(!lstrcmpW(buf, tests[i].exp), "string compare mismatch %s for lcid %lx\n",
                      wine_dbgstr_w(buf), tests[i].lcid);
     }
+
+    /* SORTHANDLE favors NLSVERSIONINFO over locale name */
+    memset(&info, 0, sizeof(info));
+    info.dwNLSVersionInfoSize = sizeof(info);
+    ret = GetNLSVersion(COMPARE_STRING, lcid_tr, &info);
+    ok(ret, "error %ld\n", GetLastError());
+
+    SetLastError(0xdeadbeef);
+    ret = pLCMapStringEx(L"en-US", LCMAP_SORTHANDLE, NULL, 0, (LPWSTR)&handle, sizeof(handle), &info, NULL, 0);
+    ok(!!ret || broken(!ret && GetLastError() == ERROR_INVALID_PARAMETER) /* win8 */,
+       "error %ld\n", GetLastError());
+    ok(handle == ret, "ret %x, handle %#Ix, error %ld\n", ret, handle, GetLastError());
+
+    memset(buf, 0, sizeof(buf));
+    ret = pLCMapStringEx(NULL, LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING,
+                         L"I", -1, buf, ARRAY_SIZE(buf), NULL, NULL, handle);
+    ok(ret == 2, "ret %d, error %ld\n", ret, GetLastError());
+    ok(!wcscmp(buf, L"\x0131") || broken(!wcscmp(buf, L"i")) /* win8 */, "string compare mismatch\n");
 
     /* bogus NLSVERSION info falls back on locale name */
     memset(&info, 0, sizeof(info));

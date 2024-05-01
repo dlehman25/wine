@@ -526,7 +526,7 @@ static void load_sortdefault_nls(void)
 }
 
 
-static const struct sortguid *find_sortguid( const GUID *guid )
+static const struct sortguid *find_sortguid_index( const GUID *guid, LPARAM *idx )
 {
     int pos, ret, min = 0, max = sort.guid_count - 1;
 
@@ -534,7 +534,11 @@ static const struct sortguid *find_sortguid( const GUID *guid )
     {
         pos = (min + max) / 2;
         ret = memcmp( guid, &sort.guids[pos].id, sizeof(*guid) );
-        if (!ret) return &sort.guids[pos];
+        if (!ret)
+        {
+            *idx = pos;
+            return &sort.guids[pos];
+        }
         if (ret > 0) min = pos + 1;
         else max = pos - 1;
     }
@@ -542,6 +546,12 @@ static const struct sortguid *find_sortguid( const GUID *guid )
     return NULL;
 }
 
+
+static inline const struct sortguid *find_sortguid( const GUID *guid )
+{
+    LPARAM unused;
+    return find_sortguid_index( guid, &unused );
+}
 
 static const NLS_LOCALE_DATA *get_locale_data( UINT idx )
 {
@@ -684,6 +694,7 @@ static const struct sortguid *get_language_sort_index( const WCHAR *name, LPARAM
         return ret;
     }
 
+    *index = 0;
     lcid = entry->id;
     name = locale_strings + entry->name + 1;
     locale = get_locale_data( entry->idx );
@@ -695,7 +706,7 @@ static const struct sortguid *get_language_sort_index( const WCHAR *name, LPARAM
             if (!RegQueryValueExW( key, name, NULL, &type, (BYTE *)guidstr, &size ) && type == REG_SZ)
             {
                 RtlInitUnicodeString( &str, guidstr );
-                if (!RtlGUIDFromString( &str, &guid )) ret = find_sortguid( &guid );
+                if (!RtlGUIDFromString( &str, &guid )) ret = find_sortguid_index( &guid, index );
                 break;
             }
             if (!name[0]) break;
@@ -705,7 +716,6 @@ static const struct sortguid *get_language_sort_index( const WCHAR *name, LPARAM
         RegCloseKey( key );
     }
     if (!ret) ret = &sort.guids[0];
-    *index = ret - &sort.guids[0];
     locale_sorts[entry - lcnames_index] = ret;
     return ret;
 }
@@ -6621,7 +6631,6 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
 {
     const struct sortguid *sortid = NULL;
 
-    if (version) FIXME( "unsupported version structure %p\n", version );
     if (reserved) FIXME( "unsupported reserved pointer %p\n", reserved );
 
     if (flags & LCMAP_SORTHANDLE)
@@ -6633,7 +6642,13 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
         }
 
         handle = 0;
-        if (!(get_language_sort_index( locale, &handle )))
+        if (version && !find_sortguid_index( &version->guidCustomVersion, &handle ))
+        {
+            SetLastError( ERROR_INVALID_PARAMETER );
+            return 0;
+        }
+
+        if (!handle && !get_language_sort_index( locale, &handle ))
         {
             SetLastError( ERROR_INVALID_PARAMETER );
             return 0;
@@ -6681,7 +6696,9 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
 
             sortid = &sort.guids[handle];
         }
-        else if (!(sortid = get_language_sort( locale ))) return 0;
+        if (!sortid && version)
+            sortid = find_sortguid( &version->guidCustomVersion );
+        if (!sortid && !(sortid = get_language_sort( locale ))) return 0;
     }
     if (flags & LCMAP_HASH)
     {
