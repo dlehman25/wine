@@ -2875,6 +2875,24 @@ static void test_LCMapStringEx(void)
     LPARAM handle_en;
     LPARAM handle_tr;
     LPARAM handle;
+    const LCID lcid_en = MAKELCID(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), SORT_DEFAULT);
+    const LCID lcid_tr = MAKELCID(MAKELANGID(LANG_TURKISH, SUBLANG_TURKISH_TURKEY), SORT_DEFAULT);
+    NLSVERSIONINFO info;
+    INT i;
+
+    const struct
+    {
+        const WCHAR *orig;
+        const WCHAR *exp;
+        DWORD flags;
+        LCID lcid;
+        BOOL todo;
+    } tests[] = {
+        {L"I", L"i",      LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_en},
+        {L"I", L"\x0131", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr, TRUE},
+        {L"i", L"I",      LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_en},
+        {L"i", L"\x0130", LCMAP_UPPERCASE|LCMAP_LINGUISTIC_CASING, lcid_tr, TRUE},
+    };
 
     if (!pLCMapStringEx)
     {
@@ -3001,6 +3019,48 @@ static void test_LCMapStringEx(void)
     ok(!ret && GetLastError() == ERROR_INVALID_PARAMETER,
        "ret %d, error %ld\n", ret, GetLastError());
     ok(!buf[0], "buf %x\n", buf[0]);
+
+    /* LCMapStringEx favors NLSVERSIONINFO over locale name */
+    for (i = 0; i < ARRAY_SIZE( tests ); i++)
+    {
+        memset(&info, 0, sizeof(info));
+        info.dwNLSVersionInfoSize = sizeof(info);
+        SetLastError(0xdeadbeef);
+        ret = GetNLSVersion(COMPARE_STRING, tests[i].lcid, &info);
+        ok(ret, "error %ld\n", GetLastError());
+        ok(info.dwEffectiveId == tests[i].lcid, "expected %lx, got %lx\n", tests[i].lcid, info.dwEffectiveId);
+
+        memset(buf, 0, sizeof(buf));
+        info.dwEffectiveId = 0; /* the guid is used */
+        SetLastError(0xdeadbeef);
+        ret = pLCMapStringEx(L"de-DE", tests[i].flags, tests[i].orig, -1, buf, ARRAY_SIZE(buf), &info, NULL, 0);
+        ok(ret == lstrlenW(tests[i].orig) + 1, "ret %d, error %ld, expected value %d, lcid %lx\n",
+                           ret, GetLastError(), lstrlenW(tests[i].orig) + 1, tests[i].lcid);
+        todo_wine_if(tests[i].todo)
+        ok(!lstrcmpW(buf, tests[i].exp), "string compare mismatch %s for lcid %lx\n",
+                     wine_dbgstr_w(buf), tests[i].lcid);
+    }
+
+    /* bogus NLSVERSION info falls back on locale name */
+    memset(&info, 0, sizeof(info));
+    info.dwNLSVersionInfoSize = sizeof(info);
+    SetLastError(0xdeadbeef);
+    ret = GetNLSVersion(COMPARE_STRING, lcid_tr, &info);
+    ok(ret, "error %ld\n", GetLastError());
+
+    memset(buf, 0, sizeof(buf));
+    info.dwEffectiveId = 0;
+    memset(&info.guidCustomVersion, 0, sizeof(info.guidCustomVersion));
+    SetLastError(0xdeadbeef);
+    ret = pLCMapStringEx(L"en-US", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, L"I", -1,
+                         buf, ARRAY_SIZE(buf), &info, NULL, 0);
+    ok(ret == 2, "ret %d, error %ld, expected value 2\n", ret, GetLastError());
+    ok(!lstrcmpW(buf, L"i"), "string compare mismatch %s\n", wine_dbgstr_w(buf));
+
+    ret = pLCMapStringEx(L"tr-TR", LCMAP_LOWERCASE|LCMAP_LINGUISTIC_CASING, L"I", -1,
+                         buf, ARRAY_SIZE(buf), &info, NULL, 0);
+    ok(ret == 2, "ret %d, error %ld, expected value 2\n", ret, GetLastError());
+    ok(!lstrcmpW(buf, L"\x0131"), "string compare mismatch %s\n", wine_dbgstr_w(buf));
 }
 
 struct neutralsublang_name_t {
