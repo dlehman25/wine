@@ -654,7 +654,7 @@ static const NLS_LOCALE_DATA *get_locale_by_name( const WCHAR *name, LCID *lcid 
 }
 
 
-static const struct sortguid *get_language_sort( const WCHAR *name )
+static const struct sortguid *get_language_sort_index( const WCHAR *name, LPARAM *index )
 {
     const NLS_LOCALE_LCNAME_INDEX *entry;
     const NLS_LOCALE_DATA *locale;
@@ -678,7 +678,11 @@ static const struct sortguid *get_language_sort( const WCHAR *name )
         SetLastError( ERROR_INVALID_PARAMETER );
         return NULL;
     }
-    if ((ret = locale_sorts[entry - lcnames_index])) return ret;
+    if ((ret = locale_sorts[entry - lcnames_index]))
+    {
+        *index = ret - &sort.guids[0];
+        return ret;
+    }
 
     lcid = entry->id;
     name = locale_strings + entry->name + 1;
@@ -701,10 +705,16 @@ static const struct sortguid *get_language_sort( const WCHAR *name )
         RegCloseKey( key );
     }
     if (!ret) ret = &sort.guids[0];
+    *index = ret - &sort.guids[0];
     locale_sorts[entry - lcnames_index] = ret;
     return ret;
 }
 
+static inline const struct sortguid *get_language_sort( const WCHAR *name )
+{
+    LPARAM dummy;
+    return get_language_sort_index( name, &dummy );
+}
 
 /******************************************************************************
  *	NlsValidateLocale   (kernelbase.@)
@@ -6613,10 +6623,25 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
 
     if (version) FIXME( "unsupported version structure %p\n", version );
     if (reserved) FIXME( "unsupported reserved pointer %p\n", reserved );
-    if (handle)
+
+    if (flags & LCMAP_SORTHANDLE)
     {
-        static int once;
-        if (!once++) FIXME( "unsupported lparam %Ix\n", handle );
+        if (src || srclen || !dst || dstlen < sizeof(LPARAM))
+        {
+            SetLastError( ERROR_INVALID_PARAMETER );
+            return 0;
+        }
+
+        handle = 0;
+        if (!(get_language_sort_index( locale, &handle )))
+        {
+            SetLastError( ERROR_INVALID_PARAMETER );
+            return 0;
+        }
+
+        handle = MAKELONG(handle, 1);
+        *(LPARAM *)dst = handle;
+        return handle;
     }
 
     if (!src || !srclen || dstlen < 0)
@@ -6639,16 +6664,28 @@ INT WINAPI DECLSPEC_HOTPATCH LCMapStringEx( const WCHAR *locale, DWORD flags, co
     }
     if (flags & (LCMAP_LOWERCASE | LCMAP_UPPERCASE | LCMAP_SORTKEY))
     {
-        if (!(sortid = get_language_sort( locale ))) return 0;
+        if (handle)
+        {
+            if (locale)
+            {
+                SetLastError( ERROR_INVALID_PARAMETER );
+                return 0;
+            }
+
+            handle = LOWORD(handle);
+            if (handle < 0 || handle >= sort.guid_count)
+            {
+                SetLastError( ERROR_INVALID_PARAMETER );
+                return 0;
+            }
+
+            sortid = &sort.guids[handle];
+        }
+        else if (!(sortid = get_language_sort( locale ))) return 0;
     }
     if (flags & LCMAP_HASH)
     {
         FIXME( "LCMAP_HASH %s not supported\n", debugstr_wn( src, srclen ));
-        return 0;
-    }
-    if (flags & LCMAP_SORTHANDLE)
-    {
-        FIXME( "LCMAP_SORTHANDLE not supported\n" );
         return 0;
     }
     if (flags & LCMAP_SORTKEY) return get_sortkey( sortid, flags, src, srclen, (BYTE *)dst, dstlen );
