@@ -5131,7 +5131,7 @@ static void test_SysAllocStringByteLen(void)
   const OLECHAR szTest[10] = { 'T','e','s','t','\0' };
   const CHAR szTestA[6] = { 'T','e','s','t','\0','?' };
   char *buf;
-  BSTR str;
+  BSTR str, str2;
   int i;
 
   if (sizeof(void *) == 4)  /* not limited to 0x80000000 on Win64 */
@@ -5215,6 +5215,27 @@ static void test_SysAllocStringByteLen(void)
     SysFreeString(str);
   }
   HeapFree(GetProcessHeap(), 0, buf);
+
+  /* Test clearing of BSTR */
+  str2 = SysAllocStringByteLen(NULL, 8);
+  memset(str2, 0xab, 8*sizeof(WCHAR));
+  SysFreeString(str2);
+
+  str = SysAllocStringByteLen(NULL, 8);
+  printf("%p %p\n", str, str2);
+  if (str != str2)
+    win_skip("Didn't reallocate BSTR with same address\n");
+  else
+  {
+    for (i = 0; i < 8; i++)
+    {
+    printf("%d: %x\n", i, str[i]);
+//      if (str[i]) break;
+    }
+    ok(i < 8, "Expected string to be cleared\n");
+    /* ok(str[i] == 0xabab, "Expected abab, got %04x at %d\n", str[i], i); */
+  }
+  SysFreeString(str);
 }
 
 static void test_SysReAllocString(void)
