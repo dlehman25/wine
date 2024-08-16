@@ -354,9 +354,12 @@ BSTR WINAPI SysAllocStringLen(const OLECHAR *str, unsigned int len)
     if(!bstr)
         return NULL;
 
-    if(str)
+    if(str) {
         memcpy(bstr->u.str, str, size);
-    bstr->u.str[len] = 0;
+        bstr->u.str[len] = 0;
+    }else {
+        memset(bstr->u.str, 0, size+sizeof(WCHAR));
+    }
 
     return bstr->u.str;
 }
@@ -436,9 +439,13 @@ BSTR WINAPI DECLSPEC_HOTPATCH SysAllocStringByteLen(LPCSTR str, UINT len)
     if(!bstr)
         return NULL;
 
-    if(str)
+    if(str) {
         memcpy(bstr->u.ptr, str, len);
-    bstr->u.ptr[len] = bstr->u.str[(len+sizeof(WCHAR)-1)/sizeof(WCHAR)] = 0;
+        bstr->u.ptr[len] = 0;
+    }else {
+        memset(bstr->u.ptr, 0, len+1);
+    }
+    bstr->u.str[(len+sizeof(WCHAR)-1)/sizeof(WCHAR)] = 0;
 
     return bstr->u.str;
 }
