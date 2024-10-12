@@ -560,26 +560,18 @@ static EVENTLOGRECORD *fake_eventlog_startW(DWORD *needed)
 BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
     DWORD *numread, DWORD *needed )
 {
+    BOOL ret;
+    BYTE buf[1];
+    char name[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD namesize, neededW;
+
     FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
         toread, numread, needed);
 
-    if (!buffer || !flags ||
-        !(flags & (EVENTLOG_FORWARDS_READ|EVENTLOG_BACKWARDS_READ)) ||
-        ((flags & EVENTLOG_FORWARDS_READ) && (flags & EVENTLOG_BACKWARDS_READ)) ||
-        ((flags & EVENTLOG_SEQUENTIAL_READ) && (flags & EVENTLOG_SEEK_READ)))
-    {
-        SetLastError(ERROR_INVALID_PARAMETER);
-        return FALSE;
-    }
+    if ((ret = ReadEventLogW( log, flags, offset, buf, 1, NULL, &neededW )))
+        return ret;
 
-    if (!log)
-    {
-        SetLastError(ERROR_INVALID_HANDLE);
-        return FALSE;
-    }
-
-    SetLastError(ERROR_HANDLE_EOF);
-    return FALSE;
+    return ret;
 }
 
 /******************************************************************************
