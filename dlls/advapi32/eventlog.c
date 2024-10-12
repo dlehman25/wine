@@ -486,8 +486,9 @@ HANDLE WINAPI OpenEventLogW( LPCWSTR uncname, LPCWSTR source )
     return (HANDLE)0xcafe4242;
 }
 
-#define DATALEN    24
-#define ALIGN(x)   (((x) + 7) & ~7)
+#define DATALEN             24
+#define ALIGN(x)            (((x) + 7) & ~7)
+#define ELF_LOG_SIGNATURE   0x654c664c /* LfLe */
 static EVENTLOGRECORD *fake_eventlog_startW(DWORD *needed)
 {
     static EVENTLOGRECORD *startlog;
@@ -518,7 +519,7 @@ static EVENTLOGRECORD *fake_eventlog_startW(DWORD *needed)
     wcscpy((WCHAR *)((char *)rec + rec->Length), name);
     rec->Length += (namesize + 1) * sizeof(WCHAR);
 
-    rec->Reserved = 0x654c664c; /* LfLe */
+    rec->Reserved = ELF_LOG_SIGNATURE;
     rec->RecordNumber = 1;
     rec->TimeWritten = rec->TimeGenerated;
     rec->EventID = EVENT_EventlogStarted;
