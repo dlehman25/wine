@@ -1468,6 +1468,12 @@ static void test_eventlog_start(void)
             ok(record->DataOffset == size ||
                 broken(record->DataOffset == size - 1), /* win8 */
                 "Expected %ld, got %ld\n", size, record->DataOffset);
+{
+BYTE *data = (BYTE *)record + record->Length - sizeof(DWORD);
+//BYTE *data = (BYTE *)record + record->DataOffset + record->DataLength;
+
+printf("length %lx %lx %lx\n", record->Length, record->DataOffset + record->DataLength, *(DWORD *)data);
+}
 
             found = TRUE;
         }
