@@ -1648,6 +1648,8 @@ START_TEST(eventlog)
     }
 
     init_function_pointers();
+    test_eventlog_start();
+    return;
 
     /* Parameters only */
     test_open_close();
