@@ -1708,11 +1708,10 @@ static void test__Fiopen(void)
         const char *loc;
         const WCHAR *wpath;
         const char *apath;
-        int is_todo;
     } tests[] = {
         { "C",          L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xe4\xcf\xf6\xdf.txt" },
         { "de_DE",      L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xe4\xcf\xf6\xdf.txt" },
-        { "de_DE.utf8", L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xc3\xa4\xc3\x8f\xc3\xb6\xc3\x9f.txt", TRUE },
+        { "de_DE.utf8", L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xc3\xa4\xc3\x8f\xc3\xb6\xc3\x9f.txt" },
     };
 
     oldloc = p_setlocale(LC_ALL, NULL);
@@ -1725,7 +1724,6 @@ static void test__Fiopen(void)
         ok(!!f, "failed to create %s with locale %s\n", wine_dbgstr_w(tests[i].wpath), tests[i].loc);
         if(f) p_fclose(f);
         f = p__Fiopen(tests[i].apath, OPENMODE_in, SH_DENYNO);
-        todo_wine_if(tests[i].is_todo)
         ok(!!f, "failed to read %s with locale %s\n", tests[i].apath, tests[i].loc);
         if(f) p_fclose(f);
         DeleteFileW(tests[i].wpath);
