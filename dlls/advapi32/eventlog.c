@@ -571,6 +571,11 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
     if ((ret = ReadEventLogW( log, flags, offset, buf, 1, NULL, &neededW )))
         return ret;
 
+    // convert W -> A
+    // computer name
+    // source
+    // strings
+
     return ret;
 }
 
