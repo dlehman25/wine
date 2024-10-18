@@ -1404,6 +1404,10 @@ static void test_eventlog_start(void)
             ok(record->DataOffset == size ||
                 broken(record->DataOffset == size - sizeof(WCHAR)), /* win8 */
                 "Expected %ld, got %ld\n", size, record->DataOffset);
+            size += record->DataLength + sizeof(void*);
+
+            size2 = *(DWORD *)((BYTE *)record + record->Length - sizeof(DWORD));
+            ok(size == size2, "Expected %lx, got %lx\n", size, size2);
 
             found = TRUE;
         }
@@ -1468,6 +1472,10 @@ static void test_eventlog_start(void)
             ok(record->DataOffset == size ||
                 broken(record->DataOffset == size - 1), /* win8 */
                 "Expected %ld, got %ld\n", size, record->DataOffset);
+            size += record->DataLength + sizeof(void*);
+
+            size2 = *(DWORD *)((BYTE *)record + record->Length - sizeof(DWORD));
+            ok(size == size2, "Expected %lx, got %lx\n", size, size2);
 
             found = TRUE;
         }
