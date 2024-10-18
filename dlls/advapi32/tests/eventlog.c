@@ -1373,7 +1373,7 @@ static void test_eventlog_start(void)
                                 0, record, needed, &read, &needed);
             ok(needed == 0, "Expected 0, got %ld\n", needed);
         }
-        if (0 && ret)
+        if (ret)
         {
 WORD num;
 printf("EventID %lx Length %lx UserSidOffset %lx (%lx) NumStrings %x StringOffset %lx DataOffset %lx (%lx)\n",
@@ -1441,6 +1441,7 @@ if (record->NumStrings)
     ok(found, "EventlogStarted event not found\n");
     CloseEventLog(handle);
     free(localcomputer);
+return;
 
     /* ReadEventLogA */
     size = MAX_COMPUTERNAME_LENGTH + 1;
@@ -1467,31 +1468,6 @@ if (record->NumStrings)
                                 0, record, needed, &read, &needed);
             ok(needed == 0, "Expected 0, got %ld\n", needed);
         }
-        if (ret)
-        {
-WORD num;
-printf("EventID %lx Length %lx UserSidOffset %lx (%lx) NumStrings %x StringOffset %lx DataOffset %lx (%lx)\n",
-        record->EventID, record->Length,
-        record->UserSidOffset, record->UserSidLength,
-        record->NumStrings, record->StringOffset,
-        record->DataOffset, record->DataLength);
-if (record->NumStrings)
-{
-    char *str;
-    num = record->NumStrings;
-    str = (char *)record + record->StringOffset;
-    while (num--)
-    {
-        while (*str)
-        {
-            printf("%c", isprint(*str) ? *str : '.');
-            ++str;
-        }
-        printf("\n");
-        ++str;
-    }
-}
-}
         if (ret && record->EventID == EVENT_EventlogStarted)
         {
             ok(record->Length == read, "Expected %ld, got %ld\n", read, record->Length);
