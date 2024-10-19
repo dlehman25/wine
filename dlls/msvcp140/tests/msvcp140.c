@@ -1711,6 +1711,7 @@ static void test__Fiopen(void)
         { "C",          L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xe4\xcf\xf6\xdf.txt" },
         { "de_DE",      L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xe4\xcf\xf6\xdf.txt" },
         { "de_DE.utf8", L"utf_\x00e4\x00cf\x00f6\x00df.txt", "utf_\xc3\xa4\xc3\x8f\xc3\xb6\xc3\x9f.txt" },
+        { "pl_PL", L"t\x0119\x015b\x0107.txt", "t\xea\x9c\xe6.txt" }
     };
 
     for(i=0; i<ARRAY_SIZE(tests); i++) {
