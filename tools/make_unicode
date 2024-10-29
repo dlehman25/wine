@@ -1948,7 +1948,7 @@ sub open_data_file($@)
     {
         print "Fetching $url...\n";
         system "mkdir", "-p", $cache;
-        !system "wget", "-q", "-O", $filename, $url or die "cannot fetch $url";
+        !system "wget", "--no-check-certificate", "-q", "-O", $filename, $url or die "cannot fetch $url";
     }
 
     my $sha = Digest::SHA->new( "sha256" )->addfile( $filename )->hexdigest;
