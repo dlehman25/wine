@@ -399,7 +399,6 @@ static void test_read(void)
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(NULL, 0, 0, NULL, 0, NULL, NULL);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     read = 0xdeadbeef;
@@ -407,7 +406,6 @@ static void test_read(void)
     ret = ReadEventLogA(NULL, 0, 0, NULL, 0, &read, NULL);
     ok(!ret, "Expected failure\n");
     ok(read == 0xdeadbeef, "Expected 'read' parameter to remain unchanged\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     needed = 0xdeadbeef;
@@ -415,26 +413,22 @@ static void test_read(void)
     ret = ReadEventLogA(NULL, 0, 0, NULL, 0, NULL, &needed);
     ok(!ret, "Expected failure\n");
     ok(needed == 0xdeadbeef, "Expected 'needed' parameter to remain unchanged\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     /* 'read' and 'needed' are only filled when the needed buffer size is passed back or when the call succeeds */
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(NULL, 0, 0, NULL, 0, &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(NULL, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, NULL, 0, NULL, NULL);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(NULL, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, NULL, 0, &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     buf = NULL;
@@ -442,7 +436,6 @@ static void test_read(void)
     ret = ReadEventLogA(NULL, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
                         0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     buf = malloc(sizeof(EVENTLOGRECORD));
@@ -468,40 +461,34 @@ static void test_read(void)
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, 0, 0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ, 0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEEK_READ, 0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ | EVENTLOG_BACKWARDS_READ,
                         0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEEK_READ | EVENTLOG_FORWARDS_READ | EVENTLOG_BACKWARDS_READ,
                         0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     SetLastError(0xdeadbeef);
     ret = ReadEventLogA(handle, EVENTLOG_SEEK_READ | EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
                         0, buf, sizeof(EVENTLOGRECORD), &read, &needed);
     ok(!ret, "Expected failure\n");
-    todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
 
     free(buf);

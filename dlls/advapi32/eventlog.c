@@ -557,13 +557,118 @@ static EVENTLOGRECORD *fake_eventlog_startW(DWORD *needed)
  *  Success: nonzero
  *  Failure: zero
  */
-BOOL WINAPI ReadEventLogA( HANDLE hEventLog, DWORD dwReadFlags, DWORD dwRecordOffset,
-    LPVOID lpBuffer, DWORD nNumberOfBytesToRead, DWORD *pnBytesRead, DWORD *pnMinNumberOfBytesNeeded )
+BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, DWORD toread,
+    DWORD *numread, DWORD *needed )
 {
-    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) stub\n", hEventLog, dwReadFlags,
-          dwRecordOffset, lpBuffer, nNumberOfBytesToRead, pnBytesRead, pnMinNumberOfBytesNeeded);
+    int ret;
+    WORD i;
+    BYTE buf[1];
+    EVENTLOGRECORD *recW;
+    EVENTLOGRECORD *recA;
+    WCHAR *sourceW, *nameW, *stringsW;
+    char *sourceA, *nameA, *stringsA;
+    DWORD size, neededW;
 
-    SetLastError(ERROR_HANDLE_EOF);
+    FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
+        toread, numread, needed);
+
+    if (!ReadEventLogW( log, flags, offset, buf, 1, NULL, &neededW ) &&
+        GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+    {
+        return FALSE;
+    }
+
+    if (!(recW = malloc(neededW)))
+    {
+        SetLastError(ERROR_OUTOFMEMORY);
+        return FALSE;
+    }
+
+    if (!ReadEventLogW( log, flags, offset, recW, neededW, NULL, NULL ))
+        goto error;
+
+    recA = buffer;
+    size = sizeof(*recA);
+    sourceW = (WCHAR *)((char *)recW + sizeof(*recW));
+    if (!(ret = WideCharToMultiByte(CP_ACP, 0, sourceW, -1, NULL, 0, NULL, NULL)))
+        goto error;
+    size += ret;
+
+    nameW = sourceW + wcslen(sourceW) + 1;
+    if (!(ret = WideCharToMultiByte(CP_ACP, 0, nameW, -1, NULL, 0, NULL, NULL)))
+        goto error;
+    size += ret;
+    size += recW->UserSidLength;
+    stringsW = (WCHAR *)((char *)recW + recW->StringOffset);
+    for (i = 0; i < recW->NumStrings; i++)
+    {
+        if (!(ret = WideCharToMultiByte(CP_ACP, 0, stringsW, -1, NULL, 0, NULL, NULL)))
+            goto error;
+        stringsW += wcslen(stringsW) + 1;
+        size += ret;
+    }
+    size = (size + 7) & ~7; /* DataOffset */
+    size += recW->DataLength;
+    if (size > toread)
+    {
+        *needed = size;
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        goto error;
+    }
+
+    recA->Length = size;
+    recA->Reserved = recW->Reserved;
+    recA->RecordNumber = recW->RecordNumber;
+    recA->TimeGenerated = recW->TimeGenerated;
+    recA->TimeWritten = recW->TimeWritten;
+    recA->EventID = recW->EventID;
+    recA->EventType = recW->EventType;
+    recA->NumStrings = recW->NumStrings;
+    recA->EventCategory = recW->EventCategory;
+    recA->ReservedFlags = recW->ReservedFlags;
+    recA->ClosingRecordNumber = recW->ClosingRecordNumber;
+    recA->UserSidLength = recW->UserSidLength;
+    recA->DataLength = recW->DataLength;
+
+    size = sizeof(*recA);
+    sourceA = (char *)recA + sizeof(*recA);
+    ret = WideCharToMultiByte(CP_ACP, 0, sourceW, -1, sourceA, -1, NULL, NULL);
+    nameA = sourceA + ret;
+    size += ret;
+    ret = WideCharToMultiByte(CP_ACP, 0, nameW, -1, nameA, -1, NULL, NULL);
+    size += ret;
+    recA->UserSidOffset = size;
+    if (recW->UserSidLength)
+    {
+        memcpy((char *)recA + recA->UserSidOffset,
+               (char *)recW + recW->UserSidOffset,
+               recW->UserSidLength);
+        size += recW->UserSidLength;
+    }
+    recA->StringOffset = size;
+    stringsA = (char *)recA + recA->StringOffset;
+    stringsW = (WCHAR *)((char *)recW + recW->StringOffset);
+    for (i = 0; i < recA->NumStrings; i++)
+    {
+        if (!(ret = WideCharToMultiByte(CP_ACP, 0, stringsW, -1, stringsA, -1, NULL, NULL)))
+            goto error;
+        stringsW += wcslen(stringsW) + 1;
+        stringsA += ret;
+        size += ret;
+    }
+    recA->DataOffset = (size + 7) & ~7;
+
+    if (recW->DataLength)
+        memcpy((char*)recA + recA->DataOffset,
+               (char*)recW + recW->DataOffset,
+               recW->DataLength);
+    *(DWORD *)((char *)recA + recA->Length - sizeof(DWORD)) = recA->Length;
+    *numread = recA->Length;
+    free(recW);
+    return TRUE;
+
+error:
+    free(recW);
     return FALSE;
 }
 
