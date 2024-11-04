@@ -1427,7 +1427,7 @@ static void test_eventlog_start(void)
         }
         free(record);
     }
-    todo_wine ok(found, "EventlogStarted event not found\n");
+    ok(found, "EventlogStarted event not found\n");
     CloseEventLog(handle);
     free(localcomputer);
 
@@ -1523,6 +1523,7 @@ static void test_eventlog_start(void)
     /* changing how is an error */
     SetLastError(0xdeadbeef);
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_BACKWARDS_READ, 0, &record, &size);
+    todo_wine
     ok(!ret, "Expected failure\n");
     todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
@@ -1551,6 +1552,7 @@ static void test_eventlog_start(void)
     /* SEEK | FORWARDS */
     /* bogus offset */
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_FORWARDS_READ, 0, &record, &size);
+    todo_wine
     ok(!ret, "Expected failure\n");
     todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
@@ -1591,6 +1593,7 @@ static void test_eventlog_start(void)
     handle = OpenEventLogW(0, L"system");
     /* bogus offset */
     ret = read_record(handle, EVENTLOG_SEEK_READ | EVENTLOG_BACKWARDS_READ, 0, &record, &size);
+    todo_wine
     ok(!ret, "Expected failure\n");
     todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
@@ -1622,14 +1625,12 @@ static void test_eventlog_start(void)
     /* reading same log with different handles */
     handle = OpenEventLogW(0, L"System");
     handle2 = OpenEventLogW(0, L"SYSTEM");
-    todo_wine {
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, &record, &size);
     ok(ret, "Expected success : %ld\n", GetLastError());
     ok(record->RecordNumber == 1, "Expected 1, got %lu\n", record->RecordNumber);
     ret = read_record(handle2, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, &record, &size);
     ok(ret, "Expected success : %ld\n", GetLastError());
     ok(record->RecordNumber == 1, "Expected 1, got %lu\n", record->RecordNumber);
-    }
     CloseEventLog(handle2);
     CloseEventLog(handle);
 
@@ -1638,12 +1639,10 @@ static void test_eventlog_start(void)
     record2 = malloc(size2);
     handle = OpenEventLogW(0, L"System");
     handle2 = OpenEventLogW(0, L"EventLog");
-    todo_wine {
     ret = read_record(handle, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, &record, &size);
     ok(ret, "Expected success : %ld\n", GetLastError());
     ret = read_record(handle2, EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ, 0, &record2, &size2);
     ok(ret, "Expected success : %ld\n", GetLastError());
-    }
     ok(size == size2, "Expected %lu, got %lu\n", size, size2);
     ok(!memcmp(record, record2, min(size, size2)), "Records miscompare\n");
     count = 0xdeadbeef;
