@@ -1009,13 +1009,19 @@ static void codeview_dump_one_type(unsigned curr_type, const union codeview_type
         break;
 
     case LF_MODIFIER_V1:
-        printf("\t%x => Modifier V1 type:%x modif:%x\n",
-               curr_type, type->modifier_v1.type, type->modifier_v1.attribute);
+        printf("\t%x => Modifier V1 type:%x modif:%x%s%s%s\n",
+               curr_type, type->modifier_v1.type, type->modifier_v1.attribute,
+               (type->modifier_v1.attribute & 1) ? "-const" : "",
+               (type->modifier_v1.attribute & 2) ? "-volatile" : "",
+               (type->modifier_v1.attribute & 4) ? "-unaligned" : "");
         break;
 
     case LF_MODIFIER_V2:
-        printf("\t%x => Modifier V2 type:%x modif:%x\n",
-               curr_type, type->modifier_v2.type, type->modifier_v2.attribute);
+        printf("\t%x => Modifier V2 type:%x modif:%x%s%s%s\n",
+               curr_type, type->modifier_v2.type, type->modifier_v2.attribute,
+               (type->modifier_v2.attribute & 1) ? "-const" : "",
+               (type->modifier_v2.attribute & 2) ? "-volatile" : "",
+               (type->modifier_v2.attribute & 4) ? "-unaligned" : "");
         break;
 
     case LF_METHODLIST_V1:
@@ -1355,6 +1361,9 @@ BOOL codeview_dump_symbols(const void* root, unsigned long start, unsigned long 
     unsigned int i;
     int          length;
     struct symbol_dumper sd;
+
+    if (start == sizeof(unsigned))
+        printf("        [header: %x]\n", *((unsigned*)root));
 
     init_symbol_dumper(&sd);
     /*

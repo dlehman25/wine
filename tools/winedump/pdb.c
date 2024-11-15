@@ -463,7 +463,7 @@ static const void* pdb_dump_dbi_module(struct pdb_reader* reader, const PDB_SYMB
                "\t\t\tunknown:         %08x\n",
                sym_file->range.timestamp,
                sym_file->range.unknown);
-    printf("\t\tflag:       %04x\n"
+    printf("\t\tflag:       %04x (%x%s%s)\n"
            "\t\tstream:     %04x\n"
            "\t\tsymb size:  %08x\n"
            "\t\tline size:  %08x\n"
@@ -471,6 +471,9 @@ static const void* pdb_dump_dbi_module(struct pdb_reader* reader, const PDB_SYMB
            "\t\tnSrcFiles:  %08x\n"
            "\t\tattribute:  %08x\n",
            sym_file->flag,
+           HIBYTE(sym_file->flag),
+           sym_file->flag & 0x01 ? ";Dirty" : "",
+           sym_file->flag & 0x02 ? ";EC" : "",
            sym_file->stream,
            sym_file->symbol_size,
            sym_file->lineno_size,
