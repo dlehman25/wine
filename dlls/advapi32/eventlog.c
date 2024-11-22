@@ -567,12 +567,12 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
     EVENTLOGRECORD *recA;
     WCHAR *sourceW, *nameW, *stringsW;
     char *sourceA, *nameA, *stringsA;
-    DWORD size, neededW;
+    DWORD size, neededW, numreadW;
 
     FIXME("(%p,0x%08lx,0x%08lx,%p,0x%08lx,%p,%p) partial stub\n", log, flags, offset, buffer,
         toread, numread, needed);
 
-    if (!ReadEventLogW( log, flags, offset, buf, 1, NULL, &neededW ) &&
+    if (!ReadEventLogW( log, flags, offset, buf, 1, &numreadW, &neededW ) &&
         GetLastError() != ERROR_INSUFFICIENT_BUFFER)
     {
         return FALSE;
@@ -584,7 +584,7 @@ BOOL WINAPI ReadEventLogA( HANDLE log, DWORD flags, DWORD offset, void *buffer, 
         return FALSE;
     }
 
-    if (!ReadEventLogW( log, flags, offset, recW, neededW, NULL, NULL ))
+    if (!ReadEventLogW( log, flags, offset, recW, neededW, &numreadW, &neededW ))
         goto error;
 
     recA = buffer;
