@@ -219,9 +219,10 @@ static const struct fallback_description
 }
 system_fallback_config[] =
 {
-    /* Latin, Combining Diacritical Marks */
+    /* Latin, Combining Diacritical Marks, General/Supplemental Punctuation */
     { "0000-007F, 0080-00FF, 0100-017F, 0180-024F, "
-      "0250-02AF, 02B0-02FF, 0300-036F", L"Tahoma" },
+      "0250-02AF, 02B0-02FF, 0300-036F, "
+      "2000-202E, 2030-206F, 2E00-2E44", L"Noto Sans, Tahoma" },
 
     { "0530-058F, FB10-FB1C",   L"Noto Sans Armenian" },
 
@@ -295,11 +296,12 @@ system_fallback_config[] =
     { "2C80-2CFF",              L"Noto Sans Coptic" },
     { "2D30-2D7F",              L"Noto Sans Tifinagh" },
 
-    /* CJK Radicals Supplement - 2E80-2EFF */
+    /* CJK Radicals Supplement - 2E80-2EFF
+       General Punctuation     - 2000-202E, 2030-206F */
 
-    { "2E80-2EFF",              L"Noto Sans CJK SC", L"zh-Hans" },
-    { "2E80-2EFF",              L"Noto Sans CJK TC", L"zh-Hant" },
-    { "2E80-2EFF",              L"Noto Sans CJK KR", L"ko" },
+    { "2000-202E, 2030-206F, 2E80-2EFF", L"Noto Sans CJK SC", L"zh-Hans" },
+    { "2000-202E, 2030-206F, 2E80-2EFF", L"Noto Sans CJK TC", L"zh-Hant" },
+    { "2000-202E, 2030-206F, 2E80-2EFF", L"Noto Sans CJK KR", L"ko" },
 
     /* CJK Symbols and Punctuation - 3000-303F
        Hiragana                    - 3040-309F
