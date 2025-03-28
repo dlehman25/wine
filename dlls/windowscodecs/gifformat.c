@@ -696,6 +696,7 @@ static HRESULT CDECL gif_decoder_get_frame_info(struct decoder *iface, UINT fram
     info->dpiy = 96.0;
     info->num_color_contexts = 0;
     info->num_colors = num_colors;
+MESSAGE("%s: num_colors = %ld\n", __FUNCTION__, num_colors);
     copy_palette(colormap, &image->Extensions, num_colors, info->palette);
 
     return S_OK;
