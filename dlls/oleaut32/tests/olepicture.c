@@ -1807,8 +1807,8 @@ START_TEST(olepicture)
 
     /* Test regular 1x1 pixel images of gif, jpg, bmp type */
     test_pic(gifimage, sizeof(gifimage), 1, TRUE);
-return;
     test_pic(jpgimage, sizeof(jpgimage), 24, TRUE);
+return;
     test_pic(bmpimage, sizeof(bmpimage), 1, TRUE);
     test_pic(bmpimage_rle8, sizeof(bmpimage_rle8), 4, TRUE);
     test_pic(bmpimage4, sizeof(bmpimage4), 4, TRUE);
