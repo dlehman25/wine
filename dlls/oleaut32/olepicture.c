@@ -1010,13 +1010,13 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     else if (IsEqualGUID(&guid, &GUID_WICPixelFormat8bppIndexed)) /* GIF */
     {
         pwidth = 1;        
-        bih.biBitCount = 8;
+        bih.biBitCount = 8; /* TODO: 1 or 4 */
         bih.biCompression = BI_RGB;
     }
     else if (IsEqualGUID(&guid, &GUID_WICPixelFormat24bppBGR)) /* JPEG */
     {
         pwidth = 3;
-        bih.biBitCount = 32;
+        bih.biBitCount = 24;
         bih.biCompression = BI_RGB;
     }
     else
