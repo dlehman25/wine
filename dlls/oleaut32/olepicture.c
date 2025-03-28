@@ -984,7 +984,7 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     HRESULT hr;
     BITMAPINFOHEADER bih;
     UINT width, height;
-    UINT stride, buffersize;
+    UINT stride, buffersize, pwidth;
     BYTE *bits, *mask = NULL;
     WICRect rc;
     IWICBitmapSource *real_source;
@@ -995,9 +995,11 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     WICPixelFormatGUID guid = {0};
     IWICBitmapSource_GetPixelFormat(src, &guid);
     MESSAGE("%s: %s\n", __FUNCTION__, wine_dbgstr_guid(&guid));
-    /* GUID_WICPixelFormat8bppIndexed */
+    pwidth = 4;
+    if (IsEqualGUID(&guid, &GUID_WICPixelFormat8bppIndexed))
+        pwidth = 1;
 
-    hr = WICConvertBitmapSource(&GUID_WICPixelFormat32bppBGRA, src, &real_source);
+    hr = WICConvertBitmapSource(&GUID_WICPixelFormat8bppIndexed, src, &real_source);
     if (FAILED(hr)) return hr;
 
     hr = IWICBitmapSource_GetSize(real_source, &width, &height);
@@ -1007,7 +1009,7 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     bih.biWidth = width;
     bih.biHeight = -height;
     bih.biPlanes = 1;
-    bih.biBitCount = 32;
+    bih.biBitCount = pwidth == 4 ? 32 : 1;
     bih.biCompression = BI_RGB;
     bih.biSizeImage = 0;
     bih.biXPelsPerMeter = 4085; /* olepicture ignores the stored resolution */
@@ -1015,7 +1017,7 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     bih.biClrUsed = 0;
     bih.biClrImportant = 0;
 
-    stride = 4 * width;
+    stride = pwidth * width;
     buffersize = stride * height;
 
     mask = malloc(buffersize);
@@ -1046,17 +1048,20 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     This->desc.picType = PICTYPE_BITMAP;
     OLEPictureImpl_SetBitmap(This);
 
-    /* set transparent pixels to black, all others to white */
-    for(y = 0; y < height; y++){
-        for(x = 0; x < width; x++){
-            DWORD *pixel = (DWORD*)(bits + stride*y + 4*x);
-            if((*pixel & 0x80000000) == 0)
-            {
-                has_alpha = TRUE;
-                *(DWORD *)(mask + stride * y + 4 * x) = black;
+    if (pwidth == 4)
+    {
+        /* set transparent pixels to black, all others to white */
+        for(y = 0; y < height; y++){
+            for(x = 0; x < width; x++){
+                DWORD *pixel = (DWORD*)(bits + stride*y + 4*x);
+                if((*pixel & 0x80000000) == 0)
+                {
+                    has_alpha = TRUE;
+                    *(DWORD *)(mask + stride * y + 4 * x) = black;
+                }
+                else
+                    *(DWORD *)(mask + stride * y + 4 * x) = white;
             }
-            else
-                *(DWORD *)(mask + stride * y + 4 * x) = white;
         }
     }
 
