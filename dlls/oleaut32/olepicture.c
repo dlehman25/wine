@@ -992,6 +992,11 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     COLORREF white = RGB(255, 255, 255), black = RGB(0, 0, 0);
     BOOL has_alpha=FALSE;
 
+    WICPixelFormatGUID guid = {0};
+    IWICBitmapSource_GetPixelFormat(src, &guid);
+    MESSAGE("%s: %s\n", __FUNCTION__, wine_dbgstr_guid(&guid));
+    /* GUID_WICPixelFormat8bppIndexed */
+
     hr = WICConvertBitmapSource(&GUID_WICPixelFormat32bppBGRA, src, &real_source);
     if (FAILED(hr)) return hr;
 
