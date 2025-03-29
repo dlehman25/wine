@@ -688,10 +688,23 @@ static HRESULT CDECL gif_decoder_get_frame_info(struct decoder *iface, UINT fram
         num_colors = decoder->gif->SColorTableSize;
     }
 
-    memcpy(&info->pixel_format, &GUID_WICPixelFormat8bppIndexed, sizeof(GUID));
+    if (num_colors == 2)
+    {
+        memcpy(&info->pixel_format, &GUID_WICPixelFormat2bppIndexed, sizeof(GUID));
+        info->bpp = 2;
+    }
+    else if (num_colors == 4)
+    {
+        memcpy(&info->pixel_format, &GUID_WICPixelFormat4bppIndexed, sizeof(GUID));
+        info->bpp = 4;
+    }
+    else
+    {
+        memcpy(&info->pixel_format, &GUID_WICPixelFormat8bppIndexed, sizeof(GUID));
+        info->bpp = 8;
+    }
     info->width = image->ImageDesc.Width;
     info->height = image->ImageDesc.Height;
-    info->bpp = 8;
     info->dpix = 96.0 / aspect;
     info->dpiy = 96.0;
     info->num_color_contexts = 0;
