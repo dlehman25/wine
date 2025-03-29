@@ -1000,6 +1000,11 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
         pwidth = 1;
         bih.biBitCount = 1;
     }
+    else if (IsEqualGUID(&guid, &GUID_WICPixelFormat2bppIndexed))
+    {
+        pwidth = 1;
+        bih.biBitCount = 2;
+    }
     else if (IsEqualGUID(&guid, &GUID_WICPixelFormat4bppIndexed)) /* BMP 4-bit */
     {
         pwidth = 1;
