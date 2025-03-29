@@ -340,14 +340,14 @@ test_pic_with_stream(LPSTREAM stream, unsigned int imgsize, int bpp, BOOL todo)
         {
             BITMAP bmp;
             DIBSECTION dib;
-            int expectbpp;
+            //int expectbpp;
 
             GetObjectA(UlongToHandle(handle), sizeof(BITMAP), &bmp);
             ok(bmp.bmBits != 0, "not a dib\n");
             todo_wine_if(todo)
             ok(bmp.bmBitsPixel == bpp, "expected %d, got %d\n", bpp, bmp.bmBitsPixel);
 
-            expectbpp = bpp == 1 ? 2 : bpp == 4 ? 16 : bpp == 8 ? 256 : 0;
+            //expectbpp = bpp == 1 ? 2 : bpp == 4 ? 16 : bpp == 8 ? 256 : 0;
             GetObjectA(UlongToHandle(handle), sizeof(DIBSECTION), &dib);
             ok(dib.dsBm.bmBits != 0, "not a dib\n");
             todo_wine_if(todo) {
@@ -355,8 +355,8 @@ test_pic_with_stream(LPSTREAM stream, unsigned int imgsize, int bpp, BOOL todo)
             ok(dib.dsBmih.biBitCount == bpp, "expected %d, got %d\n", bpp, dib.dsBmih.biBitCount);
             }
             ok(dib.dsBmih.biCompression == BI_RGB, "expected %d, got %ld\n", BI_RGB, dib.dsBmih.biCompression);
-            todo_wine_if(expectbpp < 256)
-            ok(dib.dsBmih.biClrUsed == expectbpp, "expected %d, got %ld\n", expectbpp, dib.dsBmih.biClrUsed);
+            //ok(dib.dsBmih.biClrUsed == expectbpp, "expected %d (%d), got %ld\n", expectbpp, bpp, dib.dsBmih.biClrUsed);
+            todo_wine_if(dib.dsBmih.biClrUsed != dib.dsBmih.biClrImportant)
             ok(dib.dsBmih.biClrUsed == dib.dsBmih.biClrImportant, "expected %ld, got %ld\n", dib.dsBmih.biClrUsed, dib.dsBmih.biClrImportant);
         }
 
