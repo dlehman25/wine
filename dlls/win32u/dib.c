@@ -143,6 +143,7 @@ static BOOL is_valid_dib_format( const BITMAPINFOHEADER *info, BOOL allow_compre
     switch (info->biBitCount)
     {
     case 1:
+    case 2:
     case 4:
     case 8:
     case 24:
