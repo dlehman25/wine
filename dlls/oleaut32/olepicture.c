@@ -1054,7 +1054,7 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
         goto end;
     }
 
-    This->desc.bmp.hbitmap = CreateDIBSection(0, (BITMAPINFO*)&bih, DIB_PAL_COLORS, (void **)&bits, NULL, 0);
+    This->desc.bmp.hbitmap = CreateDIBSection(0, (BITMAPINFO*)&bih, DIB_RGB_COLORS, (void **)&bits, NULL, 0);
     if (This->desc.bmp.hbitmap == 0)
     {
         hr = E_FAIL;
