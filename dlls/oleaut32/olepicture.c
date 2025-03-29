@@ -999,32 +999,27 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     {
         pwidth = 1;
         bih.biBitCount = 1;
-        bih.biCompression = BI_RGB;
     }
     else if (IsEqualGUID(&guid, &GUID_WICPixelFormat4bppIndexed)) /* BMP 4-bit */
     {
         pwidth = 1;
         bih.biBitCount = 4;
-        bih.biCompression = BI_RGB;
     }
     else if (IsEqualGUID(&guid, &GUID_WICPixelFormat8bppIndexed)) /* GIF */
     {
         pwidth = 1;        
         bih.biBitCount = 8; /* TODO: 1 or 4 */
-        bih.biCompression = BI_RGB;
     }
     else if (IsEqualGUID(&guid, &GUID_WICPixelFormat24bppBGR)) /* JPEG */
     {
         pwidth = 3;
         bih.biBitCount = 24;
-        bih.biCompression = BI_RGB;
     }
     else
     {
         memcpy(&guid, &GUID_WICPixelFormat32bppBGRA, sizeof(guid));
         pwidth = 4;
         bih.biBitCount = 32;
-        bih.biCompression = BI_RGB;
     }
 
     hr = WICConvertBitmapSource(&guid, src, &real_source);
@@ -1037,6 +1032,7 @@ static HRESULT OLEPictureImpl_LoadWICSource(OLEPictureImpl *This, IWICBitmapSour
     bih.biWidth = width;
     bih.biHeight = -height;
     bih.biPlanes = 1;
+    bih.biCompression = BI_RGB;
     bih.biSizeImage = 0;
     bih.biXPelsPerMeter = 4085; /* olepicture ignores the stored resolution */
     bih.biYPelsPerMeter = 4085;
