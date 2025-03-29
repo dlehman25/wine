@@ -123,22 +123,54 @@ static int bitmap_info_size( const BITMAPINFO *info, WORD coloruse )
  */
 static BOOL is_valid_dib_format( const BITMAPINFOHEADER *info, BOOL allow_compression )
 {
-    if (info->biWidth <= 0) return FALSE;
-    if (info->biHeight == 0) return FALSE;
+    if (info->biWidth <= 0) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+    if (info->biHeight == 0) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
 
     if (allow_compression && (info->biCompression == BI_RLE4 || info->biCompression == BI_RLE8))
     {
-        if (info->biHeight < 0) return FALSE;
-        if (!info->biSizeImage) return FALSE;
+        if (info->biHeight < 0) 
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+            return FALSE;
+        }
+        if (!info->biSizeImage) 
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+            return FALSE;
+        }
         return info->biBitCount == (info->biCompression == BI_RLE4 ? 4 : 8);
     }
 
-    if (!info->biPlanes) return FALSE;
+    if (!info->biPlanes) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
 
     /* check for size overflow */
-    if (!info->biBitCount) return FALSE;
-    if (UINT_MAX / info->biBitCount < info->biWidth) return FALSE;
-    if (UINT_MAX / get_dib_stride( info->biWidth, info->biBitCount ) < abs( info->biHeight )) return FALSE;
+    if (!info->biBitCount) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+    if (UINT_MAX / info->biBitCount < info->biWidth) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+    if (UINT_MAX / get_dib_stride( info->biWidth, info->biBitCount ) < abs( info->biHeight )) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
 
     switch (info->biBitCount)
     {
@@ -147,11 +179,14 @@ static BOOL is_valid_dib_format( const BITMAPINFOHEADER *info, BOOL allow_compre
     case 4:
     case 8:
     case 24:
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
         return (info->biCompression == BI_RGB);
     case 16:
     case 32:
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
         return (info->biCompression == BI_BITFIELDS || info->biCompression == BI_RGB);
     default:
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
         return FALSE;
     }
 }
@@ -206,11 +241,27 @@ static BOOL bitmapinfo_from_user_bitmapinfo( BITMAPINFO *dst, const BITMAPINFO *
 {
     void *src_colors;
 
-    if (coloruse > DIB_PAL_INDICES) return FALSE;
-    if (!bitmapinfoheader_from_user_bitmapinfo( &dst->bmiHeader, &info->bmiHeader )) return FALSE;
-    if (!is_valid_dib_format( &dst->bmiHeader, allow_compression )) return FALSE;
+    if (coloruse > DIB_PAL_INDICES) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+    if (!bitmapinfoheader_from_user_bitmapinfo( &dst->bmiHeader, &info->bmiHeader )) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
+    if (!is_valid_dib_format( &dst->bmiHeader, allow_compression )) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
     if (coloruse == DIB_PAL_INDICES && (dst->bmiHeader.biBitCount != 1 ||
-                dst->bmiHeader.biCompression != BI_RGB)) return FALSE;
+                dst->bmiHeader.biCompression != BI_RGB)) 
+    {
+        MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
 
     src_colors = (char *)info + info->bmiHeader.biSize;
 
@@ -304,8 +355,15 @@ BOOL fill_color_table_from_pal_colors( BITMAPINFO *info, HDC hdc )
 
     if (!colors) return TRUE;
     if (!(palette = NtGdiGetDCObject( hdc, NTGDI_OBJ_PAL )))
+    {
+        MESSAGE("%s %d\n", __FUNCTION__, __LINE__);
         return FALSE;
-    if (!(count = get_palette_entries( palette, 0, colors, entries ))) return FALSE;
+    }
+    if (!(count = get_palette_entries( palette, 0, colors, entries ))) 
+    {
+        MESSAGE("%s %d\n", __FUNCTION__, __LINE__);
+        return FALSE;
+    }
 
     for (i = 0; i < colors; i++, index++)
     {
@@ -1479,16 +1537,33 @@ HBITMAP WINAPI NtGdiCreateDIBSection( HDC hdc, HANDLE section, DWORD offset, con
     BITMAPOBJ *bmp;
     void *mapBits = NULL;
 
+MESSAGE("%s bpp %d\n", __FUNCTION__, bmi->bmiHeader.biBitCount);
     if (bits) *bits = NULL;
-    if (!bitmapinfo_from_user_bitmapinfo( info, bmi, usage, FALSE )) return 0;
-    if (usage > DIB_PAL_COLORS) return 0;
+    if (!bitmapinfo_from_user_bitmapinfo( info, bmi, usage, FALSE )) 
+    {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
+    if (usage > DIB_PAL_COLORS) 
+    {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
     if (info->bmiHeader.biPlanes != 1)
     {
-        if (info->bmiHeader.biPlanes * info->bmiHeader.biBitCount > 16) return 0;
+        if (info->bmiHeader.biPlanes * info->bmiHeader.biBitCount > 16) 
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+            return 0;
+        }
         WARN( "%u planes not properly supported\n", info->bmiHeader.biPlanes );
     }
 
-    if (!(bmp = calloc( 1, sizeof(*bmp) ))) return 0;
+    if (!(bmp = calloc( 1, sizeof(*bmp) ))) 
+    {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
 
     TRACE("format (%d,%d), planes %d, bpp %d, %s, size %d %s\n",
           (int)info->bmiHeader.biWidth, (int)info->bmiHeader.biHeight,
@@ -1507,10 +1582,16 @@ HBITMAP WINAPI NtGdiCreateDIBSection( HDC hdc, HANDLE section, DWORD offset, con
     if (info->bmiHeader.biBitCount <= 8)  /* build the color table */
     {
         if (usage == DIB_PAL_COLORS && !fill_color_table_from_pal_colors( info, hdc ))
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
             goto error;
+        }
         bmp->dib.dsBmih.biClrUsed = info->bmiHeader.biClrUsed;
         if (!(bmp->color_table = malloc( bmp->dib.dsBmih.biClrUsed * sizeof(RGBQUAD) )))
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
             goto error;
+        }
         memcpy( bmp->color_table, info->bmiColors, bmp->dib.dsBmih.biClrUsed * sizeof(RGBQUAD) );
     }
 
@@ -1543,7 +1624,10 @@ HBITMAP WINAPI NtGdiCreateDIBSection( HDC hdc, HANDLE section, DWORD offset, con
         map_size = bmp->dib.dsBmih.biSizeImage + (offset - map_offset.QuadPart);
         if (NtMapViewOfSection( section, GetCurrentProcess(), &mapBits, 0, 0, &map_offset,
                                 &map_size, ViewShare, 0, PAGE_READWRITE ))
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
             goto error;
+        }
         bmp->dib.dsBm.bmBits = (char *)mapBits + (offset - map_offset.QuadPart);
     }
     else
@@ -1552,7 +1636,10 @@ HBITMAP WINAPI NtGdiCreateDIBSection( HDC hdc, HANDLE section, DWORD offset, con
         offset = 0;
         if (NtAllocateVirtualMemory( GetCurrentProcess(), &bmp->dib.dsBm.bmBits, zero_bits,
                                      &size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE ))
+        {
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
             goto error;
+        }
     }
     bmp->dib.dshSection = section;
     bmp->dib.dsOffset = offset;
@@ -1572,6 +1659,7 @@ HBITMAP WINAPI NtGdiCreateDIBSection( HDC hdc, HANDLE section, DWORD offset, con
 error:
     free( bmp->color_table );
     free( bmp );
+            MESSAGE("%s: %d\n", __FUNCTION__, __LINE__);
     return 0;
 }
 
