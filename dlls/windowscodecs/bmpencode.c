@@ -245,7 +245,7 @@ static HRESULT BmpFrameEncode_AllocateBits(BmpFrameEncode *This)
         if (!This->initialized || !This->width || !This->height || !This->format)
             return WINCODEC_ERR_WRONGSTATE;
 
-        This->stride = (((This->width * This->format->bpp)+31)/32)*4;
+        This->stride = get_dib_stride(This->width, This->format->bpp);
         This->bits = calloc(This->stride, This->height);
         if (!This->bits) return E_OUTOFMEMORY;
     }

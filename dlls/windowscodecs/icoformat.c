@@ -313,7 +313,7 @@ static HRESULT ReadIcoDib(IStream *stream, IcoFrameDecode *result)
         if (SUCCEEDED(hr) && !has_alpha)
         {
             /* set alpha data based on the AND mask */
-            UINT andBytesPerRow = (result->width+31)/32*4;
+            UINT andBytesPerRow = get_dib_stride(result->width, 1);
             UINT andBytes = andBytesPerRow * result->height;
             INT andStride;
             BYTE *tempdata=NULL;

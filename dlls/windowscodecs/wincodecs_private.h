@@ -434,4 +434,9 @@ extern HRESULT CommonDecoder_CreateInstance(struct decoder *decoder,
 extern HRESULT CommonEncoder_CreateInstance(struct encoder *encoder,
     const struct encoder_info *encoder_info, REFIID iid, void** ppv);
 
+static inline UINT get_dib_stride(UINT width, UINT bpp)
+{
+    return ((width * bpp + 31) >> 3) & ~3;
+}
+
 #endif /* WINCODECS_PRIVATE_H */

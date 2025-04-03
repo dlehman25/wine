@@ -383,7 +383,7 @@ static HRESULT BmpFrameDecode_ReadUncompressed(BmpDecoder* This)
     }
 
     /* row sizes in BMP files must be divisible by 4 bytes */
-    bytesperrow = (((width * This->bitsperpixel)+31)/32)*4;
+    bytesperrow = get_dib_stride(width, This->bitsperpixel);
     datasize = bytesperrow * height;
 
     This->imagedata = malloc(datasize);
@@ -1254,7 +1254,7 @@ void BmpDecoder_FindIconMask(BmpDecoder *This, ULONG *mask_offset, int *topdown)
         UINT width, height;
         ULONG bytesperrow, datasize;
         IWICBitmapFrameDecode_GetSize(&This->IWICBitmapFrameDecode_iface, &width, &height);
-        bytesperrow = (((width * This->bitsperpixel)+31)/32)*4;
+        bytesperrow = get_dib_stride(width, This->bitsperpixel);
         datasize = bytesperrow * height;
         *mask_offset = This->image_offset + datasize;
     }

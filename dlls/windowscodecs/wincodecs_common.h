@@ -110,7 +110,7 @@ HRESULT copy_pixels(UINT bpp, const BYTE *srcbuffer,
             return E_INVALIDARG;
     }
 
-    bytesperrow = ((bpp * rc->Width)+7)/8;
+    bytesperrow = get_dib_stride(rc->Width, bpp);
 
     if (dststride < bytesperrow)
         return E_INVALIDARG;

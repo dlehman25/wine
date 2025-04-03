@@ -1904,7 +1904,7 @@ HRESULT WINAPI WICCreateBitmapFromSectionEx(UINT width, UINT height,
         return E_INVALIDARG;
     }
 
-    if (!stride) stride = (((bpp * width) + 31) / 32) * 4;
+    if (!stride) stride = get_dib_stride(width, bpp);
     size = stride * height;
     if (size / height != stride) return E_INVALIDARG;
 

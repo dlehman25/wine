@@ -798,7 +798,7 @@ HRESULT BitmapImpl_Create(UINT uiWidth, UINT uiHeight, UINT stride, UINT datasiz
     hr = get_pixelformat_bpp(pixelFormat, &bpp);
     if (FAILED(hr)) return hr;
 
-    if (!stride) stride = (((bpp*uiWidth)+31)/32)*4;
+    if (!stride) stride = get_dib_stride(uiWidth, bpp);
     if (!datasize) datasize = stride * uiHeight;
 
     if (datasize < stride * uiHeight) return WINCODEC_ERR_INSUFFICIENTBUFFER;
