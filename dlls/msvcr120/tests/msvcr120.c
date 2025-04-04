@@ -233,6 +233,7 @@ static double (__cdecl *p_creal)(_Dcomplex);
 static float (__cdecl *p_crealf)(_Fcomplex);
 static double (__cdecl *p_cimag)(_Dcomplex);
 static float (__cdecl *p_cimagf)(_Fcomplex);
+static _Dcomplex (__cdecl *p_cexp)(_Dcomplex);
 static double (__cdecl *p_nexttoward)(double, double);
 static float (__cdecl *p_nexttowardf)(float, double);
 static double (__cdecl *p_nexttowardl)(double, double);
@@ -299,6 +300,23 @@ static _Fcomplex __cdecl i386_FCbuild(float r, float i)
 }
 #endif
 
+static inline BOOL compare_double(double f, double g, unsigned int ulps)
+{
+    ULONGLONG x = *(ULONGLONG *)&f;
+    ULONGLONG y = *(ULONGLONG *)&g;
+
+    if (f < 0)
+        x = ~x + 1;
+    else
+        x |= ((ULONGLONG)1)<<63;
+    if (g < 0)
+        y = ~y + 1;
+    else
+        y |= ((ULONGLONG)1)<<63;
+
+    return (x>y ? x-y : y-x) <= ulps;
+}
+
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
 
@@ -357,6 +375,7 @@ static BOOL init(void)
     SET(p__Cbuild, "_Cbuild");
     SET(p_creal, "creal");
     SET(p_cimag, "cimag");
+    SET(p_cexp, "cexp");
     SET(p__FCbuild, "_FCbuild");
     SET(p_crealf, "crealf");
     SET(p_cimagf, "cimagf");
@@ -1956,6 +1975,21 @@ static void test__fsopen(void)
     p_setlocale(LC_ALL, "C");
 }
 
+static void test_cexp(void)
+{
+    _Dcomplex c, r;
+
+    c = p__Cbuild(0.0, M_PI);
+    r = p_cexp(c);
+    ok(r.r == -1.0, "r.r = %lf\n", r.r);
+    ok(compare_double(r.i, 0.0, 15), "got %e\n", r.i);
+
+    c = p__Cbuild(0.0, INFINITY);
+    r = p_cexp(c);
+    ok(isnan(r.r), "r.r = %lf\n", r.r);
+    ok(isnan(r.i), "r.i = %lf\n", r.i);
+}
+
 START_TEST(msvcr120)
 {
     if (!init()) return;
@@ -1983,4 +2017,5 @@ START_TEST(msvcr120)
     test_strcmp();
     test_gmtime64();
     test__fsopen();
+    test_cexp();
 }

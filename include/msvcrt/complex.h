@@ -24,6 +24,7 @@ typedef struct _C_float_complex
 typedef _C_double_complex _Dcomplex;
 typedef _C_float_complex _Fcomplex;
 
+_ACRTIMP _Dcomplex __cdecl cexp(_Dcomplex);
 _ACRTIMP double __cdecl cimag(_Dcomplex);
 _ACRTIMP double __cdecl creal(_Dcomplex);
 
