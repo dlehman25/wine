@@ -24,8 +24,9 @@ typedef struct _C_float_complex
 typedef _C_double_complex _Dcomplex;
 typedef _C_float_complex _Fcomplex;
 
-double __cdecl cimag(_Dcomplex);
-double __cdecl creal(_Dcomplex);
+_Dcomplex __cdecl cexp(_Dcomplex);
+double    __cdecl cimag(_Dcomplex);
+double    __cdecl creal(_Dcomplex);
 
 float __cdecl cimagf(_Fcomplex);
 float __cdecl crealf(_Fcomplex);
