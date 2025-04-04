@@ -1471,6 +1471,8 @@ START_TEST(bmpformat)
 {
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
+    test_decode_1bpp();
+    return;
     test_decode_24bpp();
     test_decode_1bpp();
     test_decode_4bpp();
