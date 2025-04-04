@@ -93,6 +93,7 @@ HRESULT copy_pixels(UINT bpp, const BYTE *srcbuffer,
     const WICRect *rc, UINT dststride, UINT dstbuffersize, BYTE *dstbuffer)
 {
     UINT bytesperrow;
+    UINT bytesperrow2;
     UINT row_offset; /* number of bits into the source rows where the data starts */
     WICRect rect;
 
@@ -110,7 +111,11 @@ HRESULT copy_pixels(UINT bpp, const BYTE *srcbuffer,
             return E_INVALIDARG;
     }
 
-    bytesperrow = get_dib_stride(rc->Width, bpp);
+    bytesperrow2 = get_dib_stride(rc->Width, bpp);
+    bytesperrow = ((bpp * rc->Width)+7)/8;
+    if (bytesperrow != bytesperrow2)
+        MESSAGE("%s: good %u bad %u bpp %u width %u\n", __FUNCTION__,
+                bytesperrow, bytesperrow2, bpp, rc->Width);
 
     if (dststride < bytesperrow)
         return E_INVALIDARG;
