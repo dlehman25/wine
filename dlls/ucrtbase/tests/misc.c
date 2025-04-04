@@ -34,6 +34,7 @@
 #include <process.h>
 #include <fenv.h>
 #include <malloc.h>
+#include <complex.h>
 
 #include <windef.h>
 #include <winbase.h>
@@ -1824,6 +1825,110 @@ static void test_expf(void)
     __setusermatherr(NULL);
 }
 
+static void test_cexpf(void)
+{
+    static const struct {
+        float r, i;
+        float rexp, iexp;
+        errno_t e;
+    } tests[] = {
+        {  INFINITY,      0.0f,  INFINITY,      0.0f       },
+        {  INFINITY,     -0.0f,  INFINITY,     -0.0f       },
+        { -INFINITY,      0.0f,      0.0f,      0.0f       },
+        { -INFINITY,     -0.0f,      0.0f,     -0.0f       },
+        {      0.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {     -0.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {      0.0f, -INFINITY,       NAN,       NAN, EDOM },
+        {     -0.0f, -INFINITY,       NAN,       NAN, EDOM },
+        {    100.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {   -100.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {    100.0f, -INFINITY,       NAN,       NAN, EDOM },
+        {   -100.0f, -INFINITY,       NAN,       NAN, EDOM },
+        { -INFINITY,      2.0f,     -0.0f,      0.0f       },
+        { -INFINITY,      4.0f,     -0.0f,     -0.0f       },
+        {  INFINITY,      2.0f, -INFINITY,  INFINITY       },
+        {  INFINITY,      4.0f, -INFINITY, -INFINITY       },
+        {  INFINITY,  INFINITY,  INFINITY,       NAN, EDOM },
+        {  INFINITY, -INFINITY,  INFINITY,       NAN, EDOM },
+        { -INFINITY,  INFINITY,      0.0f,      0.0f       },
+        { -INFINITY, -INFINITY,      0.0f,     -0.0f       },
+        { -INFINITY,       NAN,      0.0f,      0.0f       },
+        {  INFINITY,       NAN,  INFINITY,       NAN       },
+        {       NAN,      0.0f,       NAN,      0.0f       },
+        {       NAN,     -0.0f,       NAN,     -0.0f       },
+        {       NAN,      1.0f,       NAN,       NAN       },
+        {       NAN,  INFINITY,       NAN,       NAN       },
+        {      0.0f,       NAN,       NAN,       NAN       },
+        {      1.0f,       NAN,       NAN,       NAN       },
+        {       NAN,       NAN,       NAN,       NAN       },
+    };
+    static const struct {
+        float r, i;
+        float rexp, iexp;
+        errno_t e;
+        BOOL etodo;
+    } tests2[] = {
+        {    0.00f, M_PI, -1.0f,           -8.7422777e-008                  },
+        {   88.70f, 0.0f,  3.3259771e+038,  0.0f                            },
+        {   88.72f, 0.0f,  3.3931806e+038,  0.0f                            },
+        {   88.73f, 0.0f,  INFINITY,        0.0f,          ERANGE           },
+        { -103.97f, 0.0f,  1.4012985e-45,   0.0f                            },
+        { -103.98f, 0.0f,  0.0f,            0.0f,          ERANGE           },
+        {   88.70f, M_PI, -3.3259771e+038, -2.9076615e+31                   },
+        {   88.72f, M_PI, -3.3931806e+038, -2.9664126e+31                   },
+        {   88.73f, M_PI, -INFINITY,       -2.9962329e+31, ERANGE           },
+        { -103.97f, M_PI, -1.4012985e-45,   0.0f,          ERANGE, TRUE     },
+        { -103.98f, M_PI,  0.0f,            0.0f,          ERANGE           },
+    };
+    _Fcomplex c, r;
+    errno_t e;
+    int i;
+
+    __setusermatherr(matherr_callback);
+
+    for(i=0; i<ARRAY_SIZE(tests); i++) {
+        c = _FCbuild(tests[i].r, tests[i].i);
+        errno = -1;
+        exception.type = -1;
+        r = cexpf(c);
+        e = errno;
+
+        if(_isnan(tests[i].rexp))
+            ok(_isnan(r._Val[0]), "expected NAN, got %0.7e for %d\n", r._Val[0], i);
+        else
+            ok(r._Val[0] == tests[i].rexp, "expected %0.7e, got %0.7e for %d\n", tests[i].rexp, r._Val[0], i);
+        if(_isnan(tests[i].iexp))
+            ok(_isnan(r._Val[1]), "expected NAN, got %0.7e for %d\n", r._Val[1], i);
+        else
+            ok(r._Val[1] == tests[i].iexp, "expected %0.7e, got %0.7e for %d\n", tests[i].iexp, r._Val[1], i);
+        ok(signbit(r._Val[0]) == signbit(tests[i].rexp), "expected sign %x, got %x for %d\n",
+            signbit(tests[i].rexp), signbit(r._Val[0]), i);
+        ok((signbit(r._Val[1]) == signbit(tests[i].iexp)) ||
+            broken(tests[i].r == -INFINITY && tests[i].i == -0.0) /* older win10 */,
+            "expected sign %x, got %x for %d\n", signbit(tests[i].iexp), signbit(r._Val[1]), i);
+        if(tests[i].e)
+            ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
+        else
+            ok(e == -1, "expected no errno, but got %d for %d\n", e, i);
+        ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
+    }
+
+    for(i=0; i<ARRAY_SIZE(tests2); i++) {
+        errno = 0;
+        exception.type = -1;
+        c = _FCbuild(tests2[i].r, tests2[i].i);
+        r = cexpf(c);
+        e = errno;
+        ok(compare_float(r._Val[0], tests2[i].rexp, 7), "expected %0.7e, got %0.7e for real %d\n", tests2[i].rexp, r._Val[0], i);
+        ok(compare_float(r._Val[1], tests2[i].iexp, 7), "expected %0.7e, got %0.7e for imag %d\n", tests2[i].iexp, r._Val[1], i);
+        todo_wine_if(tests2[i].etodo)
+        ok(e == tests2[i].e, "expected errno %i, but got %i for %d\n", tests2[i].e, e, i);
+        ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
+    }
+
+    __setusermatherr(NULL);
+}
+
 START_TEST(misc)
 {
     int arg_c;
@@ -1872,4 +1977,5 @@ START_TEST(misc)
     test_gmtime64();
     test__get_heap_handle();
     test_expf();
+    test_cexpf();
 }

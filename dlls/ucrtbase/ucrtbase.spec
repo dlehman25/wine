@@ -2219,7 +2219,7 @@
 @ cdecl ceil(double)
 @ cdecl -arch=!i386 ceilf(float)
 @ cdecl -norelay cexp(int128)
-@ stub cexpf
+@ cdecl -norelay cexpf(int64)
 @ stub cexpl
 @ cdecl cimag(int128)
 @ cdecl cimagf(int64)
