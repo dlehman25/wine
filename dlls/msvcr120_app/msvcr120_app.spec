@@ -1741,7 +1741,7 @@
 @ cdecl ceil(double) msvcr120.ceil
 @ cdecl -arch=!i386 ceilf(float) msvcr120.ceilf
 @ cdecl cexp(int128) msvcr120.cexp
-@ stub cexpf
+@ cdecl cexpf(int64) msvcr120.cexpf
 @ stub cexpl
 @ cdecl cimag(int128) msvcr120.cimag
 @ cdecl cimagf(int64) msvcr120.cimagf

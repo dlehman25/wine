@@ -2074,7 +2074,7 @@
 @ cdecl ceil(double)
 @ cdecl -arch=!i386 ceilf(float)
 @ cdecl cexp(int128)
-@ stub cexpf
+@ cdecl cexpf(int64)
 @ stub cexpl
 @ cdecl cimag(int128)
 @ cdecl cimagf(int64)

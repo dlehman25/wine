@@ -4,7 +4,9 @@ EXTRADEFS = -D_ACRTIMP= -D_NO_CRT_MATH_INLINE -fno-builtin
 
 SOURCES = \
 	src/complex/__cexp.c \
+	src/complex/__cexpf.c \
 	src/complex/cexp.c \
+	src/complex/cexpf.c \
 	src/math/__cos.c \
 	src/math/__cosdf.c \
 	src/math/__expo2.c \

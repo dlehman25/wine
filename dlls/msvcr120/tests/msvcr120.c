@@ -234,6 +234,7 @@ static float (__cdecl *p_crealf)(_Fcomplex);
 static double (__cdecl *p_cimag)(_Dcomplex);
 static float (__cdecl *p_cimagf)(_Fcomplex);
 static _Dcomplex (__cdecl *p_cexp)(_Dcomplex);
+static _Fcomplex (__cdecl *p_cexpf)(_Fcomplex);
 static double (__cdecl *p_nexttoward)(double, double);
 static float (__cdecl *p_nexttowardf)(float, double);
 static double (__cdecl *p_nexttowardl)(double, double);
@@ -306,6 +307,12 @@ static inline BOOL almost_equal(double d1, double d2) {
     return FALSE;
 }
 
+static inline BOOL almost_equalf(float f1, float f2) {
+    if(f1-f2>-1e-6 && f1-f2<1e-6)
+        return TRUE;
+    return FALSE;
+}
+
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(module,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
 
@@ -368,6 +375,7 @@ static BOOL init(void)
     SET(p__FCbuild, "_FCbuild");
     SET(p_crealf, "crealf");
     SET(p_cimagf, "cimagf");
+    SET(p_cexpf, "cexpf");
     SET(p_nexttoward, "nexttoward");
     SET(p_nexttowardf, "nexttowardf");
     SET(p_nexttowardl, "nexttowardl");
@@ -1967,6 +1975,7 @@ static void test__fsopen(void)
 static void test_cexp(void)
 {
     _Dcomplex c, r;
+    _Fcomplex cf, rf;
 
     c = p__Cbuild(0.0, M_PI);
     r = p_cexp(c);
@@ -1977,6 +1986,16 @@ static void test_cexp(void)
     r = p_cexp(c);
     ok(isnan(r.r), "r.r = %lf\n", r.r);
     ok(isnan(r.i), "r.i = %lf\n", r.i);
+
+    cf = p__FCbuild(0.0f, M_PI);
+    rf = p_cexpf(cf);
+    ok(rf.r == -1.0, "rf.r = %lf\n", rf.r);
+    ok(almost_equalf(rf.i, 0.0), "got %e\n", rf.i);
+
+    cf = p__FCbuild(0.0f, INFINITY);
+    rf = p_cexpf(cf);
+    ok(isnan(rf.r), "rf.r = %lf\n", rf.r);
+    ok(isnan(rf.i), "rf.i = %lf\n", rf.i);
 }
 
 START_TEST(msvcr120)
