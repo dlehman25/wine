@@ -236,6 +236,7 @@ static float (__cdecl *p_cimagf)(_Fcomplex);
 static _Dcomplex (__cdecl *p_cexp)(_Dcomplex);
 static _Fcomplex (__cdecl *p_cexpf)(_Fcomplex);
 static double (__cdecl *p_carg)(_Dcomplex);
+static float (__cdecl *p_cargf)(_Fcomplex);
 static double (__cdecl *p_nexttoward)(double, double);
 static float (__cdecl *p_nexttowardf)(float, double);
 static double (__cdecl *p_nexttowardl)(double, double);
@@ -378,6 +379,7 @@ static BOOL init(void)
     SET(p_crealf, "crealf");
     SET(p_cimagf, "cimagf");
     SET(p_cexpf, "cexpf");
+    SET(p_cargf, "cargf");
     SET(p_nexttoward, "nexttoward");
     SET(p_nexttowardf, "nexttowardf");
     SET(p_nexttowardl, "nexttowardl");
@@ -2003,7 +2005,9 @@ static void test_cexp(void)
 static void test_carg(void)
 {
     _Dcomplex c;
+    _Fcomplex cf;
     double d;
+    float f;
 
     c = p__Cbuild(1.0, 0.0);
     d = p_carg(c);
@@ -2016,6 +2020,18 @@ static void test_carg(void)
     c = p__Cbuild(-1.0, 0.0);
     d = p_carg(c);
     ok(d == M_PI, "got %lf\n", d);
+
+    cf = p__FCbuild(1.0f, 0.0f);
+    f = p_cargf(cf);
+    ok(f == 0.0f, "got %lf\n", f);
+
+    cf = p__FCbuild(0.0f, 1.0f);
+    f = p_cargf(cf);
+    ok(f == (float)M_PI_2, "got %lf\n", f);
+
+    cf = p__FCbuild(-1.0f, 0.0f);
+    f = p_cargf(cf);
+    ok(f ==(float) M_PI, "got %lf\n", f);
 }
 
 START_TEST(msvcr120)
