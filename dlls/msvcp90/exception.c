@@ -1177,30 +1177,28 @@ static inline void call_dtor( void *func, void *this )
 
 static ULONG_PTR copy_cxx_exception(const EXCEPTION_RECORD *rec)
 {
-    const cxx_exception_type *et = (void*)rec->ExceptionInformation[2];
+    const cxx_exception_type *type = (void*)rec->ExceptionInformation[2];
+    const cxx_type_info_table *table;
     const cxx_type_info *ti;
-    void **data, *obj;
-#ifndef __x86_64__
-    const char *base = NULL;
-#else
-    char *base = RtlPcToFileHeader((void*)et, (void**)&base);
-#endif
-    ti = (const cxx_type_info*)(base + ((const cxx_type_info_table*)(base + et->type_info_table))->info[0]);
-    data = HeapAlloc(GetProcessHeap(), 0, ti->size);
+    void **data, *object;
+    uintptr_t base = rtti_rva_base( type );
 
-    obj = (void*)rec->ExceptionInformation[1];
+    object = (void*)rec->ExceptionInformation[1];
+    table = rtti_rva( type->type_info_table, base );
+    ti = rtti_rva( table->info[0], base );
+    data = HeapAlloc(GetProcessHeap(), 0, ti->size);
     if (ti->flags & CLASS_IS_SIMPLE_TYPE)
     {
-        memcpy(data, obj, ti->size);
+        memcpy(data, object, ti->size);
         if (ti->size == sizeof(void *)) *data = get_this_pointer(&ti->offsets, *data);
     }
     else if (ti->copy_ctor)
     {
-        call_copy_ctor(base + ti->copy_ctor, data, get_this_pointer(&ti->offsets, obj),
+        call_copy_ctor( rtti_rva(ti->copy_ctor, base), data, get_this_pointer(&ti->offsets, object),
                 ti->flags & CLASS_HAS_VIRTUAL_BASE_CLASS);
     }
     else
-        memcpy(data, get_this_pointer(&ti->offsets, obj), ti->size);
+        memcpy(data, get_this_pointer(&ti->offsets, object), ti->size);
     return (ULONG_PTR)data;
 }
 
