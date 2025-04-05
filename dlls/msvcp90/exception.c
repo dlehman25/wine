@@ -1081,36 +1081,6 @@ void __cdecl DECLSPEC_NORETURN _Throw_future_error( const error_code *error_code
     _CxxThrowException(&e, &future_error_exception_type);
 }
 
-typedef struct
-{
-    EXCEPTION_RECORD *rec;
-    LONG *ref; /* not binary compatible with native */
-} exception_ptr;
-
-static void exception_ptr_rethrow(const exception_ptr *ep)
-{
-    TRACE("(%p)\n", ep);
-
-    if (!ep->rec)
-    {
-        static const char *exception_msg = "bad exception";
-        exception e;
-
-        MSVCP_exception_ctor(&e, &exception_msg);
-        _CxxThrowException(&e, &exception_exception_type);
-        return;
-    }
-
-    RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & ~EXCEPTION_UNWINDING,
-            ep->rec->NumberParameters, ep->rec->ExceptionInformation);
-}
-
-/* ?_Rethrow_future_exception@std@@YAXVexception_ptr@1@@Z */
-void __cdecl _Rethrow_future_exception(const exception_ptr ep)
-{
-    exception_ptr_rethrow(&ep);
-}
-
 /* ?_Throw_C_error@std@@YAXH@Z */
 void __cdecl _Throw_C_error(int code)
 {
@@ -1148,10 +1118,6 @@ void __cdecl _Throw_C_error(int code)
 
     _CxxThrowException(&se, &system_error_exception_type);
 }
-#endif
-
-#if _MSVCP_VER >= 140
-void** CDECL __current_exception(void);
 
 /* compute the this pointer for a base class of a given type */
 static inline void *get_this_pointer( const this_ptr_offsets *off, void *object )
@@ -1208,6 +1174,72 @@ static inline void call_dtor( void *func, void *this )
     ((void (__thiscall*)(void*))func)( this );
 }
 #endif
+
+static ULONG_PTR copy_cxx_exception(const EXCEPTION_RECORD *rec)
+{
+    const cxx_exception_type *et = (void*)rec->ExceptionInformation[2];
+    const cxx_type_info *ti;
+    void **data, *obj;
+#ifndef __x86_64__
+    const char *base = NULL;
+#else
+    char *base = RtlPcToFileHeader((void*)et, (void**)&base);
+#endif
+    ti = (const cxx_type_info*)(base + ((const cxx_type_info_table*)(base + et->type_info_table))->info[0]);
+    data = HeapAlloc(GetProcessHeap(), 0, ti->size);
+
+    obj = (void*)rec->ExceptionInformation[1];
+    if (ti->flags & CLASS_IS_SIMPLE_TYPE)
+    {
+        memcpy(data, obj, ti->size);
+        if (ti->size == sizeof(void *)) *data = get_this_pointer(&ti->offsets, *data);
+    }
+    else if (ti->copy_ctor)
+    {
+        call_copy_ctor(base + ti->copy_ctor, data, get_this_pointer(&ti->offsets, obj),
+                ti->flags & CLASS_HAS_VIRTUAL_BASE_CLASS);
+    }
+    else
+        memcpy(data, get_this_pointer(&ti->offsets, obj), ti->size);
+    return (ULONG_PTR)data;
+}
+
+typedef struct
+{
+    EXCEPTION_RECORD *rec;
+    LONG *ref; /* not binary compatible with native */
+} exception_ptr;
+
+static void exception_ptr_rethrow(const exception_ptr *ep)
+{
+    TRACE("(%p)\n", ep);
+
+    if (!ep->rec)
+    {
+        static const char *exception_msg = "bad exception";
+        exception e;
+
+        MSVCP_exception_ctor(&e, &exception_msg);
+        _CxxThrowException(&e, &exception_exception_type);
+        return;
+    }
+
+    if (ep->rec->ExceptionCode == CXX_EXCEPTION)
+        ep->rec->ExceptionInformation[1] = copy_cxx_exception(ep->rec);
+
+    RaiseException(ep->rec->ExceptionCode, ep->rec->ExceptionFlags & ~EXCEPTION_UNWINDING,
+            ep->rec->NumberParameters, ep->rec->ExceptionInformation);
+}
+
+/* ?_Rethrow_future_exception@std@@YAXVexception_ptr@1@@Z */
+void __cdecl _Rethrow_future_exception(const exception_ptr ep)
+{
+    exception_ptr_rethrow(&ep);
+}
+#endif
+
+#if _MSVCP_VER >= 140
+void** CDECL __current_exception(void);
 
 int __cdecl __uncaught_exceptions(void)
 {
