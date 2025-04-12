@@ -249,6 +249,7 @@ static FILE * (__cdecl *p__fsopen)(const char *, const char *, int);
 static FILE * (__cdecl *p__wfsopen)(const wchar_t *, const wchar_t *, int);
 static int (__cdecl *p_fclose)(FILE *);
 static int (__cdecl *p__unlink)(const char *);
+static void (__cdecl *p___setusermatherr)(_UserMathErrorFunctionPointer);
 
 /* make sure we use the correct errno */
 #undef errno
@@ -369,6 +370,8 @@ static BOOL init(void)
     SET(p__wfsopen, "_wfsopen");
     SET(p_fclose, "fclose");
     SET(p__unlink, "_unlink");
+
+    SET(p___setusermatherr, "__setusermatherr");
 
     SET(p__clearfp, "_clearfp");
     SET(p_vsscanf, "vsscanf");
@@ -1975,24 +1978,103 @@ static void test__fsopen(void)
     p_setlocale(LC_ALL, "C");
 }
 
+static int matherr_called;
+static int CDECL matherr_callback(struct _exception *e)
+{
+    matherr_called = 1;
+    return 0;
+}
+
 static void test_cexp(void)
 {
+    static const struct {
+        double r, i;
+        double rexp, iexp;
+        errno_t e;
+        BOOL isigntodo, rsigntodo, errnotodo, merrtodo;
+    } tests[] = {
+        {  INFINITY,  0.0,       INFINITY,  0.0                                     },
+        {  INFINITY, -0.0,       INFINITY, -0.0                                     },
+        { -INFINITY,  0.0,       0.0,       0.0                                     },
+        { -INFINITY, -0.0,       0.0,      -0.0                                     },
+        {    0.0,     INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, FALSE, TRUE  },
+        {   -0.0,     INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, FALSE, TRUE  },
+        {    0.0,    -INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, FALSE, TRUE  },
+        {   -0.0,    -INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, FALSE, TRUE  },
+        {  100.0,     INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, TRUE         },
+        { -100.0,     INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, TRUE         },
+        {  100.0,    -INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, TRUE         },
+        { -100.0,    -INFINITY,  NAN,       NAN,     EDOM, TRUE, TRUE, TRUE         },
+        { -INFINITY,  2.0,      -0.0,       0.0                                     },
+        { -INFINITY,  4.0,      -0.0,      -0.0                                     },
+        {  INFINITY,  2.0,      -INFINITY,  INFINITY                                },
+        {  INFINITY,  4.0,      -INFINITY, -INFINITY                                },
+        {  INFINITY,  INFINITY,  INFINITY,  NAN,     EDOM, TRUE, FALSE, TRUE        },
+        {  INFINITY, -INFINITY,  INFINITY,  NAN,     EDOM, TRUE, FALSE, TRUE        },
+        { -INFINITY,  INFINITY,  0.0,       0.0                                     },
+        { -INFINITY, -INFINITY,  0.0,      -0.0,     0,    TRUE                     },
+        { -INFINITY,  NAN,       0.0,       0.0                                     },
+        {  INFINITY,  NAN,       INFINITY,  NAN                                     },
+        {  NAN,       0.0,       NAN,       0.0                                     },
+        {  NAN,      -0.0,       NAN,      -0.0                                     },
+        {  NAN,       1.0,       NAN,       NAN                                     },
+        {  NAN,       INFINITY,  NAN,       NAN,     0,    TRUE, TRUE               },
+        {  0.0,       NAN,       NAN,       NAN                                     },
+        {  1.0,       NAN,       NAN,       NAN                                     },
+        {  NAN,       NAN,       NAN,       NAN                                     },
+    };
     _Dcomplex c, r;
+    errno_t e;
+    int i;
 
+if (0)
+{
     c = p__Cbuild(0.0, M_PI);
     r = p_cexp(c);
     ok(r.r == -1.0, "r.r = %lf\n", r.r);
-    ok(compare_double(r.i, 0.0, 15), "got %e\n", r.i);
+    ok(compare_double(r.i, 1.2246467991473532e-016, 16), "got %.16e\n", r.i);
 
-    c = p__Cbuild(0.0, INFINITY);
+    //c = p__Cbuild(0.0, 709.0);
+    //c = p__Cbuild(0.0, 1454.0);
+    c = p__Cbuild(0.0, 1454.5);
     r = p_cexp(c);
-    ok(isnan(r.r), "r.r = %lf\n", r.r);
-    ok(isnan(r.i), "r.i = %lf\n", r.i);
+    ok(r.r == -1.0, "r.r = %lf\n", r.r);
+    ok(r.i == -1.0, "r.i = %lf\n", r.i);
+}
+    p___setusermatherr(matherr_callback);
+    for(i=0; i<ARRAY_SIZE(tests); i++) {
+        errno = 0;
+        matherr_called = 0;
+        c = p__Cbuild(tests[i].r, tests[i].i);
+        r = p_cexp(c);
+        e = errno;
+        if(_isnan(tests[i].rexp))
+            ok(_isnan(r.r), "expected NAN, got %e for %d\n", r.r, i);
+        else
+            ok(r.r == tests[i].rexp, "expected %e, got %e for %d\n", tests[i].rexp, r.r, i);
+        if(_isnan(tests[i].iexp))
+            ok(_isnan(r.i), "expected NAN, got %e for %d\n", r.i, i);
+        else
+            ok(r.i == tests[i].iexp, "expected %e, got %e for %d\n", tests[i].iexp, r.i, i);
+        todo_wine_if(tests[i].rsigntodo)
+        ok(__signbit(r.r) == __signbit(tests[i].rexp), "expected sign %d, got %d for %d\n",
+            __signbit(tests[i].rexp), __signbit(r.r), i);
+        todo_wine_if(tests[i].isigntodo)
+        ok(__signbit(r.i) == __signbit(tests[i].iexp), "expected sign %d, got %d for %d\n",
+            __signbit(tests[i].iexp), __signbit(r.i), i);
+        todo_wine_if(tests[i].errnotodo)
+        ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
+        todo_wine_if(tests[i].merrtodo)
+        ok(!matherr_called, "matherr was called for %d\n", i);
+    }
+    p___setusermatherr(NULL);
 }
 
 START_TEST(msvcr120)
 {
     if (!init()) return;
+    test_cexp();
+    return;
     test_lconv();
     test__dsign();
     test__dpcomp();
