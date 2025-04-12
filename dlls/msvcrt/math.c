@@ -2997,7 +2997,7 @@ _Fcomplex CDECL _FCbuild(float r, float i)
     return ret;
 }
 #else
-ULONGLONG CDECL _FCbuild(float r, float i)
+static ULONGLONG CDECL _i386_FCbuild(float r, float i)
 {
     union
     {
@@ -3010,6 +3010,17 @@ ULONGLONG CDECL _FCbuild(float r, float i)
     ret.c._Val[0] = r;
     ret.c._Val[1] = i;
     return ret.ull;
+}
+
+_Fcomplex CDECL _FCbuild(float r, float i)
+{
+    union
+    {
+        _Fcomplex c;
+        ULONGLONG ull;
+    } ret;
+    ret.ull = _i386_FCbuild(r, i);
+    return ret.c;
 }
 #endif
 
