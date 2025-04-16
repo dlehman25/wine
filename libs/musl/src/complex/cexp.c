@@ -47,8 +47,14 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 		return CMPLX(exp(x), y);
 	EXTRACT_WORDS(hx, lx, x);
 	/* cexp(0 + I y) = cos(y) + I sin(y) */
-	if (((hx & 0x7fffffff) | lx) == 0)
+	if (((hx & 0x7fffffff) | lx) == 0) {
+		if (isinf(y))
+		{
+			errno = EDOM;
+			return CMPLX(NAN, NAN);
+		}
 		return CMPLX(cos(y), sin(y));
+	}
 
 	if (hy >= 0x7ff00000) {
 		if (lx != 0 || (hx & 0x7fffffff) != 0x7ff00000) {
