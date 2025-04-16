@@ -45,38 +45,20 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 	/* cexp(x + I 0) = exp(x) + I 0 */
 	if ((hy | ly) == 0)
 		return CMPLX(exp(x), y);
-
 	EXTRACT_WORDS(hx, lx, x);
 	/* cexp(0 + I y) = cos(y) + I sin(y) */
 	if (((hx & 0x7fffffff) | lx) == 0)
-    {
-        if (isinf(y))
-        {
-            errno = EDOM;
-            return CMPLX(NAN, NAN);
-        }
 		return CMPLX(cos(y), sin(y));
-    }
 
 	if (hy >= 0x7ff00000) {
 		if (lx != 0 || (hx & 0x7fffffff) != 0x7ff00000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
-            if (isinf(y))
-            {
-                if (!isnan(x)) errno = EDOM;
-                return CMPLX(NAN, NAN); // TODO: +/-?
-            }
 			return CMPLX(y - y, y - y);
 		} else if (hx & 0x80000000) {
 			/* cexp(-Inf +- I Inf|NaN) = 0 + I 0 */
 			return CMPLX(0.0, 0.0);
 		} else {
 			/* cexp(+Inf +- I Inf|NaN) = Inf + I NaN */
-            if (isinf(y))
-            {
-                errno = EDOM;
-                return CMPLX(INFINITY, NAN); // TODO: +/-?
-            }
 			return CMPLX(x, y - y);
 		}
 	}
