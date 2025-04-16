@@ -59,6 +59,10 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 	if (hy >= 0x7ff00000) {
 		if (lx != 0 || (hx & 0x7fffffff) != 0x7ff00000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
+			if (isinf(y)) {
+				errno = EDOM;
+				return CMPLX(NAN, NAN);
+			}
 			return CMPLX(y - y, y - y);
 		} else if (hx & 0x80000000) {
 			/* cexp(-Inf +- I Inf|NaN) = 0 + I 0 */
