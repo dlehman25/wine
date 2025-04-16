@@ -60,7 +60,7 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 		if (lx != 0 || (hx & 0x7fffffff) != 0x7ff00000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
 			if (isinf(y)) {
-				errno = EDOM;
+				if (!isnan(x)) errno = EDOM;
 				return CMPLX(NAN, NAN);
 			}
 			return CMPLX(y - y, y - y);

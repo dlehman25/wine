@@ -2018,7 +2018,7 @@ static void test_cexp(void)
         {  NAN,       0.0,       NAN,       0.0                                     },
         {  NAN,      -0.0,       NAN,      -0.0                                     },
         {  NAN,       1.0,       NAN,       NAN                                     },
-        {  NAN,       INFINITY,  NAN,       NAN,     0,    FALSE, FALSE, TRUE       },
+        {  NAN,       INFINITY,  NAN,       NAN                                     },
         {  0.0,       NAN,       NAN,       NAN                                     },
         {  1.0,       NAN,       NAN,       NAN                                     },
         {  NAN,       NAN,       NAN,       NAN                                     },
