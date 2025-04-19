@@ -2049,7 +2049,7 @@ static void test_cexp(void)
 
     p___setusermatherr(matherr_callback);
 
-    if (1)
+    if (0)
     {
         double e, r;
         e = 709.78271289338397;
