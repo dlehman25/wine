@@ -2022,14 +2022,15 @@ static void test_cexp(void)
         {  1.0,       NAN,       NAN,       NAN           },
         {  NAN,       NAN,       NAN,       NAN           },
     };
+    static const struct {
+        double r, i;
+        double rexp, iexp;
+    } tests2[] = {
+        { 0.0, M_PI, -1.0, 1.2246467991473532e-016 },
+    };
     _Dcomplex c, r;
     errno_t e;
     int i;
-
-    c = p__Cbuild(0.0, M_PI);
-    r = p_cexp(c);
-    ok(r.r == -1.0, "r.r = %lf\n", r.r);
-    ok(compare_double(r.i, 1.2246467991473532e-016, 16), "got %.16e\n", r.i);
 
     p___setusermatherr(matherr_callback);
     for(i=0; i<ARRAY_SIZE(tests); i++) {
@@ -2053,6 +2054,18 @@ static void test_cexp(void)
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         ok(!matherr_called, "matherr was called for %d\n", i);
     }
+    for(i=0; i<ARRAY_SIZE(tests2); i++) {
+        errno = 0;
+        matherr_called = 0;
+        c = p__Cbuild(tests2[i].r, tests2[i].i);
+        r = p_cexp(c);
+        e = errno;
+        ok(compare_double(r.r, tests2[i].rexp, 16), "expected %.16e, got %.16e for real %d\n", tests2[i].rexp, r.r, i);
+        ok(compare_double(r.i, tests2[i].iexp, 16), "expected %.16e, got %.16e for imag %d\n", tests2[i].iexp, r.i, i);
+        ok(!e, "got errno %d for %d\n", e, i);
+        ok(!matherr_called, "matherr was called for %d\n", i);
+    }
+
     p___setusermatherr(NULL);
 }
 
