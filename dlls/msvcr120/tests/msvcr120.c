@@ -234,6 +234,7 @@ static float (__cdecl *p_crealf)(_Fcomplex);
 static double (__cdecl *p_cimag)(_Dcomplex);
 static float (__cdecl *p_cimagf)(_Fcomplex);
 static _Dcomplex (__cdecl *p_cexp)(_Dcomplex);
+static double (__cdecl *p_exp)(double);
 static double (__cdecl *p_nexttoward)(double, double);
 static float (__cdecl *p_nexttowardf)(float, double);
 static double (__cdecl *p_nexttowardl)(double, double);
@@ -379,6 +380,7 @@ static BOOL init(void)
     SET(p_creal, "creal");
     SET(p_cimag, "cimag");
     SET(p_cexp, "cexp");
+    SET(p_exp, "exp");
     SET(p__FCbuild, "_FCbuild");
     SET(p_crealf, "crealf");
     SET(p_cimagf, "cimagf");
@@ -2046,6 +2048,20 @@ static void test_cexp(void)
     int i;
 
     p___setusermatherr(matherr_callback);
+
+    if (0)
+    {
+        double e, r;
+        e = 709.78271289338397;
+        e = 709.8;
+        errno = 0;
+        matherr_called = 0;
+        r = p_exp(e);
+        printf("%d %.16e\n", errno, r);
+        printf("matherr_called %d\n", matherr_called);
+        return;
+    }
+
     for(i=0; i<ARRAY_SIZE(tests); i++) {
         errno = 0;
         matherr_called = 0;
