@@ -66,7 +66,7 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 			return CMPLX(y - y, y - y);
 		} else if (hx & 0x80000000) {
 			/* cexp(-Inf +- I Inf|NaN) = 0 + I 0 */
-			return CMPLX(0.0, 0.0);
+			return CMPLX(0.0, copysign(0.0, y));
 		} else {
 			/* cexp(+Inf +- I Inf|NaN) = Inf + I NaN */
 			if (!isnan(y)) errno = EDOM;

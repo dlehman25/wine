@@ -2012,7 +2012,7 @@ static void test_cexp(void)
         {  INFINITY,  INFINITY,  INFINITY,  NAN,     EDOM, TRUE                     },
         {  INFINITY, -INFINITY,  INFINITY,  NAN,     EDOM, TRUE                     },
         { -INFINITY,  INFINITY,  0.0,       0.0                                     },
-        { -INFINITY, -INFINITY,  0.0,      -0.0,     0,    TRUE                     },
+        { -INFINITY, -INFINITY,  0.0,      -0.0                                     },
         { -INFINITY,  NAN,       0.0,       0.0                                     },
         {  INFINITY,  NAN,       INFINITY,  NAN                                     },
         {  NAN,       0.0,       NAN,       0.0                                     },
