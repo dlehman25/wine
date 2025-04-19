@@ -28,6 +28,7 @@
    a double.  (int32_t)KI is the k used in the argument reduction and exponent
    adjustment of scale, positive k here means the result may overflow and
    negative k means the result may underflow.  */
+extern int printf(const char *,...);
 static inline double specialcase(double x, double_t tmp, uint64_t sbits, uint64_t ki)
 {
 	double_t scale, y;
@@ -38,7 +39,11 @@ static inline double specialcase(double x, double_t tmp, uint64_t sbits, uint64_
 		scale = asdouble(sbits);
 		y = 0x1p1009 * (scale + scale * tmp);
 		if (isinf(y))
+        {
+printf("%s: %d\n", __FUNCTION__, __LINE__); // 709.8
 			return math_error(_OVERFLOW, "exp", x, 0, y);
+        }
+printf("%s: %d\n", __FUNCTION__, __LINE__); // 709.78271289338397
 		return eval_as_double(y);
 	}
 	/* k < 0, need special care in the subnormal range.  */
