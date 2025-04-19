@@ -2028,20 +2028,21 @@ static void test_cexp(void)
         double r, i;
         double rexp, iexp;
         errno_t e;
-        BOOL todo;
+        BOOL todo, etodo;
     } tests2[] = {
-        { 0.0,    M_PI, -1.0,                     1.2246467991473532e-016                },
-        { 709.7,  0.0,   1.6549840276802644e+308, 0.0                                    },
-        { 709.8,  0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
-        { 746.0,  0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
-        { 747.0,  0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
-        { 1454.3, 0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
-
-        { 709.7,  M_PI, -1.6549840276802644e+308, 2.0267708921386307e+292                },
-        { 709.8,  M_PI, -INFINITY,                2.2399282475936458e+292,  ERANGE       },
-        { 746.0,  M_PI, -INFINITY,                1.1794902399837951e+308,  ERANGE       },
-        { 747.0,  M_PI, -INFINITY,                INFINITY,                 ERANGE       },
-        { 1454.3, M_PI, -INFINITY,                INFINITY,                 ERANGE, TRUE },
+        { 0.0,                M_PI, -1.0,                     1.2246467991473532e-016                       },
+        { 709.7,              0.0,   1.6549840276802644e+308, 0.0                                           },
+        { 709.78271289338397, 0.0,   1.7976931348622734e+308, 0.0                                           },
+        { 709.8,              0.0,   INFINITY,                0.0,                      ERANGE, TRUE        },
+        { 746.0,              0.0,   INFINITY,                0.0,                      ERANGE, TRUE        },
+        { 747.0,              0.0,   INFINITY,                0.0,                      ERANGE, TRUE        },
+        { 1454.3,             0.0,   INFINITY,                0.0,                      ERANGE, TRUE        },
+        { 709.7,              M_PI, -1.6549840276802644e+308, 2.0267708921386307e+292                       },
+        { 709.78271289338397, M_PI, -1.7976931348622734e+308, 2.2015391434582545e+292,  0,      FALSE, TRUE },
+        { 709.8,              M_PI, -INFINITY,                2.2399282475936458e+292,  ERANGE              },
+        { 746.0,              M_PI, -INFINITY,                1.1794902399837951e+308,  ERANGE              },
+        { 747.0,              M_PI, -INFINITY,                INFINITY,                 ERANGE              },
+        { 1454.3,             M_PI, -INFINITY,                INFINITY,                 ERANGE, TRUE        },
     };
     _Dcomplex c, r;
     errno_t e;
@@ -2092,6 +2093,7 @@ static void test_cexp(void)
         e = errno;
         ok(compare_double(r.r, tests2[i].rexp, 16), "expected %.16e, got %.16e for real %d\n", tests2[i].rexp, r.r, i);
         ok(compare_double(r.i, tests2[i].iexp, 16), "expected %.16e, got %.16e for imag %d\n", tests2[i].iexp, r.i, i);
+        todo_wine_if(tests2[i].etodo)
         ok(e == tests2[i].e, "expected errno %i, but got %i for %d\n", tests2[i].e, e, i);
         todo_wine_if(tests2[i].todo)
         ok(!matherr_called, "matherr was called for %d\n", i);
