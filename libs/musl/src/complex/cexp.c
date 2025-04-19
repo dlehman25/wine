@@ -70,7 +70,7 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 		} else {
 			/* cexp(+Inf +- I Inf|NaN) = Inf + I NaN */
 			if (!isnan(y)) errno = EDOM;
-			return CMPLX(x, y - y);
+			return CMPLX(x, NAN);
 		}
 	}
 
