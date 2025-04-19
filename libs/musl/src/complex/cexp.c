@@ -79,6 +79,7 @@ _Dcomplex __cdecl cexp(_Dcomplex z)
 		 * x is between 709.7 and 1454.3, so we must scale to avoid
 		 * overflow in exp(x).
 		 */
+		errno = ERANGE;
 		return __ldexp_cexp(z, 0);
 	} else {
 		/*

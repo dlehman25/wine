@@ -2025,8 +2025,21 @@ static void test_cexp(void)
     static const struct {
         double r, i;
         double rexp, iexp;
+        errno_t e;
+        BOOL todo;
     } tests2[] = {
-        { 0.0, M_PI, -1.0, 1.2246467991473532e-016 },
+        { 0.0,    M_PI, -1.0,                     1.2246467991473532e-016                },
+        { 709.7,  0.0,   1.6549840276802644e+308, 0.0                                    },
+        { 709.8,  0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
+        { 746.0,  0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
+        { 747.0,  0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
+        { 1454.3, 0.0,   INFINITY,                0.0,                      ERANGE, TRUE },
+
+        { 709.7,  M_PI, -1.6549840276802644e+308, 2.0267708921386307e+292                },
+        { 709.8,  M_PI, -INFINITY,                2.2399282475936458e+292,  ERANGE       },
+        { 746.0,  M_PI, -INFINITY,                1.1794902399837951e+308,  ERANGE       },
+        { 747.0,  M_PI, -INFINITY,                INFINITY,                 ERANGE       },
+        { 1454.3, M_PI, -INFINITY,                INFINITY,                 ERANGE, TRUE },
     };
     _Dcomplex c, r;
     errno_t e;
@@ -2054,6 +2067,7 @@ static void test_cexp(void)
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         ok(!matherr_called, "matherr was called for %d\n", i);
     }
+
     for(i=0; i<ARRAY_SIZE(tests2); i++) {
         errno = 0;
         matherr_called = 0;
@@ -2062,7 +2076,8 @@ static void test_cexp(void)
         e = errno;
         ok(compare_double(r.r, tests2[i].rexp, 16), "expected %.16e, got %.16e for real %d\n", tests2[i].rexp, r.r, i);
         ok(compare_double(r.i, tests2[i].iexp, 16), "expected %.16e, got %.16e for imag %d\n", tests2[i].iexp, r.i, i);
-        ok(!e, "got errno %d for %d\n", e, i);
+        ok(e == tests2[i].e, "expected errno %i, but got %i for %d\n", tests2[i].e, e, i);
+        todo_wine_if(tests2[i].todo)
         ok(!matherr_called, "matherr was called for %d\n", i);
     }
 
