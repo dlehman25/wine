@@ -1991,37 +1991,36 @@ static void test_cexp(void)
         double r, i;
         double rexp, iexp;
         errno_t e;
-        BOOL isigntodo, rsigntodo, errnotodo, merrtodo;
     } tests[] = {
-        {  INFINITY,  0.0,       INFINITY,  0.0                                     },
-        {  INFINITY, -0.0,       INFINITY, -0.0                                     },
-        { -INFINITY,  0.0,       0.0,       0.0                                     },
-        { -INFINITY, -0.0,       0.0,      -0.0                                     },
-        {    0.0,     INFINITY,  NAN,       NAN,     EDOM                           },
-        {   -0.0,     INFINITY,  NAN,       NAN,     EDOM                           },
-        {    0.0,    -INFINITY,  NAN,       NAN,     EDOM                           },
-        {   -0.0,    -INFINITY,  NAN,       NAN,     EDOM                           },
-        {  100.0,     INFINITY,  NAN,       NAN,     EDOM                           },
-        { -100.0,     INFINITY,  NAN,       NAN,     EDOM                           },
-        {  100.0,    -INFINITY,  NAN,       NAN,     EDOM                           },
-        { -100.0,    -INFINITY,  NAN,       NAN,     EDOM                           },
-        { -INFINITY,  2.0,      -0.0,       0.0                                     },
-        { -INFINITY,  4.0,      -0.0,      -0.0                                     },
-        {  INFINITY,  2.0,      -INFINITY,  INFINITY                                },
-        {  INFINITY,  4.0,      -INFINITY, -INFINITY                                },
-        {  INFINITY,  INFINITY,  INFINITY,  NAN,     EDOM                           },
-        {  INFINITY, -INFINITY,  INFINITY,  NAN,     EDOM                           },
-        { -INFINITY,  INFINITY,  0.0,       0.0                                     },
-        { -INFINITY, -INFINITY,  0.0,      -0.0                                     },
-        { -INFINITY,  NAN,       0.0,       0.0                                     },
-        {  INFINITY,  NAN,       INFINITY,  NAN                                     },
-        {  NAN,       0.0,       NAN,       0.0                                     },
-        {  NAN,      -0.0,       NAN,      -0.0                                     },
-        {  NAN,       1.0,       NAN,       NAN                                     },
-        {  NAN,       INFINITY,  NAN,       NAN                                     },
-        {  0.0,       NAN,       NAN,       NAN                                     },
-        {  1.0,       NAN,       NAN,       NAN                                     },
-        {  NAN,       NAN,       NAN,       NAN                                     },
+        {  INFINITY,  0.0,       INFINITY,  0.0           },
+        {  INFINITY, -0.0,       INFINITY, -0.0           },
+        { -INFINITY,  0.0,       0.0,       0.0           },
+        { -INFINITY, -0.0,       0.0,      -0.0           },
+        {    0.0,     INFINITY,  NAN,       NAN,     EDOM },
+        {   -0.0,     INFINITY,  NAN,       NAN,     EDOM },
+        {    0.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        {   -0.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        {  100.0,     INFINITY,  NAN,       NAN,     EDOM },
+        { -100.0,     INFINITY,  NAN,       NAN,     EDOM },
+        {  100.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        { -100.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        { -INFINITY,  2.0,      -0.0,       0.0           },
+        { -INFINITY,  4.0,      -0.0,      -0.0           },
+        {  INFINITY,  2.0,      -INFINITY,  INFINITY      },
+        {  INFINITY,  4.0,      -INFINITY, -INFINITY      },
+        {  INFINITY,  INFINITY,  INFINITY,  NAN,     EDOM },
+        {  INFINITY, -INFINITY,  INFINITY,  NAN,     EDOM },
+        { -INFINITY,  INFINITY,  0.0,       0.0           },
+        { -INFINITY, -INFINITY,  0.0,      -0.0           },
+        { -INFINITY,  NAN,       0.0,       0.0           },
+        {  INFINITY,  NAN,       INFINITY,  NAN           },
+        {  NAN,       0.0,       NAN,       0.0           },
+        {  NAN,      -0.0,       NAN,      -0.0           },
+        {  NAN,       1.0,       NAN,       NAN           },
+        {  NAN,       INFINITY,  NAN,       NAN           },
+        {  0.0,       NAN,       NAN,       NAN           },
+        {  1.0,       NAN,       NAN,       NAN           },
+        {  NAN,       NAN,       NAN,       NAN           },
     };
     _Dcomplex c, r;
     errno_t e;
@@ -2056,15 +2055,11 @@ if (0)
             ok(_isnan(r.i), "expected NAN, got %e for %d\n", r.i, i);
         else
             ok(r.i == tests[i].iexp, "expected %e, got %e for %d\n", tests[i].iexp, r.i, i);
-        todo_wine_if(tests[i].rsigntodo)
         ok(__signbit(r.r) == __signbit(tests[i].rexp), "expected sign %d, got %d for %d\n",
             __signbit(tests[i].rexp), __signbit(r.r), i);
-        todo_wine_if(tests[i].isigntodo)
         ok(__signbit(r.i) == __signbit(tests[i].iexp), "expected sign %d, got %d for %d\n",
             __signbit(tests[i].iexp), __signbit(r.i), i);
-        todo_wine_if(tests[i].errnotodo)
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
-        todo_wine_if(tests[i].merrtodo)
         ok(!matherr_called, "matherr was called for %d\n", i);
     }
     p___setusermatherr(NULL);
