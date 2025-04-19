@@ -2026,20 +2026,11 @@ static void test_cexp(void)
     errno_t e;
     int i;
 
-if (0)
-{
     c = p__Cbuild(0.0, M_PI);
     r = p_cexp(c);
     ok(r.r == -1.0, "r.r = %lf\n", r.r);
     ok(compare_double(r.i, 1.2246467991473532e-016, 16), "got %.16e\n", r.i);
 
-    //c = p__Cbuild(0.0, 709.0);
-    //c = p__Cbuild(0.0, 1454.0);
-    c = p__Cbuild(0.0, 1454.5);
-    r = p_cexp(c);
-    ok(r.r == -1.0, "r.r = %lf\n", r.r);
-    ok(r.i == -1.0, "r.i = %lf\n", r.i);
-}
     p___setusermatherr(matherr_callback);
     for(i=0; i<ARRAY_SIZE(tests); i++) {
         errno = 0;
