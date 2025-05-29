@@ -195,6 +195,26 @@ static _Cancellation_beacon* (__thiscall *p__Cancellation_beacon_ctor)(_Cancella
 static void (__thiscall *p__Cancellation_beacon_dtor)(_Cancellation_beacon*);
 static MSVCRT_bool (__thiscall *p__Cancellation_beacon__Confirm_cancel)(_Cancellation_beacon*);
 
+static BOOL compare_uint(unsigned int x, unsigned int y, unsigned int max_diff)
+{
+    unsigned int diff = x > y ? x - y : y - x;
+
+    return diff <= max_diff;
+}
+
+static BOOL compare_float(float f, float g, unsigned int ulps)
+{
+    int x = *(int *)&f;
+    int y = *(int *)&g;
+
+    if (x < 0)
+        x = INT_MIN - x;
+    if (y < 0)
+        y = INT_MIN - y;
+
+    return compare_uint(x, y, ulps);
+}
+
 static inline BOOL compare_double(double f, double g, unsigned int ulps)
 {
     ULONGLONG x = *(ULONGLONG *)&f;
@@ -1855,6 +1875,62 @@ static void test_exp(void)
     __setusermatherr(NULL);
 }
 
+static void test_expf(void)
+{
+    static const struct {
+        float x, exp;
+        int type;
+        errno_t e;
+        BOOL etodo;
+        BOOL stodo;
+        BOOL rtodo;
+    } tests[] = {
+        {  NAN,       NAN,           _DOMAIN,   EDOM,  TRUE              },
+        { -NAN,       NAN,           _DOMAIN,   EDOM,  TRUE,  TRUE       },
+        {  INFINITY,  INFINITY                         },
+        { -INFINITY, -INFINITY,      0,         0,     FALSE, TRUE, TRUE },
+        {  0.0f,      1.0f                             },
+        {  1.0f,      2.7182817f                       },
+        {  88.72f,    3.3931806e+38                    },
+        {  88.73f,    INFINITY,      _OVERFLOW, ERANGE },
+        { -103.97f,   1.4012985e-45                    },
+        { -103.98f,   0.0f,          _UNDERFLOW        },
+    };
+    errno_t e;
+    float r;
+    int i;
+
+    __setusermatherr(matherr_callback);
+
+    for(i=0; i<ARRAY_SIZE(tests); i++) {
+        errno = 0;
+        exception.type = -1;
+        r = expf(tests[i].x);
+        e = errno;
+
+        if(_isnanf(tests[i].exp))
+            ok(_isnanf(r), "expected NAN, got %0.7e for %d\n", r, i);
+        else
+            todo_wine_if(tests[i].rtodo)
+            ok(compare_float(r, tests[i].exp, 7), "expected %0.7e, got %0.7e for %d\n", tests[i].exp, r, i);
+
+        todo_wine_if(tests[i].stodo)
+        ok(signbit(r) == signbit(tests[i].exp), "expected sign %x, got %x for %d\n",
+            signbit(tests[i].exp), signbit(r), i);
+
+        todo_wine_if(tests[i].etodo) {
+        ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
+        if(tests[i].type)
+            ok(exception.type == tests[i].type, "expected %d, got %d for %d\n",
+                tests[i].type, exception.type, i);
+        else
+            ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
+        }
+    }
+
+    __setusermatherr(NULL);
+}
+
 static void test_cexp(void)
 {
     static const struct {
@@ -1983,5 +2059,6 @@ START_TEST(msvcr120)
     test_gmtime64();
     test__fsopen();
     test_exp();
+    test_expf();
     test_cexp();
 }
