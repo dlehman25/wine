@@ -195,13 +195,68 @@ static struct bluetooth_gatt_service *find_gatt_service( struct list *services, 
     return NULL;
 }
 
+static NTSTATUS bluetooth_gatt_service_get_characteristics( struct bluetooth_gatt_service *service, IRP *irp )
+{
+    const SIZE_T min_size = offsetof( struct winebth_le_device_get_gatt_characteristics_params, characteristics[0] );
+    struct winebth_le_device_get_gatt_characteristics_params *chars = irp->AssociatedIrp.SystemBuffer;
+    IO_STACK_LOCATION *stack = IoGetCurrentIrpStackLocation( irp );
+    ULONG outsize = stack->Parameters.DeviceIoControl.OutputBufferLength;
+    struct bluetooth_gatt_characteristic *chrc;
+    NTSTATUS status;
+    SIZE_T rem;
+
+    if (outsize < min_size)
+        return STATUS_INVALID_USER_BUFFER;
+
+    rem = (outsize - min_size)/sizeof( *chars->characteristics );
+    status = STATUS_SUCCESS;
+    chars->count = 0;
+
+    EnterCriticalSection( &service->chars_cs );
+    LIST_FOR_EACH_ENTRY( chrc, &service->characteristics, struct bluetooth_gatt_characteristic, entry )
+    {
+        chars->count++;
+        if (rem > 0)
+        {
+            chars->characteristics[chars->count - 1] = chrc->props;
+            rem--;
+        }
+    }
+    LeaveCriticalSection( &service->chars_cs );
+
+    irp->IoStatus.Information = offsetof( struct winebth_le_device_get_gatt_characteristics_params, characteristics[chars->count] );
+    if (chars->count > rem)
+        status = STATUS_MORE_ENTRIES;
+    return status;
+}
+
 static NTSTATUS bluetooth_gatt_service_dispatch( DEVICE_OBJECT *device, struct bluetooth_gatt_service *ext, IRP *irp )
 {
     IO_STACK_LOCATION *stack = IoGetCurrentIrpStackLocation( irp );
     ULONG code = stack->Parameters.DeviceIoControl.IoControlCode;
     NTSTATUS status = irp->IoStatus.Status;
 
-    FIXME( "device=%p, ext=%p, irp=%p, code=%#lx: stub!\n", device, ext, irp, code );
+    TRACE( "device=%p, ext=%p, irp=%p, code=%#lx\n", device, ext, irp, code );
+    switch (code)
+    {
+    case IOCTL_WINEBTH_LE_DEVICE_GET_GATT_CHARACTERISTICS:
+    {
+        struct winebth_le_device_get_gatt_characteristics_params *params = irp->AssociatedIrp.SystemBuffer;
+
+        if (!params)
+        {
+            status = STATUS_INVALID_USER_BUFFER;
+            break;
+        }
+
+        status = bluetooth_gatt_service_get_characteristics( ext, irp );
+        break;
+    }
+    default:
+        FIXME( "Unimplemented IOCTL code: %#lx\n", code );
+    }
+
+    irp->IoStatus.Status = status;
     IoCompleteRequest( irp, IO_NO_INCREMENT );
     return status;
 }
@@ -262,9 +317,7 @@ static NTSTATUS bluetooth_remote_device_dispatch( DEVICE_OBJECT *device, struct 
     {
         const SIZE_T min_size = offsetof( struct winebth_le_device_get_gatt_characteristics_params, characteristics[0] );
         struct winebth_le_device_get_gatt_characteristics_params *chars = irp->AssociatedIrp.SystemBuffer;
-        struct bluetooth_gatt_characteristic *chrc;
         struct bluetooth_gatt_service *service;
-        SIZE_T rem;
         GUID uuid;
 
         if (!chars || outsize < min_size)
@@ -273,11 +326,7 @@ static NTSTATUS bluetooth_remote_device_dispatch( DEVICE_OBJECT *device, struct 
             break;
         }
 
-        rem = (outsize - min_size)/sizeof( *chars->characteristics );
-        status = STATUS_SUCCESS;
-        chars->count = 0;
         le_to_uuid( &chars->service.ServiceUuid, &uuid );
-
         EnterCriticalSection( &ext->props_cs );
         service = find_gatt_service( &ext->gatt_services, &uuid, chars->service.AttributeHandle );
         if (!service)
@@ -287,22 +336,8 @@ static NTSTATUS bluetooth_remote_device_dispatch( DEVICE_OBJECT *device, struct 
             break;
         }
 
-        EnterCriticalSection( &service->chars_cs );
-        LIST_FOR_EACH_ENTRY( chrc, &service->characteristics, struct bluetooth_gatt_characteristic, entry )
-        {
-            chars->count++;
-            if (rem)
-            {
-                chars->characteristics[chars->count - 1] = chrc->props;
-                rem--;
-            }
-        }
-        LeaveCriticalSection( &service->chars_cs );
+        status = bluetooth_gatt_service_get_characteristics( service, irp );
         LeaveCriticalSection( &ext->props_cs );
-
-        irp->IoStatus.Information = offsetof( struct winebth_le_device_get_gatt_characteristics_params, characteristics[chars->count] );
-        if (chars->count > rem)
-            status = STATUS_MORE_ENTRIES;
         break;
     }
     default:
