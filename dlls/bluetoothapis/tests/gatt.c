@@ -125,7 +125,7 @@ static void test_service_BluetoothGATTGetCharacteristics( HANDLE service, const 
     BTH_LE_GATT_CHARACTERISTIC *chars2;
 
     ret = BluetoothGATTGetCharacteristics( service, NULL, 0, NULL, &actual, 0 );
-    todo_wine ok( ret == HRESULT_FROM_WIN32( ERROR_MORE_DATA ), "got ret %#lx\n", ret );
+    ok( ret == HRESULT_FROM_WIN32( ERROR_MORE_DATA ), "got ret %#lx\n", ret );
     if (!actual)
         return;
 
