@@ -2077,19 +2077,18 @@ static void test_cexpf(void)
         float rexp, iexp;
         errno_t e;
         BOOL etodo;
-        BOOL ettodo;
     } tests2[] = {
-        {    0.00f, M_PI, -1.0f,           -8.7422777e-008                      },
-        {   88.70f, 0.0f,  3.3259771e+038,  0.0f                                },
-        {   88.72f, 0.0f,  3.3931806e+038,  0.0f                                },
-        {   88.73f, 0.0f,  INFINITY,        0.0f,          ERANGE, FALSE, TRUE  },
-        { -103.97f, 0.0f,  1.4012985e-45,   0.0f                                },
-        { -103.98f, 0.0f,  0.0f,            0.0f,          ERANGE, TRUE, TRUE   },
-        {   88.70f, M_PI, -3.3259771e+038, -2.9076615e+31                       },
-        {   88.72f, M_PI, -3.3931806e+038, -2.9664126e+31                       },
-        {   88.73f, M_PI, -INFINITY,       -2.9962329e+31, ERANGE, TRUE         },
-        { -103.97f, M_PI, -1.4012985e-45,   0.0f,          ERANGE, TRUE         },
-        { -103.98f, M_PI,  0.0f,            0.0f,          ERANGE, TRUE, TRUE   },
+        {    0.00f, M_PI, -1.0f,           -8.7422777e-008                  },
+        {   88.70f, 0.0f,  3.3259771e+038,  0.0f                            },
+        {   88.72f, 0.0f,  3.3931806e+038,  0.0f                            },
+        {   88.73f, 0.0f,  INFINITY,        0.0f,          ERANGE, FALSE    },
+        { -103.97f, 0.0f,  1.4012985e-45,   0.0f                            },
+        { -103.98f, 0.0f,  0.0f,            0.0f,          ERANGE, TRUE     },
+        {   88.70f, M_PI, -3.3259771e+038, -2.9076615e+31                   },
+        {   88.72f, M_PI, -3.3931806e+038, -2.9664126e+31                   },
+        {   88.73f, M_PI, -INFINITY,       -2.9962329e+31, ERANGE, TRUE     },
+        { -103.97f, M_PI, -1.4012985e-45,   0.0f,          ERANGE, TRUE     },
+        { -103.98f, M_PI,  0.0f,            0.0f,          ERANGE, TRUE     },
     };
     _Fcomplex c, r;
     errno_t e;
@@ -2138,7 +2137,6 @@ static void test_cexpf(void)
         ok(compare_float(r._Val[1], tests2[i].iexp, 7), "expected %0.7e, got %0.7e for imag %d\n", tests2[i].iexp, r._Val[1], i);
         todo_wine_if(tests2[i].etodo)
         ok(e == tests2[i].e, "expected errno %i, but got %i for %d\n", tests2[i].e, e, i);
-        todo_wine_if(tests2[i].ettodo)
         ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
     }
 
