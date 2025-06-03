@@ -42,6 +42,7 @@ static double cexpf_callback( int type, const char *name, double arg1, double ar
             break;
         case _SING:
         case _OVERFLOW:
+		case _UNDERFLOW:
             errno = ERANGE;
             break;
     }
