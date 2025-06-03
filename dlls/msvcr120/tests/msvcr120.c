@@ -2083,12 +2083,12 @@ static void test_cexpf(void)
         {   88.72f, 0.0f,  3.3931806e+038,  0.0f                            },
         {   88.73f, 0.0f,  INFINITY,        0.0f,          ERANGE, FALSE    },
         { -103.97f, 0.0f,  1.4012985e-45,   0.0f                            },
-        { -103.98f, 0.0f,  0.0f,            0.0f,          ERANGE, TRUE     },
+        { -103.98f, 0.0f,  0.0f,            0.0f,          ERANGE           },
         {   88.70f, M_PI, -3.3259771e+038, -2.9076615e+31                   },
         {   88.72f, M_PI, -3.3931806e+038, -2.9664126e+31                   },
         {   88.73f, M_PI, -INFINITY,       -2.9962329e+31, ERANGE, TRUE     },
         { -103.97f, M_PI, -1.4012985e-45,   0.0f,          ERANGE, TRUE     },
-        { -103.98f, M_PI,  0.0f,            0.0f,          ERANGE, TRUE     },
+        { -103.98f, M_PI,  0.0f,            0.0f,          ERANGE           },
     };
     _Fcomplex c, r;
     errno_t e;
