@@ -70,6 +70,10 @@ _Fcomplex cexpf(_Fcomplex z)
 	if (hy >= 0x7f800000) {
 		if ((hx & 0x7fffffff) != 0x7f800000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
+			if (isinf(y)) {
+				if (!isnan(x)) errno = EDOM;
+				return CMPLXF(NAN, NAN);
+			}
 			return CMPLXF(y - y, y - y);
 		} else if (hx & 0x80000000) {
 			/* cexp(-Inf +- I Inf|NaN) = 0 + I 0 */
