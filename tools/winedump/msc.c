@@ -1440,12 +1440,21 @@ BOOL codeview_dump_symbols(const void* root, unsigned long start, unsigned long 
 	case S_PROCREF:
 	case S_LPROCREF:
 	case S_TOKENREF:
-            printf("%sref V3 '%s' %04x:%08x name:%08x\n",
-                   sym->generic.id == S_DATAREF ? "Data" :
-                                      (sym->generic.id == S_PROCREF ? "Proc" :
-                                       (sym->generic.id == S_LPROCREF ? "Lproc" : "Token")),
-                   get_symbol_str(sym->refsym2_v3.name),
-                   sym->refsym2_v3.imod, sym->refsym2_v3.ibSym, sym->refsym2_v3.sumName);
+        case S_ANNOTATIONREF:
+            {
+                const char *kind;
+                switch (sym->generic.id)
+                {
+                case S_DATAREF:       kind = "Data";       break;
+                case S_PROCREF:       kind = "Proc";       break;
+                case S_LPROCREF:      kind = "LProc";      break;
+                case S_TOKENREF:      kind = "Token";      break;
+                case S_ANNOTATIONREF: kind = "Annotation"; break;
+                default:              kind = "----";       break;
+                }
+                printf("%sref V3 '%s' %04x:%08x name:%08x\n", kind, get_symbol_str(sym->refsym2_v3.name),
+                       sym->refsym2_v3.imod, sym->refsym2_v3.ibSym, sym->refsym2_v3.sumName);
+            }
 	    break;
 
         /*
@@ -2004,6 +2013,14 @@ BOOL codeview_dump_symbols(const void* root, unsigned long start, unsigned long 
             }
             break;
 
+        case S_ARMSWITCHTABLE:
+            printf("ARM switch table type=%u base=%04x:%08x branch=%04x:%08x table=%04x:%08x entries=#%u\n",
+                   sym->armswitchtable.switch_type,
+                   sym->armswitchtable.base_section, sym->armswitchtable.base_offset,
+                   sym->armswitchtable.branch_section, sym->armswitchtable.branch_offset,
+                   sym->armswitchtable.table_section, sym->armswitchtable.table_offset,
+                   sym->armswitchtable.number_entries);
+            break;
         default:
             printf("\n\t\t>>> Unsupported symbol-id %x sz=%d\n", sym->generic.id, sym->generic.len + 2);
             dump_data((const void*)sym, sym->generic.len + 2, "  ");
