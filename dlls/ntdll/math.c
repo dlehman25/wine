@@ -30,6 +30,11 @@ double math_error( int type, const char *name, double arg1, double arg2, double 
     return retval;
 }
 
+unsigned int _controlfp(unsigned int, unsigned int)
+{
+    return 0;
+}
+
 /*********************************************************************
  *                  abs   (NTDLL.@)
  */
