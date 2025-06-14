@@ -51,6 +51,7 @@ static double cexpf_callback( int type, const char *name, double arg1, double ar
 
 _Fcomplex cexpf(_Fcomplex z)
 {
+	_Fcomplex r;
 	float x, y, exp_x;
 	uint32_t hx, hy;
 
@@ -96,7 +97,9 @@ _Fcomplex cexpf(_Fcomplex z)
 		 * x is between 88.7 and 192, so we must scale to avoid
 		 * overflow in expf(x).
 		 */
-		return __ldexp_cexpf(z, 0);
+		r = __ldexp_cexpf(z, 0);
+		if (isinf(r._Val[0])) errno = ERANGE;
+		return r;
 	} else {
 		/*
 		 * Cases covered here:
