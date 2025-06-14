@@ -1881,14 +1881,11 @@ static void test_expf(void)
         float x, exp;
         int type;
         errno_t e;
-        BOOL etodo;
-        BOOL stodo;
-        BOOL rtodo;
     } tests[] = {
-        {  NAN,       NAN,           _DOMAIN,   EDOM,  TRUE              },
-        { -NAN,       NAN,           _DOMAIN,   EDOM,  TRUE,  TRUE       },
+        {  NAN,       NAN,           _DOMAIN,   EDOM   },
+        { -NAN,       NAN,           _DOMAIN,   EDOM   },
         {  INFINITY,  INFINITY                         },
-        { -INFINITY, -INFINITY,      0,         0,     FALSE, TRUE, TRUE },
+        { -INFINITY, -INFINITY                         },
         {  0.0f,      1.0f                             },
         {  1.0f,      2.7182817f                       },
         {  88.72f,    3.3931806e+38                    },
@@ -1911,21 +1908,17 @@ static void test_expf(void)
         if(_isnanf(tests[i].exp))
             ok(_isnanf(r), "expected NAN, got %0.7e for %d\n", r, i);
         else
-            todo_wine_if(tests[i].rtodo)
             ok(compare_float(r, tests[i].exp, 7), "expected %0.7e, got %0.7e for %d\n", tests[i].exp, r, i);
 
-        todo_wine_if(tests[i].stodo)
         ok(signbit(r) == signbit(tests[i].exp), "expected sign %x, got %x for %d\n",
             signbit(tests[i].exp), signbit(r), i);
 
-        todo_wine_if(tests[i].etodo) {
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         if(tests[i].type)
             ok(exception.type == tests[i].type, "expected %d, got %d for %d\n",
                 tests[i].type, exception.type, i);
         else
             ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
-        }
     }
 
     __setusermatherr(NULL);

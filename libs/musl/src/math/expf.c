@@ -36,12 +36,15 @@ float __cdecl __expf(float x, matherr_t matherr)
 	uint64_t ki, t;
 	double_t kd, xd, z, r, r2, y, s;
 
+	if (isnan(x))
+		return matherr(_DOMAIN, "expf", x, 0, NAN);
+
 	xd = (double_t)x;
 	abstop = top12(x) & 0x7ff;
 	if (predict_false(abstop >= top12(88.0f))) {
 		/* |x| >= 88 or x is nan.  */
 		if (asuint(x) == asuint(-INFINITY))
-			return 0.0f;
+			return -INFINITY;
 		if (abstop >= top12(INFINITY))
 			return x + x;
 		if (x > 0x1.62e42ep6f) /* x > log(0x1p128) ~= 88.72 */
