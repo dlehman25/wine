@@ -1888,7 +1888,7 @@ static void test_expf(void)
         {  NAN,       NAN,           _DOMAIN,   EDOM   },
         { -NAN,       NAN,           _DOMAIN,   EDOM   },
         {  INFINITY,  INFINITY                         },
-        { -INFINITY, -INFINITY,      0,         0,     FALSE, TRUE, TRUE },
+        { -INFINITY, -INFINITY                         },
         {  0.0f,      1.0f                             },
         {  1.0f,      2.7182817f                       },
         {  88.72f,    3.3931806e+38                    },

@@ -44,7 +44,7 @@ float __cdecl __expf(float x, matherr_t matherr)
 	if (predict_false(abstop >= top12(88.0f))) {
 		/* |x| >= 88 or x is nan.  */
 		if (asuint(x) == asuint(-INFINITY))
-			return 0.0f;
+			return -INFINITY;
 		if (abstop >= top12(INFINITY))
 			return x + x;
 		if (x > 0x1.62e42ep6f) /* x > log(0x1p128) ~= 88.72 */
