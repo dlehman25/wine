@@ -2037,39 +2037,36 @@ static void test_cexpf(void)
         float r, i;
         float rexp, iexp;
         errno_t e;
-        BOOL rstodo;
-        BOOL istodo;
-        BOOL etodo;
     } tests[] = {
-        {  INFINITY,      0.0f,  INFINITY,      0.0f                                },
-        {  INFINITY,     -0.0f,  INFINITY,     -0.0f                                },
-        { -INFINITY,      0.0f,      0.0f,      0.0f                                },
-        { -INFINITY,     -0.0f,      0.0f,     -0.0f                                },
-        {      0.0f,  INFINITY,       NAN,       NAN, EDOM                          },
-        {     -0.0f,  INFINITY,       NAN,       NAN, EDOM                          },
-        {      0.0f, -INFINITY,       NAN,       NAN, EDOM                          },
-        {     -0.0f, -INFINITY,       NAN,       NAN, EDOM                          },
-        {    100.0f,  INFINITY,       NAN,       NAN, EDOM                          },
-        {   -100.0f,  INFINITY,       NAN,       NAN, EDOM                          },
-        {    100.0f, -INFINITY,       NAN,       NAN, EDOM                          },
-        {   -100.0f, -INFINITY,       NAN,       NAN, EDOM                          },
-        { -INFINITY,      2.0f,     -0.0f,      0.0f                                },
-        { -INFINITY,      4.0f,     -0.0f,     -0.0f                                },
-        {  INFINITY,      2.0f, -INFINITY,  INFINITY                                },
-        {  INFINITY,      4.0f, -INFINITY, -INFINITY                                },
-        {  INFINITY,  INFINITY,  INFINITY,       NAN, EDOM                          },
-        {  INFINITY, -INFINITY,  INFINITY,       NAN, EDOM                          },
-        { -INFINITY,  INFINITY,      0.0f,      0.0f                                },
-        { -INFINITY, -INFINITY,      0.0f,     -0.0f,    0                          },
-        { -INFINITY,       NAN,      0.0f,      0.0f                                },
-        {  INFINITY,       NAN,  INFINITY,       NAN                                },
-        {       NAN,      0.0f,       NAN,      0.0f                                },
-        {       NAN,     -0.0f,       NAN,     -0.0f                                },
-        {       NAN,      1.0f,       NAN,       NAN                                },
-        {       NAN,  INFINITY,       NAN,       NAN,    0, FALSE, FALSE, TRUE      },
-        {      0.0f,       NAN,       NAN,       NAN                                },
-        {      1.0f,       NAN,       NAN,       NAN                                },
-        {       NAN,       NAN,       NAN,       NAN                                },
+        {  INFINITY,      0.0f,  INFINITY,      0.0f       },
+        {  INFINITY,     -0.0f,  INFINITY,     -0.0f       },
+        { -INFINITY,      0.0f,      0.0f,      0.0f       },
+        { -INFINITY,     -0.0f,      0.0f,     -0.0f       },
+        {      0.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {     -0.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {      0.0f, -INFINITY,       NAN,       NAN, EDOM },
+        {     -0.0f, -INFINITY,       NAN,       NAN, EDOM },
+        {    100.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {   -100.0f,  INFINITY,       NAN,       NAN, EDOM },
+        {    100.0f, -INFINITY,       NAN,       NAN, EDOM },
+        {   -100.0f, -INFINITY,       NAN,       NAN, EDOM },
+        { -INFINITY,      2.0f,     -0.0f,      0.0f       },
+        { -INFINITY,      4.0f,     -0.0f,     -0.0f       },
+        {  INFINITY,      2.0f, -INFINITY,  INFINITY       },
+        {  INFINITY,      4.0f, -INFINITY, -INFINITY       },
+        {  INFINITY,  INFINITY,  INFINITY,       NAN, EDOM },
+        {  INFINITY, -INFINITY,  INFINITY,       NAN, EDOM },
+        { -INFINITY,  INFINITY,      0.0f,      0.0f       },
+        { -INFINITY, -INFINITY,      0.0f,     -0.0f       },
+        { -INFINITY,       NAN,      0.0f,      0.0f       },
+        {  INFINITY,       NAN,  INFINITY,       NAN       },
+        {       NAN,      0.0f,       NAN,      0.0f       },
+        {       NAN,     -0.0f,       NAN,     -0.0f       },
+        {       NAN,      1.0f,       NAN,       NAN       },
+        {       NAN,  INFINITY,       NAN,       NAN       },
+        {      0.0f,       NAN,       NAN,       NAN       },
+        {      1.0f,       NAN,       NAN,       NAN       },
+        {       NAN,       NAN,       NAN,       NAN       },
     };
     static const struct {
         float r, i;
@@ -2110,15 +2107,12 @@ static void test_cexpf(void)
             ok(_isnan(r._Val[1]), "expected NAN, got %0.7e for %d\n", r._Val[1], i);
         else
             ok(r._Val[1] == tests[i].iexp, "expected %0.7e, got %0.7e for %d\n", tests[i].iexp, r._Val[1], i);
-        todo_wine_if(tests[i].rstodo)
         ok(signbit(r._Val[0]) == signbit(tests[i].rexp), "expected sign %x, got %x for %d\n",
             signbit(tests[i].rexp), signbit(r._Val[0]), i);
-        todo_wine_if(tests[i].istodo)
         ok((signbit(r._Val[1]) == signbit(tests[i].iexp)) ||
             broken(tests[i].r == -INFINITY && tests[i].i == -0.0) /* older win10 */,
             "expected sign %x, got %x for %d\n", signbit(tests[i].iexp), signbit(r._Val[1]), i);
         if(tests[i].e)
-            todo_wine_if(tests[i].etodo)
             ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         else
             ok(e == -1, "expected no errno, but got %d for %d\n", e, i);
