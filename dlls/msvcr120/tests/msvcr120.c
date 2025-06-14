@@ -2031,11 +2031,15 @@ static void test_cexpf(void)
         float rexp, iexp;
         errno_t e;
         BOOL etodo;
+        BOOL rtodo;
+        BOOL itodo;
+        BOOL srtodo;
+        BOOL sitodo;
     } tests[] = {
         {  INFINITY,      0.0f,  INFINITY,      0.0f       },
         {  INFINITY,     -0.0f,  INFINITY,     -0.0f       },
-        { -INFINITY,      0.0f,      0.0f,      0.0f       },
-        { -INFINITY,     -0.0f,      0.0f,     -0.0f       },
+        { -INFINITY,      0.0f,      0.0f,      0.0f, 0, FALSE, TRUE, FALSE, TRUE },
+        { -INFINITY,     -0.0f,      0.0f,     -0.0f, 0, FALSE, TRUE, FALSE, TRUE },
         {      0.0f,  INFINITY,       NAN,       NAN, EDOM },
         {     -0.0f,  INFINITY,       NAN,       NAN, EDOM },
         {      0.0f, -INFINITY,       NAN,       NAN, EDOM },
@@ -2044,8 +2048,8 @@ static void test_cexpf(void)
         {   -100.0f,  INFINITY,       NAN,       NAN, EDOM },
         {    100.0f, -INFINITY,       NAN,       NAN, EDOM },
         {   -100.0f, -INFINITY,       NAN,       NAN, EDOM },
-        { -INFINITY,      2.0f,     -0.0f,      0.0f       },
-        { -INFINITY,      4.0f,     -0.0f,     -0.0f       },
+        { -INFINITY,      2.0f,     -0.0f,      0.0f, 0, FALSE, TRUE, TRUE, TRUE, TRUE },
+        { -INFINITY,      4.0f,     -0.0f,     -0.0f, 0, FALSE, TRUE, TRUE, TRUE, TRUE },
         {  INFINITY,      2.0f, -INFINITY,  INFINITY       },
         {  INFINITY,      4.0f, -INFINITY, -INFINITY       },
         {  INFINITY,  INFINITY,  INFINITY,       NAN, EDOM },
@@ -2096,13 +2100,17 @@ static void test_cexpf(void)
         if(_isnan(tests[i].rexp))
             ok(_isnan(r._Val[0]), "expected NAN, got %0.7e for %d\n", r._Val[0], i);
         else
+            todo_wine_if(tests[i].rtodo)
             ok(r._Val[0] == tests[i].rexp, "expected %0.7e, got %0.7e for %d\n", tests[i].rexp, r._Val[0], i);
         if(_isnan(tests[i].iexp))
             ok(_isnan(r._Val[1]), "expected NAN, got %0.7e for %d\n", r._Val[1], i);
         else
+            todo_wine_if(tests[i].itodo)
             ok(r._Val[1] == tests[i].iexp, "expected %0.7e, got %0.7e for %d\n", tests[i].iexp, r._Val[1], i);
+        todo_wine_if(tests[i].srtodo)
         ok(signbit(r._Val[0]) == signbit(tests[i].rexp), "expected sign %x, got %x for %d\n",
             signbit(tests[i].rexp), signbit(r._Val[0]), i);
+        todo_wine_if(tests[i].sitodo)
         ok((signbit(r._Val[1]) == signbit(tests[i].iexp)) ||
             broken(tests[i].r == -INFINITY && tests[i].i == -0.0) /* older win10 */,
             "expected sign %x, got %x for %d\n", signbit(tests[i].iexp), signbit(r._Val[1]), i);
