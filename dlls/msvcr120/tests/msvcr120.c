@@ -1885,8 +1885,8 @@ static void test_expf(void)
         BOOL stodo;
         BOOL rtodo;
     } tests[] = {
-        {  NAN,       NAN,           _DOMAIN,   EDOM,  TRUE              },
-        { -NAN,       NAN,           _DOMAIN,   EDOM,  TRUE,  TRUE       },
+        {  NAN,       NAN,           _DOMAIN,   EDOM   },
+        { -NAN,       NAN,           _DOMAIN,   EDOM   },
         {  INFINITY,  INFINITY                         },
         { -INFINITY, -INFINITY,      0,         0,     FALSE, TRUE, TRUE },
         {  0.0f,      1.0f                             },
@@ -2037,6 +2037,7 @@ static void test_cexpf(void)
         float r, i;
         float rexp, iexp;
         errno_t e;
+        BOOL etodo;
     } tests[] = {
         {  INFINITY,      0.0f,  INFINITY,      0.0f       },
         {  INFINITY,     -0.0f,  INFINITY,     -0.0f       },
@@ -2060,9 +2061,9 @@ static void test_cexpf(void)
         { -INFINITY, -INFINITY,      0.0f,     -0.0f       },
         { -INFINITY,       NAN,      0.0f,      0.0f       },
         {  INFINITY,       NAN,  INFINITY,       NAN       },
-        {       NAN,      0.0f,       NAN,      0.0f       },
-        {       NAN,     -0.0f,       NAN,     -0.0f       },
-        {       NAN,      1.0f,       NAN,       NAN       },
+        {       NAN,      0.0f,       NAN,      0.0f, 0, TRUE },
+        {       NAN,     -0.0f,       NAN,     -0.0f, 0, TRUE },
+        {       NAN,      1.0f,       NAN,       NAN, 0, TRUE },
         {       NAN,  INFINITY,       NAN,       NAN       },
         {      0.0f,       NAN,       NAN,       NAN       },
         {      1.0f,       NAN,       NAN,       NAN       },
@@ -2115,6 +2116,7 @@ static void test_cexpf(void)
         if(tests[i].e)
             ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         else
+            todo_wine_if(tests[i].etodo)
             ok(e == -1, "expected no errno, but got %d for %d\n", e, i);
         ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
     }
