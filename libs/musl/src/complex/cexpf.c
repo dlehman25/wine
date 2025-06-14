@@ -66,8 +66,10 @@ _Fcomplex cexpf(_Fcomplex z)
 	GET_FLOAT_WORD(hx, x);
 	/* cexp(0 + I y) = cos(y) + I sin(y) */
 	if ((hx & 0x7fffffff) == 0) {
-		if (isinf(y))
+		if (isinf(y)) {
+			errno = EDOM;
 			return CMPLXF(NAN, NAN);
+		}
 		return CMPLXF(cosf(y), sinf(y));
 	}
 
