@@ -2060,7 +2060,7 @@ static void test_cexpf(void)
         {  INFINITY,  INFINITY,  INFINITY,       NAN, EDOM, FALSE, TRUE, TRUE       },
         {  INFINITY, -INFINITY,  INFINITY,       NAN, EDOM, FALSE, TRUE, TRUE       },
         { -INFINITY,  INFINITY,      0.0f,      0.0f                                },
-        { -INFINITY, -INFINITY,      0.0f,     -0.0f,    0, FALSE, TRUE             },
+        { -INFINITY, -INFINITY,      0.0f,     -0.0f,    0                          },
         { -INFINITY,       NAN,      0.0f,      0.0f                                },
         {  INFINITY,       NAN,  INFINITY,       NAN                                },
         {       NAN,      0.0f,       NAN,      0.0f                                },
