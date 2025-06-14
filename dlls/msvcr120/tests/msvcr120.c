@@ -2040,16 +2040,15 @@ static void test_cexpf(void)
         BOOL rstodo;
         BOOL istodo;
         BOOL etodo;
-        BOOL ettodo;
     } tests[] = {
         {  INFINITY,      0.0f,  INFINITY,      0.0f                                },
         {  INFINITY,     -0.0f,  INFINITY,     -0.0f                                },
         { -INFINITY,      0.0f,      0.0f,      0.0f                                },
         { -INFINITY,     -0.0f,      0.0f,     -0.0f                                },
-        {      0.0f,  INFINITY,       NAN,       NAN, EDOM, TRUE, TRUE, FALSE, TRUE },
-        {     -0.0f,  INFINITY,       NAN,       NAN, EDOM, TRUE, TRUE, FALSE, TRUE },
-        {      0.0f, -INFINITY,       NAN,       NAN, EDOM, TRUE, TRUE, FALSE, TRUE },
-        {     -0.0f, -INFINITY,       NAN,       NAN, EDOM, TRUE, TRUE, FALSE, TRUE },
+        {      0.0f,  INFINITY,       NAN,       NAN, EDOM, FALSE, FALSE, TRUE      },
+        {     -0.0f,  INFINITY,       NAN,       NAN, EDOM, FALSE, FALSE, TRUE      },
+        {      0.0f, -INFINITY,       NAN,       NAN, EDOM, FALSE, FALSE, TRUE      },
+        {     -0.0f, -INFINITY,       NAN,       NAN, EDOM, FALSE, FALSE, TRUE      },
         {    100.0f,  INFINITY,       NAN,       NAN, EDOM                          },
         {   -100.0f,  INFINITY,       NAN,       NAN, EDOM                          },
         {    100.0f, -INFINITY,       NAN,       NAN, EDOM                          },
@@ -2123,7 +2122,6 @@ static void test_cexpf(void)
             ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         else
             ok(e == -1, "expected no errno, but got %d for %d\n", e, i);
-        todo_wine_if(tests[i].ettodo)
         ok(exception.type == -1, "matherr was called (%d) for %d\n", exception.type, i);
     }
 
