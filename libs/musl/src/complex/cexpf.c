@@ -87,7 +87,7 @@ _Fcomplex cexpf(_Fcomplex z)
 		} else {
 			/* cexp(+Inf +- I Inf|NaN) = Inf + I NaN */
 			if (!isnan(y)) errno = EDOM;
-			return CMPLXF(x, y - y);
+			return CMPLXF(x, NAN);
 		}
 	}
 
