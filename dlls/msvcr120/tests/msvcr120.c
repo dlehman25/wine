@@ -1885,8 +1885,8 @@ static void test_expf(void)
         BOOL stodo;
         BOOL rtodo;
     } tests[] = {
-        {  NAN,       NAN,           _DOMAIN,   EDOM,  TRUE              },
-        { -NAN,       NAN,           _DOMAIN,   EDOM,  TRUE,  TRUE       },
+        {  NAN,       NAN,           _DOMAIN,   EDOM   },
+        { -NAN,       NAN,           _DOMAIN,   EDOM   },
         {  INFINITY,  INFINITY                         },
         { -INFINITY, -INFINITY,      0,         0,     FALSE, TRUE, TRUE },
         {  0.0f,      1.0f                             },

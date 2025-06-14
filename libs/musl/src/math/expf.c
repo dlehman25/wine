@@ -36,6 +36,9 @@ float __cdecl __expf(float x, matherr_t matherr)
 	uint64_t ki, t;
 	double_t kd, xd, z, r, r2, y, s;
 
+	if (isnan(x))
+		return matherr(_DOMAIN, "expf", x, 0, NAN);
+
 	xd = (double_t)x;
 	abstop = top12(x) & 0x7ff;
 	if (predict_false(abstop >= top12(88.0f))) {
