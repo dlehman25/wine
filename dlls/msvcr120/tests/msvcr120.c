@@ -2036,13 +2036,10 @@ static void test_cexpf(void)
         BOOL srtodo;
         BOOL sitodo;
     } tests[] = {
-/*
-        {  INFINITY,      0.0f,  INFINITY,      0.0f       },
-        {  INFINITY,     -0.0f,  INFINITY,     -0.0f       },
-*/
-        { -INFINITY,      0.0f,      0.0f,      0.0f, 0, FALSE, TRUE, FALSE, TRUE },
-/*
-        { -INFINITY,     -0.0f,      0.0f,     -0.0f, 0, FALSE, TRUE, FALSE, TRUE },
+        {  INFINITY,      0.0f,  INFINITY,      0.0f, 0, FALSE, TRUE },
+        {  INFINITY,     -0.0f,  INFINITY,     -0.0f, 0, FALSE, TRUE },
+        { -INFINITY,      0.0f,      0.0f,      0.0f       },
+        { -INFINITY,     -0.0f,      0.0f,     -0.0f       },
         {      0.0f,  INFINITY,       NAN,       NAN, EDOM },
         {     -0.0f,  INFINITY,       NAN,       NAN, EDOM },
         {      0.0f, -INFINITY,       NAN,       NAN, EDOM },
@@ -2068,7 +2065,6 @@ static void test_cexpf(void)
         {      0.0f,       NAN,       NAN,       NAN       },
         {      1.0f,       NAN,       NAN,       NAN       },
         {       NAN,       NAN,       NAN,       NAN       },
-*/
     };
     static const struct {
         float r, i;

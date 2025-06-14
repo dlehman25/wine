@@ -62,8 +62,12 @@ _Fcomplex cexpf(_Fcomplex z)
 	hy &= 0x7fffffff;
 
 	/* cexp(x + I 0) = exp(x) + I 0 */
-	if (hy == 0)
-		return CMPLXF(__expf(x, cexpf_callback), y);
+	if (hy == 0) {
+		exp_x = __expf(x, cexpf_callback);
+		if (isinf(exp_x))
+			return CMPLXF(0.0f, copysign(0.0f, y));
+		return CMPLXF(exp_x, y);
+	}
 	GET_FLOAT_WORD(hx, x);
 	/* cexp(0 + I y) = cos(y) + I sin(y) */
 	if ((hx & 0x7fffffff) == 0) {
