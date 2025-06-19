@@ -1803,10 +1803,10 @@ static void test__fsopen(void)
     setlocale(LC_ALL, "C");
 }
 
-static int matherr_called;
+static struct _exception exception;
 static int CDECL matherr_callback(struct _exception *e)
 {
-    matherr_called = 1;
+    exception = *e;
     return 0;
 }
 
@@ -1815,16 +1815,17 @@ static void test_exp(void)
     static const struct {
         double x, exp;
         errno_t e;
+        int et;
     } tests[] = {
-        {  NAN,               NAN,                     EDOM  },
-        { -NAN,              -NAN,                     EDOM  },
-        {  INFINITY,          INFINITY                       },
-        { -INFINITY,          0.0                            },
-        {  0.0,               1.0                            },
-        {  1.0,               2.7182818284590451             },
-        {  709.7,             1.6549840276802644e+308        },
-        {  709.782712893384,  1.7976931348622732e+308        },
-        {  709.782712893385,  INFINITY,               ERANGE },
+        {  NAN,               NAN,                     EDOM,  _DOMAIN   },
+        { -NAN,              -NAN,                     EDOM,  _DOMAIN   },
+        {  INFINITY,          INFINITY                                  },
+        { -INFINITY,          0.0                                       },
+        {  0.0,               1.0                                       },
+        {  1.0,               2.7182818284590451                        },
+        {  709.7,             1.6549840276802644e+308                   },
+        {  709.782712893384,  1.7976931348622732e+308                   },
+        {  709.782712893385,  INFINITY,               ERANGE, _OVERFLOW },
     };
     errno_t e;
     double r;
@@ -1834,7 +1835,7 @@ static void test_exp(void)
 
     for(i=0; i<ARRAY_SIZE(tests); i++) {
         errno = 0;
-        matherr_called = 0;
+        exception.type = -1;
         r = exp(tests[i].x);
         e = errno;
         if(_isnan(tests[i].exp))
@@ -1844,10 +1845,8 @@ static void test_exp(void)
         ok(signbit(r) == signbit(tests[i].exp), "expected sign %x, got %x for %d\n",
             signbit(tests[i].exp), signbit(r), i);
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
-        if (tests[i].e)
-            ok(matherr_called, "matherr wasn't called for %d\n", i);
-        else
-            ok(!matherr_called, "matherr was called for %d\n", i);
+        ok(exception.type == tests[i].et ? tests[i].et : -1,
+            "expected exception type %d, got %d for %d\n", tests[i].et, exception.type, i);
     }
 
     __setusermatherr(NULL);
@@ -1918,7 +1917,7 @@ static void test_cexp(void)
     for(i=0; i<ARRAY_SIZE(tests); i++) {
         c = _Cbuild(tests[i].r, tests[i].i);
         errno = 0;
-        matherr_called = 0;
+        exception.type = -1;
         r = cexp(c);
         e = errno;
         if(_isnan(tests[i].rexp))
@@ -1935,19 +1934,19 @@ static void test_cexp(void)
             broken(tests[i].r == -INFINITY && tests[i].i == -0.0) /* older win10 */,
             "expected sign %x, got %x for %d\n", signbit(tests[i].iexp), signbit(r._Val[1]), i);
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
-        ok(!matherr_called, "matherr was called for %d\n", i);
+        ok(exception.type == -1, "matherr was called for %d\n", i);
     }
 
     for(i=0; i<ARRAY_SIZE(tests2); i++) {
         errno = 0;
-        matherr_called = 0;
+        exception.type = -1;
         c = _Cbuild(tests2[i].r, tests2[i].i);
         r = cexp(c);
         e = errno;
         ok(compare_double(r._Val[0], tests2[i].rexp, 16), "expected %0.16e, got %0.16e for real %d\n", tests2[i].rexp, r._Val[0], i);
         ok(compare_double(r._Val[1], tests2[i].iexp, 16), "expected %0.16e, got %0.16e for imag %d\n", tests2[i].iexp, r._Val[1], i);
         ok(e == tests2[i].e, "expected errno %i, but got %i for %d\n", tests2[i].e, e, i);
-        ok(!matherr_called, "matherr was called for %d\n", i);
+        ok(exception.type == -1, "matherr was called for %d\n", i);
     }
 
     __setusermatherr(NULL);
