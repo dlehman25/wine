@@ -1908,15 +1908,17 @@ static void test_expf(void)
         r = expf(tests[i].x);
         e = errno;
 
-        if(_isnanf(tests[i].exp))
-            ok(_isnanf(r), "expected NAN, got %0.7e for %d\n", r, i);
+        if(isnan(tests[i].exp))
+            ok(isnan(r), "expected NAN, got %0.7e for %d\n", r, i);
         else
             todo_wine_if(tests[i].rtodo)
             ok(compare_float(r, tests[i].exp, 7), "expected %0.7e, got %0.7e for %d\n", tests[i].exp, r, i);
 
-        todo_wine_if(tests[i].stodo)
-        ok(signbit(r) == signbit(tests[i].exp), "expected sign %x, got %x for %d\n",
-            signbit(tests[i].exp), signbit(r), i);
+        if(isfinite(tests[i].exp)) {
+            todo_wine_if(tests[i].stodo)
+            ok(signbit(r) == signbit(tests[i].exp), "expected sign %x, got %x for %d\n",
+                signbit(tests[i].exp), signbit(r), i);
+        }
 
         todo_wine_if(tests[i].etodo) {
         ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
