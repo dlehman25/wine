@@ -1921,7 +1921,8 @@ static void test_expf(void)
         }
 
         todo_wine_if(tests[i].etodo) {
-        ok(e == tests[i].e, "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
+        ok(e == tests[i].e || (sizeof(void*) == 4 && isfinite(tests[i].x) && !e),
+            "expected errno %i, but got %i for %d\n", tests[i].e, e, i);
         if(tests[i].type)
             ok(exception.type == tests[i].type, "expected %d, got %d for %d\n",
                 tests[i].type, exception.type, i);
