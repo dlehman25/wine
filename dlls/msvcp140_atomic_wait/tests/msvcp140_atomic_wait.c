@@ -37,6 +37,8 @@ static void (__stdcall *p___std_submit_threadpool_work)(PTP_WORK);
 static void (__stdcall *p___std_wait_for_threadpool_work_callbacks)(PTP_WORK, BOOL);
 static BOOL (__stdcall *p___std_atomic_wait_direct)(volatile void*, void*, size_t, DWORD);
 static void (__stdcall *p___std_atomic_notify_one_direct)(void*);
+static void (__stdcall *p___std_execution_wait_on_uchar)(void *, unsigned char);
+static void (__stdcall *p___std_execution_wake_by_address_all)(void *);
 static shared_mutex* (__stdcall *p___std_acquire_shared_mutex_for_instance)(void*);
 static void (__stdcall *p___std_release_shared_mutex_for_instance)(void*);
 
@@ -58,6 +60,8 @@ static HMODULE init(void)
     SET(p___std_wait_for_threadpool_work_callbacks, "__std_wait_for_threadpool_work_callbacks");
     SET(p___std_atomic_wait_direct, "__std_atomic_wait_direct");
     SET(p___std_atomic_notify_one_direct, "__std_atomic_notify_one_direct");
+    SET(p___std_execution_wait_on_uchar, "__std_execution_wait_on_uchar");
+    SET(p___std_execution_wake_by_address_all, "__std_execution_wake_by_address_all");
     SET(p___std_acquire_shared_mutex_for_instance, "__std_acquire_shared_mutex_for_instance");
     SET(p___std_release_shared_mutex_for_instance, "__std_release_shared_mutex_for_instance");
     return msvcp;
@@ -246,6 +250,69 @@ static void test___std_atomic_wait_direct(void)
     CloseHandle(thread);
 }
 
+static void __cdecl execution_wait_thread(void *arg)
+{
+    unsigned int *address = arg;
+    unsigned int compare = *address;
+
+    p___std_execution_wait_on_uchar(address, compare);
+}
+
+static void __cdecl execution_wait_thread2(void *arg)
+{
+    unsigned char *address = arg;
+    unsigned char compare = *address;
+
+    while (*address != 42)
+        p___std_execution_wait_on_uchar(address, compare);
+}
+
+static void test___std_execution(void)
+{
+    DWORD ret;
+    HANDLE thread;
+    unsigned char address;
+
+    p___std_execution_wake_by_address_all(NULL);
+    if (0) p___std_execution_wait_on_uchar(NULL, 0); /* crash on windows */
+
+    /* wakes without changing value */
+    address = 0;
+    thread = (HANDLE)_beginthread(execution_wait_thread, 0, &address);
+    ok(thread != INVALID_HANDLE_VALUE, "_beginthread failed\n");
+    Sleep(100);
+    p___std_execution_wake_by_address_all(&address);
+    WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
+
+    /* wakes when changing value */
+    address = 0;
+    thread = (HANDLE)_beginthread(execution_wait_thread, 0, &address);
+    ok(thread != INVALID_HANDLE_VALUE, "_beginthread failed\n");
+    Sleep(100);
+
+    address = 1;
+    p___std_execution_wake_by_address_all(&address);
+    WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
+
+    /* wake when waiting in loop */
+    address = 0;
+    thread = (HANDLE)_beginthread(execution_wait_thread2, 0, &address);
+    ok(thread != INVALID_HANDLE_VALUE, "_beginthread failed\n");
+    Sleep(100);
+
+    p___std_execution_wake_by_address_all(&address);
+    ret = WaitForSingleObject(thread, 1000);
+    ok(ret == WAIT_TIMEOUT, "expected WAIT_TIMEOUT, got %ld\n", ret);
+
+    address = 42;
+    p___std_execution_wake_by_address_all(&address);
+    ret = WaitForSingleObject(thread, 1000);
+    ok(ret == WAIT_OBJECT_0, "expected WAIT_OBJECT_0, got %ld\n", ret);
+    CloseHandle(thread);
+}
+
 static void test___std_acquire_shared_mutex_for_instance(void)
 {
     shared_mutex *ret1, *ret2;
@@ -280,6 +347,7 @@ START_TEST(msvcp140_atomic_wait)
     test___std_parallel_algorithms_hw_threads();
     test_threadpool_work();
     test___std_atomic_wait_direct();
+    test___std_execution();
     test___std_acquire_shared_mutex_for_instance();
     FreeLibrary(msvcp);
 }
