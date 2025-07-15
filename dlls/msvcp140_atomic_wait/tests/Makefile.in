@@ -1,4 +1,5 @@
 TESTDLL = msvcp140_atomic_wait.dll
+IMPORTS = kernelbase
 
 SOURCES = \
 	msvcp140_atomic_wait.c

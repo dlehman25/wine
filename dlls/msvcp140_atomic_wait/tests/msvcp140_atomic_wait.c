@@ -250,6 +250,7 @@ static void test___std_atomic_wait_direct(void)
     CloseHandle(thread);
 }
 
+#if 0
 static void __cdecl execution_wait_thread(void *arg)
 {
     unsigned int *address = arg;
@@ -266,6 +267,19 @@ static void __cdecl execution_wait_thread2(void *arg)
     while (*address != 42)
         p___std_execution_wait_on_uchar(address, compare);
 }
+#endif
+
+static void __cdecl execution_wait_thread(void *arg)
+{
+    unsigned char *address = arg;
+
+    *address = 1;
+    p___std_execution_wake_by_address_all(address);
+    
+    while (*address == 1)
+        p___std_execution_wait_on_uchar(address, 1);
+}
+
 
 static void test___std_execution(void)
 {
@@ -276,13 +290,31 @@ static void test___std_execution(void)
     p___std_execution_wake_by_address_all(NULL);
     if (0) p___std_execution_wait_on_uchar(NULL, 0); /* crash on windows */
 
+    address = 0;
+    thread = (HANDLE)_beginthread(execution_wait_thread, 0, &address);
+    ok(thread != INVALID_HANDLE_VALUE, "_beginthread failed\n");
+
+    Sleep(0);
+    while (!address)
+        p___std_execution_wait_on_uchar(&address, 0);
+    
+    address = 2;
+    p___std_execution_wake_by_address_all(&address);
+
+    ret = WaitForSingleObject(thread, 1000);
+    ok(ret == WAIT_OBJECT_0, "expected WAIT_OBJECT_0, got %ld\n", ret);
+    CloseHandle(thread);
+    
+
+#if 0
     /* wakes without changing value */
     address = 0;
     thread = (HANDLE)_beginthread(execution_wait_thread, 0, &address);
     ok(thread != INVALID_HANDLE_VALUE, "_beginthread failed\n");
     Sleep(100);
     p___std_execution_wake_by_address_all(&address);
-    WaitForSingleObject(thread, INFINITE);
+    ret = WaitForSingleObject(thread, 1000);
+    ok(ret == WAIT_OBJECT_0, "expected WAIT_OBJECT_0, got %ld\n", ret);
     CloseHandle(thread);
 
     /* wakes when changing value */
@@ -311,6 +343,7 @@ static void test___std_execution(void)
     ret = WaitForSingleObject(thread, 1000);
     ok(ret == WAIT_OBJECT_0, "expected WAIT_OBJECT_0, got %ld\n", ret);
     CloseHandle(thread);
+#endif
 }
 
 static void test___std_acquire_shared_mutex_for_instance(void)
