@@ -7,6 +7,7 @@ SOURCES = \
 	src/complex/__cexp.c \
 	src/complex/carg.c \
 	src/complex/cargf.c \
+	src/complex/casinh.c \
 	src/complex/cexp.c \
 	src/math/__cos.c \
 	src/math/__cosdf.c \

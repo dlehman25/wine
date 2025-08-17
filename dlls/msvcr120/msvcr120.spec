@@ -2052,7 +2052,7 @@
 @ stub cargl
 @ stub casin
 @ stub casinf
-@ stub casinh
+@ cdecl casinh(int128)
 @ stub casinhf
 @ stub casinhl
 @ stub casinl

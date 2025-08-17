@@ -2112,6 +2112,79 @@ static void test_cargf(void)
     __setusermatherr(NULL);
 }
 
+static void test_casinh(void)
+{
+    static const struct {
+        double r, i;
+        double rexp, iexp;
+    } tests[] = {
+        {  INFINITY,  INFINITY,  INFINITY,  M_PI_4 },
+        {  INFINITY, -INFINITY,  INFINITY, -M_PI_4 },
+        { -INFINITY,  INFINITY, -INFINITY,  M_PI_4 },
+        { -INFINITY, -INFINITY, -INFINITY, -M_PI_4 },
+        {     -10.0,  INFINITY,  INFINITY,  M_PI_2 },
+        {     -10.0, -INFINITY, -INFINITY, -M_PI_2 },
+        {       0.0,  INFINITY,  INFINITY,  M_PI_2 },
+        {       0.0, -INFINITY, -INFINITY, -M_PI_2 },
+        {      -0.0,  INFINITY,  INFINITY,  M_PI_2 },
+        {      -0.0, -INFINITY, -INFINITY, -M_PI_2 },
+        {       0.1,  INFINITY,  INFINITY,  M_PI_2 },
+        {       0.1, -INFINITY, -INFINITY, -M_PI_2 },
+        { -INFINITY,       0.0, -INFINITY,  0.0    },
+        { -INFINITY,      -0.0, -INFINITY, -0.0    },
+        { -INFINITY,       100, -INFINITY,  0.0    },
+        { -INFINITY,      -100, -INFINITY, -0.0    },
+        {  INFINITY,       0.0,  INFINITY,  0.0    },
+        {  INFINITY,      -0.0,  INFINITY, -0.0    },
+        {  INFINITY,       0.5,  INFINITY,  0.0    },
+        {  INFINITY,      -0.5,  INFINITY, -0.0    },
+        {  INFINITY,       NAN,  INFINITY, NAN     },
+        { -INFINITY,       NAN, -INFINITY, NAN     },
+        {       NAN,       0.0,       NAN,  0.0    },
+        {       NAN,      -0.0,       NAN, -0.0    },
+        {       NAN,  INFINITY,  INFINITY, NAN     },
+        {       NAN, -INFINITY, -INFINITY, NAN     },
+        {      10.5,       NAN,       NAN, NAN     },
+        {     -10.5,       NAN,       NAN, NAN     },
+        {       NAN,      0.75,       NAN, NAN     },
+        {     -0.75,       NAN,       NAN, NAN     },
+        {       NAN,       NAN,       NAN, NAN     },
+    };
+    _Dcomplex z, r;
+    errno_t e;
+    int i;
+
+    __setusermatherr(matherr_callback);
+
+    for(i=0; i<ARRAY_SIZE(tests); i++) {
+        z = _Cbuild(tests[i].r, tests[i].i);
+        errno = -1;
+        exception.type = -1;
+        r = casinh(z);
+        e = errno;
+
+        if(_isnan(tests[i].rexp))
+            ok(_isnan(r._Val[0]), "expected NAN, got %0.16e for %d\n", r._Val[0], i);
+        else {
+            ok(r._Val[0] == tests[i].rexp, "expected %0.16e, got %0.16e for %d\n", tests[i].rexp, r._Val[0], i);
+            ok(signbit(r._Val[0]) == signbit(tests[i].rexp), "expected sign %x, got %x for %d\n",
+                signbit(tests[i].rexp), signbit(r._Val[0]), i);
+        }
+        if(_isnan(tests[i].iexp))
+            ok(_isnan(r._Val[1]), "expected NAN, got %0.16e for %d\n", r._Val[1], i);
+        else {
+            ok(r._Val[1] == tests[i].iexp, "expected %0.16e, got %0.16e for %d\n", tests[i].iexp, r._Val[1], i);
+            ok(signbit(r._Val[1]) == signbit(tests[i].iexp), "expected sign %x, got %x for %d\n",
+                signbit(tests[i].iexp), signbit(r._Val[1]), i);
+        }
+
+        ok(e == -1,  "got %d for %d\n", e, i);
+        ok(exception.type == -1, "got %d for %d\n", exception.type, i);
+    }
+
+    __setusermatherr(NULL);
+}
+
 START_TEST(misc)
 {
     int arg_c;
@@ -2164,4 +2237,5 @@ START_TEST(misc)
     test_cexp();
     test_carg();
     test_cargf();
+    test_casinh();
 }

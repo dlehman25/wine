@@ -1719,7 +1719,7 @@
 @ stub cargl
 @ stub casin
 @ stub casinf
-@ stub casinh
+@ cdecl casinh(int128) msvcr120.casinh
 @ stub casinhf
 @ stub casinhl
 @ stub casinl
