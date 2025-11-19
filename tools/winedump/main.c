@@ -402,6 +402,43 @@ BOOL globals_dump_sect(const char* s)
     return FALSE;
 }
 
+BOOL globals_dump_sect_with_range(const char* s, unsigned *from, unsigned *to)
+{
+    const char** sect;
+    size_t slen;
+
+    if (!s || !globals.dumpsect) return FALSE;
+    if (globals_dump_sect(s)) return TRUE;
+    slen = strlen(s);
+    for (sect = globals.dumpsect; *sect; sect++)
+    {
+        if (!memcmp(*sect, s, slen))
+        {
+            if (sscanf(*sect + slen, ":%i-%i", from, to) == 2)
+            {
+                if (*from > *to)
+                {
+                    printf("Invalid range %x-%x\n", *from, *to);
+                    return FALSE;
+                }
+                return TRUE;
+            }
+            if (sscanf(*sect + slen, ":%i+%i", from, to) == 2)
+            {
+                *to += *from;
+                return TRUE;
+            }
+            if (sscanf(*sect + slen, ":%i", from) == 1)
+            {
+                *to = *from + 1;
+                return TRUE;
+            }
+        }
+    }
+
+    return FALSE;
+}
+
 /*******************************************************************
  *         main
  */

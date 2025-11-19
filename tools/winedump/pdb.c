@@ -786,11 +786,16 @@ static void pdb_dump_symbols(struct pdb_reader* reader)
 
     /* Read global symbol table */
     modimage = reader->read_stream(reader, symbols->gsym_stream);
-    if (modimage && globals_dump_sect("DBI"))
+    if (modimage)
     {
-        printf("\t------------globals-------------\n");
-        codeview_dump_symbols(modimage, 0, pdb_get_stream_size(reader, symbols->gsym_stream));
-        free(modimage);
+        unsigned from = 0, to = pdb_get_stream_size(reader, symbols->gsym_stream);
+
+        if (globals_dump_sect_with_range("DBI", &from, &to))
+        {
+            printf("\t------------globals-------------\n");
+            codeview_dump_symbols(modimage, from, to);
+            free(modimage);
+        }
     }
 
     /* Read per-module symbol / linenumber tables */
@@ -1003,8 +1008,10 @@ static void pdb_dump_types(struct pdb_reader* reader, unsigned strmidx, const ch
 {
     PDB_TYPES*  types = NULL;
     BOOL used = has_stream_been_read(reader, strmidx);
+    unsigned from = 0x1000, to = ~0u;
 
-    if (!globals_dump_sect(strmidx == 2 ? "TPI" : "IPI")) return;
+    if (!globals_dump_sect_with_range(strmidx == 2 ? "TPI" : "IPI", &from, &to)) return;
+
     if (pdb_get_stream_size(reader, strmidx) < sizeof(*types))
     {
         if (strmidx == 2)
@@ -1064,7 +1071,7 @@ static void pdb_dump_types(struct pdb_reader* reader, unsigned strmidx, const ch
            types->search_size,
            types->type_remap_offset,
            types->type_remap_size);
-    codeview_dump_types_from_block((const char*)types + types->type_offset, types->type_size);
+    codeview_dump_types_from_block((const char*)types + types->type_offset, types->type_size, from, to);
     pdb_dump_types_hash(reader, types, strmname);
     free(types);
 }

@@ -1186,7 +1186,7 @@ BOOL codeview_dump_types_from_offsets(const void* table, const DWORD* offsets, u
     return TRUE;
 }
 
-BOOL codeview_dump_types_from_block(const void* table, unsigned long len)
+BOOL codeview_dump_types_from_block(const void* table, unsigned long len, unsigned int from, unsigned int to)
 {
     unsigned int        curr_type = 0x1000;
     const unsigned char*ptr = table;
@@ -1195,7 +1195,8 @@ BOOL codeview_dump_types_from_block(const void* table, unsigned long len)
     {
         const union codeview_type* type = (const union codeview_type*)ptr;
 
-        codeview_dump_one_type(curr_type, type);
+        if (from <= curr_type && curr_type < to)
+            codeview_dump_one_type(curr_type, type);
         curr_type++;
         ptr += type->generic.len + 2;
     }
