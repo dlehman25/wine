@@ -4532,16 +4532,12 @@ static HRESULT WINAPI timer_SetTimer(IMFTimer *iface, DWORD flags, LONGLONG time
     struct timer_cancel *tc;
     HRESULT hr;
 
-    todo_wine_if(time == 83334)
     CHECK_EXPECT(timer_SetTimer);
     SetEvent(pc->set_timer_event);
 
     ok(flags == 0, "Unexpected flags value %#lx\n", flags);
-    todo_wine_if(time == 83334)
     ok(time == expected_pts, "Unexpected time value %I64d\n", time);
-    todo_wine_if(time == 83334)
     ok(pc->callback_result == NULL, "Unexpected callback result value %p\n", pc->callback_result);
-    todo_wine_if(time == 83334)
     ok(pc->cancel_key == NULL, "Unexpected cancel key %p\n", pc->cancel_key);
 
     hr = MFCreateAsyncResult(NULL, callback, state, &pc->callback_result);
@@ -5043,13 +5039,13 @@ static void test_sample_grabber_seek(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 4, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* queue three samples with a marker between the first and second ... */
     sample_pts = expected_pts = 0;
     SET_EXPECT(timer_SetTimer);
     supply_samples(stream, 1);
+    todo_wine
     CHECK_CALLED(timer_SetTimer);
     hr = IMFStreamSink_PlaceMarker(stream, MFSTREAMSINK_MARKER_DEFAULT, NULL, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -5175,7 +5171,6 @@ static void test_sample_grabber_seek(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 4, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* check contents of collection */
