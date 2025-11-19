@@ -5052,7 +5052,6 @@ static void test_sample_grabber_seek(void)
 
     SET_EXPECT(MEStreamSinkMarker);
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 1, "Unexpected number of samples requested %d\n", samples_requested);
     hr = WaitForSingleObject(mock_clock->set_timer_event, 1000);
     ok(hr == WAIT_OBJECT_0, "Unexpected hr %#lx.\n", hr);
@@ -5069,7 +5068,6 @@ static void test_sample_grabber_seek(void)
     CHECK_CALLED(timer_CancelTimer);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 2, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* test over supply */
