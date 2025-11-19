@@ -4553,7 +4553,6 @@ static HRESULT WINAPI timer_CancelTimer(IMFTimer *iface, IUnknown *cancel_key)
 {
     struct presentation_clock* pc = impl_from_IMFTimer(iface);
 
-    todo_wine
     CHECK_EXPECT(timer_CancelTimer);
     ok(cancel_key == pc->cancel_key, "Unexpected cancel key %p\n", cancel_key);
 
@@ -4789,8 +4788,6 @@ static void supply_samples(IMFStreamSink *stream, int num_samples)
     }
 }
 
-static BOOL ignore_clock = FALSE;
-
 #define count_samples_requested(stream) _count_samples_requested(__LINE__, stream)
 static int _count_samples_requested(int line, IMFStreamSink *stream)
 {
@@ -4815,7 +4812,6 @@ static int _count_samples_requested(int line, IMFStreamSink *stream)
         }
         else if (met == MEStreamSinkMarker)
         {
-            todo_wine_if(!ignore_clock)
             CHECK_EXPECT(MEStreamSinkMarker);
             break;
         }
@@ -4961,18 +4957,15 @@ static void test_sample_grabber_seek(void)
     SET_EXPECT(timer_CancelTimer);
     hr = IMFPresentationClock_Start(clock, 1234);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     CHECK_CALLED(timer_CancelTimer);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 4, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* test number of new sample requests on seek when in running state and 3 samples have been provided */
     sample_pts = 0;
     SET_EXPECT(timer_SetTimer);
     supply_samples(stream, 2);
-    todo_wine
     CHECK_CALLED(timer_SetTimer);
     /* this marker gets silently discarded on the next seek */
     hr = IMFStreamSink_PlaceMarker(stream, MFSTREAMSINK_MARKER_DEFAULT, NULL, NULL);
@@ -5000,18 +4993,15 @@ static void test_sample_grabber_seek(void)
     SET_EXPECT(timer_CancelTimer);
     hr = IMFPresentationClock_Start(clock, 1234);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     CHECK_CALLED(timer_CancelTimer);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 2, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* test number of new sample requests after a flush then seek */
     sample_pts = expected_pts = 0;
     SET_EXPECT(timer_SetTimer);
     supply_samples(stream, 2);
-    todo_wine
     CHECK_CALLED(timer_SetTimer);
 
     /* there is no cancel timer, or sample requests during a flush */
@@ -5024,11 +5014,9 @@ static void test_sample_grabber_seek(void)
     SET_EXPECT(timer_CancelTimer);
     hr = IMFPresentationClock_Start(clock, 1234);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     CHECK_CALLED(timer_CancelTimer);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 3, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* test number of new sample requests on seek whilst stopped */
@@ -5045,41 +5033,31 @@ static void test_sample_grabber_seek(void)
     sample_pts = expected_pts = 0;
     SET_EXPECT(timer_SetTimer);
     supply_samples(stream, 1);
-    todo_wine
     CHECK_CALLED(timer_SetTimer);
     hr = IMFStreamSink_PlaceMarker(stream, MFSTREAMSINK_MARKER_DEFAULT, NULL, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     supply_samples(stream, 2);
 
     /* ... trigger the time for the first sample ... */
-    todo_wine
     hr = trigger_timer(mock_clock);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     hr = WaitForSingleObject(grabber_callback_impl->ready_event, 1000);
-    todo_wine
     ok(hr == WAIT_OBJECT_0, "Unexpected hr %#lx.\n", hr);
 
-    if (hr == WAIT_OBJECT_0)
-    {
-        expected_pts = 41667;
-        ResetEvent(mock_clock->set_timer_event);
-        SET_EXPECT(timer_SetTimer);
-        SetEvent(grabber_callback_impl->done_event);
+    expected_pts = 41667;
+    ResetEvent(mock_clock->set_timer_event);
+    SET_EXPECT(timer_SetTimer);
+    SetEvent(grabber_callback_impl->done_event);
 
-        SET_EXPECT(MEStreamSinkMarker);
-        samples_requested = count_samples_requested(stream);
-        ok(samples_requested == 1, "Unexpected number of samples requested %d\n", samples_requested);
-        hr = WaitForSingleObject(mock_clock->set_timer_event, 1000);
-        ok(hr == WAIT_OBJECT_0, "Unexpected hr %#lx.\n", hr);
-        CHECK_CALLED(MEStreamSinkMarker);
-        CHECK_CALLED(timer_SetTimer);
-    }
-    else
-    {
-        skip("skipping MEStreamSinkMarker test\n");
-    }
+    SET_EXPECT(MEStreamSinkMarker);
+    samples_requested = count_samples_requested(stream);
+    todo_wine
+    ok(samples_requested == 1, "Unexpected number of samples requested %d\n", samples_requested);
+    hr = WaitForSingleObject(mock_clock->set_timer_event, 1000);
+    ok(hr == WAIT_OBJECT_0, "Unexpected hr %#lx.\n", hr);
+    CHECK_CALLED(MEStreamSinkMarker);
+    CHECK_CALLED(timer_SetTimer);
 
     /* ... now pause and seek then test the number of samples requested */
     hr = IMFPresentationClock_Pause(clock);
@@ -5098,17 +5076,14 @@ static void test_sample_grabber_seek(void)
     sample_pts = expected_pts = 0;
     SET_EXPECT(timer_SetTimer);
     supply_samples(stream, 6);
-    todo_wine
     CHECK_CALLED(timer_SetTimer);
 
     SET_EXPECT(timer_CancelTimer);
     hr = IMFPresentationClock_Start(clock, 0);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     CHECK_CALLED(timer_CancelTimer);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 4, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* test number of new sample requests on seek from paused state where no samples were previously provided */
@@ -5128,14 +5103,12 @@ static void test_sample_grabber_seek(void)
     expected_pts = sample_pts;
     SET_EXPECT(timer_SetTimer);
     supply_samples(stream, 4);
-    todo_wine
     CHECK_CALLED(timer_SetTimer);
 
     hr = IMFPresentationClock_Start(clock, PRESENTATION_CURRENT_POSITION);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     samples_requested = count_samples_requested(stream);
-    todo_wine
     ok(samples_requested == 4, "Unexpected number of samples requested %d\n", samples_requested);
 
     /* test pause and resume with 4 samples queued */
@@ -5155,7 +5128,6 @@ static void test_sample_grabber_seek(void)
     SET_EXPECT(timer_CancelTimer);
     hr = IMFPresentationClock_Start(clock, 1234567);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     CHECK_CALLED(timer_CancelTimer);
 
     samples_requested = count_samples_requested(stream);
@@ -5176,24 +5148,19 @@ static void test_sample_grabber_seek(void)
     /* check contents of collection */
     hr = IMFCollection_GetElementCount(grabber_callback_impl->samples, &count);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(count == ARRAY_SIZE(use_clock_samples), "Unexpected total of samples delivered %ld\n", count);
 
     for (i = 0; i < ARRAY_SIZE(use_clock_samples); i++)
     {
         hr = IMFCollection_GetElement(grabber_callback_impl->samples, i, (IUnknown**)&sample);
-        todo_wine_if(i)
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-        if (hr == S_OK)
-        {
-            hr = IMFSample_GetSampleTime(sample, &pts);
-            ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-            ok(pts == use_clock_samples[i], "%d: Unexpected pts %I64d, expected %I64d\n", i, pts, use_clock_samples[i]);
+        hr = IMFSample_GetSampleTime(sample, &pts);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(pts == use_clock_samples[i], "%d: Unexpected pts %I64d, expected %I64d\n", i, pts, use_clock_samples[i]);
 
-            ref = IMFSample_Release(sample);
-            ok(ref == 1, "Release returned %ld\n", ref);
-        }
+        ref = IMFSample_Release(sample);
+        ok(ref == 1, "Release returned %ld\n", ref);
     }
 
     /* required for the sink to be fully released */
@@ -5209,7 +5176,6 @@ static void test_sample_grabber_seek(void)
 
     /* test with MF_SAMPLEGRABBERSINK_IGNORE_CLOCK */
 
-    ignore_clock = TRUE;
     grabber_callback = create_test_grabber_callback();
     grabber_callback_impl = impl_from_IMFSampleGrabberSinkCallback(grabber_callback);
     grabber_callback_impl->do_event = FALSE;
