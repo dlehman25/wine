@@ -427,17 +427,14 @@ static void dump_public_symbol(struct pdb_reader* reader, unsigned stream)
     free(hdr);
 }
 
-static const void* pdb_dump_dbi_module(struct pdb_reader* reader, const PDB_SYMBOL_FILE_EX* sym_file,
-                                       const char* file_name)
+static void pdb_dump_dbi_module(struct pdb_reader* reader, const PDB_SYMBOL_FILE_EX* sym_file,
+                                const char* file_name, const char* lib_name, unsigned index)
 {
-    const char* lib_name;
+    BOOL new_format = file_name == sym_file->filename;
     unsigned char* modimage;
-    BOOL new_format = !file_name;
 
-    if (new_format) file_name = sym_file->filename;
-    printf("\t--------symbol file-----------\n");
+    printf("\t--------compilation unit #%u-----------\n", index);
     printf("\tName: %s\n", file_name);
-    lib_name = file_name + strlen(file_name) + 1;
     if (strcmp(file_name, lib_name)) printf("\tLibrary: %s\n", lib_name);
     printf("\t\tunknown1:   %08x\n"
            "\t\trange\n"
@@ -491,6 +488,7 @@ static const void* pdb_dump_dbi_module(struct pdb_reader* reader, const PDB_SYMB
     {
         int total_size = pdb_get_stream_size(reader, sym_file->stream);
 
+        /* first (skipped) DWORD is always 4... */
         if (sym_file->symbol_size)
             codeview_dump_symbols((const char*)modimage, sizeof(DWORD), sym_file->symbol_size);
 
@@ -506,7 +504,6 @@ static const void* pdb_dump_dbi_module(struct pdb_reader* reader, const PDB_SYMB
                       total_size - (sym_file->symbol_size + sym_file->lineno_size + sym_file->lineno2_size), "    ");
         free(modimage);
     }
-    return (const void*)((DWORD_PTR)(lib_name + strlen(lib_name) + 1 + 3) & ~3);
 }
 
 static void pdb_dump_symbols(struct pdb_reader* reader)
@@ -517,6 +514,7 @@ static void pdb_dump_symbols(struct pdb_reader* reader)
     char                tcver[32];
     const unsigned short* sub_streams = NULL;
     unsigned            num_sub_streams = 0;
+    const char*         section_filter;
 
     symbols = reader->read_stream(reader, 3);
     if (!symbols) return;
@@ -799,16 +797,22 @@ static void pdb_dump_symbols(struct pdb_reader* reader)
     }
 
     /* Read per-module symbol / linenumber tables */
-    if (symbols->module_size && globals_dump_sect("DBI"))
+    section_filter = NULL;
+    if (symbols->module_size && globals_dump_sect_with_option("DBI", "compiland", &section_filter))
     {
         SIZE_T module_header_size = symbols->version < 19970000 ? sizeof(PDB_SYMBOL_FILE) : sizeof(PDB_SYMBOL_FILE_EX);
+        unsigned compiland_index = 0;
 
         file = (const char*)symbols + sizeof(PDB_SYMBOLS);
         while (file + module_header_size <= (const char*)symbols + sizeof(PDB_SYMBOLS) + symbols->module_size)
         {
+            PDB_SYMBOL_FILE_EX copy;
+            const PDB_SYMBOL_FILE_EX *sym_file_ex;
+            const char *file_name;
+            const char *lib_name;
+
             if (symbols->version < 19970000)
             {
-                PDB_SYMBOL_FILE_EX copy;
                 const PDB_SYMBOL_FILE* sym_file = (const PDB_SYMBOL_FILE*)file;
 
                 copy.unknown1 = sym_file->unknown1;
@@ -830,10 +834,19 @@ static void pdb_dump_symbols(struct pdb_reader* reader)
                 copy.attribute = sym_file->attribute;
                 copy.reserved[0] = 0;
                 copy.reserved[1] = 0;
-                file = pdb_dump_dbi_module(reader, &copy, sym_file->filename);
+                file_name = sym_file->filename;
+                sym_file_ex = &copy;
             }
             else
-                file = pdb_dump_dbi_module(reader, (const PDB_SYMBOL_FILE_EX*)file, NULL);
+            {
+                sym_file_ex = (const void*)file;
+                file_name = sym_file_ex->filename;
+            }
+            lib_name = file_name + strlen(file_name) + 1;
+            if (!section_filter || strstr(file_name, section_filter) != NULL)
+                pdb_dump_dbi_module(reader, sym_file_ex, file_name, lib_name, compiland_index);
+            compiland_index++;
+            file = (const void*)((DWORD_PTR)(lib_name + strlen(lib_name) + 1 + 3) & ~3);
         }
     }
     dump_global_symbol(reader, symbols->global_hash_stream);

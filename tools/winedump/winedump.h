@@ -143,6 +143,7 @@ extern void *dump_base;
 extern size_t dump_total_len;
 
 BOOL globals_dump_sect(const char*);
+BOOL globals_dump_sect_with_option(const char *, const char *, const char **);
 BOOL globals_dump_sect_with_range(const char *, unsigned *, unsigned *);
 
 /* Names to use for output DLL */

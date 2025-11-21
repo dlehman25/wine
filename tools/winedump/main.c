@@ -402,6 +402,30 @@ BOOL globals_dump_sect(const char* s)
     return FALSE;
 }
 
+BOOL globals_dump_sect_with_option(const char* s, const char *opt, const char **value)
+{
+    const char** sect;
+    size_t slen, olen;
+
+    if (!s || !globals.dumpsect) return FALSE;
+    if (globals_dump_sect(s)) return TRUE;
+    slen = strlen(s);
+    olen = strlen(opt);
+    for (sect = globals.dumpsect; *sect; sect++)
+    {
+        if (!memcmp(*sect, s, slen) &&
+            (*sect)[slen] == ':' &&
+            !memcmp(*sect + slen + 1, opt, olen) &&
+            (*sect)[slen + 1 + olen] == '=')
+        {
+            if (value) *value = (*sect) + slen + 1 + olen + 1;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 BOOL globals_dump_sect_with_range(const char* s, unsigned *from, unsigned *to)
 {
     const char** sect;
