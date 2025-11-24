@@ -41,5 +41,6 @@ inline static void push_format_context(const WAVEFORMATEXTENSIBLE *fmt)
         winetest_push_context("%s%ux%lux%u", format_str[fmt->Format.wFormatTag],
                 fmt->Format.wBitsPerSample, fmt->Format.nSamplesPerSec, fmt->Format.nChannels);
     }
-
 }
+
+HRESULT validate_fmt(const WAVEFORMATEXTENSIBLE *fmt, BOOL compatible);

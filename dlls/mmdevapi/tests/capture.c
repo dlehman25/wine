@@ -598,11 +598,21 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     /* In shared mode you can only change bit width, not sampling rate or channel count. */
     if (mode == AUDCLNT_SHAREMODE_SHARED) {
         compatible = fmt->Format.nSamplesPerSec == pwfx->nSamplesPerSec && fmt->Format.nChannels == pwfx->nChannels;
-        expected = compatible ? S_OK : S_FALSE;
-        if (fmt->Format.nChannels > 2 && !extensible)
-            expected = AUDCLNT_E_UNSUPPORTED_FORMAT;
-        todo_wine_if(hr != expected)
-        ok(hr == expected, "IsFormatSupported() returns %08lx, expected %08lx\n", hr, expected);
+        expected = validate_fmt(fmt, TRUE);
+        if (expected == S_OK) {
+            /* Correct formats should be accepted, possibly with S_FALSE if they are not compatible. */
+            if (!compatible)
+                expected = S_FALSE;
+            todo_wine_if(hr != expected)
+            ok(hr == expected, "IsFormatSupported() returns %08lx, expected %08lx\n", hr, expected);
+        } else {
+            /* With incorrect formats it's a mess. Native emits all sorts of possible
+             * error codes, including S_OK and S_FALSE, without any apparent logic.
+             * I tried to find some regularity, but it seems hopeless. Also different
+             * drivers do wildly different things. */
+            ok(hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG || broken(hr == S_OK || hr == S_FALSE),
+                    "IsFormatSupported() returns %08lx\n", hr);
+        }
     } else {
         ok(hr == S_OK || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || (hr == E_INVALIDARG && extensible),
                 "IsFormatSupported() returns %08lx\n", hr);
@@ -622,18 +632,18 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     if ((hrs == S_OK) ^ (hr == S_OK))
         trace("Initialize() returns %08lx unlike IsFormatSupported\n", hr);
     if (mode == AUDCLNT_SHAREMODE_SHARED) {
-        HRESULT expected = hrs == S_OK ? S_OK : AUDCLNT_E_UNSUPPORTED_FORMAT;
-        if (fmt->Format.nChannels > 2 && !extensible)
-            expected = E_INVALIDARG;
-        todo_wine_if(fmt->Format.nChannels > 2 && !extensible)
+        compatible = fmt->Format.nSamplesPerSec == pwfx->nSamplesPerSec && fmt->Format.nChannels == pwfx->nChannels;
+        expected = validate_fmt(fmt, compatible);
+        todo_wine_if(hr != expected)
         ok(hr == expected, "Initialize() returns %08lx, expected %08lx\n", hr, expected);
     } else if (hrs == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED)
         /* Unsupported format implies "create failed" and shadows "not allowed" */
         ok(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == hrs,
             "Initialize() returns %08lx(%08lx)\n", hr, hrs);
     else
+        /* For some drivers Initialize() doesn't match IsFormatSupported(). */
         todo_wine_if(hr == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED || (hr == S_OK && hrs != S_OK))
-        ok(hrs == S_OK ? hr == S_OK
+        ok(hrs == S_OK ? hr == S_OK || broken(hr == E_INVALIDARG)
             : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG,
             "Initialize() returns %08lx\n", hr);
 
@@ -649,9 +659,7 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     hr = IAudioClient_Initialize(ac, mode, AUDCLNT_STREAMFLAGS_RATEADJUST, 5000000, 0, (WAVEFORMATEX*)fmt, NULL);
     if (mode == AUDCLNT_SHAREMODE_SHARED) {
         compatible = fmt->Format.nChannels == pwfx->nChannels;
-        expected = compatible ? S_OK : AUDCLNT_E_UNSUPPORTED_FORMAT;
-        if (fmt->Format.nChannels > 2 && !extensible)
-            expected = E_INVALIDARG;
+        expected = validate_fmt(fmt, compatible);
         todo_wine_if(hr != expected)
         ok(hr == expected, "Initialize(RATEADJUST) returns %08lx, expected %08lx\n", hr, expected);
     } else {
@@ -671,7 +679,7 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     /* With AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM it always succeeds. */
     hr = IAudioClient_Initialize(ac, mode, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, 5000000, 0, (WAVEFORMATEX*)fmt, NULL);
     if (mode == AUDCLNT_SHAREMODE_SHARED) {
-        expected = fmt->Format.nChannels <= 2 || extensible? S_OK : E_INVALIDARG;
+        expected = validate_fmt(fmt, TRUE);
         todo_wine_if(hr != expected)
         ok(hr == expected, "Initialize(AUTOCONVERTPCM) returns %08lx\n",  hr);
     } else {
