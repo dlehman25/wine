@@ -589,8 +589,6 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     pwfx2 = (WAVEFORMATEX*)0xDEADF00D;
     hr = IAudioClient_IsFormatSupported(ac, mode, (WAVEFORMATEX*)fmt, &pwfx2);
     hrs = hr;
-    if (hr == S_OK)
-        trace("IsSupported() is true\n");
 
     /* In shared mode you can only change bit width, not sampling rate or channel count. */
     if (mode == AUDCLNT_SHAREMODE_SHARED) {
@@ -628,7 +626,7 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
 
     hr = IAudioClient_Initialize(ac, mode, 0, 5000000, 0, (WAVEFORMATEX*)fmt, NULL);
     if ((hrs == S_OK) ^ (hr == S_OK))
-        trace("Initialize() returns %08lx unlike IsFormatSupported\n", hr);
+        trace("Initialize() returns %08lx while IsFormatSupported() returns %08lx\n", hr, hrs);
     if (mode == AUDCLNT_SHAREMODE_SHARED) {
         compatible = fmt->Format.nSamplesPerSec == pwfx->nSamplesPerSec && fmt->Format.nChannels == pwfx->nChannels;
         expected = validate_fmt(fmt, compatible);
@@ -644,6 +642,9 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
         ok(hrs == S_OK ? hr == S_OK || broken(hr == E_INVALIDARG)
             : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG,
             "Initialize() returns %08lx\n", hr);
+
+    if (hr == S_OK)
+        trace("Initialize() succeeded\n");
 
     IAudioClient_Release(ac);
 
