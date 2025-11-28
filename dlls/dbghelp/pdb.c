@@ -4481,11 +4481,12 @@ static enum pdb_result pdb_reader_symbol_count_range_annotations(struct pdb_read
     return R_PDB_SUCCESS;
 }
 
-static enum pdb_result pdb_reader_symbol_skip_if(struct pdb_reader *pdb, struct pdb_reader_walker *walker, unsigned id)
+static enum pdb_result pdb_reader_symbol_skip_if(struct pdb_reader *pdb, struct pdb_reader_walker *walker, unsigned offset, unsigned id)
 {
     enum pdb_result result;
     union codeview_symbol cv_symbol;
 
+    walker->offset = offset;
     if ((result = pdb_reader_read_partial_codeview_symbol(pdb, walker, &cv_symbol))) return result;
     if (cv_symbol.generic.id != id)
     {
@@ -4717,8 +4718,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
             /* FIXME: we've seen S_FRAMEPROC inside S_THUNK...
              * so until it's better supported, skip until end of thunk declaration
              */
-            walker->offset = cv_symbol->thunk_v3.pend;
-            if ((result = pdb_reader_symbol_skip_if(pdb, walker, S_END))) goto failure;
+            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->thunk_v3.pend, S_END))) goto failure;
             break;
 
         /*
@@ -4859,8 +4859,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
                                                             cv_symbol->inline_site_v3.inlinee, symbol_start_offset, &annotation_walker, &inlined)))
                 {
                     /* skip whole inlined block */
-                    walker->offset = cv_symbol->inline_site_v3.pEnd;
-                    if ((result = pdb_reader_symbol_skip_if(pdb, walker, S_INLINESITE_END))) goto failure;
+                    if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->inline_site_v3.pEnd, S_INLINESITE_END))) goto failure;
                 }
                 else
                 {
@@ -4882,8 +4881,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
                                                             cv_symbol->inline_site2_v3.inlinee, symbol_start_offset, &annotation_walker, &inlined)))
                 {
                     /* skip whole inlined block */
-                    walker->offset = cv_symbol->inline_site2_v3.pEnd;
-                    if ((result = pdb_reader_symbol_skip_if(pdb, walker, S_INLINESITE_END))) goto failure;
+                    if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->inline_site2_v3.pEnd, S_INLINESITE_END))) goto failure;
                 }
                 else
                 {
@@ -4953,8 +4951,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
 
         case S_GMANPROC:
         case S_LMANPROC:
-            walker->offset = cv_symbol->managed_proc_v3.pend;
-            if ((result = pdb_reader_symbol_skip_if(pdb, walker, S_END))) goto failure;
+            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->managed_proc_v3.pend, S_END))) goto failure;
             break;
 
         /* symbols only expected in globals' DBI stream */
