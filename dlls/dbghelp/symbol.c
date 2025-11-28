@@ -231,7 +231,7 @@ struct symt_module* symt_new_module(struct module* module)
     return sym;
 }
 
-struct symt_compiland* symt_new_compiland(struct module* module, const char *filename)
+struct symt_compiland* symt_new_compiland(struct module* module, symref_t parent, const char *filename)
 {
     struct symt_compiland*    sym;
     symref_t*                 p;
@@ -241,13 +241,17 @@ struct symt_compiland* symt_new_compiland(struct module* module, const char *fil
     if ((sym = pool_alloc(&module->pool, sizeof(*sym))))
     {
         sym->symt.tag  = SymTagCompiland;
-        sym->container = symt_ptr_to_symref(&module->top->symt);
+        sym->container = parent;
         sym->address   = 0;
         sym->filename  = pool_strdup(&module->pool, filename);
         vector_init(&sym->vchildren, sizeof(symref_t), 0);
         sym->user      = NULL;
-        p = vector_add(&module->top->vchildren, &module->pool);
-        if (p) *p = symt_ptr_to_symref(&sym->symt);
+        if (symt_is_symref_ptr(parent))
+        {
+            if (parent != symt_ptr_to_symref(&module->top->symt)) FIXME("Unexpected parent\n");
+            p = vector_add(&module->top->vchildren, &module->pool);
+            if (p) *p = symt_ptr_to_symref(&sym->symt);
+        }
     }
     return sym;
 }

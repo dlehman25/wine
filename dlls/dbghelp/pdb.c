@@ -4871,7 +4871,7 @@ static enum pdb_result pdb_reader_ensure_symbols_loaded_from_compiland(struct pd
         if ((result = pdb_reader_walker_init(pdb, PDB_STREAM_DBI, &walker))) return result;
         walker.offset = compiland->stream_offset;
         if ((result = pdb_reader_alloc_and_fetch_string(pdb, &walker, &obj_name))) return result;
-        compiland->compiland = symt_new_compiland(pdb->module, obj_name);
+        compiland->compiland = symt_new_compiland(pdb->module, symt_ptr_to_symref(&pdb->module->top->symt), obj_name);
         pdb_reader_free(pdb, obj_name);
 
         if ((result = pdb_reader_walker_init(pdb, compiland->compiland_stream_id, &walker))) return result;
