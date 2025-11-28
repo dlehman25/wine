@@ -4654,20 +4654,16 @@ static BOOL symt_function_has_local_variable(struct symt_function* func, const c
     return FALSE;
 }
 
-static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb, struct symt_compiland *compiland, struct pdb_reader_walker *walker)
+static enum pdb_result pdb_reader_load_compiland_function(struct pdb_reader *pdb, struct symt_compiland *compiland,
+                                                          struct symt_function *top_func, struct symt_function *curr_func, struct pdb_reader_walker *walker)
 {
     enum pdb_result result;
     union codeview_symbol *cv_symbol;
-    struct symt_function *top_func = NULL;
-    struct symt_function *curr_func = NULL;
     struct symt_block *block = NULL;
     struct location loc;
     unsigned top_frame_size = -1;
     DWORD64 address;
     symref_t type_symref;
-
-    /* skip first DWORD, always 4 AFAICT */
-    walker->offset += sizeof(UINT32);
 
     /*
      * Loop over the different types of records and whenever we
@@ -4682,8 +4678,6 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
         switch (cv_symbol->generic.id)
         {
         case S_LDATA32:
-            if (curr_func)
-            {
             loc.kind = loc_absolute;
             loc.reg = 0;
             if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->data_v3.segment, cv_symbol->data_v3.offset, &address)))
@@ -4692,13 +4686,10 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
 
             if ((result = pdb_reader_create_variable(pdb, compiland, curr_func, block, cv_symbol->data_v3.name, &loc,
                                                      cv_symbol->data_v3.symtype, TRUE))) goto failure;
-            }
             break;
 
         /* variables with thread storage */
         case S_LTHREAD32:
-            if (curr_func)
-            {
             loc.kind = loc_tlsrel;
             loc.reg = 0;
             loc.offset = cv_symbol->thread_v3.offset;
@@ -4706,18 +4697,10 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
             if ((result = pdb_reader_create_variable(pdb, compiland, curr_func, block, cv_symbol->thread_v3.name,
                                                      &loc, cv_symbol->thread_v3.symtype,
                                                      cv_symbol->generic.id == S_LTHREAD32))) goto failure;
-            }
             break;
 
         case S_THUNK32:
-            if (curr_func) WARN("not expecting thunks inside functions\n");
-            if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->thunk_v3.segment, cv_symbol->thunk_v3.offset, &address))) goto failure;
-            symt_new_thunk(pdb->module, compiland,
-                           cv_symbol->thunk_v3.name, cv_symbol->thunk_v3.thtype,
-                           address, cv_symbol->thunk_v3.thunk_len);
-            /* FIXME: we've seen S_FRAMEPROC inside S_THUNK...
-             * so until it's better supported, skip until end of thunk declaration
-             */
+            FIXME("Unexpected S_THUNK32 at %x\n", symbol_start_offset);
             if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->thunk_v3.pend, S_END))) goto failure;
             break;
 
@@ -4726,21 +4709,8 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
          */
         case S_GPROC32:
         case S_LPROC32:
-            if (top_func) WARN("nested function\n");
-            if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->proc_v3.segment, cv_symbol->proc_v3.offset, &address))) goto failure;
-            if ((result = pdb_reader_symref_from_cv_typeid(pdb, cv_symbol->proc_v3.proctype, &type_symref))) goto failure;
-            if ((top_func = symt_new_function(pdb->module, compiland,
-                                              cv_symbol->proc_v3.name,
-                                              address, cv_symbol->proc_v3.proc_len,
-                                              type_symref, symbol_start_offset)))
-            {
-                curr_func = top_func;
-                loc.kind = loc_absolute;
-                loc.offset = cv_symbol->proc_v3.debug_start;
-                symt_add_function_point(pdb->module, curr_func, SymTagFuncDebugStart, &loc, NULL);
-                loc.offset = cv_symbol->proc_v3.debug_end;
-                symt_add_function_point(pdb->module, curr_func, SymTagFuncDebugEnd, &loc, NULL);
-            }
+            FIXME("Unexpected nested procedure at %x\n", symbol_start_offset);
+            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->proc_v3.pend, S_END))) goto failure;
             break;
         /*
          * Function parameters and stack variables.
@@ -4793,39 +4763,19 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
             {
                 block = symt_close_func_block(pdb->module, curr_func, block);
             }
-            else if (top_func)
+            else
             {
                 if (curr_func != top_func) {FIXME("shouldn't close a top function with an opened inlined function\n"); result = R_PDB_INVALID_PDB_FILE; goto failure;}
-                top_func = curr_func = NULL;
-                top_frame_size = -1;
+                pdb_reader_free(pdb, cv_symbol);
+                return R_PDB_SUCCESS;
             }
-            break;
-
-        case S_COMPILE2:
-            TRACE("S-Compile-V3 machine:%x language:%x %s\n",
-                  cv_symbol->compile2_v3.machine, cv_symbol->compile2_v3.flags.iLanguage, debugstr_a(cv_symbol->compile2_v3.name));
-            break;
-        case S_COMPILE3:
-            TRACE("S-Compile3-V3 machine:%x language:%x %s\n",
-                  cv_symbol->compile3_v3.machine, cv_symbol->compile3_v3.flags.iLanguage, debugstr_a(cv_symbol->compile3_v3.name));
-            break;
-
-        case S_ENVBLOCK:
-            break;
-
-        case S_OBJNAME:
-            TRACE("S-ObjName-V3 %s\n", debugstr_a(cv_symbol->objname_v3.name));
             break;
 
         case S_LABEL32:
             if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->label_v3.segment, cv_symbol->label_v3.offset, &address))) goto failure;
-            if (curr_func)
-            {
-                loc.kind = loc_absolute;
-                loc.offset = address - curr_func->ranges[0].low;
-                symt_add_function_point(pdb->module, curr_func, SymTagLabel, &loc, cv_symbol->label_v3.name);
-            }
-            else symt_new_label(pdb->module, compiland, cv_symbol->label_v3.name, address);
+            loc.kind = loc_absolute;
+            loc.offset = address - curr_func->ranges[0].low;
+            symt_add_function_point(pdb->module, curr_func, SymTagLabel, &loc, cv_symbol->label_v3.name);
             break;
 
         case S_LOCAL:
@@ -4863,8 +4813,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
                 }
                 else
                 {
-                    curr_func = inlined;
-                    block = NULL;
+                    if ((result = pdb_reader_load_compiland_function(pdb, compiland, top_func, inlined, walker))) goto failure;
                 }
             }
             break;
@@ -4885,16 +4834,24 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
                 }
                 else
                 {
-                    curr_func = inlined;
-                    block = NULL;
+                    if ((result = pdb_reader_load_compiland_function(pdb, compiland, top_func, inlined, walker))) goto failure;
                 }
             }
             break;
 
         case S_INLINESITE_END:
-            block = symt_is_symref_ptr(curr_func->container) && symt_check_tag(SYMT_SYMREF_TO_PTR(curr_func->container), SymTagBlock) ?
-                (struct symt_block*)curr_func->container : NULL;
-            curr_func = (struct symt_function*)symt_get_upper_inlined(curr_func);
+            if (curr_func == top_func)
+            {
+                FIXME("Unexpected inline-end at %x\n", symbol_start_offset);
+                result = R_PDB_INVALID_PDB_FILE;
+                goto failure;
+            }
+            pdb_reader_free(pdb, cv_symbol);
+            return R_PDB_SUCCESS;
+
+        case S_SEPCODE:
+            WARN("Function with multiple ranges has been disabled\n");
+            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->sepcode_v3.pEnd, S_END))) goto failure;
             break;
 
         case S_SSEARCH:
@@ -4911,32 +4868,6 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
                   cv_symbol->heap_alloc_site_v3.inst_len, cv_symbol->heap_alloc_site_v3.index);
             break;
 
-        case S_SEPCODE:
-            if (!top_func)
-            {
-                struct symt_ht* parent;
-                if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->sepcode_v3.sectParent, cv_symbol->sepcode_v3.offParent, &address))) goto failure;
-                parent = symt_find_symbol_at(pdb->module, address);
-                if (symt_check_tag(&parent->symt, SymTagFunction))
-                {
-                    struct symt_function* pfunc = (struct symt_function*)parent;
-                    if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->sepcode_v3.sect, cv_symbol->sepcode_v3.off, &address))) goto failure;
-                    top_func = symt_new_function(pdb->module, compiland, pfunc->hash_elt.name,
-                                                 address, cv_symbol->sepcode_v3.length, pfunc->type, symbol_start_offset);
-                    curr_func = top_func;
-                }
-                else
-                    WARN("Couldn't find function referenced by S_SEPCODE at %04x:%08x\n",
-                         cv_symbol->sepcode_v3.sectParent, cv_symbol->sepcode_v3.offParent);
-            }
-            else
-            {
-                FIXME("S_SEPCODE inside top-level function %s\n", debugstr_a(top_func->hash_elt.name));
-                result = R_PDB_INVALID_PDB_FILE;
-                goto failure;
-            }
-            break;
-
         case S_FRAMEPROC:
             /* expecting only S_FRAMEPROC once for top level functions */
             if (top_frame_size == -1 && curr_func && curr_func == top_func)
@@ -4949,20 +4880,167 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
             }
             break;
 
-        case S_GMANPROC:
-        case S_LMANPROC:
-            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->managed_proc_v3.pend, S_END))) goto failure;
-            break;
-
         /* symbols only expected in globals' DBI stream */
         case S_PUB32:
         case S_PROCREF:
         case S_LPROCREF:
         case S_TOKENREF:
         case S_GDATA32:
-        case S_GTHREAD32:
         case S_UDT:
-            PDB_REPORT_UNEXPECTED("(compiland stream) symbol id", cv_symbol->generic.id);
+        case S_COMPILE2:
+        case S_COMPILE3:
+        case S_ENVBLOCK:
+        case S_OBJNAME:
+
+        /* the symbols we can safely ignore for now */
+        case S_SKIP:
+        case S_TRAMPOLINE:
+        case S_FRAMECOOKIE:
+        case S_SECTION:
+        case S_COFFGROUP:
+        case S_EXPORT:
+        case S_CALLSITEINFO:
+        case S_ARMSWITCHTABLE:
+        case S_CONSTANT:
+        case S_MANSLOT:
+        case S_OEM:
+
+        /* even if S_LOCAL groks all the S_DEFRANGE* records following itself,
+         * those kinds of records can also be present after a S_FILESTATIC record
+         * so silence them until (at least) S_FILESTATIC is supported
+         */
+        case S_DEFRANGE_REGISTER:
+        case S_DEFRANGE_FRAMEPOINTER_REL:
+        case S_DEFRANGE_SUBFIELD_REGISTER:
+        case S_DEFRANGE_FRAMEPOINTER_REL_FULL_SCOPE:
+        case S_DEFRANGE_REGISTER_REL:
+        case S_BUILDINFO:
+        case S_FILESTATIC:
+        case S_CALLEES:
+        case S_CALLERS:
+        case S_UNAMESPACE:
+        case S_INLINEES:
+        case S_POGODATA:
+            /* Symbols only expect at top level of compiland stream */
+            TRACE("Unsupported symbol id %x\n", cv_symbol->generic.id);
+            break;
+        default:
+            PDB_REPORT_UNEXPECTED("(compiland stream - inside function) symbol id", cv_symbol->generic.id);
+            break;
+        case S_GMANPROC:
+        case S_LMANPROC:
+            result = R_PDB_INVALID_PDB_FILE;
+            PDB_REPORT_UNEXPECTED("(compiland stream - inside function) symbol id", cv_symbol->generic.id);
+            goto failure;
+        }
+        pdb_reader_free(pdb, cv_symbol);
+    }
+    return R_PDB_SUCCESS;
+
+failure:
+    pdb_reader_free(pdb, cv_symbol);
+    return result;
+}
+
+static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb, struct symt_compiland *compiland, struct pdb_reader_walker *walker)
+{
+    enum pdb_result result;
+    union codeview_symbol *cv_symbol;
+    struct location loc;
+    DWORD64 address;
+    symref_t type_symref;
+
+    /* skip first DWORD, always 4 AFAICT */
+    walker->offset += sizeof(UINT32);
+
+    /*
+     * Loop over the different types of records and whenever we
+     * find something we are interested in, record it and move on.
+     */
+    while ((result = pdb_reader_alloc_and_read_full_codeview_symbol(pdb, walker, &cv_symbol)) == R_PDB_SUCCESS)
+    {
+        pdbsize_t symbol_start_offset = walker->offset - (sizeof(cv_symbol->generic.len) + cv_symbol->generic.len);
+        if (!cv_symbol->generic.id || cv_symbol->generic.len < 2) break;
+        if ((cv_symbol->generic.len + 2) & 3) WARN("unpadded len %u\n", cv_symbol->generic.len + 2);
+
+        switch (cv_symbol->generic.id)
+        {
+        case S_THUNK32:
+            if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->thunk_v3.segment, cv_symbol->thunk_v3.offset, &address))) goto failure;
+            symt_new_thunk(pdb->module, compiland,
+                           cv_symbol->thunk_v3.name, cv_symbol->thunk_v3.thtype,
+                           address, cv_symbol->thunk_v3.thunk_len);
+            /* FIXME: we've seen S_FRAMEPROC inside S_THUNK...
+             * so until it's better supported, skip until end of thunk declaration
+             */
+            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->thunk_v3.pend, S_END))) goto failure;
+            break;
+
+        /*
+         * Global and static functions.
+         */
+        case S_GPROC32:
+        case S_LPROC32:
+            {
+                struct symt_function *func;
+
+                if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->proc_v3.segment, cv_symbol->proc_v3.offset, &address))) goto failure;
+                if ((result = pdb_reader_symref_from_cv_typeid(pdb, cv_symbol->proc_v3.proctype, &type_symref))) goto failure;
+                if ((func = symt_new_function(pdb->module, compiland,
+                                              cv_symbol->proc_v3.name,
+                                              address, cv_symbol->proc_v3.proc_len,
+                                              type_symref, symbol_start_offset)))
+                {
+                    loc.kind = loc_absolute;
+                    loc.offset = cv_symbol->proc_v3.debug_start;
+                    symt_add_function_point(pdb->module, func, SymTagFuncDebugStart, &loc, NULL);
+                    loc.offset = cv_symbol->proc_v3.debug_end;
+                    symt_add_function_point(pdb->module, func, SymTagFuncDebugEnd, &loc, NULL);
+
+                    if ((result = pdb_reader_load_compiland_function(pdb, compiland, func, func, walker))) goto failure;
+                }
+            }
+            break;
+
+        case S_COMPILE2:
+            TRACE("S-Compile-V3 machine:%x language:%x %s\n",
+                  cv_symbol->compile2_v3.machine, cv_symbol->compile2_v3.flags.iLanguage, debugstr_a(cv_symbol->compile2_v3.name));
+            break;
+        case S_COMPILE3:
+            TRACE("S-Compile3-V3 machine:%x language:%x %s\n",
+                  cv_symbol->compile3_v3.machine, cv_symbol->compile3_v3.flags.iLanguage, debugstr_a(cv_symbol->compile3_v3.name));
+            break;
+
+        case S_ENVBLOCK:
+            break;
+
+        case S_OBJNAME:
+            TRACE("S-ObjName-V3 %s\n", debugstr_a(cv_symbol->objname_v3.name));
+            break;
+
+        case S_LABEL32:
+            if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->label_v3.segment, cv_symbol->label_v3.offset, &address))) goto failure;
+            symt_new_label(pdb->module, compiland, cv_symbol->label_v3.name, address);
+            break;
+
+        case S_SSEARCH:
+            TRACE("Start search: seg=0x%x at offset 0x%08x\n",
+                  cv_symbol->ssearch_v1.segment, cv_symbol->ssearch_v1.offset);
+            break;
+
+        case S_ALIGN:
+            TRACE("S-Align V1\n");
+            break;
+
+        case S_HEAPALLOCSITE: /* FIXME likely function only */
+            TRACE("S-heap site V3: offset=0x%08x at sect_idx 0x%04x, inst_len 0x%08x, index 0x%08x\n",
+                  cv_symbol->heap_alloc_site_v3.offset, cv_symbol->heap_alloc_site_v3.sect_idx,
+                  cv_symbol->heap_alloc_site_v3.inst_len, cv_symbol->heap_alloc_site_v3.index);
+            break;
+
+        case S_GMANPROC:
+        case S_LMANPROC:
+            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->managed_proc_v3.pend, S_END))) goto failure;
             break;
 
         /* the symbols we can safely ignore for now */
@@ -4996,8 +5074,27 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
             TRACE("Unsupported symbol id %x\n", cv_symbol->generic.id);
             break;
 
+        /* Symbols only expected inside a function, thunk... */
+        case S_BPREL32:
+        case S_REGREL32:
+        case S_REGISTER:
+        case S_BLOCK32:
+        case S_END:
+        case S_LOCAL:
+        case S_INLINESITE:
+        case S_INLINESITE2:
+        case S_INLINESITE_END:
+        case S_FRAMEPROC:
+        case S_SEPCODE:
+        /* symbols only expected in compiland symbols' stream */
+        case S_PUB32:
+        case S_PROCREF:
+        case S_LPROCREF:
+        case S_TOKENREF:
+        case S_GDATA32:
+        case S_UDT:
         default:
-            PDB_REPORT_UNEXPECTED("symbol id", cv_symbol->generic.id);
+            PDB_REPORT_UNEXPECTED("(compiland stream - top level) symbol id", cv_symbol->generic.id);
             break;
         }
         pdb_reader_free(pdb, cv_symbol);
