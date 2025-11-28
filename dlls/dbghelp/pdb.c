@@ -3656,13 +3656,14 @@ static enum method_result pdb_reader_TPI_request(struct pdb_reader *pdb, symref_
     return ret;
 }
 
-static enum pdb_result pdb_reader_top_fill_in(struct pdb_reader *pdb, unsigned *count, DWORD *ids, unsigned first, unsigned last)
+static enum pdb_result pdb_reader_top_fill_in(struct pdb_reader *pdb, struct pdb_compiland *compiland,
+                                              unsigned *count, DWORD *ids, unsigned first, unsigned last)
 {
     struct pdb_reader_whole_stream whole;
     struct symref_code code;
     symref_t top_symref;
     enum pdb_result result = R_PDB_SUCCESS;
-    unsigned int hash;
+    unsigned int hash, compiland_id;
 
     if ((result = pdb_reader_alloc_and_load_whole_stream(pdb, pdb->dbi_header.gsym_stream, &whole))) return result;
     *count = 0;
@@ -3684,28 +3685,35 @@ static enum pdb_result pdb_reader_top_fill_in(struct pdb_reader *pdb, unsigned *
                 found = FALSE;
                 switch (cv_global_symbol->generic.id)
                 {
-                case S_UDT:
-                case S_LDATA32:
                 case S_GTHREAD32:
+                case S_UDT:
+                    found = compiland == NULL;
+                    break;
+                case S_LDATA32:
                 case S_LTHREAD32:
-                    found = TRUE;
+                    found = compiland &&
+                        !pdb_reader_lookup_compiland_by_segment_offset(pdb, cv_global_symbol->data_v3.segment, cv_global_symbol->data_v3.offset, &compiland_id) &&
+                        compiland == &pdb->compilands[compiland_id];
                     break;
                 case S_GDATA32:
-                    /* There are cases (incremental linking) where we have several entries of same name, but
-                     * only one is valid.
-                     * We discriminate valid with:
-                     * - there's no other entry at global scope with same name before this entry in hash bucket,
-                     * - the address is valid
-                     * - the typeid is valid
-                     * Note: checking address map doesn't bring nothing as the invalid entries are also listed
-                     * there.
-                     */
-                    for (j = 0; !found && j < i; j++)
+                    if (!compiland)
                     {
-                        if (!pdb_reader_whole_stream_access_codeview_symbol(pdb, &whole, bucket->entries[j].dbi_stream_offset, &cv_global_symbol2))
-                            found = cv_global_symbol2->generic.id == S_GDATA32 && !strcmp(cv_global_symbol->data_v3.name, cv_global_symbol2->data_v3.name);
+                        /* There are cases (incremental linking) where we have several entries of same name, but
+                         * only one is valid.
+                         * We discriminate valid with:
+                         * - there's no other entry at global scope with same name before this entry in hash bucket,
+                         * - the address is valid
+                         * - the typeid is valid
+                         * Note: checking address map doesn't bring nothing as the invalid entries are also listed
+                         * there.
+                         */
+                        for (j = 0; !found && j < i; j++)
+                        {
+                            if (!pdb_reader_whole_stream_access_codeview_symbol(pdb, &whole, bucket->entries[j].dbi_stream_offset, &cv_global_symbol2))
+                                found = cv_global_symbol2->generic.id == S_GDATA32 && !strcmp(cv_global_symbol->data_v3.name, cv_global_symbol2->data_v3.name);
+                        }
+                        found = !found;
                     }
-                    found = !found;
                     break;
                 default:
                     break;
@@ -3746,29 +3754,99 @@ static enum method_result pdb_reader_top_request(struct pdb_reader *pdb, symref_
     case TI_GET_CHILDRENCOUNT:
         {
             unsigned count;
-            if (!symt_get_info(pdb->module, &pdb->module->top->symt, req, data) ||
-                pdb_reader_top_fill_in(pdb, &count, NULL, 0, 0)) return MR_FAILURE;
-            *(DWORD*)data += count;
+            if (pdb_reader_top_fill_in(pdb, NULL,&count, NULL, 0, 0)) return MR_FAILURE;
+            *(DWORD*)data = count + pdb->num_compilands;
             return MR_SUCCESS;
         }
     case TI_FINDCHILDREN:
         {
-            TI_FINDCHILDREN_PARAMS *p = data;
-            TI_FINDCHILDREN_PARAMS *alt;
-            unsigned int count;
+            TI_FINDCHILDREN_PARAMS *ti_params = data;
+            unsigned int count, i;
 
-            if (pdb_reader_top_fill_in(pdb, &count, p->ChildId, p->Start, p->Count)) return MR_FAILURE;
-            if (!(alt = malloc(offsetof(TI_FINDCHILDREN_PARAMS, ChildId[p->Count - count])))) return MR_FAILURE;
-            alt->Start = 0;
-            alt->Count = p->Count - count;
-            result = symt_get_info(pdb->module, &pdb->module->top->symt, TI_FINDCHILDREN, alt);
-            if (result == R_PDB_SUCCESS)
-                memcpy(&p->ChildId[count], alt->ChildId, (p->Count - count) * sizeof(p->ChildId[0]));
-            free(alt);
+            if ((result = pdb_reader_top_fill_in(pdb, NULL, &count, ti_params->ChildId, ti_params->Start, ti_params->Count)) == R_PDB_SUCCESS)
+            {
+                for (i = 0; i < pdb->num_compilands; i++)
+                {
+                    if (count + i >= ti_params->Count)
+                    {
+                        result = R_PDB_BUFFER_TOO_SMALL;
+                        break;
+                    }
+                    if (count + i >= ti_params->Start)
+                    {
+                        symref_t symref;
+                        struct symref_code code;
+                        if ((result = pdb_reader_encode_symref(pdb, symref_code_init_from_compiland(&code, i), &symref)))
+                            break;
+                        ti_params->ChildId[count + i] = symt_symref_to_index(pdb->module, symref);
+                    }
+                }
+                if (result == R_PDB_SUCCESS && count + pdb->num_compilands != ti_params->Count)
+                    return MR_FAILURE;
+            }
             return pdb_method_result(result);
         }
     case TI_GET_SYMNAME:
         return symt_get_info(pdb->module, &pdb->module->top->symt, req, data) ? MR_SUCCESS : MR_FAILURE;
+    default:
+        return MR_FAILURE;
+    }
+}
+
+static enum method_result pdb_reader_compiland_request(struct pdb_reader *pdb, symref_t symref, struct pdb_compiland *compiland,
+                                                       IMAGEHLP_SYMBOL_TYPE_INFO req, void *data)
+{
+    enum pdb_result result;
+
+    switch (req)
+    {
+    case TI_GET_SYMTAG:
+        *(DWORD*)data = SymTagCompiland;
+        return MR_SUCCESS;
+    case TI_GET_LEXICALPARENT:
+        {
+            symref_t symref;
+            struct symref_code code;
+            if (pdb_reader_encode_symref(pdb, symref_code_init_from_top(&code), &symref)) return MR_FAILURE;
+            *(DWORD *)data = symt_symref_to_index(pdb->module, symref);
+            return MR_SUCCESS;
+        }
+    case TI_GET_CHILDRENCOUNT:
+        {
+            unsigned count;
+            if (!symt_get_info(pdb->module, &compiland->compiland->symt, req, data)) return MR_FAILURE;
+            if (pdb_reader_top_fill_in(pdb, compiland,&count, NULL, 0, 0)) return MR_FAILURE;
+            *(DWORD*)data += count;
+            return MR_SUCCESS;
+        }
+        return MR_SUCCESS;
+    case TI_FINDCHILDREN:
+        {
+            TI_FINDCHILDREN_PARAMS *ti_params = data;
+            DWORD symt_count;
+            unsigned symref_count;
+
+            if (!symt_get_info(pdb->module, &compiland->compiland->symt, TI_GET_CHILDRENCOUNT, &symt_count)) return MR_FAILURE;
+            if (ti_params->Start < symt_count)
+            {
+                DWORD old_count = ti_params->Count;
+                BOOL ret;
+                ti_params->Count = symt_count;
+                ret = symt_get_info(pdb->module, &compiland->compiland->symt, TI_FINDCHILDREN, ti_params);
+                ti_params->Count = old_count;
+                if (!ret) return MR_FAILURE;
+            }
+            if (ti_params->Count >= symt_count)
+                result = pdb_reader_top_fill_in(pdb, compiland, &symref_count, &ti_params->ChildId[symt_count],
+                                                max(ti_params->Start, symt_count) - symt_count, ti_params->Count - symt_count);
+            else
+                result = R_PDB_BUFFER_TOO_SMALL;
+            if (result == R_PDB_SUCCESS && symt_count + symref_count != ti_params->Count)
+                return MR_FAILURE;
+            return pdb_method_result(result);
+        }
+    case TI_GET_SYMNAME:
+        return symt_get_info(pdb->module, &compiland->compiland->symt, req, data) ? MR_SUCCESS : MR_FAILURE;
     default:
         return MR_FAILURE;
     }
@@ -3791,7 +3869,7 @@ static enum method_result pdb_reader_request_symref_t(struct pdb_reader *pdb, sy
     case symref_code_top:
         return pdb_reader_top_request(pdb, symref, req, data);
     case symref_code_compiland:
-        return symt_get_info(pdb->module, &pdb->compilands[code.compiland].compiland->symt, req, data) ? MR_SUCCESS : MR_FAILURE;
+        return pdb_reader_compiland_request(pdb, symref, &pdb->compilands[code.compiland], req, data);
     case symref_code_cv_typeid:
         if (code.cv_typeid < T_MAXPREDEFINEDTYPE)
             return pdb_reader_basic_request(pdb, code.cv_typeid, req, data);
@@ -4866,12 +4944,15 @@ static enum pdb_result pdb_reader_ensure_symbols_loaded_from_compiland(struct pd
     if (!compiland->are_symbols_loaded)
     {
         struct pdb_reader_walker walker;
+        struct symref_code code;
+        symref_t parent_symref;
         char *obj_name;
 
         if ((result = pdb_reader_walker_init(pdb, PDB_STREAM_DBI, &walker))) return result;
         walker.offset = compiland->stream_offset;
+        if ((result = pdb_reader_encode_symref(pdb, symref_code_init_from_top(&code), &parent_symref))) return result;
         if ((result = pdb_reader_alloc_and_fetch_string(pdb, &walker, &obj_name))) return result;
-        compiland->compiland = symt_new_compiland(pdb->module, symt_ptr_to_symref(&pdb->module->top->symt), obj_name);
+        compiland->compiland = symt_new_compiland(pdb->module, parent_symref, obj_name);
         pdb_reader_free(pdb, obj_name);
 
         if ((result = pdb_reader_walker_init(pdb, compiland->compiland_stream_id, &walker))) return result;
