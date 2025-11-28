@@ -1033,20 +1033,12 @@ BOOL module_remove(struct process* pcs, struct module* module)
     /* remove local scope if symbol is from this module */
     if (pcs->localscope_symt)
     {
-        struct symt* locsym = pcs->localscope_symt;
-        if (symt_check_tag(locsym, SymTagInlineSite))
-            locsym = &symt_get_function_from_inlined((struct symt_function*)locsym)->symt;
-        if (symt_check_tag(locsym, SymTagFunction))
+        struct module_pair pair;
+        if (module_init_pair(&pair, pcs->handle, pcs->localscope_pc) &&
+            (module == pair.effective || module == pair.requested))
         {
-            struct symt_compiland *compiland = (struct symt_compiland*)SYMT_SYMREF_TO_PTR(((struct symt_function*)locsym)->container);
-            if (symt_check_tag(&compiland->symt, SymTagCompiland))
-            {
-                if (module == ((struct symt_module*)SYMT_SYMREF_TO_PTR(compiland->container))->module)
-                {
-                    pcs->localscope_pc = 0;
-                    pcs->localscope_symt = NULL;
-                }
-            }
+            pcs->localscope_pc = 0;
+            pcs->localscope_symt = NULL;
         }
     }
     while (module_format_vtable_iterator_next(module, &iter, MODULE_FORMAT_VTABLE_INDEX(remove)))
