@@ -4986,7 +4986,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
 
                 if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->proc_v3.segment, cv_symbol->proc_v3.offset, &address))) goto failure;
                 if ((result = pdb_reader_symref_from_cv_typeid(pdb, cv_symbol->proc_v3.proctype, &type_symref))) goto failure;
-                if ((func = symt_new_function(pdb->module, compiland,
+                if ((func = symt_new_function(pdb->module, symt_ptr_to_symref(&compiland->symt),
                                               cv_symbol->proc_v3.name,
                                               address, cv_symbol->proc_v3.proc_len,
                                               type_symref, symbol_start_offset)))
