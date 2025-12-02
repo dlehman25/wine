@@ -13778,16 +13778,6 @@ static NTSTATUS ext_glImageTransformParameterivHP( void *args )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS ext_glImportMemoryFdEXT( void *args )
-{
-    struct glImportMemoryFdEXT_params *params = args;
-    const struct opengl_funcs *funcs = params->teb->glTable;
-    if (!funcs->p_glImportMemoryFdEXT) return STATUS_NOT_IMPLEMENTED;
-    funcs->p_glImportMemoryFdEXT( params->memory, params->size, params->handleType, params->fd );
-    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
-    return STATUS_SUCCESS;
-}
-
 static NTSTATUS ext_glImportMemoryWin32HandleEXT( void *args )
 {
     struct glImportMemoryWin32HandleEXT_params *params = args;
@@ -13804,16 +13794,6 @@ static NTSTATUS ext_glImportMemoryWin32NameEXT( void *args )
     const struct opengl_funcs *funcs = params->teb->glTable;
     if (!funcs->p_glImportMemoryWin32NameEXT) return STATUS_NOT_IMPLEMENTED;
     funcs->p_glImportMemoryWin32NameEXT( params->memory, params->size, params->handleType, params->name );
-    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS ext_glImportSemaphoreFdEXT( void *args )
-{
-    struct glImportSemaphoreFdEXT_params *params = args;
-    const struct opengl_funcs *funcs = params->teb->glTable;
-    if (!funcs->p_glImportSemaphoreFdEXT) return STATUS_NOT_IMPLEMENTED;
-    funcs->p_glImportSemaphoreFdEXT( params->semaphore, params->handleType, params->fd );
     set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
     return STATUS_SUCCESS;
 }
@@ -31962,10 +31942,8 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glImageTransformParameterfvHP,
     ext_glImageTransformParameteriHP,
     ext_glImageTransformParameterivHP,
-    ext_glImportMemoryFdEXT,
     ext_glImportMemoryWin32HandleEXT,
     ext_glImportMemoryWin32NameEXT,
-    ext_glImportSemaphoreFdEXT,
     ext_glImportSemaphoreWin32HandleEXT,
     ext_glImportSemaphoreWin32NameEXT,
     ext_glImportSyncEXT,
@@ -57738,24 +57716,6 @@ static NTSTATUS wow64_ext_glImageTransformParameterivHP( void *args )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS wow64_ext_glImportMemoryFdEXT( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        GLuint memory;
-        GLuint64 size;
-        GLenum handleType;
-        GLint fd;
-    } *params = args;
-    TEB *teb = get_teb64( params->teb );
-    const struct opengl_funcs *funcs = teb->glTable;
-    if (!funcs->p_glImportMemoryFdEXT) return STATUS_NOT_IMPLEMENTED;
-    funcs->p_glImportMemoryFdEXT( params->memory, params->size, params->handleType, params->fd );
-    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    return STATUS_SUCCESS;
-}
-
 static NTSTATUS wow64_ext_glImportMemoryWin32HandleEXT( void *args )
 {
     struct
@@ -57788,23 +57748,6 @@ static NTSTATUS wow64_ext_glImportMemoryWin32NameEXT( void *args )
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glImportMemoryWin32NameEXT) return STATUS_NOT_IMPLEMENTED;
     funcs->p_glImportMemoryWin32NameEXT( params->memory, params->size, params->handleType, ULongToPtr(params->name) );
-    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS wow64_ext_glImportSemaphoreFdEXT( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        GLuint semaphore;
-        GLenum handleType;
-        GLint fd;
-    } *params = args;
-    TEB *teb = get_teb64( params->teb );
-    const struct opengl_funcs *funcs = teb->glTable;
-    if (!funcs->p_glImportSemaphoreFdEXT) return STATUS_NOT_IMPLEMENTED;
-    funcs->p_glImportSemaphoreFdEXT( params->semaphore, params->handleType, params->fd );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
     return STATUS_SUCCESS;
 }
@@ -88370,10 +88313,8 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glImageTransformParameterfvHP,
     wow64_ext_glImageTransformParameteriHP,
     wow64_ext_glImageTransformParameterivHP,
-    wow64_ext_glImportMemoryFdEXT,
     wow64_ext_glImportMemoryWin32HandleEXT,
     wow64_ext_glImportMemoryWin32NameEXT,
-    wow64_ext_glImportSemaphoreFdEXT,
     wow64_ext_glImportSemaphoreWin32HandleEXT,
     wow64_ext_glImportSemaphoreWin32NameEXT,
     wow64_ext_glImportSyncEXT,
@@ -91806,8 +91747,8 @@ struct opengl_funcs null_opengl_funcs =
     .p_glViewport = null_glViewport,
 };
 
-const int extension_registry_size = 2758;
-const struct registry_entry extension_registry[2758] =
+const int extension_registry_size = 2756;
+const struct registry_entry extension_registry[2756] =
 {
     { "glAccumxOES", "GL_OES_fixed_point\0", offsetof(struct opengl_funcs, p_glAccumxOES) },
     { "glAcquireKeyedMutexWin32EXT", "GL_EXT_win32_keyed_mutex\0", offsetof(struct opengl_funcs, p_glAcquireKeyedMutexWin32EXT) },
@@ -92884,10 +92825,8 @@ const struct registry_entry extension_registry[2758] =
     { "glImageTransformParameterfvHP", "GL_HP_image_transform\0", offsetof(struct opengl_funcs, p_glImageTransformParameterfvHP) },
     { "glImageTransformParameteriHP", "GL_HP_image_transform\0", offsetof(struct opengl_funcs, p_glImageTransformParameteriHP) },
     { "glImageTransformParameterivHP", "GL_HP_image_transform\0", offsetof(struct opengl_funcs, p_glImageTransformParameterivHP) },
-    { "glImportMemoryFdEXT", "GL_EXT_memory_object_fd\0", offsetof(struct opengl_funcs, p_glImportMemoryFdEXT) },
     { "glImportMemoryWin32HandleEXT", "GL_EXT_memory_object_win32\0", offsetof(struct opengl_funcs, p_glImportMemoryWin32HandleEXT) },
     { "glImportMemoryWin32NameEXT", "GL_EXT_memory_object_win32\0", offsetof(struct opengl_funcs, p_glImportMemoryWin32NameEXT) },
-    { "glImportSemaphoreFdEXT", "GL_EXT_semaphore_fd\0", offsetof(struct opengl_funcs, p_glImportSemaphoreFdEXT) },
     { "glImportSemaphoreWin32HandleEXT", "GL_EXT_semaphore_win32\0", offsetof(struct opengl_funcs, p_glImportSemaphoreWin32HandleEXT) },
     { "glImportSemaphoreWin32NameEXT", "GL_EXT_semaphore_win32\0", offsetof(struct opengl_funcs, p_glImportSemaphoreWin32NameEXT) },
     { "glImportSyncEXT", "GL_EXT_x11_sync_object\0", offsetof(struct opengl_funcs, p_glImportSyncEXT) },

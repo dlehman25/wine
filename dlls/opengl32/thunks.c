@@ -11366,14 +11366,6 @@ static void WINAPI glImageTransformParameterivHP( GLenum target, GLenum pname, c
     if ((status = UNIX_CALL( glImageTransformParameterivHP, &args ))) WARN( "glImageTransformParameterivHP returned %#lx\n", status );
 }
 
-static void WINAPI glImportMemoryFdEXT( GLuint memory, GLuint64 size, GLenum handleType, GLint fd )
-{
-    struct glImportMemoryFdEXT_params args = { .teb = NtCurrentTeb(), .memory = memory, .size = size, .handleType = handleType, .fd = fd };
-    NTSTATUS status;
-    TRACE( "memory %d, size %s, handleType %d, fd %d\n", memory, wine_dbgstr_longlong(size), handleType, fd );
-    if ((status = UNIX_CALL( glImportMemoryFdEXT, &args ))) WARN( "glImportMemoryFdEXT returned %#lx\n", status );
-}
-
 static void WINAPI glImportMemoryWin32HandleEXT( GLuint memory, GLuint64 size, GLenum handleType, void *handle )
 {
     struct glImportMemoryWin32HandleEXT_params args = { .teb = NtCurrentTeb(), .memory = memory, .size = size, .handleType = handleType, .handle = handle };
@@ -11388,14 +11380,6 @@ static void WINAPI glImportMemoryWin32NameEXT( GLuint memory, GLuint64 size, GLe
     NTSTATUS status;
     TRACE( "memory %d, size %s, handleType %d, name %p\n", memory, wine_dbgstr_longlong(size), handleType, name );
     if ((status = UNIX_CALL( glImportMemoryWin32NameEXT, &args ))) WARN( "glImportMemoryWin32NameEXT returned %#lx\n", status );
-}
-
-static void WINAPI glImportSemaphoreFdEXT( GLuint semaphore, GLenum handleType, GLint fd )
-{
-    struct glImportSemaphoreFdEXT_params args = { .teb = NtCurrentTeb(), .semaphore = semaphore, .handleType = handleType, .fd = fd };
-    NTSTATUS status;
-    TRACE( "semaphore %d, handleType %d, fd %d\n", semaphore, handleType, fd );
-    if ((status = UNIX_CALL( glImportSemaphoreFdEXT, &args ))) WARN( "glImportSemaphoreFdEXT returned %#lx\n", status );
 }
 
 static void WINAPI glImportSemaphoreWin32HandleEXT( GLuint semaphore, GLenum handleType, void *handle )
@@ -25918,10 +25902,8 @@ const void *extension_procs[] =
     glImageTransformParameterfvHP,
     glImageTransformParameteriHP,
     glImageTransformParameterivHP,
-    glImportMemoryFdEXT,
     glImportMemoryWin32HandleEXT,
     glImportMemoryWin32NameEXT,
-    glImportSemaphoreFdEXT,
     glImportSemaphoreWin32HandleEXT,
     glImportSemaphoreWin32NameEXT,
     glImportSyncEXT,

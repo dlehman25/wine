@@ -11752,15 +11752,6 @@ struct glImageTransformParameterivHP_params
     const GLint *params;
 };
 
-struct glImportMemoryFdEXT_params
-{
-    TEB *teb;
-    GLuint memory;
-    GLuint64 size;
-    GLenum handleType;
-    GLint fd;
-};
-
 struct glImportMemoryWin32HandleEXT_params
 {
     TEB *teb;
@@ -11777,14 +11768,6 @@ struct glImportMemoryWin32NameEXT_params
     GLuint64 size;
     GLenum handleType;
     const void *name;
-};
-
-struct glImportSemaphoreFdEXT_params
-{
-    TEB *teb;
-    GLuint semaphore;
-    GLenum handleType;
-    GLint fd;
 };
 
 struct glImportSemaphoreWin32HandleEXT_params
@@ -27310,10 +27293,8 @@ enum unix_funcs
     unix_glImageTransformParameterfvHP,
     unix_glImageTransformParameteriHP,
     unix_glImageTransformParameterivHP,
-    unix_glImportMemoryFdEXT,
     unix_glImportMemoryWin32HandleEXT,
     unix_glImportMemoryWin32NameEXT,
-    unix_glImportSemaphoreFdEXT,
     unix_glImportSemaphoreWin32HandleEXT,
     unix_glImportSemaphoreWin32NameEXT,
     unix_glImportSyncEXT,

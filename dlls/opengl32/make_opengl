@@ -881,9 +881,12 @@ chdir(dirname($0));
 #  - reference to an array of XML nodes giving the list of arguments (an empty array
 #    for a 'void' function).
 #
+my %gl_extensions;
 my %norm_functions;
 my %ext_functions;
+my %wgl_extensions;
 my %wgl_functions;
+my %egl_extensions;
 my %egl_functions;
 my %all_enums;
 
@@ -953,6 +956,15 @@ my %unsupported_extensions =
     "WGL_NV_video_capture" => 1,
     "WGL_NV_video_output" => 1,
    );
+my %unexposed_extgroups =
+   (
+    "EGL_" => 1,
+   );
+my %unexposed_extensions =
+   (
+    "GL_EXT_memory_object_fd" => 1,
+    "GL_EXT_semaphore_fd" => 1,
+   );
 my %extension_aliases =
     (
      "GL_EXT_blend_equation_separate" => "GL_ATI_blend_equation_separate",
@@ -984,6 +996,26 @@ sub is_supported_extension($)
     return not defined $unsupported_extensions{$ext};
 }
 
+sub is_exposed_extension($)
+{
+    my $ext = shift;
+    foreach my $group (keys %unexposed_extgroups)
+    {
+        return 0 if rindex($ext, $group, 0) == 0;
+    }
+    return not defined $unexposed_extensions{$ext};
+}
+
+sub is_exposed_function($)
+{
+    my $func = shift;
+    foreach my $ext (@{$func->[2]})
+    {
+        return 1 if is_exposed_extension($ext);
+    }
+    return 0;
+}
+
 # some functions need a hand-written wrapper
 sub needs_wrapper($$)
 {
@@ -991,6 +1023,22 @@ sub needs_wrapper($$)
     return 0 if defined $manual_win_functions{$name};
     return 1 if defined $manual_unix_thunks{$name};
     return 0;
+}
+
+sub add_extension($)
+{
+    my $name = shift;
+
+    $gl_extensions{$name} = 1 if $name =~ /^GL/;
+    $wgl_extensions{$name} = 1 if $name =~ /^WGL/;
+    $egl_extensions{$name} = 1 if $name =~ /^EGL/;
+
+    if (my $alias = $extension_aliases{$name})
+    {
+        $gl_extensions{$alias} = 1 if $alias =~ /^GL/;
+        $wgl_extensions{$alias} = 1 if $alias =~ /^WGL/;
+        $egl_extensions{$alias} = 1 if $alias =~ /^EGL/;
+    }
 }
 
 sub parse_file($)
@@ -1077,6 +1125,7 @@ sub parse_file($)
         if ($feature_name =~ /GL_VERSION_ES_.*_1_/)
         {
             $feature_name = "GL_NV_ES1_1_compatibility";
+            add_extension( $feature_name );
         }
         else
         {
@@ -1110,6 +1159,7 @@ sub parse_file($)
             {
                 $all_enums{$enum->{name}} = $enums{$enum->{name}};
             }
+            add_extension( $ext->{name} );
             next;
         }
         if ($ext->{supported} eq "egl")
@@ -1123,6 +1173,7 @@ sub parse_file($)
             {
                 $all_enums{$enum->{name}} = $enums{$enum->{name}};
             }
+            add_extension( $ext->{name} );
             next;
         }
         next unless is_supported_api( $ext->{supported} );
@@ -1147,6 +1198,7 @@ sub parse_file($)
         {
             $all_enums{$enum->{name}} = $enums{$enum->{name}};
         }
+        add_extension( $ext->{name} );
     }
 }
 
@@ -1339,7 +1391,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     print OUT generate_func_params($_, $ext_functions{$_});
 }
@@ -1372,7 +1424,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     printf OUT "    unix_%s,\n", $_;
 }
@@ -1431,7 +1483,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     next if defined $manual_win_thunks{$_};
     print OUT "\nstatic " . generate_win_thunk($_, $ext_functions{$_});
@@ -1440,7 +1492,7 @@ print OUT "\n";
 
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next unless defined $manual_win_functions{$_} || $manual_win_thunks{$_};
     my $decl_args = get_func_args( $ext_functions{$_}, 0 );
     my $func_ret = get_func_ret( $ext_functions{$_}, 0 );
@@ -1451,7 +1503,7 @@ print OUT "const void *extension_procs[] =\n";
 print OUT "{\n";
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     printf OUT "    %s,\n", $_;
 }
 print OUT "};\n";
@@ -1478,7 +1530,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if !needs_wrapper( $_, $ext_functions{$_} );
     print OUT generate_wrapper_declaration($_, $ext_functions{$_}, 0);
 }
@@ -1497,7 +1549,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next unless defined $manual_wow64_wrappers{$_};
     print OUT generate_wrapper_declaration($_, $ext_functions{$_}, 1);
 }
@@ -1545,7 +1597,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     print OUT generate_unix_thunk($_, $ext_functions{$_}, 0, "ext");
 }
@@ -1568,7 +1620,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     printf OUT "    ext_%s,\n", $_;
 }
@@ -1592,7 +1644,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     print OUT generate_unix_thunk($_, $ext_functions{$_}, 1, "ext");
 }
@@ -1615,7 +1667,7 @@ foreach (sort keys %norm_functions)
 }
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     next if defined $manual_win_functions{$_};
     printf OUT "    wow64_ext_%s,\n", $_;
 }
@@ -1655,14 +1707,15 @@ print OUT "};\n";
 my $count = 0;
 foreach (keys %ext_functions)
 {
-    $count += 1 unless $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
+    $count += 1;
 }
 print OUT "\nconst int extension_registry_size = $count;\n";
 print OUT "const struct registry_entry extension_registry[$count] =\n";
 print OUT "{\n";
 foreach (sort keys %ext_functions)
 {
-    next if $_ =~ /^egl/; # unix-side only API
+    next unless is_exposed_function( $ext_functions{$_} );
     my $func = $ext_functions{$_};
     my @exts;
     foreach my $ext (@{$func->[2]})
