@@ -915,7 +915,6 @@ my @extra_wgl_functions = ( "wglGetDefaultProcAddress" );
 
 my %unsupported_extgroups =
    (
-    "WGL_3DFX_" => 1,
     "WGL_3DL_" => 1,
     "WGL_I3D_" => 1,
     "WGL_OML_" => 1,
@@ -931,17 +930,8 @@ my %unsupported_extensions =
    (
     "WGL_AMD_gpu_association" => 1,
     "WGL_ARB_buffer_region" => 1,
-    "WGL_ARB_context_flush_control" => 1,
-    "WGL_ARB_create_context_robustness" => 1,
-    "WGL_ARB_robustness_application_isolation" => 1,
-    "WGL_ARB_robustness_share_group_isolation" => 1,
-    "WGL_ATI_render_texture_rectangle" => 1,
-    "WGL_EXT_colorspace" => 1,
-    "WGL_EXT_create_context_es_profile" => 1,
-    "WGL_EXT_depth_float" => 1,
     "WGL_EXT_display_color_table" => 1,
     "WGL_EXT_make_current_read" => 1,
-    "WGL_EXT_multisample" => 1,
     "WGL_EXT_pbuffer" => 1,
     "WGL_EXT_pixel_format" => 1,
     "WGL_NV_copy_image" => 1,
@@ -949,8 +939,6 @@ my %unsupported_extensions =
     "WGL_NV_DX_interop" => 1,
     "WGL_NV_DX_interop2" => 1,
     "WGL_NV_gpu_affinity" => 1,
-    "WGL_NV_multigpu_context" => 1,
-    "WGL_NV_multisample_coverage" => 1,
     "WGL_NV_present_video" => 1,
     "WGL_NV_swap_group" => 1,
     "WGL_NV_video_capture" => 1,
@@ -1037,9 +1025,9 @@ sub add_extension($)
 
     if (my $alias = $extension_aliases{$name})
     {
-        $gl_extensions{$alias} = 1 if $alias =~ /^GL/;
-        $wgl_extensions{$alias} = 1 if $alias =~ /^WGL/;
-        $egl_extensions{$alias} = 1 if $alias =~ /^EGL/;
+        $gl_extensions{$alias} = 1 if $alias =~ /^GL/ and $alias !~ /_VERSION_/;
+        $wgl_extensions{$alias} = 1 if $alias =~ /^WGL/ and $alias !~ /_VERSION_/;
+        $egl_extensions{$alias} = 1 if $alias =~ /^EGL/ and $alias !~ /_VERSION_/;
     }
 }
 
@@ -1294,6 +1282,12 @@ foreach (sort keys %ext_functions)
 }
 print HEADER "\n";
 
+print HEADER "#define ALL_WGL_EXTS";
+foreach (sort keys %wgl_extensions)
+{
+    printf HEADER " \\\n    USE_GL_EXT(\%s)", $_;
+}
+print HEADER "\n\n";
 print HEADER "#define ALL_WGL_FUNCS";
 foreach (sort keys %wgl_functions)
 {
@@ -1305,6 +1299,12 @@ foreach (sort keys %ext_functions)
 {
     next unless $_ =~ /^wgl/;
     printf HEADER " \\\n    USE_GL_FUNC(\%s)", $_;
+}
+print HEADER "\n\n";
+print HEADER "#define ALL_EGL_EXTS";
+foreach (sort keys %egl_extensions)
+{
+    printf HEADER " \\\n    USE_GL_EXT(\%s)", $_;
 }
 print HEADER "\n\n";
 print HEADER "#define ALL_EGL_FUNCS";
@@ -1319,6 +1319,20 @@ foreach (sort keys %ext_functions)
 {
     next unless $_ =~ /^egl/;
     printf HEADER " \\\n    USE_GL_FUNC(\%s)", $_;
+}
+print HEADER "\n\n";
+print HEADER "#define ALL_GL_CLIENT_EXTS";
+foreach (sort keys %gl_extensions)
+{
+    next unless is_exposed_extension($_);
+    printf HEADER " \\\n    USE_GL_EXT(\%s)", $_;
+}
+print HEADER "\n\n";
+print HEADER "#define ALL_GL_EXTS ALL_GL_CLIENT_EXTS";
+foreach (sort keys %gl_extensions)
+{
+    next if is_exposed_extension($_);
+    printf HEADER " \\\n    USE_GL_EXT(\%s)", $_;
 }
 print HEADER "\n\n";
 print HEADER "#define ALL_GL_FUNCS";
