@@ -6502,6 +6502,100 @@ if (SUCCEEDED(hr))
     CoUninitialize();
 }
 
+static void test_sar_time_source(void)
+{
+    static const UINT32 NUM_CHANNELS = 2;
+
+    IMFRateSupport *rate_support1, *rate_support2;
+    IMFMediaTypeHandler *type_handler;
+    UINT32 samples_per_second;
+    IMFMediaType *media_type;
+    IMFStreamSink *stream;
+    IMFMediaSink *sink;
+    HRESULT hr;
+    float rate;
+
+    hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = MFCreateAudioRenderer(NULL, &sink);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Test rate support */
+    hr = IMFMediaSink_QueryInterface(sink, &IID_IMFRateSupport, (void**)&rate_support1);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = MFGetService((IUnknown*)sink, &MF_RATE_CONTROL_SERVICE, &IID_IMFRateSupport, (void**)&rate_support2);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(rate_support1 == rate_support2, "rate support interfaces don't match %p vs %p\n", rate_support1, rate_support2);
+
+if (rate_support1)
+{
+    hr = IMFRateSupport_GetSlowestRate(rate_support1, MFRATE_FORWARD, FALSE, &rate);
+    ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFRateSupport_GetFastestRate(rate_support1, MFRATE_FORWARD, FALSE, &rate);
+    ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFRateSupport_IsRateSupported(rate_support1, FALSE, 1.0, &rate);
+    ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
+}
+
+    /* Initialise SAR */
+    hr = IMFMediaSink_GetStreamSinkByIndex(sink, 0, &stream);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFStreamSink_GetMediaTypeHandler(stream, &type_handler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaTypeHandler_GetMediaTypeByIndex(type_handler, 0, &media_type);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* media type here only includes samples per second. SAR will accept it in SetCurrentMediaType,
+     * and it will subsequently return success on further API calls, but it will never produce audio.
+     * So we must add the missing attributes to test SAR properly */
+    IMFMediaType_GetUINT32(media_type, &MF_MT_AUDIO_SAMPLES_PER_SECOND, &samples_per_second);
+    IMFMediaType_SetUINT32(media_type, &MF_MT_AUDIO_NUM_CHANNELS, NUM_CHANNELS);
+    IMFMediaType_SetUINT32(media_type, &MF_MT_AUDIO_BITS_PER_SAMPLE, sizeof(float) * 8);
+    IMFMediaType_SetUINT32(media_type, &MF_MT_AUDIO_BLOCK_ALIGNMENT, sizeof(float) * NUM_CHANNELS);
+    IMFMediaType_SetUINT32(media_type, &MF_MT_AUDIO_AVG_BYTES_PER_SECOND, samples_per_second * NUM_CHANNELS * sizeof(float));
+    hr = IMFMediaTypeHandler_SetCurrentMediaType(type_handler, media_type);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    IMFMediaType_Release(media_type);
+    IMFMediaTypeHandler_Release(type_handler);
+
+    /* Test rate support when initialised */
+if (rate_support1)
+{
+    hr = IMFRateSupport_GetSlowestRate(rate_support1, MFRATE_FORWARD, FALSE, &rate);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(rate == 0.125, "Unexpected rate %f\n", rate);
+
+    hr = IMFRateSupport_GetFastestRate(rate_support1, MFRATE_FORWARD, FALSE, &rate);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(rate == 8.0, "Unexpected rate %f\n", rate);
+
+    hr = IMFRateSupport_IsRateSupported(rate_support1, FALSE, 1.0, &rate);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(rate == 1.0, "Unexpected rate %f\n", rate);
+
+    hr = IMFRateSupport_IsRateSupported(rate_support1, FALSE, 0.1, &rate);
+    ok(hr == MF_E_UNSUPPORTED_RATE, "Unexpected hr %#lx.\n", hr);
+    ok(rate == 0.125, "Unexpected rate %f\n", rate);
+
+    IMFRateSupport_Release(rate_support1);
+    IMFRateSupport_Release(rate_support2);
+}
+
+    IMFStreamSink_Release(stream);
+    IMFMediaSink_Release(sink);
+
+    MFShutdown();
+}
+
 static void test_evr(void)
 {
     static const float supported_rates[] =
@@ -9874,6 +9968,7 @@ START_TEST(mf)
     test_sample_grabber_orientation(MFVideoFormat_NV12);
     test_quality_manager();
     test_sar();
+    test_sar_time_source();
     test_evr();
     test_MFCreateSimpleTypeHandler();
     test_MFGetSupportedMimeTypes();
