@@ -412,10 +412,20 @@ static HRESULT WINAPI transform_SetOutputType(IMFTransform *iface, DWORD id, IMF
 
     if (FAILED(hr = check_media_type(type)))
         return hr;
-    if (FAILED(hr = IMFMediaType_GetUINT32(type, &MF_MT_AUDIO_BLOCK_ALIGNMENT, &block_alignment)))
+    if (type && FAILED(hr = IMFMediaType_GetUINT32(type, &MF_MT_AUDIO_BLOCK_ALIGNMENT, &block_alignment)))
         return MF_E_INVALIDMEDIATYPE;
     if (flags & MFT_SET_TYPE_TEST_ONLY)
         return S_OK;
+
+    if (!type)
+    {
+        if (impl->output_type)
+        {
+            IMFMediaType_Release(impl->output_type);
+            impl->output_type = NULL;
+        }
+        return S_OK;
+    }
 
     if (!impl->output_type && FAILED(hr = MFCreateMediaType(&impl->output_type)))
         return hr;
