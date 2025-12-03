@@ -5953,11 +5953,11 @@ static void test_sar(void)
     IMFPresentationClock *present_clock, *present_clock2;
     IMFMediaType *mediatype, *mediatype2, *mediatype3;
     UINT32 channel_count, rate, bytes_per_second;
-    IMFClockStateSink *state_sink, *state_sink2;
     IMFMediaTypeHandler *handler, *handler2;
     IMFPresentationTimeSource *time_source;
     IMFSimpleAudioVolume *simple_volume;
     IMFAudioStreamVolume *stream_volume;
+    IMFClockStateSink *state_sink;
     IMFAsyncCallback *callback;
     IMFMediaSink *sink, *sink2;
     IMFStreamSink *stream_sink;
@@ -5966,10 +5966,8 @@ static void test_sar(void)
     DWORD id, flags, count;
     IMFActivate *activate;
     IMFMediaEvent *event;
-    MFCLOCK_STATE state;
     PROPVARIANT propvar;
     IMFSample *sample;
-    IMFClock *clock;
     IUnknown *unk;
     HRESULT hr;
     BYTE *buff;
@@ -5995,41 +5993,6 @@ static void test_sar(void)
     hr = MFCreatePresentationClock(&present_clock);
     ok(hr == S_OK, "Failed to create presentation clock, hr %#lx.\n", hr);
 
-    hr = IMFMediaSink_QueryInterface(sink, &IID_IMFPresentationTimeSource, (void **)&time_source);
-    todo_wine
-    ok(hr == S_OK, "Failed to get time source interface, hr %#lx.\n", hr);
-
-if (SUCCEEDED(hr))
-{
-    hr = IMFPresentationTimeSource_QueryInterface(time_source, &IID_IMFClockStateSink, (void **)&state_sink2);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    hr = IMFPresentationTimeSource_QueryInterface(time_source, &IID_IMFClockStateSink, (void **)&state_sink);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(state_sink == state_sink2, "Unexpected clock sink.\n");
-    IMFClockStateSink_Release(state_sink2);
-    IMFClockStateSink_Release(state_sink);
-
-    hr = IMFPresentationTimeSource_GetUnderlyingClock(time_source, &clock);
-    ok(hr == MF_E_NO_CLOCK, "Unexpected hr %#lx.\n", hr);
-
-    hr = IMFPresentationTimeSource_GetClockCharacteristics(time_source, &flags);
-    ok(hr == S_OK, "Failed to get flags, hr %#lx.\n", hr);
-    ok(flags == MFCLOCK_CHARACTERISTICS_FLAG_FREQUENCY_10MHZ, "Unexpected flags %#lx.\n", flags);
-
-    hr = IMFPresentationTimeSource_GetState(time_source, 0, &state);
-    ok(hr == S_OK, "Failed to get clock state, hr %#lx.\n", hr);
-    ok(state == MFCLOCK_STATE_INVALID, "Unexpected state %d.\n", state);
-
-    hr = IMFPresentationTimeSource_QueryInterface(time_source, &IID_IMFClockStateSink, (void **)&state_sink);
-    ok(hr == S_OK, "Failed to get state sink, hr %#lx.\n", hr);
-
-    hr = IMFClockStateSink_OnClockStart(state_sink, 0, 0);
-    ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
-
-    IMFClockStateSink_Release(state_sink);
-
-    IMFPresentationTimeSource_Release(time_source);
-}
     hr = IMFMediaSink_AddStreamSink(sink, 123, NULL, &stream_sink);
     ok(hr == MF_E_STREAMSINKS_FIXED, "Unexpected hr %#lx.\n", hr);
 
@@ -6507,19 +6470,31 @@ static void test_sar_time_source(void)
     static const UINT32 NUM_CHANNELS = 2;
 
     IMFRateSupport *rate_support1, *rate_support2;
+    IMFClockStateSink *state_sink1, *state_sink2;
+    IMFPresentationTimeSource *time_source;
+    MFCLOCK_PROPERTIES clock_properties;
     IMFMediaTypeHandler *type_handler;
+    IMFAsyncCallback *callback;
     UINT32 samples_per_second;
     IMFMediaType *media_type;
     IMFStreamSink *stream;
+    DWORD characteristics;
+    MFCLOCK_STATE state;
+    PROPVARIANT propvar;
     IMFMediaSink *sink;
     HRESULT hr;
     float rate;
+
+    /* Initialise required resources */
+    PropVariantInit(&propvar);
 
     hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     hr = MFCreateAudioRenderer(NULL, &sink);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    callback = create_test_callback(TRUE);
 
     /* Test rate support */
     hr = IMFMediaSink_QueryInterface(sink, &IID_IMFRateSupport, (void**)&rate_support1);
@@ -6542,6 +6517,41 @@ if (rate_support1)
     hr = IMFRateSupport_IsRateSupported(rate_support1, FALSE, 1.0, &rate);
     ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
 }
+
+    /* Test IMFPresentationTimeSource interface */
+    hr = IMFMediaSink_QueryInterface(sink, &IID_IMFPresentationTimeSource, (void**)&time_source);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaSink_QueryInterface(sink, &IID_IMFClockStateSink, (void **)&state_sink1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFClockStateSink_OnClockStart(state_sink1, 0, 0);
+    ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
+
+if (time_source)
+{
+    hr = IMFPresentationTimeSource_GetClockCharacteristics(time_source, &characteristics);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(characteristics == MFCLOCK_CHARACTERISTICS_FLAG_FREQUENCY_10MHZ, "Unexpected characteristics %#lx.\n", characteristics);
+
+    hr = IMFPresentationTimeSource_GetProperties(time_source, &clock_properties);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(clock_properties.qwClockFrequency == MFCLOCK_FREQUENCY_HNS, "Unexpected frequency value %I64d.\n", clock_properties.qwClockFrequency);
+    ok(clock_properties.dwClockTolerance == MFCLOCK_TOLERANCE_UNKNOWN, "Unexpected tolerance value %ld.\n", clock_properties.dwClockTolerance);
+    ok(clock_properties.dwClockJitter == 1, "Unexpected jitter value %ld.\n", clock_properties.dwClockJitter);
+
+    hr = IMFPresentationTimeSource_GetState(time_source, 0, &state);
+    ok(hr == S_OK, "Failed to get clock state, hr %#lx.\n", hr);
+    ok(state == MFCLOCK_STATE_INVALID, "Unexpected state %d.\n", state);
+
+    hr = IMFPresentationTimeSource_QueryInterface(time_source, &IID_IMFClockStateSink, (void **)&state_sink2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(state_sink1 == state_sink2, "clock state sink interfaces don't match %p vs %p.\n", state_sink1, state_sink2);
+
+    IMFClockStateSink_Release(state_sink2);
+}
+
 
     /* Initialise SAR */
     hr = IMFMediaSink_GetStreamSinkByIndex(sink, 0, &stream);
@@ -6590,6 +6600,41 @@ if (rate_support1)
     IMFRateSupport_Release(rate_support2);
 }
 
+    /* Test IMFPresentationTimeSource interface when initialised */
+if (time_source)
+{
+    hr = IMFPresentationTimeSource_GetState(time_source, 0, &state);
+    ok(hr == S_OK, "Failed to get clock state, hr %#lx.\n", hr);
+    ok(state == MFCLOCK_STATE_INVALID, "Unexpected state %d.\n", state);
+
+    hr = IMFClockStateSink_OnClockStart(state_sink1, 0, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStarted, 1000, &propvar);
+    ok(hr == MF_E_NOT_INITIALIZED, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = IMFPresentationTimeSource_GetState(time_source, 0, &state);
+    ok(hr == S_OK, "Failed to get clock state, hr %#lx.\n", hr);
+    ok(state == MFCLOCK_STATE_RUNNING, "Unexpected state %d.\n", state);
+
+    hr = IMFClockStateSink_OnClockStop(state_sink1, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStopped, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = IMFPresentationTimeSource_GetState(time_source, 0, &state);
+    ok(hr == S_OK, "Failed to get clock state, hr %#lx.\n", hr);
+    ok(state == MFCLOCK_STATE_STOPPED, "Unexpected state %d.\n", state);
+
+    IMFPresentationTimeSource_Release(time_source);
+}
+
+    /* Free allocated resources */
+    IMFAsyncCallback_Release(callback);
+    IMFClockStateSink_Release(state_sink1);
     IMFStreamSink_Release(stream);
     IMFMediaSink_Release(sink);
 
