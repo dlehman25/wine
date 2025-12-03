@@ -4496,10 +4496,11 @@ struct presentation_clock
     IMFPresentationClock IMFPresentationClock_iface;
     IMFTimer IMFTimer_iface;
     LONG refcount;
-    IMFClockStateSink *sample_grabber_clock_state_sink;
+    IMFClockStateSink *clock_state_sink;
     IMFAsyncResult *callback_result;
     IUnknown *cancel_key;
     HANDLE set_timer_event;
+    IMFPresentationTimeSource *time_source;
 };
 
 static struct presentation_clock* impl_from_IMFTimer(IMFTimer *iface)
@@ -4573,6 +4574,11 @@ static IMFTimerVtbl MFTimerVtbl =
     timer_CancelTimer,
 };
 
+DEFINE_EXPECT(presentation_clock_AddClockStateSink);
+DEFINE_EXPECT(presentation_clock_RemoveClockStateSink);
+DEFINE_EXPECT(presentation_clock_GetTimeSource);
+DEFINE_EXPECT(presentation_clock_SetTimeSource);
+
 static struct presentation_clock* impl_from_IMFPresentationClock(IMFPresentationClock *iface)
 {
     return CONTAINING_RECORD(iface, struct presentation_clock, IMFPresentationClock_iface);
@@ -4615,10 +4621,12 @@ static WINAPI ULONG presentation_clock_Release(IMFPresentationClock *iface)
 
     if (!pc->refcount)
     {
-        if (pc->sample_grabber_clock_state_sink)
-            IMFClockStateSink_Release(pc->sample_grabber_clock_state_sink);
+        if (pc->clock_state_sink)
+            IMFClockStateSink_Release(pc->clock_state_sink);
         if (pc->callback_result)
             IMFAsyncResult_Release(pc->callback_result);
+        if (pc->time_source)
+            IMFPresentationTimeSource_Release(pc->time_source);
         CloseHandle(pc->set_timer_event);
         free(pc);
     }
@@ -4655,13 +4663,27 @@ static WINAPI HRESULT presentation_clock_GetProperties(IMFPresentationClock *ifa
 static WINAPI HRESULT presentation_clock_SetTimeSource(IMFPresentationClock *iface,
         IMFPresentationTimeSource *time_source)
 {
-    return E_NOTIMPL;
+    struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
+
+    CHECK_EXPECT(presentation_clock_SetTimeSource);
+    if (pc->time_source) IMFPresentationTimeSource_Release(pc->time_source);
+    IMFPresentationTimeSource_AddRef(pc->time_source = time_source);
+    return S_OK;
 }
 
 static WINAPI HRESULT presentation_clock_GetTimeSource(IMFPresentationClock *iface,
         IMFPresentationTimeSource **time_source)
 {
-    return E_NOTIMPL;
+    struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
+
+    CHECK_EXPECT(presentation_clock_GetTimeSource);
+
+    if (!pc->time_source)
+        return MF_E_CLOCK_NO_TIME_SOURCE;
+
+    IMFPresentationTimeSource_AddRef(*time_source = pc->time_source);
+
+    return S_OK;
 }
 
 static WINAPI HRESULT presentation_clock_GetTime(IMFPresentationClock *iface, MFTIME *time)
@@ -4673,10 +4695,12 @@ static WINAPI HRESULT presentation_clock_AddClockStateSink(IMFPresentationClock 
 {
     struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
 
-    if (pc->sample_grabber_clock_state_sink)
-        IMFClockStateSink_Release(pc->sample_grabber_clock_state_sink);
+    CHECK_EXPECT(presentation_clock_AddClockStateSink);
 
-    IMFClockStateSink_AddRef(pc->sample_grabber_clock_state_sink = state_sink);
+    if (pc->clock_state_sink)
+        IMFClockStateSink_Release(pc->clock_state_sink);
+
+    IMFClockStateSink_AddRef(pc->clock_state_sink = state_sink);
 
     return S_OK;
 }
@@ -4686,10 +4710,12 @@ static WINAPI HRESULT presentation_clock_RemoveClockStateSink(IMFPresentationClo
 {
     struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
 
-    if (pc->sample_grabber_clock_state_sink == state_sink)
+    CHECK_EXPECT(presentation_clock_RemoveClockStateSink);
+
+    if (pc->clock_state_sink == state_sink)
     {
         IMFClockStateSink_Release(state_sink);
-        pc->sample_grabber_clock_state_sink = NULL;
+        pc->clock_state_sink = NULL;
     }
 
     return S_OK;
@@ -4701,9 +4727,9 @@ static WINAPI HRESULT presentation_clock_Start(IMFPresentationClock *iface, LONG
     HRESULT hr;
 
     if (start_offset == PRESENTATION_CURRENT_POSITION)
-        hr = IMFClockStateSink_OnClockRestart(pc->sample_grabber_clock_state_sink, 0);
+        hr = IMFClockStateSink_OnClockRestart(pc->clock_state_sink, 0);
     else
-        hr = IMFClockStateSink_OnClockStart(pc->sample_grabber_clock_state_sink, 0, start_offset);
+        hr = IMFClockStateSink_OnClockStart(pc->clock_state_sink, 0, start_offset);
     return hr;
 }
 
@@ -4711,14 +4737,14 @@ static WINAPI HRESULT presentation_clock_Stop(IMFPresentationClock *iface)
 {
     struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
 
-    return IMFClockStateSink_OnClockStop(pc->sample_grabber_clock_state_sink, 0);
+    return IMFClockStateSink_OnClockStop(pc->clock_state_sink, 0);
 }
 
 static WINAPI HRESULT presentation_clock_Pause(IMFPresentationClock *iface)
 {
     struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
 
-    return IMFClockStateSink_OnClockPause(pc->sample_grabber_clock_state_sink, 0);
+    return IMFClockStateSink_OnClockPause(pc->clock_state_sink, 0);
 }
 
 static IMFPresentationClockVtbl MFPresentationClockVtbl =
@@ -4937,9 +4963,11 @@ static void test_sample_grabber_seek(void)
     mock_clock = create_presentation_clock();
     clock = &mock_clock->IMFPresentationClock_iface;
 
+    SET_EXPECT(presentation_clock_AddClockStateSink);
     hr = IMFMediaSink_SetPresentationClock(sink, clock);
     ok(hr == S_OK, "Failed to set presentation clock, hr %#lx.\n", hr);
-    ok(!!mock_clock->sample_grabber_clock_state_sink, "AddClockStateSink not called\n");
+    ok(!!mock_clock->clock_state_sink, "AddClockStateSink not called\n");
+    CHECK_CALLED(presentation_clock_AddClockStateSink);
 
     /* test number of new sample requests on clock start */
     hr = IMFPresentationClock_Start(clock, 0);
@@ -5165,8 +5193,10 @@ static void test_sample_grabber_seek(void)
     ref = IMFPresentationClock_Release(clock);
     ok(ref == 2, "Release returned %ld\n", ref);
 
+    SET_EXPECT(presentation_clock_RemoveClockStateSink);
     hr = IMFMediaSink_Shutdown(sink);
     ok(hr == S_OK, "Failed to shut down, hr %#lx.\n", hr);
+    CHECK_CALLED(presentation_clock_RemoveClockStateSink);
 
     ref = IMFMediaSink_Release(sink);
     todo_wine
@@ -5215,8 +5245,10 @@ static void test_sample_grabber_seek(void)
     mock_clock = create_presentation_clock();
     clock = &mock_clock->IMFPresentationClock_iface;
 
+    SET_EXPECT(presentation_clock_AddClockStateSink);
     hr = IMFMediaSink_SetPresentationClock(sink, clock);
     ok(hr == S_OK, "Failed to set presentation clock, hr %#lx.\n", hr);
+    CHECK_CALLED(presentation_clock_AddClockStateSink);
 
     /* test number of new sample requests on clock start */
     hr = IMFPresentationClock_Start(clock, 0);
@@ -5389,8 +5421,10 @@ static void test_sample_grabber_seek(void)
     ref = IMFPresentationClock_Release(clock);
     ok(ref == 2, "Release returned %ld\n", ref);
 
+    SET_EXPECT(presentation_clock_RemoveClockStateSink);
     hr = IMFMediaSink_Shutdown(sink);
     ok(hr == S_OK, "Failed to shut down, hr %#lx.\n", hr);
+    CHECK_CALLED(presentation_clock_RemoveClockStateSink);
 
     ref = IMFMediaSink_Release(sink);
     todo_wine
@@ -6469,11 +6503,13 @@ static void test_sar_time_source(void)
 {
     static const UINT32 NUM_CHANNELS = 2;
 
+    struct presentation_clock *presentation_clock;
     IMFRateSupport *rate_support1, *rate_support2;
     IMFClockStateSink *state_sink1, *state_sink2;
     IMFPresentationTimeSource *time_source;
     MFCLOCK_PROPERTIES clock_properties;
     IMFMediaTypeHandler *type_handler;
+    IMFPresentationClock *clock;
     IMFAsyncCallback *callback;
     UINT32 samples_per_second;
     IMFMediaType *media_type;
@@ -6484,6 +6520,7 @@ static void test_sar_time_source(void)
     IMFMediaSink *sink;
     HRESULT hr;
     float rate;
+    ULONG ref;
 
     /* Initialise required resources */
     PropVariantInit(&propvar);
@@ -6495,6 +6532,9 @@ static void test_sar_time_source(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     callback = create_test_callback(TRUE);
+
+    presentation_clock = create_presentation_clock();
+    clock = &presentation_clock->IMFPresentationClock_iface;
 
     /* Test rate support */
     hr = IMFMediaSink_QueryInterface(sink, &IID_IMFRateSupport, (void**)&rate_support1);
@@ -6551,7 +6591,6 @@ if (time_source)
 
     IMFClockStateSink_Release(state_sink2);
 }
-
 
     /* Initialise SAR */
     hr = IMFMediaSink_GetStreamSinkByIndex(sink, 0, &stream);
@@ -6629,14 +6668,40 @@ if (time_source)
     ok(hr == S_OK, "Failed to get clock state, hr %#lx.\n", hr);
     ok(state == MFCLOCK_STATE_STOPPED, "Unexpected state %d.\n", state);
 
+    SET_EXPECT(presentation_clock_GetTimeSource);
+    hr = IMFMediaSink_SetPresentationClock(sink, clock);
+    ok(hr == MF_E_CLOCK_NO_TIME_SOURCE, "Unexpected hr %#lx.\n", hr);
+    CHECK_CALLED(presentation_clock_GetTimeSource);
+
+    IMFPresentationTimeSource_AddRef(presentation_clock->time_source = time_source);
+
+    SET_EXPECT(presentation_clock_GetTimeSource);
+    SET_EXPECT(presentation_clock_AddClockStateSink);
+    hr = IMFMediaSink_SetPresentationClock(sink, clock);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    CHECK_CALLED(presentation_clock_GetTimeSource);
+    CHECK_CALLED(presentation_clock_AddClockStateSink);
+
+    ok(presentation_clock->clock_state_sink == state_sink1,
+        "clock state sink interfaces don't match %p vs %p.\n", presentation_clock->clock_state_sink, state_sink1);
+
     IMFPresentationTimeSource_Release(time_source);
 }
 
     /* Free allocated resources */
+    IMFPresentationClock_Release(clock);
     IMFAsyncCallback_Release(callback);
     IMFClockStateSink_Release(state_sink1);
     IMFStreamSink_Release(stream);
-    IMFMediaSink_Release(sink);
+
+    SET_EXPECT(presentation_clock_RemoveClockStateSink);
+    hr = IMFMediaSink_Shutdown(sink);
+    ok(hr == S_OK, "Failed to shut down, hr %#lx.\n", hr);
+    todo_wine
+    CHECK_CALLED(presentation_clock_RemoveClockStateSink);
+
+    ref = IMFMediaSink_Release(sink);
+    ok(ref == 0, "Release returned %ld\n", ref);
 
     MFShutdown();
 }
