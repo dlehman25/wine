@@ -6815,9 +6815,51 @@ if (time_source)
     /* Clock time will halt at exactly 200000 as this is the total duration of the two samples */
     ok(time == 200000, "Unexpected time %I64d.\n", time);
 
+    /* Provide a third sample */
+    sample = create_audio_sample(samples_per_second, 100000);
+    hr = IMFSample_SetSampleTime(sample, 200000);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFStreamSink_ProcessSample(stream, sample);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFSample_Release(sample);
+
+    /* Providing a sample without duration always triggers a request for another sample */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Place an ENDOFSEGMENT marker after the third sample */
+    hr = IMFStreamSink_PlaceMarker(stream, MFSTREAMSINK_MARKER_ENDOFSEGMENT, NULL, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkMarker, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Check clock time */
+    for (i = 0; i < 100 && time <= 300000; i++)
+    {
+        IMFPresentationClock_GetTime(clock, &time);
+        Sleep(50);
+    }
+
+    /* Time is now greater than 300000 as, due to the ENDOFSEGMENT marker, SAR will now insert silence and continue the timer */
+    ok(time > 300000, "Unexpected time %I64d.\n", time);
+
+    /* No new samples are requested after the marker */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 100, &propvar);
+    ok(hr == WAIT_TIMEOUT, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
     /* Stop clock */
     hr = IMFPresentationClock_Stop(clock);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Get stop event */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStopped, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
 
     /* Time should now be zero */
     hr = IMFPresentationClock_GetTime(clock, &time);
