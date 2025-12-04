@@ -4688,7 +4688,16 @@ static WINAPI HRESULT presentation_clock_GetTimeSource(IMFPresentationClock *ifa
 
 static WINAPI HRESULT presentation_clock_GetTime(IMFPresentationClock *iface, MFTIME *time)
 {
-    return E_NOTIMPL;
+    struct presentation_clock *pc = impl_from_IMFPresentationClock(iface);
+    MFTIME systime;
+    HRESULT hr;
+
+    if (!pc->time_source)
+        return MF_E_CLOCK_NO_TIME_SOURCE;
+
+    hr = IMFPresentationTimeSource_GetCorrelatedTime(pc->time_source, 0, time, &systime);
+
+    return hr;
 }
 
 static WINAPI HRESULT presentation_clock_AddClockStateSink(IMFPresentationClock *iface, IMFClockStateSink *state_sink)
@@ -6499,16 +6508,52 @@ static void test_sar(void)
     CoUninitialize();
 }
 
+static const UINT32 NUM_CHANNELS = 2;
+
+#define create_audio_sample(samples_per_second, duration)   _create_audio_sample(__LINE__, samples_per_second, duration)
+static IMFSample *_create_audio_sample(int line, UINT32 samples_per_second, MFTIME duration)
+{
+    IMFMediaBuffer *buffer;
+    IMFSample *sample;
+    HRESULT hr;
+    DWORD size;
+    BYTE *data;
+
+    size = sizeof(float) * NUM_CHANNELS * samples_per_second * duration / MFCLOCK_FREQUENCY_HNS;
+
+    hr = MFCreateMemoryBuffer(size, &buffer);
+    ok_(__FILE__, line)(hr == S_OK, "Failed to create memory buffer %#lx.\n", hr);
+
+    hr = IMFMediaBuffer_Lock(buffer, &data, NULL, NULL);
+    ok_(__FILE__, line)(hr == S_OK, "Failed to lock memory buffer %#lx.\n", hr);
+
+    memset(data, 0, size);
+
+    hr = IMFMediaBuffer_Unlock(buffer);
+    ok_(__FILE__, line)(hr == S_OK, "Failed to unlock memory buffer %#lx.\n", hr);
+
+    hr = IMFMediaBuffer_SetCurrentLength(buffer, size);
+    ok_(__FILE__, line)(hr == S_OK, "Failed to set current length %#lx.\n", hr);
+
+    hr = MFCreateSample(&sample);
+    ok_(__FILE__, line)(hr == S_OK, "Failed to create sample %#lx.\n", hr);
+
+    hr = IMFSample_AddBuffer(sample, buffer);
+    ok_(__FILE__, line)(hr == S_OK, "Failed to add buffer %#lx.\n", hr);
+    IMFMediaBuffer_Release(buffer);
+
+    return sample;
+}
+
 static void test_sar_time_source(void)
 {
-    static const UINT32 NUM_CHANNELS = 2;
-
     struct presentation_clock *presentation_clock;
     IMFRateSupport *rate_support1, *rate_support2;
     IMFClockStateSink *state_sink1, *state_sink2;
     IMFPresentationTimeSource *time_source;
     MFCLOCK_PROPERTIES clock_properties;
     IMFMediaTypeHandler *type_handler;
+    IMFMediaSinkPreroll *preroll;
     IMFPresentationClock *clock;
     IMFAsyncCallback *callback;
     UINT32 samples_per_second;
@@ -6518,9 +6563,12 @@ static void test_sar_time_source(void)
     MFCLOCK_STATE state;
     PROPVARIANT propvar;
     IMFMediaSink *sink;
+    IMFSample *sample;
+    MFTIME time;
     HRESULT hr;
     float rate;
     ULONG ref;
+    INT i;
 
     /* Initialise required resources */
     PropVariantInit(&propvar);
@@ -6684,6 +6732,99 @@ if (time_source)
 
     ok(presentation_clock->clock_state_sink == state_sink1,
         "clock state sink interfaces don't match %p vs %p.\n", presentation_clock->clock_state_sink, state_sink1);
+
+    /* Test preroll start when no duration provided */
+    hr = IMFMediaSink_QueryInterface(sink, &IID_IMFMediaSinkPreroll, (void**)&preroll);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaSinkPreroll_NotifyPreroll(preroll, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* We should now get two sample requests */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Provide one sample. Note that duration is not set */
+    sample = create_audio_sample(samples_per_second, 100000);
+    hr = IMFSample_SetSampleTime(sample, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFStreamSink_ProcessSample(stream, sample);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFSample_Release(sample);
+
+    /* But no MEStreamSinkPrerolled will be provided until we provide a second sample */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkPrerolled, 100, &propvar);
+    ok(hr == WAIT_TIMEOUT, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Provide second sample */
+    sample = create_audio_sample(samples_per_second, 100000);
+    hr = IMFSample_SetSampleTime(sample, 100000);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFStreamSink_ProcessSample(stream, sample);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFSample_Release(sample);
+
+    /* A third sample is requested only after the first two have been delivered */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Now we get the pre-roll event. The third sample does not need to be provided */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkPrerolled, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Check clock time before start */
+    hr = IMFPresentationClock_GetTime(clock, &time);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(time == 0, "Unexpected time %I64d.\n", time);
+
+    /* Start clock */
+    hr = IMFPresentationClock_Start(clock, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Two more samples are immediately requested */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Before we get the started event */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStarted, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Check clock time */
+    for (i = 0; i < 100 && time < 200000; i++)
+    {
+        IMFPresentationClock_GetTime(clock, &time);
+        Sleep(50);
+    }
+
+    /* Clock time will halt at exactly 200000 as this is the total duration of the two samples */
+    ok(time == 200000, "Unexpected time %I64d.\n", time);
+
+    /* Stop clock */
+    hr = IMFPresentationClock_Stop(clock);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Time should now be zero */
+    hr = IMFPresentationClock_GetTime(clock, &time);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(time == 0, "Unexpected time %I64d.\n", time);
+
+    IMFMediaSinkPreroll_Release(preroll);
 
     IMFPresentationTimeSource_Release(time_source);
 }
