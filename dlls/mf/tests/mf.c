@@ -7004,6 +7004,126 @@ if (time_source)
 
     IMFMediaSinkPreroll_Release(preroll);
 
+    /* Test scrubbing. Start by setting clock rate to zero. */
+    hr = IMFClockStateSink_OnClockSetRate(state_sink1, 0, 0.0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Wait for the rate changed event */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRateChanged, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Start the clock */
+    hr = IMFPresentationClock_Start(clock, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* We immediately get the stream started event */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStarted, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Then two samples are requested */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* And then the scrub complete event. No samples need to be provided. */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkScrubSampleComplete, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* But when we do provide a requested sample ... */
+    sample = create_audio_sample(samples_per_second, 100000);
+    hr = IMFSample_SetSampleTime(sample, 0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFStreamSink_ProcessSample(stream, sample);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFSample_Release(sample);
+
+    /* ... no new sample is requested ... */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 100, &propvar);
+    ok(hr == WAIT_TIMEOUT, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* ... until we provide the second ... */
+    sample = create_audio_sample(samples_per_second, 100000);
+    hr = IMFSample_SetSampleTime(sample, 100000);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFStreamSink_ProcessSample(stream, sample);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFSample_Release(sample);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* ... but the clock remains at zero */
+    hr = IMFPresentationClock_GetTime(clock, &time);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(time == 0, "Unexpected time %I64d.\n", time);
+
+    /* to start the playback, we pause ... */
+    hr = IMFPresentationClock_Pause(clock);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkPaused, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* ... set rate back to 1 ... */
+    hr = IMFClockStateSink_OnClockSetRate(state_sink1, 0, 1.0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRateChanged, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* ... and restart */
+    hr = IMFPresentationClock_Start(clock, PRESENTATION_CURRENT_POSITION);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkRequestSample, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStarted, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Check clock time */
+    for (i = 0; i < 100 && time < 200000; i++)
+    {
+        IMFPresentationClock_GetTime(clock, &time);
+        Sleep(50);
+    }
+
+    /* Clock time will halt at exactly 200000 as this is the total duration of the two samples */
+    ok(time == 200000, "Unexpected time %I64d.\n", time);
+
+    /* Stop clock */
+    hr = IMFPresentationClock_Stop(clock);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Get stop event */
+    hr = gen_wait_media_event_until_blocking((IMFMediaEventGenerator*)stream, callback, MEStreamSinkStopped, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
+    /* Time should now be zero */
+    hr = IMFPresentationClock_GetTime(clock, &time);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(time == 0, "Unexpected time %I64d.\n", time);
+
     IMFPresentationTimeSource_Release(time_source);
 }
 
