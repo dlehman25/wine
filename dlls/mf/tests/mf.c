@@ -3144,13 +3144,6 @@ static void test_media_session_events(void)
 
     test_handler_clear_current_type(handler);
 
-    if (winetest_platform_is_wine)
-    {
-        todo_wine
-        ok(0, "This test currently crashes under wine.\n");
-        goto skip_invalid;
-    }
-
     IMFMediaSession_Release(session);
 
     /* test sample request from sink prior to starting sources */
