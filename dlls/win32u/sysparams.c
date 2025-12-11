@@ -2934,6 +2934,59 @@ BOOL update_display_cache( BOOL force )
     return TRUE;
 }
 
+#define GAMMA_RAMP_SIZE 256
+
+static WORD gamma_ramp_i[GAMMA_RAMP_SIZE * 3];
+static float gamma_ramp[GAMMA_RAMP_SIZE * 4];
+static LONG gamma_serial;
+
+BOOL get_global_gamma_ramp( void *data )
+{
+    pthread_mutex_lock( &display_lock );
+    memcpy( data, gamma_ramp_i, sizeof(gamma_ramp_i) );
+    pthread_mutex_unlock( &display_lock );
+    return TRUE;
+}
+
+BOOL set_global_gamma_ramp( void *data )
+{
+    const WORD *ramp = data;
+    int i;
+
+    pthread_mutex_lock( &display_lock );
+
+    if (!memcmp( gamma_ramp_i, ramp, sizeof(gamma_ramp_i) )) goto done;
+    for (i = 0; i < GAMMA_RAMP_SIZE; ++i)
+    {
+        gamma_ramp[i * 4] = ramp[i] / 65535.f;
+        gamma_ramp[i * 4 + 1] = ramp[i + GAMMA_RAMP_SIZE] / 65535.f;
+        gamma_ramp[i * 4 + 2] = ramp[i + 2 * GAMMA_RAMP_SIZE] / 65535.f;
+    }
+    memcpy( gamma_ramp_i, ramp, sizeof(gamma_ramp_i) );
+    if (!++gamma_serial) gamma_serial = 1;
+    TRACE( "new gamma serial: %u\n", gamma_serial );
+
+done:
+    pthread_mutex_unlock( &display_lock );
+    return TRUE;
+}
+
+static void init_default_gamma_ramp(void)
+{
+    unsigned int i;
+
+    for (i = 0; i < GAMMA_RAMP_SIZE; ++i)
+    {
+        int default_value = i * 65535 / (GAMMA_RAMP_SIZE - 1);
+        gamma_ramp_i[i] = default_value;
+        gamma_ramp_i[i + GAMMA_RAMP_SIZE] = default_value;
+        gamma_ramp_i[i + 2 * GAMMA_RAMP_SIZE] = default_value;
+        gamma_ramp[i * 4] = gamma_ramp_i[i] / 65535.f;
+        gamma_ramp[i * 4 + 1] = gamma_ramp_i[i + GAMMA_RAMP_SIZE] / 65535.f;
+        gamma_ramp[i * 4 + 2] = gamma_ramp_i[i + 2 * GAMMA_RAMP_SIZE] / 65535.f;
+    }
+}
+
 static HDC get_display_dc(void)
 {
     pthread_mutex_lock( &display_dc_lock );
@@ -5915,6 +5968,8 @@ void sysparams_init(void)
     pthread_mutexattr_settype( &attr, PTHREAD_MUTEX_RECURSIVE );
     pthread_mutex_init( &user_mutex, &attr );
     pthread_mutexattr_destroy( &attr );
+
+    init_default_gamma_ramp();
 
     if ((hkey = reg_create_ascii_key( hkcu_key, "Keyboard Layout\\Preload", 0, NULL )))
     {
