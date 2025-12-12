@@ -10861,13 +10861,10 @@ static void test_media_session_sample_request(void)
     while (hr == WAIT_OBJECT_0 && SUCCEEDED(hr = IMFCollection_GetElementCount(stream_sink->samples, &samples_count)) && samples_count < 4)
     {
         hr = WaitForSingleObject(stream_sink->sample_event, 1000);
-        todo_wine_if(hr != WAIT_OBJECT_0)
         ok(hr == WAIT_OBJECT_0, "Unexpected hr %#lx.\n", hr);
     }
 
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(samples_count == 4, "Unexpected samples count %ld.\n", samples_count);
 
     todo_wine
