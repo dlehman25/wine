@@ -41,6 +41,8 @@
 #include "audiopolicy.h"
 #include "endpointvolume.h"
 
+#include "mmdevapi_tests_private.h"
+
 static const unsigned int sampling_rates[] = { 8000, 16000, 22050, 44100, 48000, 96000 };
 static const unsigned int channel_counts[] = { 1, 2, 8 };
 static const unsigned int sample_formats[][2] = { {WAVE_FORMAT_PCM, 8}, {WAVE_FORMAT_PCM, 16},
@@ -675,12 +677,8 @@ static void test_formats(AUDCLNT_SHAREMODE mode, BOOL extensible)
                             KSDATAFORMAT_SUBTYPE_PCM : KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
                 }
 
-                winetest_push_context("%c%s%lux%ux%u", sample_formats[k][0] == WAVE_FORMAT_PCM ? 'P' : 'F',
-                        extensible ? "X" : "", fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample,
-                        fmt.Format.nChannels);
-
+                push_format_context(&fmt);
                 test_format(mode, &fmt);
-
                 winetest_pop_context();
             }
         }
