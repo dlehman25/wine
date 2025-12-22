@@ -1910,6 +1910,12 @@ static void test_PlaySound(void)
     }
 
     /* Test a few more exotic formats. */
+    br = PlaySoundA("test_s24le.wav", GetModuleHandleA(NULL), SND_RESOURCE | SND_NODEFAULT);
+    ok(br, "PlaySound failed, got %d\n", br);
+
+    br = PlaySoundA("test_s24_32le.wav", GetModuleHandleA(NULL), SND_RESOURCE | SND_NODEFAULT);
+    ok(br, "PlaySound failed, got %d\n", br);
+
     br = PlaySoundA("test_alaw.wav", GetModuleHandleA(NULL), SND_RESOURCE | SND_NODEFAULT);
     ok(br, "PlaySound failed, got %d\n", br);
 
