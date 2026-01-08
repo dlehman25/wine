@@ -327,6 +327,9 @@ static HRESULT check_media_type(IMFMediaType *type)
     HRESULT hr;
     ULONG i;
 
+    if (!type)
+        return S_OK;
+
     if (FAILED(hr = IMFMediaType_GetGUID(type, &MF_MT_MAJOR_TYPE, &major)) ||
             FAILED(hr = IMFMediaType_GetGUID(type, &MF_MT_SUBTYPE, &subtype)))
         return MF_E_ATTRIBUTENOTFOUND;
@@ -366,10 +369,20 @@ static HRESULT WINAPI transform_SetInputType(IMFTransform *iface, DWORD id, IMFM
 
     if (FAILED(hr = check_media_type(type)))
         return hr;
-    if (FAILED(hr = IMFMediaType_GetUINT32(type, &MF_MT_AUDIO_BLOCK_ALIGNMENT, &block_alignment)))
+    if (type && FAILED(hr = IMFMediaType_GetUINT32(type, &MF_MT_AUDIO_BLOCK_ALIGNMENT, &block_alignment)))
         return MF_E_INVALIDMEDIATYPE;
     if (flags & MFT_SET_TYPE_TEST_ONLY)
         return S_OK;
+
+    if (!type)
+    {
+        if (impl->input_type)
+        {
+            IMFMediaType_Release(impl->input_type);
+            impl->input_type = NULL;
+        }
+        return S_OK;
+    }
 
     if (!impl->input_type && FAILED(hr = MFCreateMediaType(&impl->input_type)))
         return hr;
