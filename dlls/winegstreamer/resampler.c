@@ -374,12 +374,6 @@ static HRESULT WINAPI transform_SetInputType(IMFTransform *iface, DWORD id, IMFM
     if (!impl->input_type && FAILED(hr = MFCreateMediaType(&impl->input_type)))
         return hr;
 
-    if (impl->output_type)
-    {
-        IMFMediaType_Release(impl->output_type);
-        impl->output_type = NULL;
-    }
-
     if (SUCCEEDED(hr = IMFMediaType_CopyAllItems(type, (IMFAttributes *)impl->input_type)))
         impl->input_info.cbSize = block_alignment;
     else
