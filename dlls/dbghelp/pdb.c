@@ -415,6 +415,7 @@ static enum pdb_result pdb_reader_encode_symref(struct pdb_reader *pdb, const st
         v = 0;
         break;
     case symref_code_compiland:
+        if (code->compiland >= pdb->num_compilands) return R_PDB_INVALID_ARGUMENT;
         v = 1 + code->compiland;
         break;
     case symref_code_cv_typeid:
@@ -3510,6 +3511,15 @@ static enum method_result pdb_reader_symbol_data_request(struct pdb_reader *pdb,
         *((DWORD*)data) = cv_symbol->generic.id == S_GDATA32 ? DataIsGlobal : DataIsFileStatic;
         return MR_SUCCESS;
     case TI_GET_LEXICALPARENT:
+        if (cv_symbol->generic.id == S_LDATA32)
+        {
+            struct symref_code code;
+            unsigned compiland;
+
+            if (pdb_reader_lookup_compiland_by_segment_offset(pdb, cv_symbol->data_v3.segment, cv_symbol->data_v3.offset, &compiland) ||
+                pdb_reader_encode_symref(pdb, symref_code_init_from_compiland(&code, compiland), &parent_symref))
+                return MR_FAILURE;
+        }
         *((DWORD*)data) = symt_symref_to_index(pdb->module, parent_symref);
         return MR_SUCCESS;
     case TI_GET_ADDRESS:
@@ -3675,13 +3685,16 @@ static enum pdb_result pdb_reader_top_fill_in(struct pdb_reader *pdb, unsigned *
                 switch (cv_global_symbol->generic.id)
                 {
                 case S_UDT:
+                case S_LDATA32:
+                case S_GTHREAD32:
+                case S_LTHREAD32:
                     found = TRUE;
                     break;
                 case S_GDATA32:
                     /* There are cases (incremental linking) where we have several entries of same name, but
                      * only one is valid.
                      * We discriminate valid with:
-                     * - there's no other entry with same name before this entry in hash bucket,
+                     * - there's no other entry at global scope with same name before this entry in hash bucket,
                      * - the address is valid
                      * - the typeid is valid
                      * Note: checking address map doesn't bring nothing as the invalid entries are also listed
@@ -3690,7 +3703,7 @@ static enum pdb_result pdb_reader_top_fill_in(struct pdb_reader *pdb, unsigned *
                     for (j = 0; !found && j < i; j++)
                     {
                         if (!pdb_reader_whole_stream_access_codeview_symbol(pdb, &whole, bucket->entries[j].dbi_stream_offset, &cv_global_symbol2))
-                            found = !strcmp(cv_global_symbol->data_v3.name, cv_global_symbol2->data_v3.name);
+                            found = cv_global_symbol2->generic.id == S_GDATA32 && !strcmp(cv_global_symbol->data_v3.name, cv_global_symbol2->data_v3.name);
                     }
                     found = !found;
                     break;
@@ -4513,6 +4526,8 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
         switch (cv_symbol->generic.id)
         {
         case S_LDATA32:
+            if (curr_func)
+            {
             loc.kind = loc_absolute;
             loc.reg = 0;
             if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->data_v3.segment, cv_symbol->data_v3.offset, &address)))
@@ -4521,10 +4536,13 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
 
             if ((result = pdb_reader_create_variable(pdb, compiland, curr_func, block, cv_symbol->data_v3.name, &loc,
                                                      cv_symbol->data_v3.symtype, TRUE))) goto failure;
+            }
             break;
 
         /* variables with thread storage */
         case S_LTHREAD32:
+            if (curr_func)
+            {
             loc.kind = loc_tlsrel;
             loc.reg = 0;
             loc.offset = cv_symbol->thread_v3.offset;
@@ -4532,6 +4550,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
             if ((result = pdb_reader_create_variable(pdb, compiland, curr_func, block, cv_symbol->thread_v3.name,
                                                      &loc, cv_symbol->thread_v3.symtype,
                                                      cv_symbol->generic.id == S_LTHREAD32))) goto failure;
+            }
             break;
 
         case S_THUNK32:
@@ -4977,16 +4996,10 @@ static enum method_result pdb_method_lookup_symbol_by_name(struct module_format 
     switch (cv_symbol.generic.id)
     {
     case S_GDATA32:
-    case S_GTHREAD32:
-        return pdb_method_result(pdb_reader_DBI_globals_symref(pdb, globals_offset, symref));
     case S_LDATA32:
-        segment = cv_symbol.data_v3.segment;
-        offset = cv_symbol.data_v3.offset;
-        break;
+    case S_GTHREAD32:
     case S_LTHREAD32:
-        segment = cv_symbol.thread_v3.segment;
-        offset = cv_symbol.thread_v3.offset;
-        break;
+        return pdb_method_result(pdb_reader_DBI_globals_symref(pdb, globals_offset, symref));
     case S_PROCREF:
     case S_LPROCREF:
         if ((result = pdb_reader_dereference_procedure(pdb, cv_symbol.refsym2_v3.imod, cv_symbol.refsym2_v3.ibSym,
@@ -5035,6 +5048,13 @@ static enum method_result pdb_method_enumerate_symbols(struct module_format *mod
             symbol_walker.offset += offsetof(union codeview_symbol, data_v3.name);
             if ((result = pdb_reader_alloc_and_fetch_string(pdb, &symbol_walker, &symbol_name))) return pdb_method_result(result);
             break;
+        case S_GTHREAD32:
+        case S_LTHREAD32:
+            segment = cv_symbol.thread_v3.segment;
+            offset = cv_symbol.thread_v3.offset;
+            symbol_walker.offset += offsetof(union codeview_symbol, thread_v3.name);
+            if ((result = pdb_reader_alloc_and_fetch_string(pdb, &symbol_walker, &symbol_name))) return pdb_method_result(result);
+            break;
         case S_PROCREF:
         case S_LPROCREF:
             if ((result = pdb_reader_dereference_procedure(pdb, cv_symbol.refsym2_v3.imod, cv_symbol.refsym2_v3.ibSym,
@@ -5063,6 +5083,9 @@ static enum method_result pdb_method_enumerate_symbols(struct module_format *mod
                 switch (cv_symbol.generic.id)
                 {
                 case S_GDATA32:
+                case S_LDATA32:
+                case S_GTHREAD32:
+                case S_LTHREAD32:
                     result = pdb_reader_DBI_globals_symref(pdb, walker.offset - sizeof(cv_symbol.generic.len), &symref);
                     break;
                 default:
