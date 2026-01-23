@@ -120,7 +120,7 @@ struct buffers
 
 struct context
 {
-    struct wgl_context base;
+    struct opengl_context base;
 
     HDC hdc;                       /* context creation DC */
     HGLRC client;                  /* client-side context handle */
@@ -211,7 +211,7 @@ static void opengl_client_context_init( HGLRC client_context, struct context *co
 /* the current context is assumed valid and doesn't need locking */
 static struct context *get_current_context( TEB *teb, struct opengl_drawable **draw, struct opengl_drawable **read )
 {
-    struct wgl_context *base;
+    struct opengl_context *base;
     struct context *context;
 
     if (!(base = teb->glContext)) return NULL;
@@ -382,7 +382,7 @@ static void release_buffers( const struct opengl_funcs *funcs, struct buffers *b
 
 static struct context *context_from_client_context( HGLRC client_context )
 {
-    struct wgl_context *base = opengl_context_from_handle( client_context );
+    struct opengl_context *base = opengl_context_from_handle( client_context );
     return base ? CONTAINING_RECORD( base, struct context, base ) : NULL;
 }
 
@@ -398,7 +398,7 @@ static struct context *update_context( TEB *teb, HGLRC client_context, struct co
     if (ctx->share == (HGLRC)-1) return ctx; /* not re-shared */
 
     share = ctx->share ? get_updated_context( teb, ctx->share ) : NULL;
-    if (!funcs->p_wgl_context_reset( &ctx->base, ctx->hdc, share ? &share->base : NULL, ctx->attribs ))
+    if (!funcs->p_context_reset( &ctx->base, ctx->hdc, share ? &share->base : NULL, ctx->attribs ))
     {
         WARN( "Failed to re-create context for wglShareLists\n" );
         return ctx;
@@ -1326,7 +1326,7 @@ BOOL wrap_wglDeleteContext( TEB *teb, HGLRC client_context )
         return FALSE;
     }
 
-    funcs->p_wgl_context_reset( &ctx->base, NULL, NULL, NULL );
+    funcs->p_context_reset( &ctx->base, NULL, NULL, NULL );
     free_context( ctx );
     return TRUE;
 }
@@ -1386,7 +1386,7 @@ static void flush_context( TEB *teb, void (*flush)(void) )
     if (flush && ctx && !ctx->draw_fbo && context_draws_front( ctx ) && draw->client) flags |= GL_FLUSH_PRESENT;
     if ((flags & GL_FLUSH_PRESENT) && draw->buffer_map[0] == GL_BACK_LEFT) flags |= GL_FLUSH_FORCE_SWAP;
 
-    if (!ctx || !funcs->p_wgl_context_flush( &ctx->base, flush, flags ))
+    if (!ctx || !funcs->p_context_flush( &ctx->base, flush, flags ))
     {
         /* default implementation: call the functions directly */
         if (flush) flush();
@@ -1519,7 +1519,7 @@ HGLRC wrap_wglCreateContextAttribsARB( TEB *teb, HDC hdc, HGLRC client_shared, c
         }
     }
 
-    if (!(funcs->p_wgl_context_reset( &context->base, hdc, shared ? &shared->base : NULL, attribs )))
+    if (!(funcs->p_context_reset( &context->base, hdc, shared ? &shared->base : NULL, attribs )))
     {
         free_context( context );
         return 0;

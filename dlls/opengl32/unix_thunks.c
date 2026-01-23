@@ -89988,12 +89988,12 @@ static BOOL null_wglSwapBuffers( HDC hdc )
     WARN( "unsupported\n" );
     return 0;
 }
-static BOOL null_wgl_context_reset( struct wgl_context *context, HDC hdc, struct wgl_context *share, const int *attribs )
+static BOOL null_context_reset( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs )
 {
     WARN( "unsupported\n" );
     return FALSE;
 }
-static BOOL null_wgl_context_flush( struct wgl_context *context, void (*flush)(void), UINT flags )
+static BOOL null_context_flush( struct opengl_context *context, void (*flush)(void), UINT flags )
 {
     WARN( "unsupported\n" );
     return FALSE;
@@ -91359,8 +91359,8 @@ static void null_glViewport( GLint x, GLint y, GLsizei width, GLsizei height )
 
 struct opengl_funcs null_opengl_funcs =
 {
-    .p_wgl_context_reset = null_wgl_context_reset,
-    .p_wgl_context_flush = null_wgl_context_flush,
+    .p_context_reset = null_context_reset,
+    .p_context_flush = null_context_flush,
     .p_get_pixel_formats = null_get_pixel_formats,
     .p_wglCopyContext = null_wglCopyContext,
     .p_wglCreateContext = null_wglCreateContext,

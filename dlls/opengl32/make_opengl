@@ -1630,12 +1630,12 @@ foreach (sort keys %wgl_functions)
     print OUT generate_null_func($_, $wgl_functions{$_});
 }
 
-printf OUT "static BOOL null_wgl_context_reset( struct wgl_context *context, HDC hdc, struct wgl_context *share, const int *attribs )\n";
+printf OUT "static BOOL null_context_reset( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs )\n";
 printf OUT "{\n";
 printf OUT "    WARN( \"unsupported\\n\" );\n";
 printf OUT "    return FALSE;\n";
 printf OUT "}\n";
-printf OUT "static BOOL null_wgl_context_flush( struct wgl_context *context, void (*flush)(void), UINT flags )\n";
+printf OUT "static BOOL null_context_flush( struct opengl_context *context, void (*flush)(void), UINT flags )\n";
 printf OUT "{\n";
 printf OUT "    WARN( \"unsupported\\n\" );\n";
 printf OUT "    return FALSE;\n";
@@ -1655,8 +1655,8 @@ print OUT "\n";
 
 print OUT "struct opengl_funcs null_opengl_funcs =\n";
 print OUT "{\n";
-print OUT "    .p_wgl_context_reset = null_wgl_context_reset,\n";
-print OUT "    .p_wgl_context_flush = null_wgl_context_flush,\n";
+print OUT "    .p_context_reset = null_context_reset,\n";
+print OUT "    .p_context_flush = null_context_flush,\n";
 print OUT "    .p_get_pixel_formats = null_get_pixel_formats,\n";
 foreach (sort keys %wgl_functions)
 {
