@@ -9869,6 +9869,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(WGL_ARB_pixel_format_float) \
     USE_GL_EXT(WGL_ARB_render_texture) \
     USE_GL_EXT(WGL_ARB_robustness_application_isolation) \
+    USE_GL_EXT(WGL_ARB_robustness_isolation) \
     USE_GL_EXT(WGL_ARB_robustness_share_group_isolation) \
     USE_GL_EXT(WGL_ATI_pixel_format_float) \
     USE_GL_EXT(WGL_ATI_render_texture_rectangle) \
@@ -10233,6 +10234,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_3DFX_multisample) \
     USE_GL_EXT(GL_3DFX_tbuffer) \
     USE_GL_EXT(GL_3DFX_texture_compression_FXT1) \
+    USE_GL_EXT(GL_AMDX_debug_output) \
     USE_GL_EXT(GL_AMD_blend_minmax_factor) \
     USE_GL_EXT(GL_AMD_compressed_3DC_texture) \
     USE_GL_EXT(GL_AMD_compressed_ATC_texture) \
@@ -10267,6 +10269,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_AMD_shader_trinary_minmax) \
     USE_GL_EXT(GL_AMD_sparse_texture) \
     USE_GL_EXT(GL_AMD_stencil_operation_extended) \
+    USE_GL_EXT(GL_AMD_texture_cube_map_array) \
     USE_GL_EXT(GL_AMD_texture_gather_bias_lod) \
     USE_GL_EXT(GL_AMD_texture_texture4) \
     USE_GL_EXT(GL_AMD_transform_feedback3_lines_triangles) \
@@ -10444,6 +10447,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_ARB_texture_rectangle) \
     USE_GL_EXT(GL_ARB_texture_rg) \
     USE_GL_EXT(GL_ARB_texture_rgb10_a2ui) \
+    USE_GL_EXT(GL_ARB_texture_snorm) \
     USE_GL_EXT(GL_ARB_texture_stencil8) \
     USE_GL_EXT(GL_ARB_texture_storage) \
     USE_GL_EXT(GL_ARB_texture_storage_multisample) \
@@ -10512,6 +10516,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_conservative_depth) \
     USE_GL_EXT(GL_EXT_convolution) \
     USE_GL_EXT(GL_EXT_coordinate_frame) \
+    USE_GL_EXT(GL_EXT_copy_buffer) \
     USE_GL_EXT(GL_EXT_copy_texture) \
     USE_GL_EXT(GL_EXT_cull_vertex) \
     USE_GL_EXT(GL_EXT_debug_label) \
@@ -10611,6 +10616,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_subtexture) \
     USE_GL_EXT(GL_EXT_swap_control) \
     USE_GL_EXT(GL_EXT_tessellation_point_size) \
+    USE_GL_EXT(GL_EXT_texgen_reflection) \
     USE_GL_EXT(GL_EXT_texture) \
     USE_GL_EXT(GL_EXT_texture3D) \
     USE_GL_EXT(GL_EXT_texture_array) \
@@ -10634,6 +10640,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_texture_format_BGRA8888) \
     USE_GL_EXT(GL_EXT_texture_format_sRGB_override) \
     USE_GL_EXT(GL_EXT_texture_integer) \
+    USE_GL_EXT(GL_EXT_texture_lod) \
     USE_GL_EXT(GL_EXT_texture_lod_bias) \
     USE_GL_EXT(GL_EXT_texture_mirror_clamp) \
     USE_GL_EXT(GL_EXT_texture_mirror_clamp_to_edge) \
@@ -10729,6 +10736,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_3dvision_settings) \
     USE_GL_EXT(GL_NV_EGL_stream_consumer_external) \
     USE_GL_EXT(GL_NV_ES1_1_compatibility) \
+    USE_GL_EXT(GL_NV_ES3_1_compatibility) \
     USE_GL_EXT(GL_NV_alpha_to_coverage_dither_control) \
     USE_GL_EXT(GL_NV_bgr) \
     USE_GL_EXT(GL_NV_bindless_multi_draw_indirect) \
@@ -10781,6 +10789,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_gpu_program4) \
     USE_GL_EXT(GL_NV_gpu_program5) \
     USE_GL_EXT(GL_NV_gpu_program5_mem_extended) \
+    USE_GL_EXT(GL_NV_gpu_program_fp64) \
     USE_GL_EXT(GL_NV_gpu_shader5) \
     USE_GL_EXT(GL_NV_half_float) \
     USE_GL_EXT(GL_NV_image_formats) \
@@ -10795,6 +10804,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_pack_subimage) \
     USE_GL_EXT(GL_NV_packed_depth_stencil) \
     USE_GL_EXT(GL_NV_packed_float) \
+    USE_GL_EXT(GL_NV_packed_float_linear) \
     USE_GL_EXT(GL_NV_parameter_buffer_object) \
     USE_GL_EXT(GL_NV_parameter_buffer_object2) \
     USE_GL_EXT(GL_NV_path_rendering) \

@@ -1038,9 +1038,20 @@ my %unexposed_extensions =
    );
 my %extension_aliases =
     (
+     "GL_AMD_debug_output" => ["GL_AMDX_debug_output"],
+     "GL_ARB_copy_buffer" => ["GL_EXT_copy_buffer"],
+     "GL_ARB_ES3_1_compatibility" => ["GL_NV_ES3_1_compatibility"],
      "GL_ARB_texture_compression" => ["GL_VERSION_1_3"],
      "GL_EXT_blend_equation_separate" => ["GL_ATI_blend_equation_separate"],
      "GL_EXT_copy_texture" => ["GL_VERSION_1_2"],
+     "GL_EXT_texture_cube_map_array" => ["GL_AMD_texture_cube_map_array"],
+     "GL_EXT_texture_snorm" => ["GL_ARB_texture_snorm"],
+     "GL_NV_gpu_program5" => ["GL_NV_gpu_program_fp64"],
+     "GL_NV_packed_float" => ["GL_NV_packed_float_linear"],
+     "GL_NV_texgen_reflection" => ["GL_EXT_texgen_reflection"],
+     "GL_SGIS_texture_lod" => ["GL_EXT_texture_lod"],
+     "WGL_ARB_robustness_application_isolation" => ["WGL_ARB_robustness_isolation"],
+     "WGL_NV_DX_interop" => ["WGL_NVX_DX_interop"],
     );
 
 my %supported_apis =
