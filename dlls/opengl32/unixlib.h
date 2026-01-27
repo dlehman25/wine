@@ -7416,6 +7416,18 @@ struct glFramebufferSamplePositionsfvAMD_params
     const GLfloat *values;
 };
 
+struct glFramebufferShadingRateEXT_params
+{
+    TEB *teb;
+    GLenum target;
+    GLenum attachment;
+    GLuint texture;
+    GLint baseLayer;
+    GLsizei numLayers;
+    GLsizei texelWidth;
+    GLsizei texelHeight;
+};
+
 struct glFramebufferTexture_params
 {
     TEB *teb;
@@ -8607,6 +8619,15 @@ struct glGetFragmentMaterialivSGIX_params
     GLenum face;
     GLenum pname;
     GLint *params;
+};
+
+struct glGetFragmentShadingRatesEXT_params
+{
+    TEB *teb;
+    GLsizei samples;
+    GLsizei maxCount;
+    GLsizei *count;
+    GLenum *shadingRates;
 };
 
 struct glGetFramebufferAttachmentParameteriv_params
@@ -19136,6 +19157,19 @@ struct glShaderStorageBlockBinding_params
     GLuint storageBlockBinding;
 };
 
+struct glShadingRateCombinerOpsEXT_params
+{
+    TEB *teb;
+    GLenum combinerOp0;
+    GLenum combinerOp1;
+};
+
+struct glShadingRateEXT_params
+{
+    TEB *teb;
+    GLenum rate;
+};
+
 struct glShadingRateImageBarrierNV_params
 {
     TEB *teb;
@@ -26770,6 +26804,7 @@ enum unix_funcs
     unix_glFramebufferSampleLocationsfvARB,
     unix_glFramebufferSampleLocationsfvNV,
     unix_glFramebufferSamplePositionsfvAMD,
+    unix_glFramebufferShadingRateEXT,
     unix_glFramebufferTexture,
     unix_glFramebufferTexture1D,
     unix_glFramebufferTexture1DEXT,
@@ -26910,6 +26945,7 @@ enum unix_funcs
     unix_glGetFragmentLightivSGIX,
     unix_glGetFragmentMaterialfvSGIX,
     unix_glGetFragmentMaterialivSGIX,
+    unix_glGetFragmentShadingRatesEXT,
     unix_glGetFramebufferAttachmentParameteriv,
     unix_glGetFramebufferAttachmentParameterivEXT,
     unix_glGetFramebufferParameterfvAMD,
@@ -28148,6 +28184,8 @@ enum unix_funcs
     unix_glShaderSource,
     unix_glShaderSourceARB,
     unix_glShaderStorageBlockBinding,
+    unix_glShadingRateCombinerOpsEXT,
+    unix_glShadingRateEXT,
     unix_glShadingRateImageBarrierNV,
     unix_glShadingRateImagePaletteNV,
     unix_glShadingRateSampleOrderCustomNV,

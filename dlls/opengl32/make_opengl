@@ -856,9 +856,9 @@ if ($version eq "1.0") {
 # Fetch the registry files
 #
 my $ogl_url="https://raw.githubusercontent.com/KhronosGroup/OpenGL-Registry";
-my $ogl_commit="a77f5b6ffd0b0b74904f755ae977fa278eac4e95";
+my $ogl_commit="0b449b97cdf1043eef5e1f0e235cbbab6ec10c86";
 my $egl_url="https://raw.githubusercontent.com/KhronosGroup/EGL-Registry";
-my $egl_commit="bd4838f57cd7e0cb6e4a4154919af426b038695d";
+my $egl_commit="3ae2b7c48690d2ce13cc6db3db02dfc0572be65e";
 my $cache = ($ENV{XDG_CACHE_HOME} || "$ENV{HOME}/.cache") . "/wine";
 
 system "mkdir", "-p", $cache;

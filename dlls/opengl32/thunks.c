@@ -7287,6 +7287,14 @@ static void WINAPI glFramebufferSamplePositionsfvAMD( GLenum target, GLuint nums
     if ((status = UNIX_CALL( glFramebufferSamplePositionsfvAMD, &args ))) WARN( "glFramebufferSamplePositionsfvAMD returned %#lx\n", status );
 }
 
+static void WINAPI glFramebufferShadingRateEXT( GLenum target, GLenum attachment, GLuint texture, GLint baseLayer, GLsizei numLayers, GLsizei texelWidth, GLsizei texelHeight )
+{
+    struct glFramebufferShadingRateEXT_params args = { .teb = NtCurrentTeb(), .target = target, .attachment = attachment, .texture = texture, .baseLayer = baseLayer, .numLayers = numLayers, .texelWidth = texelWidth, .texelHeight = texelHeight };
+    NTSTATUS status;
+    TRACE( "target %d, attachment %d, texture %d, baseLayer %d, numLayers %d, texelWidth %d, texelHeight %d\n", target, attachment, texture, baseLayer, numLayers, texelWidth, texelHeight );
+    if ((status = UNIX_CALL( glFramebufferShadingRateEXT, &args ))) WARN( "glFramebufferShadingRateEXT returned %#lx\n", status );
+}
+
 static void WINAPI glFramebufferTexture( GLenum target, GLenum attachment, GLuint texture, GLint level )
 {
     struct glFramebufferTexture_params args = { .teb = NtCurrentTeb(), .target = target, .attachment = attachment, .texture = texture, .level = level };
@@ -8419,6 +8427,14 @@ static void WINAPI glGetFragmentMaterialivSGIX( GLenum face, GLenum pname, GLint
     NTSTATUS status;
     TRACE( "face %d, pname %d, params %p\n", face, pname, params );
     if ((status = UNIX_CALL( glGetFragmentMaterialivSGIX, &args ))) WARN( "glGetFragmentMaterialivSGIX returned %#lx\n", status );
+}
+
+static void WINAPI glGetFragmentShadingRatesEXT( GLsizei samples, GLsizei maxCount, GLsizei *count, GLenum *shadingRates )
+{
+    struct glGetFragmentShadingRatesEXT_params args = { .teb = NtCurrentTeb(), .samples = samples, .maxCount = maxCount, .count = count, .shadingRates = shadingRates };
+    NTSTATUS status;
+    TRACE( "samples %d, maxCount %d, count %p, shadingRates %p\n", samples, maxCount, count, shadingRates );
+    if ((status = UNIX_CALL( glGetFragmentShadingRatesEXT, &args ))) WARN( "glGetFragmentShadingRatesEXT returned %#lx\n", status );
 }
 
 static void WINAPI glGetFramebufferAttachmentParameteriv( GLenum target, GLenum attachment, GLenum pname, GLint *params )
@@ -18401,6 +18417,22 @@ static void WINAPI glShaderStorageBlockBinding( GLuint program, GLuint storageBl
     if ((status = UNIX_CALL( glShaderStorageBlockBinding, &args ))) WARN( "glShaderStorageBlockBinding returned %#lx\n", status );
 }
 
+static void WINAPI glShadingRateCombinerOpsEXT( GLenum combinerOp0, GLenum combinerOp1 )
+{
+    struct glShadingRateCombinerOpsEXT_params args = { .teb = NtCurrentTeb(), .combinerOp0 = combinerOp0, .combinerOp1 = combinerOp1 };
+    NTSTATUS status;
+    TRACE( "combinerOp0 %d, combinerOp1 %d\n", combinerOp0, combinerOp1 );
+    if ((status = UNIX_CALL( glShadingRateCombinerOpsEXT, &args ))) WARN( "glShadingRateCombinerOpsEXT returned %#lx\n", status );
+}
+
+static void WINAPI glShadingRateEXT( GLenum rate )
+{
+    struct glShadingRateEXT_params args = { .teb = NtCurrentTeb(), .rate = rate };
+    NTSTATUS status;
+    TRACE( "rate %d\n", rate );
+    if ((status = UNIX_CALL( glShadingRateEXT, &args ))) WARN( "glShadingRateEXT returned %#lx\n", status );
+}
+
 static void WINAPI glShadingRateImageBarrierNV( GLboolean synchronize )
 {
     struct glShadingRateImageBarrierNV_params args = { .teb = NtCurrentTeb(), .synchronize = synchronize };
@@ -25380,6 +25412,7 @@ const void *extension_procs[] =
     glFramebufferSampleLocationsfvARB,
     glFramebufferSampleLocationsfvNV,
     glFramebufferSamplePositionsfvAMD,
+    glFramebufferShadingRateEXT,
     glFramebufferTexture,
     glFramebufferTexture1D,
     glFramebufferTexture1DEXT,
@@ -25520,6 +25553,7 @@ const void *extension_procs[] =
     glGetFragmentLightivSGIX,
     glGetFragmentMaterialfvSGIX,
     glGetFragmentMaterialivSGIX,
+    glGetFragmentShadingRatesEXT,
     glGetFramebufferAttachmentParameteriv,
     glGetFramebufferAttachmentParameterivEXT,
     glGetFramebufferParameterfvAMD,
@@ -26758,6 +26792,8 @@ const void *extension_procs[] =
     glShaderSource,
     glShaderSourceARB,
     glShaderStorageBlockBinding,
+    glShadingRateCombinerOpsEXT,
+    glShadingRateEXT,
     glShadingRateImageBarrierNV,
     glShadingRateImagePaletteNV,
     glShadingRateSampleOrderCustomNV,

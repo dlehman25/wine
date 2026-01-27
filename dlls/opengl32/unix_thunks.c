@@ -9114,6 +9114,16 @@ static NTSTATUS ext_glFramebufferSamplePositionsfvAMD( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS ext_glFramebufferShadingRateEXT( void *args )
+{
+    struct glFramebufferShadingRateEXT_params *params = args;
+    const struct opengl_funcs *funcs = params->teb->glTable;
+    if (!funcs->p_glFramebufferShadingRateEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glFramebufferShadingRateEXT( params->target, params->attachment, params->texture, params->baseLayer, params->numLayers, params->texelWidth, params->texelHeight );
+    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS ext_glFramebufferTexture( void *args )
 {
     struct glFramebufferTexture_params *params = args;
@@ -10455,6 +10465,15 @@ static NTSTATUS ext_glGetFragmentMaterialivSGIX( void *args )
     const struct opengl_funcs *funcs = params->teb->glTable;
     if (!funcs->p_glGetFragmentMaterialivSGIX) return STATUS_NOT_IMPLEMENTED;
     funcs->p_glGetFragmentMaterialivSGIX( params->face, params->pname, params->params );
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS ext_glGetFragmentShadingRatesEXT( void *args )
+{
+    struct glGetFragmentShadingRatesEXT_params *params = args;
+    const struct opengl_funcs *funcs = params->teb->glTable;
+    if (!funcs->p_glGetFragmentShadingRatesEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glGetFragmentShadingRatesEXT( params->samples, params->maxCount, params->count, params->shadingRates );
     return STATUS_SUCCESS;
 }
 
@@ -22463,6 +22482,26 @@ static NTSTATUS ext_glShaderStorageBlockBinding( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS ext_glShadingRateCombinerOpsEXT( void *args )
+{
+    struct glShadingRateCombinerOpsEXT_params *params = args;
+    const struct opengl_funcs *funcs = params->teb->glTable;
+    if (!funcs->p_glShadingRateCombinerOpsEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glShadingRateCombinerOpsEXT( params->combinerOp0, params->combinerOp1 );
+    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS ext_glShadingRateEXT( void *args )
+{
+    struct glShadingRateEXT_params *params = args;
+    const struct opengl_funcs *funcs = params->teb->glTable;
+    if (!funcs->p_glShadingRateEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glShadingRateEXT( params->rate );
+    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS ext_glShadingRateImageBarrierNV( void *args )
 {
     struct glShadingRateImageBarrierNV_params *params = args;
@@ -31417,6 +31456,7 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glFramebufferSampleLocationsfvARB,
     ext_glFramebufferSampleLocationsfvNV,
     ext_glFramebufferSamplePositionsfvAMD,
+    ext_glFramebufferShadingRateEXT,
     ext_glFramebufferTexture,
     ext_glFramebufferTexture1D,
     ext_glFramebufferTexture1DEXT,
@@ -31557,6 +31597,7 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glGetFragmentLightivSGIX,
     ext_glGetFragmentMaterialfvSGIX,
     ext_glGetFragmentMaterialivSGIX,
+    ext_glGetFragmentShadingRatesEXT,
     ext_glGetFramebufferAttachmentParameteriv,
     ext_glGetFramebufferAttachmentParameterivEXT,
     ext_glGetFramebufferParameterfvAMD,
@@ -32795,6 +32836,8 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glShaderSource,
     ext_glShaderSourceARB,
     ext_glShaderStorageBlockBinding,
+    ext_glShadingRateCombinerOpsEXT,
+    ext_glShadingRateEXT,
     ext_glShadingRateImageBarrierNV,
     ext_glShadingRateImagePaletteNV,
     ext_glShadingRateSampleOrderCustomNV,
@@ -49218,6 +49261,27 @@ static NTSTATUS wow64_ext_glFramebufferSamplePositionsfvAMD( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS wow64_ext_glFramebufferShadingRateEXT( void *args )
+{
+    struct
+    {
+        PTR32 teb;
+        GLenum target;
+        GLenum attachment;
+        GLuint texture;
+        GLint baseLayer;
+        GLsizei numLayers;
+        GLsizei texelWidth;
+        GLsizei texelHeight;
+    } *params = args;
+    TEB *teb = get_teb64( params->teb );
+    const struct opengl_funcs *funcs = teb->glTable;
+    if (!funcs->p_glFramebufferShadingRateEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glFramebufferShadingRateEXT( params->target, params->attachment, params->texture, params->baseLayer, params->numLayers, params->texelWidth, params->texelHeight );
+    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS wow64_ext_glFramebufferTexture( void *args )
 {
     struct
@@ -51612,6 +51676,23 @@ static NTSTATUS wow64_ext_glGetFragmentMaterialivSGIX( void *args )
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glGetFragmentMaterialivSGIX) return STATUS_NOT_IMPLEMENTED;
     funcs->p_glGetFragmentMaterialivSGIX( params->face, params->pname, ULongToPtr(params->params) );
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS wow64_ext_glGetFragmentShadingRatesEXT( void *args )
+{
+    struct
+    {
+        PTR32 teb;
+        GLsizei samples;
+        GLsizei maxCount;
+        PTR32 count;
+        PTR32 shadingRates;
+    } *params = args;
+    TEB *teb = get_teb64( params->teb );
+    const struct opengl_funcs *funcs = teb->glTable;
+    if (!funcs->p_glGetFragmentShadingRatesEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glGetFragmentShadingRatesEXT( params->samples, params->maxCount, ULongToPtr(params->count), ULongToPtr(params->shadingRates) );
     return STATUS_SUCCESS;
 }
 
@@ -72920,6 +73001,37 @@ static NTSTATUS wow64_ext_glShaderStorageBlockBinding( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS wow64_ext_glShadingRateCombinerOpsEXT( void *args )
+{
+    struct
+    {
+        PTR32 teb;
+        GLenum combinerOp0;
+        GLenum combinerOp1;
+    } *params = args;
+    TEB *teb = get_teb64( params->teb );
+    const struct opengl_funcs *funcs = teb->glTable;
+    if (!funcs->p_glShadingRateCombinerOpsEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glShadingRateCombinerOpsEXT( params->combinerOp0, params->combinerOp1 );
+    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS wow64_ext_glShadingRateEXT( void *args )
+{
+    struct
+    {
+        PTR32 teb;
+        GLenum rate;
+    } *params = args;
+    TEB *teb = get_teb64( params->teb );
+    const struct opengl_funcs *funcs = teb->glTable;
+    if (!funcs->p_glShadingRateEXT) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glShadingRateEXT( params->rate );
+    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS wow64_ext_glShadingRateImageBarrierNV( void *args )
 {
     struct
@@ -87752,6 +87864,7 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glFramebufferSampleLocationsfvARB,
     wow64_ext_glFramebufferSampleLocationsfvNV,
     wow64_ext_glFramebufferSamplePositionsfvAMD,
+    wow64_ext_glFramebufferShadingRateEXT,
     wow64_ext_glFramebufferTexture,
     wow64_ext_glFramebufferTexture1D,
     wow64_ext_glFramebufferTexture1DEXT,
@@ -87892,6 +88005,7 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glGetFragmentLightivSGIX,
     wow64_ext_glGetFragmentMaterialfvSGIX,
     wow64_ext_glGetFragmentMaterialivSGIX,
+    wow64_ext_glGetFragmentShadingRatesEXT,
     wow64_ext_glGetFramebufferAttachmentParameteriv,
     wow64_ext_glGetFramebufferAttachmentParameterivEXT,
     wow64_ext_glGetFramebufferParameterfvAMD,
@@ -89130,6 +89244,8 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glShaderSource,
     wow64_ext_glShaderSourceARB,
     wow64_ext_glShaderStorageBlockBinding,
+    wow64_ext_glShadingRateCombinerOpsEXT,
+    wow64_ext_glShadingRateEXT,
     wow64_ext_glShadingRateImageBarrierNV,
     wow64_ext_glShadingRateImagePaletteNV,
     wow64_ext_glShadingRateSampleOrderCustomNV,
@@ -91690,8 +91806,8 @@ struct opengl_funcs null_opengl_funcs =
     .p_glViewport = null_glViewport,
 };
 
-const int extension_registry_size = 2754;
-const struct registry_entry extension_registry[2754] =
+const int extension_registry_size = 2758;
+const struct registry_entry extension_registry[2758] =
 {
     { "glAccumxOES", "GL_OES_fixed_point\0", offsetof(struct opengl_funcs, p_glAccumxOES) },
     { "glAcquireKeyedMutexWin32EXT", "GL_EXT_win32_keyed_mutex\0", offsetof(struct opengl_funcs, p_glAcquireKeyedMutexWin32EXT) },
@@ -92262,6 +92378,7 @@ const struct registry_entry extension_registry[2754] =
     { "glFramebufferSampleLocationsfvARB", "GL_ARB_sample_locations\0", offsetof(struct opengl_funcs, p_glFramebufferSampleLocationsfvARB) },
     { "glFramebufferSampleLocationsfvNV", "GL_NV_sample_locations\0", offsetof(struct opengl_funcs, p_glFramebufferSampleLocationsfvNV) },
     { "glFramebufferSamplePositionsfvAMD", "GL_AMD_framebuffer_sample_positions\0", offsetof(struct opengl_funcs, p_glFramebufferSamplePositionsfvAMD) },
+    { "glFramebufferShadingRateEXT", "GL_EXT_fragment_shading_rate\0", offsetof(struct opengl_funcs, p_glFramebufferShadingRateEXT) },
     { "glFramebufferTexture", "GL_VERSION_3_2\0", offsetof(struct opengl_funcs, p_glFramebufferTexture) },
     { "glFramebufferTexture1D", "GL_ARB_framebuffer_object\0GL_VERSION_3_0\0", offsetof(struct opengl_funcs, p_glFramebufferTexture1D) },
     { "glFramebufferTexture1DEXT", "GL_EXT_framebuffer_object\0", offsetof(struct opengl_funcs, p_glFramebufferTexture1DEXT) },
@@ -92402,6 +92519,7 @@ const struct registry_entry extension_registry[2754] =
     { "glGetFragmentLightivSGIX", "GL_SGIX_fragment_lighting\0", offsetof(struct opengl_funcs, p_glGetFragmentLightivSGIX) },
     { "glGetFragmentMaterialfvSGIX", "GL_SGIX_fragment_lighting\0", offsetof(struct opengl_funcs, p_glGetFragmentMaterialfvSGIX) },
     { "glGetFragmentMaterialivSGIX", "GL_SGIX_fragment_lighting\0", offsetof(struct opengl_funcs, p_glGetFragmentMaterialivSGIX) },
+    { "glGetFragmentShadingRatesEXT", "GL_EXT_fragment_shading_rate\0", offsetof(struct opengl_funcs, p_glGetFragmentShadingRatesEXT) },
     { "glGetFramebufferAttachmentParameteriv", "GL_ARB_framebuffer_object\0GL_VERSION_3_0\0", offsetof(struct opengl_funcs, p_glGetFramebufferAttachmentParameteriv) },
     { "glGetFramebufferAttachmentParameterivEXT", "GL_EXT_framebuffer_object\0", offsetof(struct opengl_funcs, p_glGetFramebufferAttachmentParameterivEXT) },
     { "glGetFramebufferParameterfvAMD", "GL_AMD_framebuffer_sample_positions\0", offsetof(struct opengl_funcs, p_glGetFramebufferParameterfvAMD) },
@@ -93640,6 +93758,8 @@ const struct registry_entry extension_registry[2754] =
     { "glShaderSource", "GL_VERSION_2_0\0", offsetof(struct opengl_funcs, p_glShaderSource) },
     { "glShaderSourceARB", "GL_ARB_shader_objects\0", offsetof(struct opengl_funcs, p_glShaderSourceARB) },
     { "glShaderStorageBlockBinding", "GL_ARB_shader_storage_buffer_object\0GL_VERSION_4_3\0", offsetof(struct opengl_funcs, p_glShaderStorageBlockBinding) },
+    { "glShadingRateCombinerOpsEXT", "GL_EXT_fragment_shading_rate\0", offsetof(struct opengl_funcs, p_glShadingRateCombinerOpsEXT) },
+    { "glShadingRateEXT", "GL_EXT_fragment_shading_rate\0", offsetof(struct opengl_funcs, p_glShadingRateEXT) },
     { "glShadingRateImageBarrierNV", "GL_NV_shading_rate_image\0", offsetof(struct opengl_funcs, p_glShadingRateImageBarrierNV) },
     { "glShadingRateImagePaletteNV", "GL_NV_shading_rate_image\0", offsetof(struct opengl_funcs, p_glShadingRateImagePaletteNV) },
     { "glShadingRateSampleOrderCustomNV", "GL_NV_shading_rate_image\0", offsetof(struct opengl_funcs, p_glShadingRateSampleOrderCustomNV) },
