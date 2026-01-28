@@ -89988,12 +89988,6 @@ static BOOL null_wglSwapBuffers( HDC hdc )
     WARN( "unsupported\n" );
     return 0;
 }
-static void null_get_pixel_formats( struct wgl_pixel_format *formats, UINT max_formats,
-                                    UINT *num_formats, UINT *num_onscreen_formats )
-{
-    WARN( "unsupported\n" );
-    *num_formats = *num_onscreen_formats = 0;
-}
 static void null_glAccum( GLenum op, GLfloat value )
 {
     WARN( "unsupported\n" );
@@ -91349,7 +91343,6 @@ static void null_glViewport( GLint x, GLint y, GLsizei width, GLsizei height )
 
 struct opengl_funcs null_opengl_funcs =
 {
-    .p_get_pixel_formats = null_get_pixel_formats,
     .p_wglCopyContext = null_wglCopyContext,
     .p_wglCreateContext = null_wglCreateContext,
     .p_wglDeleteContext = null_wglDeleteContext,
