@@ -2193,6 +2193,38 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     }
     VariantClear(&v);
 
+    testrowset.filter_chapter = FALSE;
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = NULL;
+    SET_EXPECT(rowset_AddRefRows);
+    SET_EXPECT(rowset_ReleaseRows);
+    if (exact_scroll)
+    {
+        SET_EXPECT(rowset_GetRowsAt);
+        SET_EXPECT(rowset_GetData);
+    }
+    else
+    {
+        SET_EXPECT(rowset_RestartPosition);
+        SET_EXPECT(rowset_GetNextRows);
+    }
+    SET_EXPECT(chaptered_rowset_ReleaseChapter);
+    hr = _Recordset_put_Filter( recordset, v );
+    todo_wine ok( hr == S_OK, "got %08lx\n", hr );
+    todo_wine CHECK_CALLED(rowset_AddRefRows);
+    todo_wine CHECK_CALLED(rowset_ReleaseRows);
+    if (exact_scroll)
+    {
+        todo_wine CHECK_CALLED(rowset_GetRowsAt);
+        todo_wine CHECK_CALLED(rowset_GetData);
+    }
+    else
+    {
+        todo_wine CHECK_CALLED(rowset_RestartPosition);
+        todo_wine CHECK_CALLED(rowset_GetNextRows);
+    }
+    todo_wine CHECK_CALLED(chaptered_rowset_ReleaseChapter);
+
     Fields_Release(fields);
     ADORecordsetConstruction_Release(construct);
     SET_EXPECT( rowset_ReleaseRows );
@@ -2201,7 +2233,6 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     ok( !_Recordset_Release( recordset ), "_Recordset not released\n" );
     todo_wine CHECK_CALLED(rowset_ReleaseRows );
     CHECK_CALLED(accessor_ReleaseAccessor);
-    todo_wine CHECK_CALLED(chaptered_rowset_ReleaseChapter);
     ok( testrowset.refs == 1, "got %ld\n", testrowset.refs );
 }
 
