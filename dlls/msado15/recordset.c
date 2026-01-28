@@ -113,6 +113,7 @@ struct recordset
     IRowset           *row_set;
     IRowsetLocate     *rowset_locate;
     IRowsetExactScroll *rowset_es;
+    IRowsetFind       *rowset_find;
     IRowsetChange     *rowset_change;
     IRowsetUpdate     *rowset_update;
     IAccessor         *accessor;
@@ -1717,6 +1718,9 @@ static void close_recordset( struct recordset *recordset )
     if ( recordset->rowset_es && recordset->rowset_es != NO_INTERFACE )
         IRowsetExactScroll_Release( recordset->rowset_es );
     recordset->rowset_es = NULL;
+    if ( recordset->rowset_find)
+        IRowsetFind_Release( recordset->rowset_find );
+    recordset->rowset_find = NULL;
     if ( recordset->rowset_change && recordset->rowset_change != NO_INTERFACE )
         IRowsetChange_Release( recordset->rowset_change );
     recordset->rowset_change = NULL;
@@ -3272,12 +3276,250 @@ static HRESULT WINAPI recordset_put_MarshalOptions( _Recordset *iface, MarshalOp
     return E_NOTIMPL;
 }
 
+static HRESULT parse_criteria( const WCHAR **str, BSTR *col, DBCOMPAREOP *op, BSTR *val )
+{
+    const WCHAR *p = *str, *col_b, *col_e, *val_b, *val_e;
+    UINT i, val_len;
+
+    while (*p && iswspace( *p )) p++;
+    if (!*p) return MAKE_ADO_HRESULT( adErrInvalidArgument );
+    if (*p == '[')
+    {
+        col_b = ++p;
+        while (*p && *p != ']') p++;
+        col_e = p;
+        if (*p) p++;
+    }
+    else
+    {
+        col_b = p;
+        while (*p && !iswspace( *p ) && *p != '=') p++;
+        col_e = p;
+    }
+    if (!*p || col_b == col_e) return MAKE_ADO_HRESULT( adErrInvalidArgument );
+
+    while (*p && iswspace( *p )) p++;
+    switch(*p)
+    {
+    case '>':
+        if (p[1] == '=')
+        {
+            *op = DBCOMPAREOPS_GE;
+            p += 2;
+        }
+        else
+        {
+            *op = DBCOMPAREOPS_GT;
+            p++;
+        }
+        break;
+    case '<':
+        if (p[1] == '=')
+        {
+            *op = DBCOMPAREOPS_LE;
+            p += 2;
+        }
+        else if (p[1] == '>')
+        {
+            *op = DBCOMPAREOPS_NE;
+            p += 2;
+        }
+        else
+        {
+            *op = DBCOMPAREOPS_LT;
+            p++;
+        }
+        break;
+    case '=':
+        *op = DBCOMPAREOPS_EQ;
+        p++;
+        break;
+    default:
+        if (!wcsnicmp(p, L"like", 4))
+        {
+            *op = DBCOMPAREOPS_BEGINSWITH;
+            p += 4;
+            break;
+        }
+
+        FIXME( "unsupported operator %s\n", debugstr_w(p) );
+        return MAKE_ADO_HRESULT( adErrInvalidArgument );
+    }
+
+    while (*p && iswspace( *p )) p++;
+    if (!*p) return MAKE_ADO_HRESULT( adErrInvalidArgument );
+    if (*p == '\'')
+    {
+        val_b = ++p;
+        val_len = 0;
+        while (*p && (*p != '\'' || p[1] == '\''))
+        {
+            if (*p == '\'') p++;
+            p++;
+            val_len++;
+        }
+    }
+    else if (*p == '#')
+    {
+        val_b = ++p;
+        while (*p && *p != '#') p++;
+        val_len = p - val_b;
+    }
+    else
+    {
+        val_b = p;
+        while (*p && !iswspace( *p )) p++;
+        val_len = p - val_b;
+    }
+    val_e = p;
+    if (*p) p++;
+
+    if (*op == DBCOMPAREOPS_BEGINSWITH)
+    {
+        if (*val_b == '*' && (val_e == val_b + 1 || val_e[-1] != '*'))
+            return MAKE_ADO_HRESULT( adErrInvalidArgument );
+
+        if (val_b == val_e || val_e[-1] != '*')
+        {
+            *op = DBCOMPAREOPS_EQ;
+        }
+        else if (*val_b == '*')
+        {
+            *op = DBCOMPAREOPS_CONTAINS;
+            val_b++;
+            val_e--;
+            val_len -= 2;
+        }
+        else
+        {
+            val_e--;
+            val_len--;
+        }
+    }
+
+    *col = SysAllocStringLen( col_b, col_e - col_b );
+    if (!col) return E_OUTOFMEMORY;
+
+    *val = SysAllocStringLen( val_b, val_len );
+    if (!*val)
+    {
+        SysFreeString( *col );
+        return E_OUTOFMEMORY;
+    }
+    if (val_len != val_e - val_b)
+    {
+        for (i = 0, val_len = 0; i < val_e - val_b; i++)
+        {
+            (*val)[val_len++] = val_b[i];
+            if (val_b[i] == '\'') i++;
+        }
+    }
+
+    while (*p && iswspace( *p )) p++;
+    *str = p;
+    return S_OK;
+}
+
 static HRESULT WINAPI recordset_Find( _Recordset *iface, BSTR criteria, LONG skip_records,
                                       SearchDirectionEnum search_direction, VARIANT start )
 {
-    FIXME( "%p, %s, %ld, %d, %s\n", iface, debugstr_w(criteria), skip_records, search_direction,
+    struct recordset *recordset = impl_from_Recordset( iface );
+    BOOL free_bookmark = FALSE;
+    HROW row = 0, *rows = &row;
+    DBCOUNTITEM obtained;
+    const BYTE *bm_data;
+    const WCHAR *crit;
+    DBBKMARK bm_len;
+    VARIANT_BOOL b;
+    DBCOMPAREOP op;
+    HACCESSOR hacc;
+    BSTR col, val;
+    int int_buf;
+    HRESULT hr;
+    VARIANT v;
+
+    TRACE( "%p, %s, %ld, %d, %s\n", iface, debugstr_w(criteria), skip_records, search_direction,
            debugstr_variant(&start) );
-    return E_NOTIMPL;
+
+    if (!criteria) return MAKE_ADO_HRESULT( adErrInvalidArgument );
+    if (search_direction != adSearchForward && search_direction != adSearchBackward)
+        return MAKE_ADO_HRESULT( adErrInvalidArgument );
+    if (!recordset->rowset_find) return MAKE_ADO_HRESULT( adErrFeatureNotAvailable );
+
+    if (!recordset->current_row) return S_FALSE;
+
+    if (V_VT(&start) == VT_ERROR && V_ERROR(&start) == DISP_E_PARAMNOTFOUND)
+    {
+        if (!recordset->bookmark_hacc)
+            VariantInit( &start );
+        else
+        {
+            hr = get_bookmark(recordset, recordset->current_row, &start);
+            if (FAILED(hr)) return hr;
+            free_bookmark = TRUE;
+        }
+    }
+
+    crit = criteria;
+    hr = parse_criteria( &crit, &col, &op, &val );
+    if (FAILED(hr)) return hr;
+    if (*crit)
+    {
+        SysFreeString( col );
+        SysFreeString( val );
+        if (free_bookmark) VariantClear( &start );
+        return MAKE_ADO_HRESULT( adErrInvalidArgument );
+    }
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = col;
+    hr = get_accessor( recordset, &v, &hacc );
+    SysFreeString( col );
+    if (SUCCEEDED(hr))
+        hr = get_bookmark_data( &start, &bm_data, &bm_len, &int_buf );
+    if (FAILED(hr))
+    {
+        SysFreeString( val );
+        if (free_bookmark) VariantClear( &start );
+        return hr;
+    }
+
+    if (SUCCEEDED(_Recordset_Supports( &recordset->Recordset_iface, adHoldRecords, &b )) && b &&
+        SUCCEEDED(IRowset_AddRefRows( recordset->row_set, 1, &recordset->current_row, NULL, NULL )))
+    {
+        row = recordset->current_row;
+    }
+    cache_release( recordset );
+    recordset->current_row = row;
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = val;
+    if (!bm_len && search_direction == adSearchForward)
+        skip_records--;
+    hr = IRowsetFind_FindNextRow( recordset->rowset_find, DB_NULL_HCHAPTER, hacc, &v, op,
+            bm_len, bm_data, skip_records, search_direction, &obtained, &rows );
+    SysFreeString( val );
+    release_bookmark_data( &start );
+    if (free_bookmark) VariantClear( &start );
+    IAccessor_ReleaseAccessor( recordset->accessor, hacc, NULL );
+    if (FAILED(hr)) return hr;
+
+    if (recordset->bookmark_hacc)
+    {
+        hr = get_bookmark(recordset, row, &v);
+        if (FAILED(hr))
+        {
+            IRowset_ReleaseRows( recordset->row_set, 1, &row, NULL, NULL, NULL );
+            return hr;
+        }
+        VariantClear(&recordset->bookmark);
+        recordset->bookmark = v;
+    }
+
+    if (recordset->current_row)
+        IRowset_ReleaseRows( recordset->row_set, 1, &recordset->current_row, NULL, NULL, NULL);
+    recordset->current_row = row;
+    return S_OK;
 }
 
 static HRESULT WINAPI recordset_Cancel( _Recordset *iface )
@@ -3959,6 +4201,8 @@ static HRESULT WINAPI rsconstruction_put_Rowset(ADORecordsetConstruction *iface,
 
     hr = IRowset_QueryInterface( rowset, &IID_IRowsetLocate, (void**)&recordset->rowset_locate );
     if (SUCCEEDED(hr)) init_bookmark( recordset );
+
+    IRowset_QueryInterface( rowset, &IID_IRowsetFind, (void**)&recordset->rowset_find );
     return S_OK;
 }
 

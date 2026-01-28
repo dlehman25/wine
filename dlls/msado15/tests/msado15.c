@@ -69,7 +69,6 @@ static char mdbpath[MAX_PATH];
     }while(0)
 
 DEFINE_EXPECT(rowset_QI_IDBAsynchStatus);
-DEFINE_EXPECT(rowset_QI_IRowsetFind);
 DEFINE_EXPECT(rowset_info_GetProperties);
 DEFINE_EXPECT(column_info_GetColumnInfo);
 DEFINE_EXPECT(rowset_GetNextRows);
@@ -1474,7 +1473,6 @@ static HRESULT WINAPI rowset_QueryInterface(IRowsetExactScroll *iface, REFIID ri
     }
     else if (IsEqualIID(riid, &IID_IRowsetFind))
     {
-        CHECK_EXPECT(rowset_QI_IRowsetFind);
         return E_NOINTERFACE;
     }
     else if (IsEqualIID(riid, &IID_IRowsetView))
@@ -1797,7 +1795,6 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     ok( lock_type == adLockReadOnly, "lock_type = %d\n", lock_type );
 
     SET_EXPECT( rowset_info_GetProperties );
-    SET_EXPECT( rowset_QI_IRowsetFind );
     if (exact_scroll)
     {
         SET_EXPECT( column_info_GetColumnInfo );
@@ -1806,7 +1803,6 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     SET_EXPECT( rowset_QI_IDBAsynchStatus );
     hr = ADORecordsetConstruction_put_Rowset( construct, rowset );
     CHECK_CALLED( rowset_info_GetProperties );
-    todo_wine CHECK_CALLED( rowset_QI_IRowsetFind );
     if (exact_scroll)
     {
         CHECK_CALLED( column_info_GetColumnInfo );
