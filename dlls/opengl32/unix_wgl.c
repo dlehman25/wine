@@ -1489,6 +1489,7 @@ HGLRC wrap_wglCreateContextAttribsARB( TEB *teb, HDC hdc, HGLRC client_shared, c
     const struct opengl_funcs *funcs = get_dc_funcs( hdc );
     struct context *context, *shared = get_updated_context( teb, client_shared );
 
+    if (!funcs->p_context_reset) return 0;
     if (!(context = calloc( 1, sizeof(*context) )))
     {
         RtlSetLastWin32Error( ERROR_OUTOFMEMORY );
