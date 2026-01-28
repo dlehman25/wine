@@ -93,6 +93,7 @@ DEFINE_EXPECT(rowset_current_index_GetIndexInfo);
 DEFINE_EXPECT(rowset_current_index_Seek);
 DEFINE_EXPECT(rowset_current_index_GetIndex);
 DEFINE_EXPECT(rowset_current_index_SetIndex);
+DEFINE_EXPECT(rowset_find_FindNextRow);
 DEFINE_EXPECT(open_rowset_QI_ISessionProperties);
 DEFINE_EXPECT(open_rowset_QI_IBindResource);
 DEFINE_EXPECT(open_rowset_QI_ICreateRow);
@@ -578,6 +579,7 @@ struct test_rowset
     IRowsetView IRowsetView_iface;
     IChapteredRowset IChapteredRowset_iface;
     IRowsetCurrentIndex IRowsetCurrentIndex_iface;
+    IRowsetFind IRowsetFind_iface;
     LONG refs;
 
     IViewChapter IViewChapter_iface;
@@ -633,6 +635,11 @@ static inline struct test_rowset *impl_from_IChapteredRowset( IChapteredRowset *
 static inline struct test_rowset *impl_from_IRowsetCurrentIndex( IRowsetCurrentIndex *iface )
 {
     return CONTAINING_RECORD( iface, struct test_rowset, IRowsetCurrentIndex_iface );
+}
+
+static inline struct test_rowset *impl_from_IRowsetFind( IRowsetFind *iface )
+{
+    return CONTAINING_RECORD( iface, struct test_rowset, IRowsetFind_iface );
 }
 
 static inline struct test_rowset *impl_from_IViewChapter( IViewChapter *iface )
@@ -745,7 +752,7 @@ static HRESULT WINAPI rowset_info_GetProperties(IRowsetInfo *iface, const ULONG 
                     break;
                 case DBPROP_IRowsetFind:
                     V_VT(v) = VT_BOOL;
-                    V_BOOL(v) = VARIANT_FALSE;
+                    V_BOOL(v) = VARIANT_TRUE;
                     break;
                 case DBPROP_IRowsetRefresh:
                     V_VT(v) = VT_BOOL;
@@ -1305,6 +1312,71 @@ static const struct IRowsetCurrentIndexVtbl rowset_current_index =
     rowset_current_index_SetIndex
 };
 
+static HRESULT WINAPI rowset_find_QueryInterface(IRowsetFind *iface, REFIID riid, void **obj)
+{
+    struct test_rowset *rowset = impl_from_IRowsetFind( iface );
+    return IRowsetExactScroll_QueryInterface(&rowset->IRowsetExactScroll_iface, riid, obj);
+}
+
+static ULONG WINAPI rowset_find_AddRef(IRowsetFind *iface)
+{
+    struct test_rowset *rowset = impl_from_IRowsetFind( iface );
+    return IRowsetExactScroll_AddRef(&rowset->IRowsetExactScroll_iface);
+}
+
+static ULONG WINAPI rowset_find_Release(IRowsetFind *iface)
+{
+    struct test_rowset *rowset = impl_from_IRowsetFind( iface );
+    return IRowsetExactScroll_Release(&rowset->IRowsetExactScroll_iface);
+}
+
+static HRESULT WINAPI rowset_find_FindNextRow(IRowsetFind *iface,
+    HCHAPTER chapter, HACCESSOR hacc, void *find_value, DBCOMPAREOP compare_op,
+    DBBKMARK bookmark_size, const BYTE *bookmark, DBROWOFFSET offset,
+    DBROWCOUNT rows, DBCOUNTITEM *obtained, HROW **hrows)
+{
+    struct haccessor *accessor = (struct haccessor *)hacc;
+    VARIANT *v = find_value;
+
+
+    CHECK_EXPECT(rowset_find_FindNextRow);
+
+    ok(!chapter, "chapter = %Id\n", chapter);
+    ok(accessor->binding.iOrdinal == 1, "accessor->binding.iOrdinal = %Id\n", accessor->binding.iOrdinal);
+    ok(accessor->binding.wType == VT_VARIANT, "accessor->binding.wType = %d\n", accessor->binding.wType);
+    ok(accessor->binding.dwPart == DBPART_VALUE, "accessor->binding.dwPart = %ld\n", accessor->binding.dwPart);
+    ok(V_VT(v) == VT_BSTR, "v = %s\n", wine_dbgstr_variant(v));
+    ok(!wcscmp(V_BSTR(v), L"1'1"), "v = %s\n", wine_dbgstr_variant(v));
+    ok(compare_op == DBCOMPAREOPS_EQ, "compare_op = %ld\n", compare_op);
+    if (!bookmark_size)
+    {
+        ok(!bookmark, "bookmark != NULL\n");
+        ok(offset == -1, "offset = %Id\n", offset);
+    }
+    else
+    {
+        ok(offset == 0, "offset = %Id\n", offset);
+        ok(bookmark_size == 4, "bookmark_size = %Id\n", bookmark_size);
+        ok(*(int*)bookmark == 1 || *(int*)bookmark == 2, "bookmark = %d\n", *(int*)bookmark);
+    }
+    ok(rows == 1, "rows = %Id\n", rows);
+    ok(obtained != NULL, "obtained = NULL\n");
+    ok(hrows != NULL, "hrows == NULL\n");
+    ok(*hrows != NULL, "*hrows == NULL\n");
+
+    *obtained = 1;
+    (*hrows)[0] = 2;
+    return S_OK;
+}
+
+static const struct IRowsetFindVtbl rowset_find =
+{
+    rowset_find_QueryInterface,
+    rowset_find_AddRef,
+    rowset_find_Release,
+    rowset_find_FindNextRow
+};
+
 static HRESULT WINAPI view_chapter_QueryInterface(IViewChapter *iface, REFIID riid, void **obj)
 {
     struct test_rowset *rowset = impl_from_IViewChapter( iface );
@@ -1473,7 +1545,7 @@ static HRESULT WINAPI rowset_QueryInterface(IRowsetExactScroll *iface, REFIID ri
     }
     else if (IsEqualIID(riid, &IID_IRowsetFind))
     {
-        return E_NOINTERFACE;
+        *obj = &rowset->IRowsetFind_iface;
     }
     else if (IsEqualIID(riid, &IID_IRowsetView))
     {
@@ -1737,6 +1809,15 @@ static const struct IRowsetExactScrollVtbl rowset_vtbl =
 
 static void test_ADORecordsetConstruction(BOOL exact_scroll)
 {
+    static const WCHAR *find_criteria[] =
+    {
+        L"Column1 = #1'1# ",
+        L"[Column1] = 1'1\t",
+        L"   Column1   =  '1''1'  ",
+        L"Column1 LIKE 1'1",
+        L"Column1 like 1'1"
+    };
+
     _Recordset *recordset;
     ADORecordsetConstruction *construct;
     Fields *fields = NULL;
@@ -1752,6 +1833,7 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     DataTypeEnum type;
     VARIANT_BOOL b;
     BSTR bstr;
+    int i;
 
     hr = CoCreateInstance( &CLSID_Recordset, NULL, CLSCTX_INPROC_SERVER, &IID__Recordset, (void **)&recordset );
     ok( hr == S_OK, "got %08lx\n", hr );
@@ -1780,6 +1862,7 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     testrowset.IRowsetView_iface.lpVtbl = &rowset_view;
     testrowset.IChapteredRowset_iface.lpVtbl = &chaptered_rowset;
     testrowset.IRowsetCurrentIndex_iface.lpVtbl = &rowset_current_index;
+    testrowset.IRowsetFind_iface.lpVtbl = &rowset_find;
     testrowset.refs = 1;
     testrowset.IViewChapter_iface.lpVtbl = &view_chapter;
     testrowset.IViewFilter_iface.lpVtbl = &view_filter;
@@ -1861,7 +1944,7 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
 
     hr = _Recordset_Supports( recordset, adFind, &b );
     ok( hr == S_OK, "got %08lx\n", hr);
-    ok( b == VARIANT_FALSE, "b = %x\n", b);
+    ok( b == VARIANT_TRUE, "b = %x\n", b);
 
     hr = _Recordset_Supports( recordset, adSeek, &b );
     ok( hr == S_OK, "got %08lx\n", hr);
@@ -2151,8 +2234,71 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     hr = _Recordset_Update( recordset, missing, missing );
     ok( hr == MAKE_ADO_HRESULT( adErrNoCurrentRecord ), "got %08lx\n", hr );
 
+    if (!exact_scroll)
+    {
+        SET_EXPECT( rowset_ReleaseRows );
+        SET_EXPECT( rowset_RestartPosition );
+        SET_EXPECT( rowset_GetNextRows );
+    }
+    else
+    {
+        SET_EXPECT( rowset_GetRowsAt );
+        SET_EXPECT( rowset_GetData );
+    }
+    hr = _Recordset_MoveFirst( recordset );
+    ok( hr == S_OK, "got %08lx\n", hr);
+    if (!exact_scroll)
+    {
+        todo_wine CHECK_CALLED( rowset_ReleaseRows );
+        CHECK_CALLED( rowset_RestartPosition );
+        CHECK_CALLED( rowset_GetNextRows );
+    }
+    else
+    {
+        CHECK_CALLED( rowset_GetRowsAt );
+        CHECK_CALLED( rowset_GetData );
+    }
+
+    if (exact_scroll) SET_EXPECT(rowset_GetData);
+    hr = _Recordset_Find( recordset, (BSTR)L"Column1", 0, adSearchForward, missing );
+    ok(hr == MAKE_ADO_HRESULT( adErrInvalidArgument ), "got %08lx\n", hr );
+    if (exact_scroll) CHECK_CALLED(rowset_GetData);
+
+    if (exact_scroll) SET_EXPECT(rowset_GetData);
+    hr = _Recordset_Find( recordset, (BSTR)L"Column1 = 1 1", 0, adSearchForward, missing );
+    ok(hr == MAKE_ADO_HRESULT( adErrInvalidArgument ), "got %08lx\n", hr );
+    if (exact_scroll) CHECK_CALLED(rowset_GetData);
+
+    if (exact_scroll) SET_EXPECT(rowset_GetData);
+    hr = _Recordset_Find( recordset, (BSTR)L"Column2 = 1", 0, adSearchForward, missing );
+    ok(hr == MAKE_ADO_HRESULT( adErrItemNotFound ), "got %08lx\n", hr );
+    if (exact_scroll) CHECK_CALLED(rowset_GetData);
+
+    for (i = 0; i < ARRAY_SIZE(find_criteria); i++)
+    {
+        winetest_push_context( "%d", i );
+
+        SET_EXPECT(accessor_AddRefAccessor);
+        SET_EXPECT(rowset_AddRefRows);
+        SET_EXPECT(rowset_ReleaseRows);
+        SET_EXPECT(rowset_find_FindNextRow);
+        if (exact_scroll) SET_EXPECT(rowset_GetData);
+        SET_EXPECT(accessor_ReleaseAccessor);
+        hr = _Recordset_Find( recordset, (BSTR)find_criteria[i],
+                0, adSearchForward, missing );
+        ok( hr == S_OK, "got %08lx\n", hr );
+        CHECK_CALLED(accessor_AddRefAccessor);
+        CHECK_CALLED(rowset_AddRefRows);
+        CHECK_CALLED(rowset_ReleaseRows);
+        CHECK_CALLED(rowset_find_FindNextRow);
+        if (exact_scroll) CHECK_CALLED(rowset_GetData);
+        CHECK_CALLED(accessor_ReleaseAccessor);
+        winetest_pop_context();
+    }
+
     V_VT(&v) = VT_BSTR;
     V_BSTR(&v) = SysAllocString( L"Column1 = 1" );
+    SET_EXPECT(rowset_AddRefRows);
     SET_EXPECT(rowset_ReleaseRows);
     SET_EXPECT(accessor_AddRefAccessor);
     SET_EXPECT(rowset_view_CreateView);
@@ -2171,6 +2317,7 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     }
     hr = _Recordset_put_Filter( recordset, v );
     todo_wine ok( hr == S_OK, "got %08lx\n", hr );
+    todo_wine CHECK_CALLED(rowset_AddRefRows);
     todo_wine CHECK_CALLED(rowset_ReleaseRows);
     todo_wine CHECK_CALLED(accessor_AddRefAccessor);
     todo_wine CHECK_CALLED(rowset_view_CreateView);
@@ -2227,7 +2374,7 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     SET_EXPECT(accessor_ReleaseAccessor);
     SET_EXPECT(chaptered_rowset_ReleaseChapter);
     ok( !_Recordset_Release( recordset ), "_Recordset not released\n" );
-    todo_wine CHECK_CALLED(rowset_ReleaseRows );
+    CHECK_CALLED(rowset_ReleaseRows );
     CHECK_CALLED(accessor_ReleaseAccessor);
     ok( testrowset.refs == 1, "got %ld\n", testrowset.refs );
 }
@@ -3615,6 +3762,7 @@ static HRESULT WINAPI open_rowset_OpenRowset(IOpenRowset *iface, IUnknown *unk_o
     open_rowset_test.IRowsetView_iface.lpVtbl = &rowset_view;
     open_rowset_test.IChapteredRowset_iface.lpVtbl = &chaptered_rowset;
     open_rowset_test.IRowsetCurrentIndex_iface.lpVtbl = &rowset_current_index;
+    open_rowset_test.IRowsetFind_iface.lpVtbl = &rowset_find;
     open_rowset_test.refs = 1;
     open_rowset_test.IViewChapter_iface.lpVtbl = &view_chapter;
     open_rowset_test.IViewFilter_iface.lpVtbl = &view_filter;
