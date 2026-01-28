@@ -233,6 +233,55 @@ static HRESULT get_bookmark( struct recordset *recordset, HROW row, VARIANT *boo
     return S_OK;
 }
 
+static HRESULT get_bookmark_data( VARIANT *bookmark, const BYTE **data, DBBKMARK *len, int *tmp )
+{
+    if (V_VT(bookmark) == VT_R8)
+    {
+        if (isinf(V_R8(bookmark)))
+        {
+            if (V_R8(bookmark) < 0) *(BYTE *)tmp = DBBMK_FIRST;
+            else *(BYTE *)tmp = DBBMK_LAST;
+            *data = (BYTE *)tmp;
+            *len = 1;
+        }
+        else
+        {
+            *tmp = V_R8(bookmark);
+            *data = (BYTE *)tmp;
+            *len = sizeof(*tmp);
+        }
+    }
+    else if (V_VT(bookmark) == VT_I8)
+    {
+        *data = (BYTE *)&V_I8(bookmark);
+        *len = sizeof(V_I8(bookmark));
+    }
+    else if (V_VT(bookmark) == VT_EMPTY)
+    {
+        *data = NULL;
+        *len = 0;
+    }
+    else if (V_VT(bookmark) & (VT_ARRAY | VT_UI1))
+    {
+        HRESULT hr = SafeArrayLock(V_ARRAY(bookmark));
+        if (FAILED(hr)) return hr;
+        *data = V_ARRAY(bookmark)->pvData;
+        *len = V_ARRAY(bookmark)->rgsabound[0].cElements;
+    }
+    else
+    {
+        WARN("unexpected bookmark %s\n", wine_dbgstr_variant(bookmark));
+        return E_FAIL;
+    }
+    return S_OK;
+}
+
+static void release_bookmark_data( VARIANT *bookmark )
+{
+    if (V_VT(bookmark) & VT_ARRAY)
+        SafeArrayUnlock(V_ARRAY(bookmark));
+}
+
 static HRESULT cache_get( struct recordset *recordset, BOOL forward )
 {
     int dir = forward ? 1 : -1;
@@ -283,53 +332,13 @@ static HRESULT cache_get( struct recordset *recordset, BOOL forward )
         if (recordset->bookmark_hacc)
         {
             const BYTE *data;
-            LONGLONG i8_buf;
-            BYTE byte_buf;
             DBBKMARK len;
             int int_buf;
 
-            if (V_VT(&recordset->bookmark) == VT_R8)
-            {
-                if (isinf(V_R8(&recordset->bookmark)))
-                {
-                    data = (BYTE *)&byte_buf;
-                    if (V_R8(&recordset->bookmark) < 0)
-                    {
-                        byte_buf = DBBMK_FIRST;
-                        if (!forward) off -= 2;
-                    }
-                    else
-                    {
-                        byte_buf = DBBMK_LAST;
-                        if (forward) off += 2;
-                    }
-                    len = sizeof(byte_buf);
-                }
-                else
-                {
-                    data = (BYTE *)&int_buf;
-                    int_buf = V_R8(&recordset->bookmark);
-                    len = sizeof(int_buf);
-                }
-            }
-            else if (V_VT(&recordset->bookmark) == VT_I8)
-            {
-                data = (BYTE *)&i8_buf;
-                i8_buf = V_I8(&recordset->bookmark);
-                len = sizeof(i8_buf);
-            }
-            else if (V_VT(&recordset->bookmark) == VT_EMPTY)
-            {
-                data = NULL;
-                len = 0;
-            }
-            else
-            {
-                hr = SafeArrayLock(V_ARRAY(&recordset->bookmark));
-                if (FAILED(hr)) return hr;
-                data = V_ARRAY(&recordset->bookmark)->pvData;
-                len = V_ARRAY(&recordset->bookmark)->rgsabound[0].cElements;
-            }
+            hr = get_bookmark_data(&recordset->bookmark, &data, &len, &int_buf);
+            if (FAILED(hr)) return hr;
+            if (!forward && len == 1 && *data == DBBMK_FIRST) off -= 2;
+            else if (forward && len == 1 && *data == DBBMK_LAST) off += 2;
 
             if (!data)
             {
@@ -340,8 +349,7 @@ static HRESULT cache_get( struct recordset *recordset, BOOL forward )
                 hr = IRowsetLocate_GetRowsAt(recordset->rowset_locate, 0, 0, len, data,
                         off, fetch, &count, &recordset->cache.rows);
             }
-            if (V_VT(&recordset->bookmark) & VT_ARRAY)
-                SafeArrayUnlock(V_ARRAY(&recordset->bookmark));
+            release_bookmark_data(&recordset->bookmark);
 
             if (hr == DB_E_BADSTARTPOSITION)
             {
