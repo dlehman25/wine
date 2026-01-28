@@ -271,6 +271,10 @@ static BOOL copy_context_attributes( TEB *teb, HGLRC client_dst, struct context 
     struct context *old_ctx = CONTAINING_RECORD( teb->glContext, struct context, base );
     HDC draw_hdc = teb->glReserved1[0], read_hdc = teb->glReserved1[1];
     const struct opengl_funcs *old_funcs = teb->glTable, *funcs;
+    static const WCHAR staticW[] = {'s','t','a','t','i','c',0};
+    UNICODE_STRING static_us = RTL_CONSTANT_STRING( staticW );
+    HDC hdc = NULL;
+    HWND hwnd;
 
     if (dst == old_ctx || !(funcs = get_context_funcs( client_dst )))
     {
@@ -282,7 +286,17 @@ static BOOL copy_context_attributes( TEB *teb, HGLRC client_dst, struct context 
     if (src->used == -1) FIXME( "Unsupported attributes on context %p/%p\n", client_src, src );
     if (src != dst && dst->used == -1) FIXME( "Unsupported attributes on context %p/%p\n", client_dst, dst );
 
-    funcs->p_wglMakeCurrent( dst->hdc, client_dst );
+    if (!(hwnd = NtUserCreateWindowEx( 0, &static_us, NULL, &static_us, WS_POPUP, 0, 0, 0, 0,
+                                       NULL, NULL, NULL, NULL, 0, NULL, NULL, FALSE )) ||
+        !(hdc = NtUserGetWindowDC( hwnd )) || !funcs->p_wglSetPixelFormat( hdc, dst->base.format, NULL ))
+    {
+        WARN( "Failed to create dummy window to update context attributes\n" );
+        if (hdc) NtUserReleaseDC( hwnd, hdc );
+        if (hwnd) NtUserDestroyWindow( hwnd );
+        return FALSE;
+    }
+
+    funcs->p_wglMakeCurrent( hdc, client_dst );
 
     if (mask & GL_COLOR_BUFFER_BIT)
     {
@@ -333,6 +347,9 @@ static BOOL copy_context_attributes( TEB *teb, HGLRC client_dst, struct context 
     if (!old_ctx) funcs->p_wglMakeCurrent( NULL, NULL );
     else if (!old_funcs->p_wglMakeContextCurrentARB) old_funcs->p_wglMakeCurrent( draw_hdc, old_ctx->client );
     else old_funcs->p_wglMakeContextCurrentARB( draw_hdc, read_hdc, old_ctx->client );
+
+    NtUserReleaseDC( hwnd, hdc );
+    NtUserDestroyWindow( hwnd );
 
     return dst->used != -1 && src->used != -1;
 }
@@ -959,13 +976,9 @@ PROC wrap_wglGetProcAddress( TEB *teb, LPCSTR name )
 BOOL wrap_wglCopyContext( TEB *teb, HGLRC client_src, HGLRC client_dst, UINT mask )
 {
     struct context *src, *dst;
-    BOOL ret = FALSE;
-
     if (!(src = get_updated_context( teb, client_src ))) return FALSE;
     if (!(dst = get_updated_context( teb, client_dst ))) return FALSE;
-    else ret = copy_context_attributes( teb, client_dst, dst, client_src, src, mask );
-
-    return ret;
+    return copy_context_attributes( teb, client_dst, dst, client_src, src, mask );
 }
 
 static BOOL initialize_vk_device( TEB *teb, struct context *ctx )
