@@ -2259,25 +2259,12 @@ static int get_window_swap_interval( HWND hwnd )
     return interval;
 }
 
-static BOOL win32u_context_reset( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs )
+static BOOL win32u_context_create( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs )
 {
     void *share_private = share ? share->driver_private : NULL;
     int format;
 
     TRACE( "context %p, hdc %p, share %p, attribs %p\n", context, hdc, share, attribs );
-
-    if (context->internal_context)
-    {
-        driver_funcs->p_context_destroy( context->internal_context );
-        context->internal_context = NULL;
-    }
-    if (context->driver_private && !driver_funcs->p_context_destroy( context->driver_private ))
-    {
-        WARN( "Failed to destroy driver context %p\n", context->driver_private );
-        return FALSE;
-    }
-    context->driver_private = NULL;
-    if (!hdc) return TRUE;
 
     if ((format = get_dc_pixel_format( hdc )) <= 0 &&
         (format = get_window_pixel_format( NtUserWindowFromDC( hdc ) )) <= 0)
@@ -2293,8 +2280,37 @@ static BOOL win32u_context_reset( struct opengl_context *context, HDC hdc, struc
     }
     context->format = format;
 
-    TRACE( "reset context %p, format %u for driver context %p\n", context, format, context->driver_private );
+    TRACE( "created context %p, format %u for driver context %p\n", context, format, context->driver_private );
     return TRUE;
+}
+
+static BOOL win32u_context_destroy( struct opengl_context *context )
+{
+    TRACE( "context %p\n", context );
+
+    if (context->internal_context)
+    {
+        driver_funcs->p_context_destroy( context->internal_context );
+        context->internal_context = NULL;
+    }
+    if (context->driver_private && !driver_funcs->p_context_destroy( context->driver_private ))
+    {
+        WARN( "Failed to destroy driver context %p\n", context->driver_private );
+        return FALSE;
+    }
+    context->driver_private = NULL;
+
+    return TRUE;
+}
+
+static BOOL win32u_context_reset( struct opengl_context *context, struct opengl_context *share, const int *attribs )
+{
+    void *share_private = share ? share->driver_private : NULL;
+
+    TRACE( "context %p, share %p, attribs %p\n", context, share, attribs );
+
+    if (!win32u_context_destroy( context )) return FALSE;
+    return driver_funcs->p_context_create( context->format, share_private, attribs, &context->driver_private );
 }
 
 static BOOL flush_memory_pbuffer( void (*flush)(void) )
@@ -2704,8 +2720,10 @@ static void display_funcs_init(void)
     display_funcs.p_wglMakeCurrent = win32u_wglMakeCurrent;
 
     display_funcs.p_wglSwapBuffers = win32u_wglSwapBuffers;
-    display_funcs.p_context_reset = win32u_context_reset;
     display_funcs.p_context_flush = win32u_context_flush;
+    display_funcs.p_context_create = win32u_context_create;
+    display_funcs.p_context_destroy = win32u_context_destroy;
+    display_funcs.p_context_reset = win32u_context_reset;
 
     register_extension( wgl_extensions, ARRAY_SIZE(wgl_extensions), "WGL_ARB_pixel_format" );
     display_funcs.p_wglChoosePixelFormatARB      = (void *)1; /* never called */

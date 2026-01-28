@@ -122,7 +122,6 @@ struct context
 {
     struct opengl_context base;
 
-    HDC hdc;                       /* context creation DC */
     HGLRC client;                  /* client-side context handle */
     HGLRC share;                   /* context to be shared with */
     int *attribs;                  /* creation attributes */
@@ -415,7 +414,7 @@ static struct context *update_context( TEB *teb, HGLRC client_context, struct co
     if (ctx->share == (HGLRC)-1) return ctx; /* not re-shared */
 
     share = ctx->share ? get_updated_context( teb, ctx->share ) : NULL;
-    if (!funcs->p_context_reset( &ctx->base, ctx->hdc, share ? &share->base : NULL, ctx->attribs ))
+    if (!funcs->p_context_reset( &ctx->base, share ? &share->base : NULL, ctx->attribs ))
     {
         WARN( "Failed to re-create context for wglShareLists\n" );
         return ctx;
@@ -1339,7 +1338,7 @@ BOOL wrap_wglDeleteContext( TEB *teb, HGLRC client_context )
         return FALSE;
     }
 
-    funcs->p_context_reset( &ctx->base, NULL, NULL, NULL );
+    funcs->p_context_destroy( &ctx->base );
     free_context( ctx );
     return TRUE;
 }
@@ -1502,14 +1501,13 @@ HGLRC wrap_wglCreateContextAttribsARB( TEB *teb, HDC hdc, HGLRC client_shared, c
     const struct opengl_funcs *funcs = get_dc_funcs( hdc );
     struct context *context, *shared = get_updated_context( teb, client_shared );
 
-    if (!funcs->p_context_reset) return 0;
+    if (!funcs->p_context_create) return 0;
     if (!(context = calloc( 1, sizeof(*context) )))
     {
         RtlSetLastWin32Error( ERROR_OUTOFMEMORY );
         return 0;
     }
     context->base.client_context = client_context;
-    context->hdc = hdc;
     context->share = (HGLRC)-1; /* initial shared context */
     context->attribs = memdup_attribs( attribs );
 
@@ -1533,7 +1531,7 @@ HGLRC wrap_wglCreateContextAttribsARB( TEB *teb, HDC hdc, HGLRC client_shared, c
         }
     }
 
-    if (!(funcs->p_context_reset( &context->base, hdc, shared ? &shared->base : NULL, attribs )))
+    if (!(funcs->p_context_create( &context->base, hdc, shared ? &shared->base : NULL, attribs )))
     {
         free_context( context );
         return 0;

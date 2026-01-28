@@ -129,7 +129,9 @@ struct opengl_funcs
     void (*p_get_pixel_formats)( struct wgl_pixel_format *formats, UINT max_formats, UINT *num_formats, UINT *num_onscreen_formats );
     BOOL (*p_query_renderer)( UINT attribute, void *value );
     BOOL (*p_context_flush)( struct opengl_context *context, void (*flush)(void), UINT flags );
-    BOOL (*p_context_reset)( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs );
+    BOOL (*p_context_create)( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs );
+    BOOL (*p_context_destroy)( struct opengl_context *context );
+    BOOL (*p_context_reset)( struct opengl_context *context, struct opengl_context *share, const int *attribs );
 
     void *egl_handle;
 };
