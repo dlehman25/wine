@@ -9986,6 +9986,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_AMD_framebuffer_sample_positions) \
     USE_GL_EXT(GL_AMD_gcn_shader) \
     USE_GL_EXT(GL_AMD_gpu_shader_half_float) \
+    USE_GL_EXT(GL_AMD_gpu_shader_half_float_fetch) \
     USE_GL_EXT(GL_AMD_gpu_shader_int16) \
     USE_GL_EXT(GL_AMD_gpu_shader_int64) \
     USE_GL_EXT(GL_AMD_interleaved_elements) \
@@ -10003,6 +10004,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_AMD_shader_gpu_shader_half_float_fetch) \
     USE_GL_EXT(GL_AMD_shader_image_load_store_lod) \
     USE_GL_EXT(GL_AMD_shader_stencil_export) \
+    USE_GL_EXT(GL_AMD_shader_stencil_value_export) \
     USE_GL_EXT(GL_AMD_shader_trinary_minmax) \
     USE_GL_EXT(GL_AMD_sparse_texture) \
     USE_GL_EXT(GL_AMD_stencil_operation_extended) \
@@ -10112,6 +10114,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_ARB_robust_buffer_access_behavior) \
     USE_GL_EXT(GL_ARB_robustness) \
     USE_GL_EXT(GL_ARB_robustness_isolation) \
+    USE_GL_EXT(GL_ARB_robustness_share_group_isolation) \
     USE_GL_EXT(GL_ARB_sample_locations) \
     USE_GL_EXT(GL_ARB_sample_shading) \
     USE_GL_EXT(GL_ARB_sampler_objects) \
@@ -10246,7 +10249,10 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_draw_range_elements) \
     USE_GL_EXT(GL_EXT_external_buffer) \
     USE_GL_EXT(GL_EXT_fog_coord) \
+    USE_GL_EXT(GL_EXT_fragment_lighting) \
     USE_GL_EXT(GL_EXT_fragment_shading_rate) \
+    USE_GL_EXT(GL_EXT_fragment_shading_rate_attachment) \
+    USE_GL_EXT(GL_EXT_fragment_shading_rate_primitive) \
     USE_GL_EXT(GL_EXT_framebuffer_blit) \
     USE_GL_EXT(GL_EXT_framebuffer_blit_layers) \
     USE_GL_EXT(GL_EXT_framebuffer_multisample) \
@@ -10285,6 +10291,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_provoking_vertex) \
     USE_GL_EXT(GL_EXT_raster_multisample) \
     USE_GL_EXT(GL_EXT_rescale_normal) \
+    USE_GL_EXT(GL_EXT_scene_marker) \
     USE_GL_EXT(GL_EXT_secondary_color) \
     USE_GL_EXT(GL_EXT_semaphore) \
     USE_GL_EXT(GL_EXT_semaphore_win32) \
@@ -10303,14 +10310,17 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_stencil_two_side) \
     USE_GL_EXT(GL_EXT_stencil_wrap) \
     USE_GL_EXT(GL_EXT_subtexture) \
+    USE_GL_EXT(GL_EXT_swap_control) \
     USE_GL_EXT(GL_EXT_texture) \
     USE_GL_EXT(GL_EXT_texture3D) \
     USE_GL_EXT(GL_EXT_texture_array) \
     USE_GL_EXT(GL_EXT_texture_buffer_object) \
+    USE_GL_EXT(GL_EXT_texture_compression_dxt1) \
     USE_GL_EXT(GL_EXT_texture_compression_latc) \
     USE_GL_EXT(GL_EXT_texture_compression_rgtc) \
     USE_GL_EXT(GL_EXT_texture_compression_s3tc) \
     USE_GL_EXT(GL_EXT_texture_cube_map) \
+    USE_GL_EXT(GL_EXT_texture_env) \
     USE_GL_EXT(GL_EXT_texture_env_add) \
     USE_GL_EXT(GL_EXT_texture_env_combine) \
     USE_GL_EXT(GL_EXT_texture_env_dot3) \
@@ -10362,6 +10372,8 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_INTEL_map_texture) \
     USE_GL_EXT(GL_INTEL_parallel_arrays) \
     USE_GL_EXT(GL_INTEL_performance_query) \
+    USE_GL_EXT(GL_INTEL_shader_integer_functions2) \
+    USE_GL_EXT(GL_INTEL_texture_scissor) \
     USE_GL_EXT(GL_KHR_blend_equation_advanced) \
     USE_GL_EXT(GL_KHR_blend_equation_advanced_coherent) \
     USE_GL_EXT(GL_KHR_context_flush_control) \
@@ -10567,6 +10579,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_SGIX_ir_instrument1) \
     USE_GL_EXT(GL_SGIX_list_priority) \
     USE_GL_EXT(GL_SGIX_pixel_texture) \
+    USE_GL_EXT(GL_SGIX_pixel_texture_bits) \
     USE_GL_EXT(GL_SGIX_pixel_tiles) \
     USE_GL_EXT(GL_SGIX_polynomial_ffd) \
     USE_GL_EXT(GL_SGIX_reference_plane) \
@@ -10581,8 +10594,10 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_SGIX_texture_coordinate_clamp) \
     USE_GL_EXT(GL_SGIX_texture_lod_bias) \
     USE_GL_EXT(GL_SGIX_texture_multi_buffer) \
+    USE_GL_EXT(GL_SGIX_texture_range) \
     USE_GL_EXT(GL_SGIX_texture_scale_bias) \
     USE_GL_EXT(GL_SGIX_vertex_preclip) \
+    USE_GL_EXT(GL_SGIX_vertex_preclip_hint) \
     USE_GL_EXT(GL_SGIX_ycrcb) \
     USE_GL_EXT(GL_SGIX_ycrcb_subsample) \
     USE_GL_EXT(GL_SGIX_ycrcba) \

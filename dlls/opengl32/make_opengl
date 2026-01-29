@@ -862,6 +862,7 @@ my $egl_commit="3ae2b7c48690d2ce13cc6db3db02dfc0572be65e";
 my $cache = ($ENV{XDG_CACHE_HOME} || "$ENV{HOME}/.cache") . "/wine";
 
 system "mkdir", "-p", $cache;
+-f "$cache/registry-$ogl_commit.py" || system "wget", "-q", "-O", "$cache/registry-$ogl_commit.py", "$ogl_url/$ogl_commit/extensions/registry.py" || die "cannot download registry.py";
 -f "$cache/gl-$ogl_commit.xml" || system "wget", "-q", "-O", "$cache/gl-$ogl_commit.xml", "$ogl_url/$ogl_commit/xml/gl.xml" || die "cannot download gl.xml";
 -f "$cache/wgl-$ogl_commit.xml" || system "wget", "-q", "-O", "$cache/wgl-$ogl_commit.xml", "$ogl_url/$ogl_commit/xml/wgl.xml" || die "cannot download wgl.xml";
 -f "$cache/egl-$egl_commit.xml" || system "wget", "-q", "-O", "$cache/egl-$egl_commit.xml", "$egl_url/$egl_commit/api/egl.xml" || die "cannot download egl.xml";
@@ -955,10 +956,9 @@ my %unexposed_extensions =
    );
 my %extension_aliases =
     (
-     "GL_ARB_texture_compression" => "GL_VERSION_1_3",
-     "GL_EXT_blend_equation_separate" => "GL_ATI_blend_equation_separate",
-     "GL_EXT_copy_texture" => "GL_VERSION_1_2",
-     "GL_EXT_multi_draw_arrays" => "GL_SUN_multi_draw_arrays",
+     "GL_ARB_texture_compression" => ["GL_VERSION_1_3"],
+     "GL_EXT_blend_equation_separate" => ["GL_ATI_blend_equation_separate"],
+     "GL_EXT_copy_texture" => ["GL_VERSION_1_2"],
     );
 
 my %supported_apis =
@@ -1023,11 +1023,89 @@ sub add_extension($)
     $wgl_extensions{$name} = 1 if $name =~ /^WGL/;
     $egl_extensions{$name} = 1 if $name =~ /^EGL/;
 
-    if (my $alias = $extension_aliases{$name})
+    foreach my $alias (@{$extension_aliases{$name}})
     {
-        $gl_extensions{$alias} = 1 if $alias =~ /^GL/ and $alias !~ /_VERSION_/;
-        $wgl_extensions{$alias} = 1 if $alias =~ /^WGL/ and $alias !~ /_VERSION_/;
-        $egl_extensions{$alias} = 1 if $alias =~ /^EGL/ and $alias !~ /_VERSION_/;
+        next if $alias =~ /_VERSION_/;
+        $gl_extensions{$alias} = 1 if $alias =~ /^GL/;
+        $wgl_extensions{$alias} = 1 if $alias =~ /^WGL/;
+        $egl_extensions{$alias} = 1 if $alias =~ /^EGL/;
+    }
+}
+
+sub parse_registry($)
+{
+    my $file = shift;
+    my %aliases = ();
+    my $name = "";
+    my $flags = "";
+    my $alias = "";
+    my $number = "";
+    my $depth = 0;
+    my $api = "";
+
+    open IN, "$file" or die "cannot open $file";
+
+    foreach my $line (<IN>)
+    {
+        my ($key, $val);
+        next if chomp($line) =~ /^$/;
+
+        if ($depth == 1 and ($key) = ($line =~ /'(\w+)' : \{/))
+        {
+            $name = $key;
+            $api = "gl" if $name =~ /^WGL_/;
+            $api = "glx" if $name =~ /^GLX_/;
+            $api = "glu" if $name =~ /^GLU_/;
+        }
+
+        $depth++ if $line =~ /\{/;
+        $depth-- if $line =~ /\}/;
+
+        if (($key, $val) = ($line =~ /'(.*)' : \{ (.*) \},/))
+        {
+            $alias = $val if $key eq "alias";
+            $flags = $val if $key eq "flags";
+        }
+        elsif (($key, $val) = ($line =~ /'(.*)' : (.*),/))
+        {
+            $number = $val if $key =~ /(|arb|es|sc)number/;
+            $api = "gl" if $key =~ /^(arb)?number$/ and $api eq "";
+            $api = "gles" if $key eq "esnumber" and $api eq "";
+            $api = "glsc" if $key eq "scnumber" and $api eq "";
+        }
+
+        $api = "gl" if $depth == 1 and $api eq "";
+        if ($depth == 1 and is_supported_api( $api ) and is_supported_extension( $name ) and $flags =~ /public/ and $number ne "")
+        {
+            add_extension( $name );
+
+            foreach my $alt (split(",", $alias))
+            {
+                $alt =~ s/^\s*'(.*)'\s*$/$1/;
+                push @{$aliases{$name}}, $alt;
+            }
+        }
+
+        $name = $flags = $alias = $api = $number = "" if $depth == 1;
+    }
+
+    close IN;
+
+    # the registry aliases are a bit unreliable, only add the alias if there's no known extension
+    foreach (keys %aliases)
+    {
+        foreach my $alias (@{$aliases{$_}})
+        {
+            next unless $alias =~ /^(GL|WGL|EGL)_/;
+            next unless is_supported_extension( $alias );
+            next if defined $gl_extensions{$alias};
+            next if defined $wgl_extensions{$alias};
+            next if defined $egl_extensions{$alias};
+
+            add_extension( $alias );
+
+            push @{$extension_aliases{$_}}, $alias;
+        }
     }
 }
 
@@ -1196,6 +1274,9 @@ parse_file( "$cache/gl-$ogl_commit.xml" );
 parse_file( "$cache/wgl-$ogl_commit.xml" );
 parse_file( "$cache/egl-$egl_commit.xml" );
 parse_file( "winegl.xml" );
+
+# parse registry after the specs, as its aliases are unreliable
+parse_registry( "$cache/registry-$ogl_commit.py" );
 
 #
 # Generate the wgl.h file
@@ -1737,7 +1818,10 @@ foreach (sort keys %ext_functions)
     foreach my $ext (@{$func->[2]})
     {
         push @exts, $ext;
-        push @exts, $extension_aliases{$ext} if defined $extension_aliases{$ext};
+        foreach my $alias (@{$extension_aliases{$ext}})
+        {
+            push @exts, $alias;
+        }
     }
     printf OUT "    { \"%s\", \"%s\\0\", offsetof(struct opengl_funcs, p_$_) },\n", $_, join("\\0", sort @exts);
 }
