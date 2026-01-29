@@ -729,7 +729,6 @@ static void test_get_displayname(void)
     SetLastError(0xdeadbeef);
     ret = GetServiceDisplayNameA(scm_handle, servicename, displayname, &displaysize);
     ok(ret, "GetServiceDisplayName() error %lu\n", GetLastError());
-    todo_wine
     ok(!lstrcmpiA(displayname, servicename), "got \"%s\"\n", displayname);
 
     ret = DeleteService(svc_handle);
