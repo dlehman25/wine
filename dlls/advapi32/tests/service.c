@@ -713,6 +713,29 @@ static void test_get_displayname(void)
     ok(ret, "Expected success (err=%ld)\n", GetLastError());
 
     CloseServiceHandle(svc_handle);
+
+    /* Test empty DisplayName */
+    do
+    {
+        SetLastError(0xdeadbeef);
+        svc_handle = CreateServiceA(scm_handle, servicename, "", DELETE,
+                                SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
+                                SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, NULL, NULL);
+    } while (!svc_handle && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE);
+    ok(svc_handle != NULL, "CreateService() error %lu\n", GetLastError());
+
+    strcpy(displayname, "deadbeef");
+    displaysize = sizeof(displayname);
+    SetLastError(0xdeadbeef);
+    ret = GetServiceDisplayNameA(scm_handle, servicename, displayname, &displaysize);
+    ok(ret, "GetServiceDisplayName() error %lu\n", GetLastError());
+    todo_wine
+    ok(!lstrcmpiA(displayname, servicename), "got \"%s\"\n", displayname);
+
+    ret = DeleteService(svc_handle);
+    ok(ret, "DeleteService() error %lu\n", GetLastError());
+
+    CloseServiceHandle(svc_handle);
     CloseServiceHandle(scm_handle);
 }
 
