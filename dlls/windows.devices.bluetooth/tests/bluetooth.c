@@ -422,16 +422,13 @@ static void test_BluetoothAdapterStatics(void)
     ok( !WindowsIsStringEmpty( str ), "got str %s.\n", debugstr_hstring( str ) );
 
     hr = IBluetoothAdapterStatics_FromIdAsync( bluetoothadapter_statics, str, &adapter_async );
-    todo_wine ok( hr == S_OK, "got hr %#lx.\n", hr );
-    if (SUCCEEDED( hr ))
-    {
-        await_bluetoothadapter( __LINE__, adapter_async );
-        check_bluetoothadapter_async( __LINE__, adapter_async, Completed, S_OK, &adapter2 );
-        IAsyncOperation_BluetoothAdapter_Release( adapter_async );
-        ok( adapter2 != NULL, "got adapter2 %p.\n", adapter2 );
-        ref = IBluetoothAdapter_Release( adapter2 );
-        ok( !ref, "got ref %ld.\n", ref );
-    }
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    await_bluetoothadapter( __LINE__, adapter_async );
+    check_bluetoothadapter_async( __LINE__, adapter_async, Completed, S_OK, &adapter2 );
+    IAsyncOperation_BluetoothAdapter_Release( adapter_async );
+    ok( adapter2 != NULL, "got adapter2 %p.\n", adapter2 );
+    ref = IBluetoothAdapter_Release( adapter2 );
+    ok( !ref, "got ref %ld.\n", ref );
     WindowsDeleteString( str );
 
     address = 0;

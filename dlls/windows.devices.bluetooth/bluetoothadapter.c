@@ -19,6 +19,7 @@
  */
 
 #include "private.h"
+#include "roapi.h"
 #include "setupapi.h"
 #include "wine/debug.h"
 
@@ -130,13 +131,34 @@ static HRESULT WINAPI bluetoothadapter_statics_GetDeviceSelector( IBluetoothAdap
     return WindowsCreateString( default_res, wcslen(default_res), result );
 }
 
+static HRESULT bluetoothadapter_get_adapter_async( IUnknown *invoker, IUnknown *params, PROPVARIANT *result, BOOL called_async );
+
 static HRESULT WINAPI bluetoothadapter_statics_FromIdAsync( IBluetoothAdapterStatics *iface, HSTRING id, IAsyncOperation_BluetoothAdapter **operation )
 {
-    FIXME( "iface %p, id %s, operation %p stub!\n", iface, debugstr_hstring(id), operation );
-    return E_NOTIMPL;
-}
+    static const WCHAR *class_name = RuntimeClass_Windows_Foundation_PropertyValue;
+    IPropertyValueStatics *statics;
+    IInspectable *id_propval;
+    HSTRING_HEADER hdr;
+    HSTRING str;
+    HRESULT hr;
 
-static HRESULT bluetoothadapter_get_default_async( IUnknown *invoker, IUnknown *params, PROPVARIANT *result, BOOL called_async );
+    TRACE( "iface %p, id %s, operation %p\n", iface, debugstr_hstring(id), operation );
+
+    if (FAILED((hr = WindowsCreateStringReference( class_name, wcslen( class_name ), &hdr, &str )))) return hr;
+    if (FAILED((hr = RoGetActivationFactory( str, &IID_IPropertyValueStatics, (void **)&statics )))) return hr;
+
+    hr = IPropertyValueStatics_CreateString( statics, id, &id_propval );
+    IPropertyValueStatics_Release( statics );
+    if (FAILED(hr)) return hr;
+
+    hr = async_operation_inspectable_create( &IID_IAsyncOperation_BluetoothAdapter,
+                                             (IUnknown *)iface,
+                                             (IUnknown *)id_propval,
+                                             bluetoothadapter_get_adapter_async,
+                                             (IAsyncOperation_IInspectable **)operation );
+    IInspectable_Release( id_propval );
+    return hr;
+}
 
 static HRESULT WINAPI bluetoothadapter_statics_GetDefaultAsync( IBluetoothAdapterStatics *iface, IAsyncOperation_BluetoothAdapter **operation )
 {
@@ -144,7 +166,7 @@ static HRESULT WINAPI bluetoothadapter_statics_GetDefaultAsync( IBluetoothAdapte
     return async_operation_inspectable_create( &IID_IAsyncOperation_BluetoothAdapter,
                                                (IUnknown *)iface,
                                                NULL,
-                                               bluetoothadapter_get_default_async,
+                                               bluetoothadapter_get_adapter_async,
                                                (IAsyncOperation_IInspectable **)operation );
     return E_NOTIMPL;
 }
@@ -331,16 +353,30 @@ static HRESULT create_bluetoothadapter( const WCHAR *path, IBluetoothAdapter **o
     return S_OK;
 }
 
-static HRESULT bluetoothadapter_get_default_async( IUnknown *invoker, IUnknown *params, PROPVARIANT *result, BOOL called_async )
+static HRESULT bluetoothadapter_get_adapter_async( IUnknown *invoker, IUnknown *params, PROPVARIANT *result, BOOL called_async )
 {
     char buffer[sizeof( SP_DEVICE_INTERFACE_DETAIL_DATA_W ) + MAX_PATH * sizeof( WCHAR )];
     SP_DEVICE_INTERFACE_DETAIL_DATA_W *iface_detail = (SP_DEVICE_INTERFACE_DETAIL_DATA_W *)buffer;
     SP_DEVICE_INTERFACE_DATA iface_data;
+    const WCHAR *adapter_id = NULL;
+    HSTRING adapter_id_hstr = NULL;
+    UINT32 adapter_id_size = 0;
     HRESULT hr = S_OK;
     HDEVINFO devinfo;
     DWORD idx = 0;
 
     if (!called_async) return STATUS_PENDING;
+    if (params)
+    {
+        IPropertyValue *id_propval;
+
+        if (FAILED((hr = IUnknown_QueryInterface( params, &IID_IPropertyValue, (void **)&id_propval )))) return hr;
+        hr = IPropertyValue_GetString( id_propval, &adapter_id_hstr );
+        IPropertyValue_Release( id_propval );
+        if (FAILED(hr)) return hr;
+        adapter_id = WindowsGetStringRawBuffer( adapter_id_hstr, &adapter_id_size );
+        adapter_id_size *= sizeof( WCHAR );
+    }
 
     iface_detail->cbSize = sizeof( *iface_detail );
     iface_data.cbSize = sizeof( iface_data );
@@ -353,10 +389,16 @@ static HRESULT bluetoothadapter_get_default_async( IUnknown *invoker, IUnknown *
     while (SetupDiEnumDeviceInterfaces( devinfo, NULL, &GUID_BLUETOOTH_RADIO_INTERFACE, idx++, &iface_data ))
     {
         IBluetoothAdapter *adapter = NULL;
+        DWORD path_size;
 
-        if (!SetupDiGetDeviceInterfaceDetailW( devinfo, &iface_data, iface_detail, sizeof( buffer ), NULL, NULL ))
+        if (!SetupDiGetDeviceInterfaceDetailW( devinfo, &iface_data, iface_detail, sizeof( buffer ), &path_size, NULL ))
             continue;
 
+        if (adapter_id)
+        {
+            path_size -= (offsetof( SP_DEVICE_INTERFACE_DETAIL_DATA_W, DevicePath ) + sizeof( WCHAR ));
+            if (adapter_id_size != path_size || wcsicmp( iface_detail->DevicePath, adapter_id )) continue;
+        }
         if (SUCCEEDED((hr = create_bluetoothadapter( iface_detail->DevicePath, &adapter ))))
         {
             result->vt = VT_UNKNOWN;
@@ -365,6 +407,7 @@ static HRESULT bluetoothadapter_get_default_async( IUnknown *invoker, IUnknown *
         break;
     }
 
+    WindowsDeleteString( adapter_id_hstr );
     SetupDiDestroyDeviceInfoList( devinfo );
     return hr;
 }
