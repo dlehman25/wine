@@ -199,6 +199,7 @@ struct bluetoothadapter
 {
     IBluetoothAdapter IBluetoothAdapter_iface;
     HSTRING id;
+    HANDLE radio;
     LONG ref;
 };
 
@@ -243,6 +244,7 @@ static WINAPI ULONG bluetoothadapter_Release( IBluetoothAdapter *iface )
     if (!ref)
     {
         WindowsDeleteString( impl->id );
+        CloseHandle( impl->radio );
         free( impl );
     }
     return ref;
@@ -275,8 +277,17 @@ static HRESULT WINAPI bluetoothadapter_get_DeviceId( IBluetoothAdapter *iface, H
 
 static HRESULT WINAPI bluetoothadpter_get_BluetoothAddress( IBluetoothAdapter *iface, UINT64 *addr )
 {
-    FIXME( "iface %p, addr %p stub!\n", iface, addr );
-    return E_NOTIMPL;
+    struct bluetoothadapter *impl = impl_from_IBluetoothAdapter( iface );
+    BLUETOOTH_RADIO_INFO info = {0};
+    DWORD ret;
+
+    TRACE( "iface %p, addr %p\n", iface, addr );
+
+    info.dwSize = sizeof( info );
+    ret = BluetoothGetRadioInfo( impl->radio, &info );
+    if (!ret)
+        *addr = info.address.ullLong;
+    return HRESULT_FROM_WIN32( ret );
 }
 
 static HRESULT WINAPI bluetoothadapter_get_IsClassicSupported( IBluetoothAdapter *iface, boolean *value )
@@ -343,8 +354,15 @@ static HRESULT create_bluetoothadapter( const WCHAR *path, IBluetoothAdapter **o
 
     if (!(impl = calloc( 1, sizeof( *impl ) ))) return E_OUTOFMEMORY;
     impl->IBluetoothAdapter_iface.lpVtbl = &bluetoothadapter_vtbl;
+    impl->radio = CreateFileW( path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL );
+    if (impl->radio == INVALID_HANDLE_VALUE)
+    {
+        free( impl );
+        return HRESULT_FROM_WIN32( GetLastError() );
+    }
     if (FAILED((hr = WindowsCreateString( path, wcslen( path ), &impl->id ))))
     {
+        CloseHandle( impl->radio );
         free( impl );
         return hr;
     }

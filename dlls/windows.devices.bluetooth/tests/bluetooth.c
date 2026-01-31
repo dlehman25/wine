@@ -433,8 +433,8 @@ static void test_BluetoothAdapterStatics(void)
 
     address = 0;
     hr = IBluetoothAdapter_get_BluetoothAddress( adapter1, &address );
-    todo_wine ok( hr == S_OK, "got hr %#lx.\n", hr );
-    todo_wine ok( address, "got address %#I64x.\n", address );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    ok( address, "got address %#I64x.\n", address );
 
     radio_find = BluetoothFindFirstRadio( &params, &radio );
     ok( radio_find != NULL, "Got radio_find %p\n", radio_find );
@@ -454,7 +454,7 @@ static void test_BluetoothAdapterStatics(void)
         if (!BluetoothFindNextRadio( radio_find, &radio )) break;
     }
     BluetoothFindRadioClose( radio_find );
-    todo_wine ok( found, "got found %d\n", found );
+    ok( found, "got found %d\n", found );
 
     hr = IBluetoothAdapter_get_IsLowEnergySupported( adapter1, &bool_val );
     todo_wine ok( hr == S_OK, "got hr %#lx.\n", hr );

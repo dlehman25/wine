@@ -29,6 +29,8 @@
 
 #include "activation.h"
 #include "bthdef.h"
+#include "bthsdpdef.h"
+#include "bluetoothapis.h"
 
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
