@@ -940,7 +940,6 @@ PROC wrap_wglGetProcAddress( TEB *teb, LPCSTR name )
             unsigned int i;
             static const struct { const char *name, *alt; } alternatives[] =
             {
-                { "glCopyTexSubImage3DEXT", "glCopyTexSubImage3D" },     /* needed by RuneScape */
                 { "glVertexAttribDivisor", "glVertexAttribDivisorARB"},  /* needed by Caffeine */
                 { "glCompressedTexImage2DARB", "glCompressedTexImage2D" }, /* needed by Grim Fandango Remastered */
             };

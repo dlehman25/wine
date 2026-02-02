@@ -2199,6 +2199,7 @@ static void test_getprocaddress(HDC hdc)
     const char *extensions = (const char*)glGetString(GL_EXTENSIONS);
     PROC func = NULL;
     HGLRC ctx = wglGetCurrentContext();
+    BOOL expect;
 
     if (!extensions)
     {
@@ -2237,6 +2238,27 @@ static void test_getprocaddress(HDC hdc)
     func = wglGetProcAddress("glActiveTextureARB");
     ok(func == NULL, "Function lookup without a context passed, expected a failure; last error %#lx\n", GetLastError());
     wglMakeCurrent(hdc, ctx);
+
+    /* functions aren't automatically aliased */
+    func = wglGetProcAddress("glBlendFuncSeparate");
+    ok(func != NULL, "got glBlendFuncSeparate %p\n", func);
+    func = wglGetProcAddress("glBlendFuncSeparateINGR");
+    expect = gl_extension_supported(extensions, "GL_INGR_blend_func_separate");
+    ok(expect ? func != NULL : func == NULL, "got glBlendFuncSeparateINGR %p\n", func);
+
+    /* needed by RuneScape */
+    expect = gl_extension_supported(extensions, "GL_EXT_copy_texture");
+    ok(expect || broken(!expect) /* NVIDIA */, "GL_EXT_copy_texture missing\n");
+    func = wglGetProcAddress("glCopyTexImage1DEXT");
+    ok(func != NULL, "got glCopyTexImage1DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexImage2DEXT");
+    ok(func != NULL, "got glCopyTexImage2DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexSubImage1DEXT");
+    ok(func != NULL, "got glCopyTexSubImage1DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexSubImage2DEXT");
+    ok(func != NULL, "got glCopyTexSubImage2DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexSubImage3DEXT");
+    ok(func != NULL, "got glCopyTexSubImage3DEXT %p\n", func);
 }
 
 static void test_make_current_read(HDC hdc)

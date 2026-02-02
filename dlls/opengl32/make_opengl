@@ -968,6 +968,7 @@ my %unexposed_extensions =
 my %extension_aliases =
     (
      "GL_EXT_blend_equation_separate" => "GL_ATI_blend_equation_separate",
+     "GL_EXT_copy_texture" => "GL_VERSION_1_2",
      "GL_EXT_multi_draw_arrays" => "GL_SUN_multi_draw_arrays",
     );
 
