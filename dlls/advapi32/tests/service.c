@@ -2879,15 +2879,14 @@ static void test_refcount(void)
     ret = CloseServiceHandle(svc_handle1);
     ok(ret, "Expected success (err=%ld)\n", GetLastError());
 
-    /* Wait a while. Doing a CreateService too soon will result again
-     * in an ERROR_SERVICE_MARKED_FOR_DELETE error.
-     */
-    Sleep(1000);
-
-    /* We succeed now as all handles are closed (tested this also with a long SLeep() */
-    svc_handle5 = CreateServiceA(scm_handle, servicename, NULL, GENERIC_ALL,
-                                 SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
-                                 SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, NULL, NULL);
+    /* We succeed now as all handles are closed (tested this also with a long Sleep() */
+    do
+    {
+        SetLastError(0xdeadbeef);
+        svc_handle5 = CreateServiceA(scm_handle, servicename, NULL, GENERIC_ALL,
+                                     SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
+                                     SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, NULL, NULL);
+    } while (!svc_handle5 && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE);
     ok(svc_handle5 != NULL, "Expected success, got error %lu\n", GetLastError());
 
     /* Delete the service */
