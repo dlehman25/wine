@@ -2259,6 +2259,12 @@ static void test_getprocaddress(HDC hdc)
     ok(func != NULL, "got glCopyTexSubImage2DEXT %p\n", func);
     func = wglGetProcAddress("glCopyTexSubImage3DEXT");
     ok(func != NULL, "got glCopyTexSubImage3DEXT %p\n", func);
+
+    /* needed by Grim Fandango Remastered */
+    expect = gl_extension_supported(extensions, "GL_ARB_texture_compression");
+    ok(expect, "GL_ARB_texture_compression missing\n");
+    func = wglGetProcAddress("glCompressedTexImage2DARB");
+    ok(func != NULL, "got glCompressedTexImage2DARB %p\n", func);
 }
 
 static void test_make_current_read(HDC hdc)
