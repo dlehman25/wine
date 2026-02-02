@@ -937,20 +937,6 @@ PROC wrap_wglGetProcAddress( TEB *teb, LPCSTR name )
 
         if (!is_any_extension_supported( ctx, found->extension ))
         {
-            unsigned int i;
-            static const struct { const char *name, *alt; } alternatives[] =
-            {
-                { "glVertexAttribDivisor", "glVertexAttribDivisorARB"},  /* needed by Caffeine */
-            };
-
-            for (i = 0; i < ARRAY_SIZE(alternatives); i++)
-            {
-                if (strcmp( name, alternatives[i].name )) continue;
-                WARN( "Extension %s required for %s not supported, trying %s\n", found->extension,
-                      name, alternatives[i].alt );
-                return wrap_wglGetProcAddress( teb, alternatives[i].alt );
-            }
-
             WARN( "Extension %s required for %s not supported\n", found->extension, name );
             return (void *)-1;
         }
