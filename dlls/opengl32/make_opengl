@@ -916,9 +916,6 @@ my @extra_wgl_functions = ( "wglGetDefaultProcAddress" );
 
 my %unsupported_extgroups =
    (
-    "WGL_3DL_" => 1,
-    "WGL_I3D_" => 1,
-    "WGL_OML_" => 1,
     "EGL_ANDROID_" => 1,
     "EGL_ANGLE_" => 1,
     "EGL_ARM_" => 1,
@@ -926,9 +923,94 @@ my %unsupported_extgroups =
     "EGL_NOK_" => 1,
     "EGL_QNX_" => 1,
     "EGL_TIZEN_" => 1,
+    "GL_ANDROID_" => 1,
+    "GL_ANGLE_" => 1,
+    "GL_ARM_" => 1,
+    "GL_DMP_" => 1,
+    "GL_FJ_" => 1,
+    "GL_HUAWEI_" => 1,
+    "GL_QCOM_" => 1,
+    "GL_VIV_" => 1,
+    "WGL_3DL_" => 1,
+    "WGL_I3D_" => 1,
+    "WGL_OML_" => 1,
    );
 my %unsupported_extensions =
    (
+    "GL_APPLE_copy_texture_levels" => 1,
+    "GL_APPLE_framebuffer_multisample" => 1,
+    "GL_APPLE_sync" => 1,
+    "GL_EXT_base_instance" => 1,
+    "GL_EXT_blend_func_extended" => 1,
+    "GL_EXT_buffer_storage" => 1,
+    "GL_EXT_clear_texture" => 1,
+    "GL_EXT_clip_control" => 1,
+    "GL_EXT_copy_image" => 1,
+    "GL_EXT_discard_framebuffer" => 1,
+    "GL_EXT_disjoint_timer_query" => 1,
+    "GL_EXT_draw_buffers" => 1,
+    "GL_EXT_draw_buffers_indexed" => 1,
+    "GL_EXT_draw_elements_base_vertex" => 1,
+    "GL_EXT_draw_transform_feedback" => 1,
+    "GL_EXT_geometry_shader" => 1,
+    "GL_EXT_instanced_arrays" => 1,
+    "GL_EXT_map_buffer_range" => 1,
+    "GL_EXT_multi_draw_indirect" => 1,
+    "GL_EXT_multisampled_render_to_texture" => 1,
+    "GL_EXT_multiview_draw_buffers" => 1,
+    "GL_EXT_occlusion_query_boolean" => 1,
+    "GL_EXT_primitive_bounding_box" => 1,
+    "GL_EXT_robustness" => 1,
+    "GL_EXT_shader_pixel_local_storage2" => 1,
+    "GL_EXT_sparse_texture" => 1,
+    "GL_EXT_tessellation_shader" => 1,
+    "GL_EXT_texture_border_clamp" => 1,
+    "GL_EXT_texture_buffer" => 1,
+    "GL_EXT_texture_storage_compression" => 1,
+    "GL_EXT_texture_view" => 1,
+    "GL_IMG_bindless_texture" => 1,
+    "GL_IMG_framebuffer_downsample" => 1,
+    "GL_IMG_multisampled_render_to_texture" => 1,
+    "GL_IMG_user_clip_plane" => 1,
+    "GL_MESA_sampler_objects" => 1,
+    "GL_NV_copy_buffer" => 1,
+    "GL_NV_coverage_sample" => 1,
+    "GL_NV_draw_buffers" => 1,
+    "GL_NV_draw_instanced" => 1,
+    "GL_NV_framebuffer_blit" => 1,
+    "GL_NV_framebuffer_multisample" => 1,
+    "GL_NV_instanced_arrays" => 1,
+    "GL_NV_non_square_matrices" => 1,
+    "GL_NV_polygon_mode" => 1,
+    "GL_NV_read_buffer" => 1,
+    "GL_NV_viewport_array" => 1,
+    "GL_OES_blend_equation_separate" => 1,
+    "GL_OES_blend_func_separate" => 1,
+    "GL_OES_blend_subtract" => 1,
+    "GL_OES_copy_image" => 1,
+    "GL_OES_draw_buffers_indexed" => 1,
+    "GL_OES_draw_elements_base_vertex" => 1,
+    "GL_OES_draw_texture" => 1,
+    "GL_OES_EGL_image" => 1,
+    "GL_OES_EGL_image_external" => 1,
+    "GL_OES_framebuffer_object" => 1,
+    "GL_OES_geometry_shader" => 1,
+    "GL_OES_get_program_binary" => 1,
+    "GL_OES_mapbuffer" => 1,
+    "GL_OES_matrix_palette" => 1,
+    "GL_OES_point_size_array" => 1,
+    "GL_OES_primitive_bounding_box" => 1,
+    "GL_OES_sample_shading" => 1,
+    "GL_OES_tessellation_shader" => 1,
+    "GL_OES_texture_3D" => 1,
+    "GL_OES_texture_border_clamp" => 1,
+    "GL_OES_texture_buffer" => 1,
+    "GL_OES_texture_cube_map" => 1,
+    "GL_OES_texture_storage_multisample_2d_array" => 1,
+    "GL_OES_texture_view" => 1,
+    "GL_OES_vertex_array_object" => 1,
+    "GL_OES_viewport_array" => 1,
+    "GL_OVR_multiview_multisampled_render_to_texture" => 1,
     "WGL_AMD_gpu_association" => 1,
     "WGL_ARB_buffer_region" => 1,
     "WGL_EXT_display_color_table" => 1,
@@ -964,6 +1046,9 @@ my %extension_aliases =
 my %supported_apis =
     (
      "gl" => 1,
+     "gles" => 1,
+     "gles1" => 1,
+     "gles2" => 1,
     );
 
 sub is_supported_api($)
@@ -1194,6 +1279,10 @@ sub parse_file($)
         {
             $feature_name = "GL_NV_ES1_1_compatibility";
             add_extension( $feature_name );
+        }
+        elsif (my ($version) = ($feature_name =~ /GL_ES_VERSION_(.*)/))
+        {
+            $feature_name = "GL_ARB_ES" . $version . "_compatibility";
         }
         else
         {

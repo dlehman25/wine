@@ -3372,6 +3372,11 @@ struct glBitmapxOES_params
     const GLubyte *bitmap;
 };
 
+struct glBlendBarrier_params
+{
+    TEB *teb;
+};
+
 struct glBlendBarrierKHR_params
 {
     TEB *teb;
@@ -16201,6 +16206,19 @@ struct glPresentFrameKeyedNV_params
     GLuint key1;
 };
 
+struct glPrimitiveBoundingBox_params
+{
+    TEB *teb;
+    GLfloat minX;
+    GLfloat minY;
+    GLfloat minZ;
+    GLfloat minW;
+    GLfloat maxX;
+    GLfloat maxY;
+    GLfloat maxZ;
+    GLfloat maxW;
+};
+
 struct glPrimitiveBoundingBoxARB_params
 {
     TEB *teb;
@@ -26319,6 +26337,7 @@ enum unix_funcs
     unix_glBinormal3svEXT,
     unix_glBinormalPointerEXT,
     unix_glBitmapxOES,
+    unix_glBlendBarrier,
     unix_glBlendBarrierKHR,
     unix_glBlendBarrierNV,
     unix_glBlendColor,
@@ -27827,6 +27846,7 @@ enum unix_funcs
     unix_glPopGroupMarkerEXT,
     unix_glPresentFrameDualFillNV,
     unix_glPresentFrameKeyedNV,
+    unix_glPrimitiveBoundingBox,
     unix_glPrimitiveBoundingBoxARB,
     unix_glPrimitiveRestartIndex,
     unix_glPrimitiveRestartIndexNV,

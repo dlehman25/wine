@@ -693,6 +693,8 @@ typedef unsigned int GLhandleARB;
 #define GL_2_BYTES                                                                 0x1407
 #define GL_2_BYTES_NV                                                              0x1407
 #define GL_3D                                                                      0x0601
+#define GL_3DC_XY_AMD                                                              0x87FA
+#define GL_3DC_X_AMD                                                               0x87F9
 #define GL_3D_COLOR                                                                0x0602
 #define GL_3D_COLOR_TEXTURE                                                        0x0603
 #define GL_3_BYTES                                                                 0x1408
@@ -747,6 +749,7 @@ typedef unsigned int GLhandleARB;
 #define GL_ACTIVE_VERTEX_UNITS_ARB                                                 0x86A5
 #define GL_ADD                                                                     0x0104
 #define GL_ADD_ATI                                                                 0x8963
+#define GL_ADD_BLEND_IMG                                                           0x8C09
 #define GL_ADD_SIGNED                                                              0x8574
 #define GL_ADD_SIGNED_ARB                                                          0x8574
 #define GL_ADD_SIGNED_EXT                                                          0x8574
@@ -787,6 +790,7 @@ typedef unsigned int GLhandleARB;
 #define GL_ALPHA8I_EXT                                                             0x8D90
 #define GL_ALPHA8UI_EXT                                                            0x8D7E
 #define GL_ALPHA8_EXT                                                              0x803C
+#define GL_ALPHA8_OES                                                              0x803C
 #define GL_ALPHA8_SNORM                                                            0x9014
 #define GL_ALPHA_BIAS                                                              0x0D1D
 #define GL_ALPHA_BITS                                                              0x0D55
@@ -837,6 +841,9 @@ typedef unsigned int GLhandleARB;
 #define GL_ASYNC_MARKER_SGIX                                                       0x8329
 #define GL_ASYNC_READ_PIXELS_SGIX                                                  0x835E
 #define GL_ASYNC_TEX_IMAGE_SGIX                                                    0x835C
+#define GL_ATC_RGBA_EXPLICIT_ALPHA_AMD                                             0x8C93
+#define GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD                                         0x87EE
+#define GL_ATC_RGB_AMD                                                             0x8C92
 #define GL_ATOMIC_COUNTER_BARRIER_BIT                                              0x00001000
 #define GL_ATOMIC_COUNTER_BARRIER_BIT_EXT                                          0x00001000
 #define GL_ATOMIC_COUNTER_BUFFER                                                   0x92C0
@@ -888,6 +895,7 @@ typedef unsigned int GLhandleARB;
 #define GL_BGRA                                                                    0x80E1
 #define GL_BGRA8_EXT                                                               0x93A1
 #define GL_BGRA_EXT                                                                0x80E1
+#define GL_BGRA_IMG                                                                0x80E1
 #define GL_BGRA_INTEGER                                                            0x8D9B
 #define GL_BGRA_INTEGER_EXT                                                        0x8D9B
 #define GL_BGR_EXT                                                                 0x80E0
@@ -999,6 +1007,7 @@ typedef unsigned int GLhandleARB;
 #define GL_CLAMP_READ_COLOR_ARB                                                    0x891C
 #define GL_CLAMP_TO_BORDER                                                         0x812D
 #define GL_CLAMP_TO_BORDER_ARB                                                     0x812D
+#define GL_CLAMP_TO_BORDER_NV                                                      0x812D
 #define GL_CLAMP_TO_BORDER_SGIS                                                    0x812D
 #define GL_CLAMP_TO_EDGE                                                           0x812F
 #define GL_CLAMP_TO_EDGE_SGIS                                                      0x812F
@@ -1021,13 +1030,29 @@ typedef unsigned int GLhandleARB;
 #define GL_CLIPPING_OUTPUT_PRIMITIVES_ARB                                          0x82F7
 #define GL_CLIP_DEPTH_MODE                                                         0x935D
 #define GL_CLIP_DISTANCE0                                                          0x3000
+#define GL_CLIP_DISTANCE0_APPLE                                                    0x3000
+#define GL_CLIP_DISTANCE0_EXT                                                      0x3000
 #define GL_CLIP_DISTANCE1                                                          0x3001
+#define GL_CLIP_DISTANCE1_APPLE                                                    0x3001
+#define GL_CLIP_DISTANCE1_EXT                                                      0x3001
 #define GL_CLIP_DISTANCE2                                                          0x3002
+#define GL_CLIP_DISTANCE2_APPLE                                                    0x3002
+#define GL_CLIP_DISTANCE2_EXT                                                      0x3002
 #define GL_CLIP_DISTANCE3                                                          0x3003
+#define GL_CLIP_DISTANCE3_APPLE                                                    0x3003
+#define GL_CLIP_DISTANCE3_EXT                                                      0x3003
 #define GL_CLIP_DISTANCE4                                                          0x3004
+#define GL_CLIP_DISTANCE4_APPLE                                                    0x3004
+#define GL_CLIP_DISTANCE4_EXT                                                      0x3004
 #define GL_CLIP_DISTANCE5                                                          0x3005
+#define GL_CLIP_DISTANCE5_APPLE                                                    0x3005
+#define GL_CLIP_DISTANCE5_EXT                                                      0x3005
 #define GL_CLIP_DISTANCE6                                                          0x3006
+#define GL_CLIP_DISTANCE6_APPLE                                                    0x3006
+#define GL_CLIP_DISTANCE6_EXT                                                      0x3006
 #define GL_CLIP_DISTANCE7                                                          0x3007
+#define GL_CLIP_DISTANCE7_APPLE                                                    0x3007
+#define GL_CLIP_DISTANCE7_EXT                                                      0x3007
 #define GL_CLIP_DISTANCE_NV                                                        0x8C7A
 #define GL_CLIP_FAR_HINT_PGI                                                       0x1A221
 #define GL_CLIP_NEAR_HINT_PGI                                                      0x1A220
@@ -1048,8 +1073,10 @@ typedef unsigned int GLhandleARB;
 #define GL_COLOR                                                                   0x1800
 #define GL_COLOR3_BIT_PGI                                                          0x00010000
 #define GL_COLOR4_BIT_PGI                                                          0x00020000
+#define GL_COLORBURN                                                               0x929A
 #define GL_COLORBURN_KHR                                                           0x929A
 #define GL_COLORBURN_NV                                                            0x929A
+#define GL_COLORDODGE                                                              0x9299
 #define GL_COLORDODGE_KHR                                                          0x9299
 #define GL_COLORDODGE_NV                                                           0x9299
 #define GL_COLOR_ALPHA_PAIRING_ATI                                                 0x8975
@@ -1073,24 +1100,32 @@ typedef unsigned int GLhandleARB;
 #define GL_COLOR_ARRAY_TYPE_EXT                                                    0x8082
 #define GL_COLOR_ATTACHMENT0                                                       0x8CE0
 #define GL_COLOR_ATTACHMENT0_EXT                                                   0x8CE0
+#define GL_COLOR_ATTACHMENT0_NV                                                    0x8CE0
 #define GL_COLOR_ATTACHMENT1                                                       0x8CE1
 #define GL_COLOR_ATTACHMENT10                                                      0x8CEA
 #define GL_COLOR_ATTACHMENT10_EXT                                                  0x8CEA
+#define GL_COLOR_ATTACHMENT10_NV                                                   0x8CEA
 #define GL_COLOR_ATTACHMENT11                                                      0x8CEB
 #define GL_COLOR_ATTACHMENT11_EXT                                                  0x8CEB
+#define GL_COLOR_ATTACHMENT11_NV                                                   0x8CEB
 #define GL_COLOR_ATTACHMENT12                                                      0x8CEC
 #define GL_COLOR_ATTACHMENT12_EXT                                                  0x8CEC
+#define GL_COLOR_ATTACHMENT12_NV                                                   0x8CEC
 #define GL_COLOR_ATTACHMENT13                                                      0x8CED
 #define GL_COLOR_ATTACHMENT13_EXT                                                  0x8CED
+#define GL_COLOR_ATTACHMENT13_NV                                                   0x8CED
 #define GL_COLOR_ATTACHMENT14                                                      0x8CEE
 #define GL_COLOR_ATTACHMENT14_EXT                                                  0x8CEE
+#define GL_COLOR_ATTACHMENT14_NV                                                   0x8CEE
 #define GL_COLOR_ATTACHMENT15                                                      0x8CEF
 #define GL_COLOR_ATTACHMENT15_EXT                                                  0x8CEF
+#define GL_COLOR_ATTACHMENT15_NV                                                   0x8CEF
 #define GL_COLOR_ATTACHMENT16                                                      0x8CF0
 #define GL_COLOR_ATTACHMENT17                                                      0x8CF1
 #define GL_COLOR_ATTACHMENT18                                                      0x8CF2
 #define GL_COLOR_ATTACHMENT19                                                      0x8CF3
 #define GL_COLOR_ATTACHMENT1_EXT                                                   0x8CE1
+#define GL_COLOR_ATTACHMENT1_NV                                                    0x8CE1
 #define GL_COLOR_ATTACHMENT2                                                       0x8CE2
 #define GL_COLOR_ATTACHMENT20                                                      0x8CF4
 #define GL_COLOR_ATTACHMENT21                                                      0x8CF5
@@ -1103,22 +1138,30 @@ typedef unsigned int GLhandleARB;
 #define GL_COLOR_ATTACHMENT28                                                      0x8CFC
 #define GL_COLOR_ATTACHMENT29                                                      0x8CFD
 #define GL_COLOR_ATTACHMENT2_EXT                                                   0x8CE2
+#define GL_COLOR_ATTACHMENT2_NV                                                    0x8CE2
 #define GL_COLOR_ATTACHMENT3                                                       0x8CE3
 #define GL_COLOR_ATTACHMENT30                                                      0x8CFE
 #define GL_COLOR_ATTACHMENT31                                                      0x8CFF
 #define GL_COLOR_ATTACHMENT3_EXT                                                   0x8CE3
+#define GL_COLOR_ATTACHMENT3_NV                                                    0x8CE3
 #define GL_COLOR_ATTACHMENT4                                                       0x8CE4
 #define GL_COLOR_ATTACHMENT4_EXT                                                   0x8CE4
+#define GL_COLOR_ATTACHMENT4_NV                                                    0x8CE4
 #define GL_COLOR_ATTACHMENT5                                                       0x8CE5
 #define GL_COLOR_ATTACHMENT5_EXT                                                   0x8CE5
+#define GL_COLOR_ATTACHMENT5_NV                                                    0x8CE5
 #define GL_COLOR_ATTACHMENT6                                                       0x8CE6
 #define GL_COLOR_ATTACHMENT6_EXT                                                   0x8CE6
+#define GL_COLOR_ATTACHMENT6_NV                                                    0x8CE6
 #define GL_COLOR_ATTACHMENT7                                                       0x8CE7
 #define GL_COLOR_ATTACHMENT7_EXT                                                   0x8CE7
+#define GL_COLOR_ATTACHMENT7_NV                                                    0x8CE7
 #define GL_COLOR_ATTACHMENT8                                                       0x8CE8
 #define GL_COLOR_ATTACHMENT8_EXT                                                   0x8CE8
+#define GL_COLOR_ATTACHMENT8_NV                                                    0x8CE8
 #define GL_COLOR_ATTACHMENT9                                                       0x8CE9
 #define GL_COLOR_ATTACHMENT9_EXT                                                   0x8CE9
+#define GL_COLOR_ATTACHMENT9_NV                                                    0x8CE9
 #define GL_COLOR_BUFFER_BIT                                                        0x00004000
 #define GL_COLOR_CLEAR_UNCLAMPED_VALUE_ATI                                         0x8835
 #define GL_COLOR_CLEAR_VALUE                                                       0x0C22
@@ -1203,6 +1246,7 @@ typedef unsigned int GLhandleARB;
 #define GL_COMMAND_BARRIER_BIT_EXT                                                 0x00000040
 #define GL_COMPARE_REF_DEPTH_TO_TEXTURE_EXT                                        0x884E
 #define GL_COMPARE_REF_TO_TEXTURE                                                  0x884E
+#define GL_COMPARE_REF_TO_TEXTURE_EXT                                              0x884E
 #define GL_COMPARE_R_TO_TEXTURE                                                    0x884E
 #define GL_COMPARE_R_TO_TEXTURE_ARB                                                0x884E
 #define GL_COMPATIBLE_SUBROUTINES                                                  0x8E4B
@@ -1234,32 +1278,65 @@ typedef unsigned int GLhandleARB;
 #define GL_COMPRESSED_RGBA                                                         0x84EE
 #define GL_COMPRESSED_RGBA8_ETC2_EAC                                               0x9278
 #define GL_COMPRESSED_RGBA_ARB                                                     0x84EE
+#define GL_COMPRESSED_RGBA_ASTC_10x10                                              0x93BB
 #define GL_COMPRESSED_RGBA_ASTC_10x10_KHR                                          0x93BB
+#define GL_COMPRESSED_RGBA_ASTC_10x5                                               0x93B8
 #define GL_COMPRESSED_RGBA_ASTC_10x5_KHR                                           0x93B8
+#define GL_COMPRESSED_RGBA_ASTC_10x6                                               0x93B9
 #define GL_COMPRESSED_RGBA_ASTC_10x6_KHR                                           0x93B9
+#define GL_COMPRESSED_RGBA_ASTC_10x8                                               0x93BA
 #define GL_COMPRESSED_RGBA_ASTC_10x8_KHR                                           0x93BA
+#define GL_COMPRESSED_RGBA_ASTC_12x10                                              0x93BC
 #define GL_COMPRESSED_RGBA_ASTC_12x10_KHR                                          0x93BC
+#define GL_COMPRESSED_RGBA_ASTC_12x12                                              0x93BD
 #define GL_COMPRESSED_RGBA_ASTC_12x12_KHR                                          0x93BD
+#define GL_COMPRESSED_RGBA_ASTC_3x3x3_OES                                          0x93C0
+#define GL_COMPRESSED_RGBA_ASTC_4x3x3_OES                                          0x93C1
+#define GL_COMPRESSED_RGBA_ASTC_4x4                                                0x93B0
 #define GL_COMPRESSED_RGBA_ASTC_4x4_KHR                                            0x93B0
+#define GL_COMPRESSED_RGBA_ASTC_4x4x3_OES                                          0x93C2
+#define GL_COMPRESSED_RGBA_ASTC_4x4x4_OES                                          0x93C3
+#define GL_COMPRESSED_RGBA_ASTC_5x4                                                0x93B1
 #define GL_COMPRESSED_RGBA_ASTC_5x4_KHR                                            0x93B1
+#define GL_COMPRESSED_RGBA_ASTC_5x4x4_OES                                          0x93C4
+#define GL_COMPRESSED_RGBA_ASTC_5x5                                                0x93B2
 #define GL_COMPRESSED_RGBA_ASTC_5x5_KHR                                            0x93B2
+#define GL_COMPRESSED_RGBA_ASTC_5x5x4_OES                                          0x93C5
+#define GL_COMPRESSED_RGBA_ASTC_5x5x5_OES                                          0x93C6
+#define GL_COMPRESSED_RGBA_ASTC_6x5                                                0x93B3
 #define GL_COMPRESSED_RGBA_ASTC_6x5_KHR                                            0x93B3
+#define GL_COMPRESSED_RGBA_ASTC_6x5x5_OES                                          0x93C7
+#define GL_COMPRESSED_RGBA_ASTC_6x6                                                0x93B4
 #define GL_COMPRESSED_RGBA_ASTC_6x6_KHR                                            0x93B4
+#define GL_COMPRESSED_RGBA_ASTC_6x6x5_OES                                          0x93C8
+#define GL_COMPRESSED_RGBA_ASTC_6x6x6_OES                                          0x93C9
+#define GL_COMPRESSED_RGBA_ASTC_8x5                                                0x93B5
 #define GL_COMPRESSED_RGBA_ASTC_8x5_KHR                                            0x93B5
+#define GL_COMPRESSED_RGBA_ASTC_8x6                                                0x93B6
 #define GL_COMPRESSED_RGBA_ASTC_8x6_KHR                                            0x93B6
+#define GL_COMPRESSED_RGBA_ASTC_8x8                                                0x93B7
 #define GL_COMPRESSED_RGBA_ASTC_8x8_KHR                                            0x93B7
 #define GL_COMPRESSED_RGBA_BPTC_UNORM                                              0x8E8C
 #define GL_COMPRESSED_RGBA_BPTC_UNORM_ARB                                          0x8E8C
+#define GL_COMPRESSED_RGBA_BPTC_UNORM_EXT                                          0x8E8C
 #define GL_COMPRESSED_RGBA_FXT1_3DFX                                               0x86B1
+#define GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG                                        0x8C03
+#define GL_COMPRESSED_RGBA_PVRTC_2BPPV2_IMG                                        0x9137
+#define GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG                                        0x8C02
+#define GL_COMPRESSED_RGBA_PVRTC_4BPPV2_IMG                                        0x9138
 #define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT                                           0x83F1
 #define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT                                           0x83F2
 #define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT                                           0x83F3
 #define GL_COMPRESSED_RGB_ARB                                                      0x84ED
 #define GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT                                        0x8E8E
 #define GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB                                    0x8E8E
+#define GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_EXT                                    0x8E8E
 #define GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT                                      0x8E8F
 #define GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB                                  0x8E8F
+#define GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_EXT                                  0x8E8F
 #define GL_COMPRESSED_RGB_FXT1_3DFX                                                0x86B0
+#define GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG                                         0x8C01
+#define GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG                                         0x8C00
 #define GL_COMPRESSED_RGB_S3TC_DXT1_EXT                                            0x83F0
 #define GL_COMPRESSED_RG_RGTC2                                                     0x8DBD
 #define GL_COMPRESSED_SIGNED_LUMINANCE_ALPHA_LATC2_EXT                             0x8C73
@@ -1275,19 +1352,43 @@ typedef unsigned int GLhandleARB;
 #define GL_COMPRESSED_SLUMINANCE_ALPHA_EXT                                         0x8C4B
 #define GL_COMPRESSED_SLUMINANCE_EXT                                               0x8C4A
 #define GL_COMPRESSED_SRGB                                                         0x8C48
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10                                      0x93DB
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR                                  0x93DB
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5                                       0x93D8
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR                                   0x93D8
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6                                       0x93D9
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR                                   0x93D9
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8                                       0x93DA
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR                                   0x93DA
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10                                      0x93DC
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR                                  0x93DC
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12                                      0x93DD
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR                                  0x93DD
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_3x3x3_OES                                  0x93E0
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x3x3_OES                                  0x93E1
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4                                        0x93D0
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR                                    0x93D0
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4x3_OES                                  0x93E2
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4x4_OES                                  0x93E3
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4                                        0x93D1
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR                                    0x93D1
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4x4_OES                                  0x93E4
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5                                        0x93D2
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR                                    0x93D2
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5x4_OES                                  0x93E5
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5x5_OES                                  0x93E6
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5                                        0x93D3
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR                                    0x93D3
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5x5_OES                                  0x93E7
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6                                        0x93D4
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR                                    0x93D4
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6x5_OES                                  0x93E8
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6x6_OES                                  0x93E9
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5                                        0x93D5
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR                                    0x93D5
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6                                        0x93D6
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR                                    0x93D6
+#define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8                                        0x93D7
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR                                    0x93D7
 #define GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC                                        0x9279
 #define GL_COMPRESSED_SRGB8_ETC2                                                   0x9275
@@ -1295,12 +1396,23 @@ typedef unsigned int GLhandleARB;
 #define GL_COMPRESSED_SRGB_ALPHA                                                   0x8C49
 #define GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM                                        0x8E8D
 #define GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB                                    0x8E8D
+#define GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT                                    0x8E8D
 #define GL_COMPRESSED_SRGB_ALPHA_EXT                                               0x8C49
+#define GL_COMPRESSED_SRGB_ALPHA_PVRTC_2BPPV1_EXT                                  0x8A56
+#define GL_COMPRESSED_SRGB_ALPHA_PVRTC_2BPPV2_IMG                                  0x93F0
+#define GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV1_EXT                                  0x8A57
+#define GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV2_IMG                                  0x93F1
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT                                     0x8C4D
+#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_NV                                      0x8C4D
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT                                     0x8C4E
+#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_NV                                      0x8C4E
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT                                     0x8C4F
+#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_NV                                      0x8C4F
 #define GL_COMPRESSED_SRGB_EXT                                                     0x8C48
+#define GL_COMPRESSED_SRGB_PVRTC_2BPPV1_EXT                                        0x8A54
+#define GL_COMPRESSED_SRGB_PVRTC_4BPPV1_EXT                                        0x8A55
 #define GL_COMPRESSED_SRGB_S3TC_DXT1_EXT                                           0x8C4C
+#define GL_COMPRESSED_SRGB_S3TC_DXT1_NV                                            0x8C4C
 #define GL_COMPRESSED_TEXTURE_FORMATS                                              0x86A3
 #define GL_COMPRESSED_TEXTURE_FORMATS_ARB                                          0x86A3
 #define GL_COMPUTE_PROGRAM_NV                                                      0x90FB
@@ -1351,6 +1463,7 @@ typedef unsigned int GLhandleARB;
 #define GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT                                     0x00000001
 #define GL_CONTEXT_FLAG_NO_ERROR_BIT                                               0x00000008
 #define GL_CONTEXT_FLAG_NO_ERROR_BIT_KHR                                           0x00000008
+#define GL_CONTEXT_FLAG_PROTECTED_CONTENT_BIT_EXT                                  0x00000010
 #define GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT                                          0x00000004
 #define GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT_ARB                                      0x00000004
 #define GL_CONTEXT_LOST                                                            0x0507
@@ -1419,6 +1532,7 @@ typedef unsigned int GLhandleARB;
 #define GL_COORD_REPLACE                                                           0x8862
 #define GL_COORD_REPLACE_ARB                                                       0x8862
 #define GL_COORD_REPLACE_NV                                                        0x8862
+#define GL_COORD_REPLACE_OES                                                       0x8862
 #define GL_COPY                                                                    0x1503
 #define GL_COPY_INVERTED                                                           0x150C
 #define GL_COPY_PIXEL_TOKEN                                                        0x0706
@@ -1436,6 +1550,9 @@ typedef unsigned int GLhandleARB;
 #define GL_CUBIC_CURVE_TO_NV                                                       0x0C
 #define GL_CUBIC_EXT                                                               0x8334
 #define GL_CUBIC_HP                                                                0x815F
+#define GL_CUBIC_IMG                                                               0x9139
+#define GL_CUBIC_MIPMAP_LINEAR_IMG                                                 0x913B
+#define GL_CUBIC_MIPMAP_NEAREST_IMG                                                0x913A
 #define GL_CULL_FACE                                                               0x0B44
 #define GL_CULL_FACE_MODE                                                          0x0B45
 #define GL_CULL_FRAGMENT_NV                                                        0x86E7
@@ -1483,6 +1600,7 @@ typedef unsigned int GLhandleARB;
 #define GL_CURRENT_WEIGHT_ARB                                                      0x86A8
 #define GL_CW                                                                      0x0900
 #define GL_D3D12_FENCE_VALUE_EXT                                                   0x9595
+#define GL_DARKEN                                                                  0x9297
 #define GL_DARKEN_KHR                                                              0x9297
 #define GL_DARKEN_NV                                                               0x9297
 #define GL_DATA_BUFFER_AMD                                                         0x9151
@@ -1575,6 +1693,7 @@ typedef unsigned int GLhandleARB;
 #define GL_DECR                                                                    0x1E03
 #define GL_DECR_WRAP                                                               0x8508
 #define GL_DECR_WRAP_EXT                                                           0x8508
+#define GL_DECR_WRAP_OES                                                           0x8508
 #define GL_DEDICATED_MEMORY_OBJECT_EXT                                             0x9581
 #define GL_DEFORMATIONS_MASK_SGIX                                                  0x8196
 #define GL_DELETE_STATUS                                                           0x8B80
@@ -1586,6 +1705,7 @@ typedef unsigned int GLhandleARB;
 #define GL_DEPTH                                                                   0x1801
 #define GL_DEPTH24_STENCIL8                                                        0x88F0
 #define GL_DEPTH24_STENCIL8_EXT                                                    0x88F0
+#define GL_DEPTH24_STENCIL8_OES                                                    0x88F0
 #define GL_DEPTH32F_STENCIL8                                                       0x8CAD
 #define GL_DEPTH32F_STENCIL8_NV                                                    0x8DAC
 #define GL_DEPTH_ATTACHMENT                                                        0x8D00
@@ -1597,6 +1717,7 @@ typedef unsigned int GLhandleARB;
 #define GL_DEPTH_BUFFER_BIT                                                        0x00000100
 #define GL_DEPTH_BUFFER_FLOAT_MODE_NV                                              0x8DAF
 #define GL_DEPTH_CLAMP                                                             0x864F
+#define GL_DEPTH_CLAMP_EXT                                                         0x864F
 #define GL_DEPTH_CLAMP_FAR_AMD                                                     0x901F
 #define GL_DEPTH_CLAMP_NEAR_AMD                                                    0x901E
 #define GL_DEPTH_CLAMP_NV                                                          0x864F
@@ -1604,14 +1725,18 @@ typedef unsigned int GLhandleARB;
 #define GL_DEPTH_COMPONENT                                                         0x1902
 #define GL_DEPTH_COMPONENT16                                                       0x81A5
 #define GL_DEPTH_COMPONENT16_ARB                                                   0x81A5
+#define GL_DEPTH_COMPONENT16_NONLINEAR_NV                                          0x8E2C
+#define GL_DEPTH_COMPONENT16_OES                                                   0x81A5
 #define GL_DEPTH_COMPONENT16_SGIX                                                  0x81A5
 #define GL_DEPTH_COMPONENT24                                                       0x81A6
 #define GL_DEPTH_COMPONENT24_ARB                                                   0x81A6
+#define GL_DEPTH_COMPONENT24_OES                                                   0x81A6
 #define GL_DEPTH_COMPONENT24_SGIX                                                  0x81A6
 #define GL_DEPTH_COMPONENT32                                                       0x81A7
 #define GL_DEPTH_COMPONENT32F                                                      0x8CAC
 #define GL_DEPTH_COMPONENT32F_NV                                                   0x8DAB
 #define GL_DEPTH_COMPONENT32_ARB                                                   0x81A7
+#define GL_DEPTH_COMPONENT32_OES                                                   0x81A7
 #define GL_DEPTH_COMPONENT32_SGIX                                                  0x81A7
 #define GL_DEPTH_COMPONENTS                                                        0x8284
 #define GL_DEPTH_FUNC                                                              0x0B74
@@ -1623,6 +1748,7 @@ typedef unsigned int GLhandleARB;
 #define GL_DEPTH_STENCIL_ATTACHMENT                                                0x821A
 #define GL_DEPTH_STENCIL_EXT                                                       0x84F9
 #define GL_DEPTH_STENCIL_NV                                                        0x84F9
+#define GL_DEPTH_STENCIL_OES                                                       0x84F9
 #define GL_DEPTH_STENCIL_TEXTURE_MODE                                              0x90EA
 #define GL_DEPTH_STENCIL_TO_BGRA_NV                                                0x886F
 #define GL_DEPTH_STENCIL_TO_RGBA_NV                                                0x886E
@@ -1641,6 +1767,7 @@ typedef unsigned int GLhandleARB;
 #define GL_DEVICE_LUID_EXT                                                         0x9599
 #define GL_DEVICE_NODE_MASK_EXT                                                    0x959A
 #define GL_DEVICE_UUID_EXT                                                         0x9597
+#define GL_DIFFERENCE                                                              0x929E
 #define GL_DIFFERENCE_KHR                                                          0x929E
 #define GL_DIFFERENCE_NV                                                           0x929E
 #define GL_DIFFUSE                                                                 0x1201
@@ -1662,6 +1789,7 @@ typedef unsigned int GLhandleARB;
 #define GL_DOT3_RGBA                                                               0x86AF
 #define GL_DOT3_RGBA_ARB                                                           0x86AF
 #define GL_DOT3_RGBA_EXT                                                           0x8741
+#define GL_DOT3_RGBA_IMG                                                           0x86AF
 #define GL_DOT3_RGB_ARB                                                            0x86AE
 #define GL_DOT3_RGB_EXT                                                            0x8740
 #define GL_DOT4_ATI                                                                0x8967
@@ -1855,6 +1983,8 @@ typedef unsigned int GLhandleARB;
 #define GL_ENABLE_BIT                                                              0x00002000
 #define GL_EQUAL                                                                   0x0202
 #define GL_EQUIV                                                                   0x1509
+#define GL_ETC1_RGB8_OES                                                           0x8D64
+#define GL_ETC1_SRGB8_NV                                                           0x88EE
 #define GL_EVAL_2D_NV                                                              0x86C0
 #define GL_EVAL_BIT                                                                0x00010000
 #define GL_EVAL_FRACTIONAL_TESSELLATION_NV                                         0x86C5
@@ -1875,6 +2005,7 @@ typedef unsigned int GLhandleARB;
 #define GL_EVAL_VERTEX_ATTRIB7_NV                                                  0x86CD
 #define GL_EVAL_VERTEX_ATTRIB8_NV                                                  0x86CE
 #define GL_EVAL_VERTEX_ATTRIB9_NV                                                  0x86CF
+#define GL_EXCLUSION                                                               0x92A0
 #define GL_EXCLUSION_KHR                                                           0x92A0
 #define GL_EXCLUSION_NV                                                            0x92A0
 #define GL_EXCLUSIVE_EXT                                                           0x8F11
@@ -1894,6 +2025,7 @@ typedef unsigned int GLhandleARB;
 #define GL_EYE_POINT_SGIS                                                          0x81F4
 #define GL_EYE_RADIAL_NV                                                           0x855B
 #define GL_E_TIMES_F_NV                                                            0x8531
+#define GL_FACTOR_ALPHA_MODULATE_IMG                                               0x8C07
 #define GL_FACTOR_MAX_AMD                                                          0x901D
 #define GL_FACTOR_MIN_AMD                                                          0x901C
 #define GL_FAILURE_NV                                                              0x9030
@@ -2033,6 +2165,7 @@ typedef unsigned int GLhandleARB;
 #define GL_FORMAT_SUBSAMPLE_24_24_OML                                              0x8982
 #define GL_FRACTIONAL_EVEN                                                         0x8E7C
 #define GL_FRACTIONAL_ODD                                                          0x8E7B
+#define GL_FRAGMENT_ALPHA_MODULATE_IMG                                             0x8C08
 #define GL_FRAGMENT_COLOR_EXT                                                      0x834C
 #define GL_FRAGMENT_COLOR_MATERIAL_FACE_SGIX                                       0x8402
 #define GL_FRAGMENT_COLOR_MATERIAL_PARAMETER_SGIX                                  0x8403
@@ -2043,6 +2176,7 @@ typedef unsigned int GLhandleARB;
 #define GL_FRAGMENT_DEPTH_EXT                                                      0x8452
 #define GL_FRAGMENT_INPUT_NV                                                       0x936D
 #define GL_FRAGMENT_INTERPOLATION_OFFSET_BITS                                      0x8E5D
+#define GL_FRAGMENT_INTERPOLATION_OFFSET_BITS_OES                                  0x8E5D
 #define GL_FRAGMENT_LIGHT0_SGIX                                                    0x840C
 #define GL_FRAGMENT_LIGHT1_SGIX                                                    0x840D
 #define GL_FRAGMENT_LIGHT2_SGIX                                                    0x840E
@@ -2070,6 +2204,7 @@ typedef unsigned int GLhandleARB;
 #define GL_FRAGMENT_SHADER_BIT_EXT                                                 0x00000002
 #define GL_FRAGMENT_SHADER_DERIVATIVE_HINT                                         0x8B8B
 #define GL_FRAGMENT_SHADER_DERIVATIVE_HINT_ARB                                     0x8B8B
+#define GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES                                     0x8B8B
 #define GL_FRAGMENT_SHADER_DISCARDS_SAMPLES_EXT                                    0x8A52
 #define GL_FRAGMENT_SHADER_INVOCATIONS                                             0x82F4
 #define GL_FRAGMENT_SHADER_INVOCATIONS_ARB                                         0x82F4
@@ -2090,7 +2225,9 @@ typedef unsigned int GLhandleARB;
 #define GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE                                       0x8215
 #define GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE                                        0x8214
 #define GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING                                   0x8210
+#define GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING_EXT                               0x8210
 #define GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE                                   0x8211
+#define GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE_EXT                               0x8211
 #define GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE                                       0x8216
 #define GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE                                       0x8213
 #define GL_FRAMEBUFFER_ATTACHMENT_LAYERED                                          0x8DA7
@@ -2129,6 +2266,7 @@ typedef unsigned int GLhandleARB;
 #define GL_FRAMEBUFFER_FLIP_Y_MESA                                                 0x8BBB
 #define GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT                                       0x8CD6
 #define GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT                                   0x8CD6
+#define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS                                       0x8CD9
 #define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT                                   0x8CD9
 #define GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER                                      0x8CDB
 #define GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT                                  0x8CDB
@@ -2156,6 +2294,7 @@ typedef unsigned int GLhandleARB;
 #define GL_FRAMEBUFFER_SRGB_EXT                                                    0x8DB9
 #define GL_FRAMEBUFFER_SWAP_XY_MESA                                                0x8BBD
 #define GL_FRAMEBUFFER_UNDEFINED                                                   0x8219
+#define GL_FRAMEBUFFER_UNDEFINED_OES                                               0x8219
 #define GL_FRAMEBUFFER_UNSUPPORTED                                                 0x8CDD
 #define GL_FRAMEBUFFER_UNSUPPORTED_EXT                                             0x8CDD
 #define GL_FRAMEZOOM_FACTOR_SGIX                                                   0x818C
@@ -2245,6 +2384,7 @@ typedef unsigned int GLhandleARB;
 #define GL_HALF_FLOAT                                                              0x140B
 #define GL_HALF_FLOAT_ARB                                                          0x140B
 #define GL_HALF_FLOAT_NV                                                           0x140B
+#define GL_HALF_FLOAT_OES                                                          0x8D61
 #define GL_HANDLE_TYPE_D3D11_IMAGE_EXT                                             0x958B
 #define GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT                                         0x958C
 #define GL_HANDLE_TYPE_D3D12_FENCE_EXT                                             0x9594
@@ -2253,6 +2393,7 @@ typedef unsigned int GLhandleARB;
 #define GL_HANDLE_TYPE_OPAQUE_FD_EXT                                               0x9586
 #define GL_HANDLE_TYPE_OPAQUE_WIN32_EXT                                            0x9587
 #define GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT                                        0x9588
+#define GL_HARDLIGHT                                                               0x929B
 #define GL_HARDLIGHT_KHR                                                           0x929B
 #define GL_HARDLIGHT_NV                                                            0x929B
 #define GL_HARDMIX_NV                                                              0x92A9
@@ -2283,12 +2424,16 @@ typedef unsigned int GLhandleARB;
 #define GL_HI_BIAS_NV                                                              0x8714
 #define GL_HI_SCALE_NV                                                             0x870E
 #define GL_HORIZONTAL_LINE_TO_NV                                                   0x06
+#define GL_HSL_COLOR                                                               0x92AF
 #define GL_HSL_COLOR_KHR                                                           0x92AF
 #define GL_HSL_COLOR_NV                                                            0x92AF
+#define GL_HSL_HUE                                                                 0x92AD
 #define GL_HSL_HUE_KHR                                                             0x92AD
 #define GL_HSL_HUE_NV                                                              0x92AD
+#define GL_HSL_LUMINOSITY                                                          0x92B0
 #define GL_HSL_LUMINOSITY_KHR                                                      0x92B0
 #define GL_HSL_LUMINOSITY_NV                                                       0x92B0
+#define GL_HSL_SATURATION                                                          0x92AE
 #define GL_HSL_SATURATION_KHR                                                      0x92AE
 #define GL_HSL_SATURATION_NV                                                       0x92AE
 #define GL_IDENTITY_NV                                                             0x862A
@@ -2339,6 +2484,7 @@ typedef unsigned int GLhandleARB;
 #define GL_IMAGE_CUBE_EXT                                                          0x9050
 #define GL_IMAGE_CUBE_MAP_ARRAY                                                    0x9054
 #define GL_IMAGE_CUBE_MAP_ARRAY_EXT                                                0x9054
+#define GL_IMAGE_CUBE_MAP_ARRAY_OES                                                0x9054
 #define GL_IMAGE_CUBIC_WEIGHT_HP                                                   0x815E
 #define GL_IMAGE_FORMAT_COMPATIBILITY_BY_CLASS                                     0x90C9
 #define GL_IMAGE_FORMAT_COMPATIBILITY_BY_SIZE                                      0x90C8
@@ -2364,6 +2510,7 @@ typedef unsigned int GLhandleARB;
 #define GL_INCR                                                                    0x1E02
 #define GL_INCR_WRAP                                                               0x8507
 #define GL_INCR_WRAP_EXT                                                           0x8507
+#define GL_INCR_WRAP_OES                                                           0x8507
 #define GL_INDEX                                                                   0x8222
 #define GL_INDEX_ARRAY                                                             0x8077
 #define GL_INDEX_ARRAY_ADDRESS_NV                                                  0x8F24
@@ -2467,6 +2614,7 @@ typedef unsigned int GLhandleARB;
 #define GL_INTERPOLATE                                                             0x8575
 #define GL_INTERPOLATE_ARB                                                         0x8575
 #define GL_INTERPOLATE_EXT                                                         0x8575
+#define GL_INT_10_10_10_2_OES                                                      0x8DF7
 #define GL_INT_2_10_10_10_REV                                                      0x8D9F
 #define GL_INT_IMAGE_1D                                                            0x9057
 #define GL_INT_IMAGE_1D_ARRAY                                                      0x905D
@@ -2490,6 +2638,7 @@ typedef unsigned int GLhandleARB;
 #define GL_INT_IMAGE_CUBE_EXT                                                      0x905B
 #define GL_INT_IMAGE_CUBE_MAP_ARRAY                                                0x905F
 #define GL_INT_IMAGE_CUBE_MAP_ARRAY_EXT                                            0x905F
+#define GL_INT_IMAGE_CUBE_MAP_ARRAY_OES                                            0x905F
 #define GL_INT_SAMPLER_1D                                                          0x8DC9
 #define GL_INT_SAMPLER_1D_ARRAY                                                    0x8DCE
 #define GL_INT_SAMPLER_1D_ARRAY_EXT                                                0x8DCE
@@ -2511,6 +2660,8 @@ typedef unsigned int GLhandleARB;
 #define GL_INT_SAMPLER_CUBE_EXT                                                    0x8DCC
 #define GL_INT_SAMPLER_CUBE_MAP_ARRAY                                              0x900E
 #define GL_INT_SAMPLER_CUBE_MAP_ARRAY_ARB                                          0x900E
+#define GL_INT_SAMPLER_CUBE_MAP_ARRAY_EXT                                          0x900E
+#define GL_INT_SAMPLER_CUBE_MAP_ARRAY_OES                                          0x900E
 #define GL_INT_SAMPLER_RENDERBUFFER_NV                                             0x8E57
 #define GL_INT_VEC2                                                                0x8B53
 #define GL_INT_VEC2_ARB                                                            0x8B53
@@ -2575,6 +2726,7 @@ typedef unsigned int GLhandleARB;
 #define GL_LIGHT5                                                                  0x4005
 #define GL_LIGHT6                                                                  0x4006
 #define GL_LIGHT7                                                                  0x4007
+#define GL_LIGHTEN                                                                 0x9298
 #define GL_LIGHTEN_KHR                                                             0x9298
 #define GL_LIGHTEN_NV                                                              0x9298
 #define GL_LIGHTING                                                                0x0B50
@@ -2674,6 +2826,7 @@ typedef unsigned int GLhandleARB;
 #define GL_LUMINANCE4                                                              0x803F
 #define GL_LUMINANCE4_ALPHA4                                                       0x8043
 #define GL_LUMINANCE4_ALPHA4_EXT                                                   0x8043
+#define GL_LUMINANCE4_ALPHA4_OES                                                   0x8043
 #define GL_LUMINANCE4_EXT                                                          0x803F
 #define GL_LUMINANCE6_ALPHA2                                                       0x8044
 #define GL_LUMINANCE6_ALPHA2_EXT                                                   0x8044
@@ -2682,8 +2835,10 @@ typedef unsigned int GLhandleARB;
 #define GL_LUMINANCE8UI_EXT                                                        0x8D80
 #define GL_LUMINANCE8_ALPHA8                                                       0x8045
 #define GL_LUMINANCE8_ALPHA8_EXT                                                   0x8045
+#define GL_LUMINANCE8_ALPHA8_OES                                                   0x8045
 #define GL_LUMINANCE8_ALPHA8_SNORM                                                 0x9016
 #define GL_LUMINANCE8_EXT                                                          0x8040
+#define GL_LUMINANCE8_OES                                                          0x8040
 #define GL_LUMINANCE8_SNORM                                                        0x9015
 #define GL_LUMINANCE_ALPHA                                                         0x190A
 #define GL_LUMINANCE_ALPHA16F_ARB                                                  0x881F
@@ -2860,10 +3015,13 @@ typedef unsigned int GLhandleARB;
 #define GL_MAX_CLIPMAP_DEPTH_SGIX                                                  0x8177
 #define GL_MAX_CLIPMAP_VIRTUAL_DEPTH_SGIX                                          0x8178
 #define GL_MAX_CLIP_DISTANCES                                                      0x0D32
+#define GL_MAX_CLIP_DISTANCES_APPLE                                                0x0D32
+#define GL_MAX_CLIP_DISTANCES_EXT                                                  0x0D32
 #define GL_MAX_CLIP_PLANES                                                         0x0D32
 #define GL_MAX_COARSE_FRAGMENT_SAMPLES_NV                                          0x955F
 #define GL_MAX_COLOR_ATTACHMENTS                                                   0x8CDF
 #define GL_MAX_COLOR_ATTACHMENTS_EXT                                               0x8CDF
+#define GL_MAX_COLOR_ATTACHMENTS_NV                                                0x8CDF
 #define GL_MAX_COLOR_FRAMEBUFFER_SAMPLES_AMD                                       0x91B3
 #define GL_MAX_COLOR_FRAMEBUFFER_STORAGE_SAMPLES_AMD                               0x91B4
 #define GL_MAX_COLOR_MATRIX_STACK_DEPTH                                            0x80B3
@@ -2872,6 +3030,7 @@ typedef unsigned int GLhandleARB;
 #define GL_MAX_COMBINED_ATOMIC_COUNTERS                                            0x92D7
 #define GL_MAX_COMBINED_ATOMIC_COUNTER_BUFFERS                                     0x92D1
 #define GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES                                    0x82FA
+#define GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES_EXT                                0x82FA
 #define GL_MAX_COMBINED_COMPUTE_UNIFORM_COMPONENTS                                 0x8266
 #define GL_MAX_COMBINED_DIMENSIONS                                                 0x8282
 #define GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS                                0x8A33
@@ -2914,6 +3073,7 @@ typedef unsigned int GLhandleARB;
 #define GL_MAX_CUBE_MAP_TEXTURE_SIZE_ARB                                           0x851C
 #define GL_MAX_CUBE_MAP_TEXTURE_SIZE_EXT                                           0x851C
 #define GL_MAX_CULL_DISTANCES                                                      0x82F9
+#define GL_MAX_CULL_DISTANCES_EXT                                                  0x82F9
 #define GL_MAX_DEBUG_GROUP_STACK_DEPTH                                             0x826C
 #define GL_MAX_DEBUG_GROUP_STACK_DEPTH_KHR                                         0x826C
 #define GL_MAX_DEBUG_LOGGED_MESSAGES                                               0x9144
@@ -2952,6 +3112,7 @@ typedef unsigned int GLhandleARB;
 #define GL_MAX_FRAGMENT_INPUT_COMPONENTS                                           0x9125
 #define GL_MAX_FRAGMENT_INTERPOLATION_OFFSET                                       0x8E5C
 #define GL_MAX_FRAGMENT_INTERPOLATION_OFFSET_NV                                    0x8E5C
+#define GL_MAX_FRAGMENT_INTERPOLATION_OFFSET_OES                                   0x8E5C
 #define GL_MAX_FRAGMENT_LIGHTS_SGIX                                                0x8404
 #define GL_MAX_FRAGMENT_PROGRAM_LOCAL_PARAMETERS_NV                                0x8868
 #define GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS                                      0x90DA
@@ -3117,6 +3278,8 @@ typedef unsigned int GLhandleARB;
 #define GL_MAX_SHADER_BUFFER_ADDRESS_NV                                            0x8F35
 #define GL_MAX_SHADER_COMPILER_THREADS_ARB                                         0x91B0
 #define GL_MAX_SHADER_COMPILER_THREADS_KHR                                         0x91B0
+#define GL_MAX_SHADER_PIXEL_LOCAL_STORAGE_FAST_SIZE_EXT                            0x8F63
+#define GL_MAX_SHADER_PIXEL_LOCAL_STORAGE_SIZE_EXT                                 0x8F67
 #define GL_MAX_SHADER_STORAGE_BLOCK_SIZE                                           0x90DE
 #define GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS                                      0x90DD
 #define GL_MAX_SHININESS_NV                                                        0x8504
@@ -3292,6 +3455,7 @@ typedef unsigned int GLhandleARB;
 #define GL_MIN_EXT                                                                 0x8007
 #define GL_MIN_FRAGMENT_INTERPOLATION_OFFSET                                       0x8E5B
 #define GL_MIN_FRAGMENT_INTERPOLATION_OFFSET_NV                                    0x8E5B
+#define GL_MIN_FRAGMENT_INTERPOLATION_OFFSET_OES                                   0x8E5B
 #define GL_MIN_FRAGMENT_SHADING_RATE_ATTACHMENT_TEXEL_HEIGHT_EXT                   0x96D9
 #define GL_MIN_FRAGMENT_SHADING_RATE_ATTACHMENT_TEXEL_WIDTH_EXT                    0x96D7
 #define GL_MIN_LOD_WARNING_AMD                                                     0x919C
@@ -3309,6 +3473,7 @@ typedef unsigned int GLhandleARB;
 #define GL_MIRRORED_REPEAT                                                         0x8370
 #define GL_MIRRORED_REPEAT_ARB                                                     0x8370
 #define GL_MIRRORED_REPEAT_IBM                                                     0x8370
+#define GL_MIRRORED_REPEAT_OES                                                     0x8370
 #define GL_MIRROR_CLAMP_ATI                                                        0x8742
 #define GL_MIRROR_CLAMP_EXT                                                        0x8742
 #define GL_MIRROR_CLAMP_TO_BORDER_EXT                                              0x8912
@@ -3359,10 +3524,12 @@ typedef unsigned int GLhandleARB;
 #define GL_MODELVIEW8_ARB                                                          0x8728
 #define GL_MODELVIEW9_ARB                                                          0x8729
 #define GL_MODELVIEW_MATRIX                                                        0x0BA6
+#define GL_MODELVIEW_MATRIX_FLOAT_AS_INT_BITS_OES                                  0x898D
 #define GL_MODELVIEW_PROJECTION_NV                                                 0x8629
 #define GL_MODELVIEW_STACK_DEPTH                                                   0x0BA3
 #define GL_MODULATE                                                                0x2100
 #define GL_MODULATE_ADD_ATI                                                        0x8744
+#define GL_MODULATE_COLOR_IMG                                                      0x8C04
 #define GL_MODULATE_SIGNED_ADD_ATI                                                 0x8745
 #define GL_MODULATE_SUBTRACT_ATI                                                   0x8746
 #define GL_MOVE_TO_CONTINUES_NV                                                    0x90B6
@@ -3372,6 +3539,7 @@ typedef unsigned int GLhandleARB;
 #define GL_MULT                                                                    0x0103
 #define GL_MULTICAST_GPUS_NV                                                       0x92BA
 #define GL_MULTICAST_PROGRAMMABLE_SAMPLE_LOCATION_NV                               0x9549
+#define GL_MULTIPLY                                                                0x9294
 #define GL_MULTIPLY_KHR                                                            0x9294
 #define GL_MULTIPLY_NV                                                             0x9294
 #define GL_MULTISAMPLE                                                             0x809D
@@ -3385,7 +3553,9 @@ typedef unsigned int GLhandleARB;
 #define GL_MULTISAMPLE_COVERAGE_MODES_NV                                           0x8E12
 #define GL_MULTISAMPLE_EXT                                                         0x809D
 #define GL_MULTISAMPLE_FILTER_HINT_NV                                              0x8534
+#define GL_MULTISAMPLE_LINE_WIDTH_GRANULARITY                                      0x9382
 #define GL_MULTISAMPLE_LINE_WIDTH_GRANULARITY_ARB                                  0x9382
+#define GL_MULTISAMPLE_LINE_WIDTH_RANGE                                            0x9381
 #define GL_MULTISAMPLE_LINE_WIDTH_RANGE_ARB                                        0x9381
 #define GL_MULTISAMPLE_RASTERIZATION_ALLOWED_EXT                                   0x932B
 #define GL_MULTISAMPLE_SGIS                                                        0x809D
@@ -3616,6 +3786,7 @@ typedef unsigned int GLhandleARB;
 #define GL_OUTPUT_TEXTURE_COORD9_EXT                                               0x87A6
 #define GL_OUTPUT_VERTEX_EXT                                                       0x879A
 #define GL_OUT_OF_MEMORY                                                           0x0505
+#define GL_OVERLAY                                                                 0x9296
 #define GL_OVERLAY_KHR                                                             0x9296
 #define GL_OVERLAY_NV                                                              0x9296
 #define GL_PACK_ALIGNMENT                                                          0x0D05
@@ -3633,10 +3804,13 @@ typedef unsigned int GLhandleARB;
 #define GL_PACK_RESAMPLE_SGIX                                                      0x842E
 #define GL_PACK_ROW_BYTES_APPLE                                                    0x8A15
 #define GL_PACK_ROW_LENGTH                                                         0x0D02
+#define GL_PACK_ROW_LENGTH_NV                                                      0x0D02
 #define GL_PACK_SKIP_IMAGES                                                        0x806B
 #define GL_PACK_SKIP_IMAGES_EXT                                                    0x806B
 #define GL_PACK_SKIP_PIXELS                                                        0x0D04
+#define GL_PACK_SKIP_PIXELS_NV                                                     0x0D04
 #define GL_PACK_SKIP_ROWS                                                          0x0D03
+#define GL_PACK_SKIP_ROWS_NV                                                       0x0D03
 #define GL_PACK_SKIP_VOLUMES_SGIS                                                  0x8130
 #define GL_PACK_SUBSAMPLE_RATE_SGIX                                                0x85A0
 #define GL_PACK_SWAP_BYTES                                                         0x0D00
@@ -3782,7 +3956,9 @@ typedef unsigned int GLhandleARB;
 #define GL_PIXEL_PACK_BUFFER_BINDING                                               0x88ED
 #define GL_PIXEL_PACK_BUFFER_BINDING_ARB                                           0x88ED
 #define GL_PIXEL_PACK_BUFFER_BINDING_EXT                                           0x88ED
+#define GL_PIXEL_PACK_BUFFER_BINDING_NV                                            0x88ED
 #define GL_PIXEL_PACK_BUFFER_EXT                                                   0x88EB
+#define GL_PIXEL_PACK_BUFFER_NV                                                    0x88EB
 #define GL_PIXEL_SUBSAMPLE_2424_SGIX                                               0x85A3
 #define GL_PIXEL_SUBSAMPLE_4242_SGIX                                               0x85A4
 #define GL_PIXEL_SUBSAMPLE_4444_SGIX                                               0x85A2
@@ -3805,7 +3981,9 @@ typedef unsigned int GLhandleARB;
 #define GL_PIXEL_UNPACK_BUFFER_BINDING                                             0x88EF
 #define GL_PIXEL_UNPACK_BUFFER_BINDING_ARB                                         0x88EF
 #define GL_PIXEL_UNPACK_BUFFER_BINDING_EXT                                         0x88EF
+#define GL_PIXEL_UNPACK_BUFFER_BINDING_NV                                          0x88EF
 #define GL_PIXEL_UNPACK_BUFFER_EXT                                                 0x88EC
+#define GL_PIXEL_UNPACK_BUFFER_NV                                                  0x88EC
 #define GL_PLUS_CLAMPED_ALPHA_NV                                                   0x92B2
 #define GL_PLUS_CLAMPED_NV                                                         0x92B1
 #define GL_PLUS_DARKER_NV                                                          0x9292
@@ -3844,6 +4022,7 @@ typedef unsigned int GLhandleARB;
 #define GL_POINT_SPRITE_ARB                                                        0x8861
 #define GL_POINT_SPRITE_COORD_ORIGIN                                               0x8CA0
 #define GL_POINT_SPRITE_NV                                                         0x8861
+#define GL_POINT_SPRITE_OES                                                        0x8861
 #define GL_POINT_SPRITE_R_MODE_NV                                                  0x8863
 #define GL_POINT_TOKEN                                                             0x0701
 #define GL_POLYGON                                                                 0x0009
@@ -3924,6 +4103,7 @@ typedef unsigned int GLhandleARB;
 #define GL_PRIMITIVES_GENERATED_NV                                                 0x8C87
 #define GL_PRIMITIVES_SUBMITTED                                                    0x82EF
 #define GL_PRIMITIVES_SUBMITTED_ARB                                                0x82EF
+#define GL_PRIMITIVE_BOUNDING_BOX                                                  0x92BE
 #define GL_PRIMITIVE_BOUNDING_BOX_ARB                                              0x92BE
 #define GL_PRIMITIVE_ID_NV                                                         0x8C7C
 #define GL_PRIMITIVE_RESTART                                                       0x8F9D
@@ -3993,6 +4173,7 @@ typedef unsigned int GLhandleARB;
 #define GL_PROGRAM_UNDER_NATIVE_LIMITS_ARB                                         0x88B6
 #define GL_PROJECTION                                                              0x1701
 #define GL_PROJECTION_MATRIX                                                       0x0BA7
+#define GL_PROJECTION_MATRIX_FLOAT_AS_INT_BITS_OES                                 0x898E
 #define GL_PROJECTION_STACK_DEPTH                                                  0x0BA4
 #define GL_PROTECTED_MEMORY_OBJECT_EXT                                             0x959B
 #define GL_PROVOKING_VERTEX                                                        0x8E4F
@@ -4091,13 +4272,16 @@ typedef unsigned int GLhandleARB;
 #define GL_QUERY_WAIT_NV                                                           0x8E13
 #define GL_R                                                                       0x2002
 #define GL_R11F_G11F_B10F                                                          0x8C3A
+#define GL_R11F_G11F_B10F_APPLE                                                    0x8C3A
 #define GL_R11F_G11F_B10F_EXT                                                      0x8C3A
 #define GL_R16                                                                     0x822A
 #define GL_R16F                                                                    0x822D
 #define GL_R16F_EXT                                                                0x822D
 #define GL_R16I                                                                    0x8233
 #define GL_R16UI                                                                   0x8234
+#define GL_R16_EXT                                                                 0x822A
 #define GL_R16_SNORM                                                               0x8F98
+#define GL_R16_SNORM_EXT                                                           0x8F98
 #define GL_R1UI_C3F_V3F_SUN                                                        0x85C6
 #define GL_R1UI_C4F_N3F_V3F_SUN                                                    0x85C8
 #define GL_R1UI_C4UB_V3F_SUN                                                       0x85C5
@@ -4138,6 +4322,7 @@ typedef unsigned int GLhandleARB;
 #define GL_READ_PIXEL_DATA_RANGE_POINTER_NV                                        0x887D
 #define GL_READ_WRITE                                                              0x88BA
 #define GL_READ_WRITE_ARB                                                          0x88BA
+#define GL_RECIP_ADD_SIGNED_ALPHA_IMG                                              0x8C05
 #define GL_RECLAIM_MEMORY_HINT_PGI                                                 0x1A1FE
 #define GL_RECT_NV                                                                 0xF6
 #define GL_RED                                                                     0x1903
@@ -4146,6 +4331,7 @@ typedef unsigned int GLhandleARB;
 #define GL_RED_BIAS                                                                0x0D15
 #define GL_RED_BITS                                                                0x0D52
 #define GL_RED_BIT_ATI                                                             0x00000001
+#define GL_RED_EXT                                                                 0x1903
 #define GL_RED_INTEGER                                                             0x8D94
 #define GL_RED_INTEGER_EXT                                                         0x8D94
 #define GL_RED_MAX_CLAMP_INGR                                                      0x8564
@@ -4268,6 +4454,7 @@ typedef unsigned int GLhandleARB;
 #define GL_REPLICATE_BORDER                                                        0x8153
 #define GL_REPLICATE_BORDER_HP                                                     0x8153
 #define GL_REPRESENTATIVE_FRAGMENT_TEST_NV                                         0x937F
+#define GL_REQUIRED_TEXTURE_IMAGE_UNITS_OES                                        0x8D68
 #define GL_RESAMPLE_AVERAGE_OML                                                    0x8988
 #define GL_RESAMPLE_DECIMATE_OML                                                   0x8989
 #define GL_RESAMPLE_DECIMATE_SGIX                                                  0x8430
@@ -4290,7 +4477,9 @@ typedef unsigned int GLhandleARB;
 #define GL_RG16F_EXT                                                               0x822F
 #define GL_RG16I                                                                   0x8239
 #define GL_RG16UI                                                                  0x823A
+#define GL_RG16_EXT                                                                0x822C
 #define GL_RG16_SNORM                                                              0x8F99
+#define GL_RG16_SNORM_EXT                                                          0x8F99
 #define GL_RG32F                                                                   0x8230
 #define GL_RG32F_EXT                                                               0x8230
 #define GL_RG32I                                                                   0x823B
@@ -4318,6 +4507,7 @@ typedef unsigned int GLhandleARB;
 #define GL_RGB16UI_EXT                                                             0x8D77
 #define GL_RGB16_EXT                                                               0x8054
 #define GL_RGB16_SNORM                                                             0x8F9A
+#define GL_RGB16_SNORM_EXT                                                         0x8F9A
 #define GL_RGB2_EXT                                                                0x804E
 #define GL_RGB32F                                                                  0x8815
 #define GL_RGB32F_ARB                                                              0x8815
@@ -4331,8 +4521,10 @@ typedef unsigned int GLhandleARB;
 #define GL_RGB4_S3TC                                                               0x83A1
 #define GL_RGB5                                                                    0x8050
 #define GL_RGB565                                                                  0x8D62
+#define GL_RGB565_OES                                                              0x8D62
 #define GL_RGB5_A1                                                                 0x8057
 #define GL_RGB5_A1_EXT                                                             0x8057
+#define GL_RGB5_A1_OES                                                             0x8057
 #define GL_RGB5_EXT                                                                0x8050
 #define GL_RGB8                                                                    0x8051
 #define GL_RGB8I                                                                   0x8D8F
@@ -4340,8 +4532,10 @@ typedef unsigned int GLhandleARB;
 #define GL_RGB8UI                                                                  0x8D7D
 #define GL_RGB8UI_EXT                                                              0x8D7D
 #define GL_RGB8_EXT                                                                0x8051
+#define GL_RGB8_OES                                                                0x8051
 #define GL_RGB8_SNORM                                                              0x8F96
 #define GL_RGB9_E5                                                                 0x8C3D
+#define GL_RGB9_E5_APPLE                                                           0x8C3D
 #define GL_RGB9_E5_EXT                                                             0x8C3D
 #define GL_RGBA                                                                    0x1908
 #define GL_RGBA12                                                                  0x805A
@@ -4356,6 +4550,7 @@ typedef unsigned int GLhandleARB;
 #define GL_RGBA16UI_EXT                                                            0x8D76
 #define GL_RGBA16_EXT                                                              0x805B
 #define GL_RGBA16_SNORM                                                            0x8F9B
+#define GL_RGBA16_SNORM_EXT                                                        0x8F9B
 #define GL_RGBA2                                                                   0x8055
 #define GL_RGBA2_EXT                                                               0x8055
 #define GL_RGBA32F                                                                 0x8814
@@ -4368,6 +4563,7 @@ typedef unsigned int GLhandleARB;
 #define GL_RGBA4                                                                   0x8056
 #define GL_RGBA4_DXT5_S3TC                                                         0x83A5
 #define GL_RGBA4_EXT                                                               0x8056
+#define GL_RGBA4_OES                                                               0x8056
 #define GL_RGBA4_S3TC                                                              0x83A3
 #define GL_RGBA8                                                                   0x8058
 #define GL_RGBA8I                                                                  0x8D8E
@@ -4375,6 +4571,7 @@ typedef unsigned int GLhandleARB;
 #define GL_RGBA8UI                                                                 0x8D7C
 #define GL_RGBA8UI_EXT                                                             0x8D7C
 #define GL_RGBA8_EXT                                                               0x8058
+#define GL_RGBA8_OES                                                               0x8058
 #define GL_RGBA8_SNORM                                                             0x8F97
 #define GL_RGBA_DXT5_S3TC                                                          0x83A4
 #define GL_RGBA_FLOAT16_APPLE                                                      0x881A
@@ -4404,6 +4601,7 @@ typedef unsigned int GLhandleARB;
 #define GL_RGB_SCALE_ARB                                                           0x8573
 #define GL_RGB_SCALE_EXT                                                           0x8573
 #define GL_RGB_SNORM                                                               0x8F92
+#define GL_RG_EXT                                                                  0x8227
 #define GL_RG_INTEGER                                                              0x8228
 #define GL_RG_SNORM                                                                0x8F91
 #define GL_RIGHT                                                                   0x0407
@@ -4428,6 +4626,7 @@ typedef unsigned int GLhandleARB;
 #define GL_SAMPLER_2D_ARRAY_EXT                                                    0x8DC1
 #define GL_SAMPLER_2D_ARRAY_SHADOW                                                 0x8DC4
 #define GL_SAMPLER_2D_ARRAY_SHADOW_EXT                                             0x8DC4
+#define GL_SAMPLER_2D_ARRAY_SHADOW_NV                                              0x8DC4
 #define GL_SAMPLER_2D_MULTISAMPLE                                                  0x9108
 #define GL_SAMPLER_2D_MULTISAMPLE_ARRAY                                            0x910B
 #define GL_SAMPLER_2D_RECT                                                         0x8B63
@@ -4436,6 +4635,7 @@ typedef unsigned int GLhandleARB;
 #define GL_SAMPLER_2D_RECT_SHADOW_ARB                                              0x8B64
 #define GL_SAMPLER_2D_SHADOW                                                       0x8B62
 #define GL_SAMPLER_2D_SHADOW_ARB                                                   0x8B62
+#define GL_SAMPLER_2D_SHADOW_EXT                                                   0x8B62
 #define GL_SAMPLER_3D                                                              0x8B5F
 #define GL_SAMPLER_3D_ARB                                                          0x8B5F
 #define GL_SAMPLER_BINDING                                                         0x8919
@@ -4446,10 +4646,16 @@ typedef unsigned int GLhandleARB;
 #define GL_SAMPLER_CUBE_ARB                                                        0x8B60
 #define GL_SAMPLER_CUBE_MAP_ARRAY                                                  0x900C
 #define GL_SAMPLER_CUBE_MAP_ARRAY_ARB                                              0x900C
+#define GL_SAMPLER_CUBE_MAP_ARRAY_EXT                                              0x900C
+#define GL_SAMPLER_CUBE_MAP_ARRAY_OES                                              0x900C
 #define GL_SAMPLER_CUBE_MAP_ARRAY_SHADOW                                           0x900D
 #define GL_SAMPLER_CUBE_MAP_ARRAY_SHADOW_ARB                                       0x900D
+#define GL_SAMPLER_CUBE_MAP_ARRAY_SHADOW_EXT                                       0x900D
+#define GL_SAMPLER_CUBE_MAP_ARRAY_SHADOW_OES                                       0x900D
 #define GL_SAMPLER_CUBE_SHADOW                                                     0x8DC5
 #define GL_SAMPLER_CUBE_SHADOW_EXT                                                 0x8DC5
+#define GL_SAMPLER_CUBE_SHADOW_NV                                                  0x8DC5
+#define GL_SAMPLER_EXTERNAL_2D_Y2Y_EXT                                             0x8BE7
 #define GL_SAMPLER_KHR                                                             0x82E6
 #define GL_SAMPLER_OBJECT_AMD                                                      0x9155
 #define GL_SAMPLER_RENDERBUFFER_NV                                                 0x8E56
@@ -4517,6 +4723,7 @@ typedef unsigned int GLhandleARB;
 #define GL_SCISSOR_COMMAND_NV                                                      0x0011
 #define GL_SCISSOR_TEST                                                            0x0C11
 #define GL_SCISSOR_TEST_EXCLUSIVE_NV                                               0x9555
+#define GL_SCREEN                                                                  0x9295
 #define GL_SCREEN_COORDINATES_REND                                                 0x8490
 #define GL_SCREEN_KHR                                                              0x9295
 #define GL_SCREEN_NV                                                               0x9295
@@ -4553,6 +4760,8 @@ typedef unsigned int GLhandleARB;
 #define GL_SEPARATE_SPECULAR_COLOR_EXT                                             0x81FA
 #define GL_SET                                                                     0x150F
 #define GL_SET_AMD                                                                 0x874A
+#define GL_SGX_BINARY_IMG                                                          0x8C0A
+#define GL_SGX_PROGRAM_BINARY_IMG                                                  0x9130
 #define GL_SHADER                                                                  0x82E1
 #define GL_SHADER_BINARY_FORMATS                                                   0x8DF8
 #define GL_SHADER_BINARY_FORMAT_SPIR_V                                             0x9551
@@ -4570,6 +4779,7 @@ typedef unsigned int GLhandleARB;
 #define GL_SHADER_OBJECT_ARB                                                       0x8B48
 #define GL_SHADER_OBJECT_EXT                                                       0x8B48
 #define GL_SHADER_OPERATION_NV                                                     0x86DF
+#define GL_SHADER_PIXEL_LOCAL_STORAGE_EXT                                          0x8F64
 #define GL_SHADER_SOURCE_LENGTH                                                    0x8B88
 #define GL_SHADER_STORAGE_BARRIER_BIT                                              0x00002000
 #define GL_SHADER_STORAGE_BLOCK                                                    0x92E6
@@ -4660,10 +4870,14 @@ typedef unsigned int GLhandleARB;
 #define GL_SLUMINANCE8                                                             0x8C47
 #define GL_SLUMINANCE8_ALPHA8                                                      0x8C45
 #define GL_SLUMINANCE8_ALPHA8_EXT                                                  0x8C45
+#define GL_SLUMINANCE8_ALPHA8_NV                                                   0x8C45
 #define GL_SLUMINANCE8_EXT                                                         0x8C47
+#define GL_SLUMINANCE8_NV                                                          0x8C47
 #define GL_SLUMINANCE_ALPHA                                                        0x8C44
 #define GL_SLUMINANCE_ALPHA_EXT                                                    0x8C44
+#define GL_SLUMINANCE_ALPHA_NV                                                     0x8C44
 #define GL_SLUMINANCE_EXT                                                          0x8C46
+#define GL_SLUMINANCE_NV                                                           0x8C46
 #define GL_SMALL_CCW_ARC_TO_NV                                                     0x12
 #define GL_SMALL_CW_ARC_TO_NV                                                      0x14
 #define GL_SMOOTH                                                                  0x1D01
@@ -4674,6 +4888,7 @@ typedef unsigned int GLhandleARB;
 #define GL_SMOOTH_POINT_SIZE_RANGE                                                 0x0B12
 #define GL_SMOOTH_QUADRATIC_CURVE_TO_NV                                            0x0E
 #define GL_SM_COUNT_NV                                                             0x933B
+#define GL_SOFTLIGHT                                                               0x929C
 #define GL_SOFTLIGHT_KHR                                                           0x929C
 #define GL_SOFTLIGHT_NV                                                            0x929C
 #define GL_SOURCE0_ALPHA                                                           0x8588
@@ -4740,6 +4955,7 @@ typedef unsigned int GLhandleARB;
 #define GL_SRGB8_ALPHA8                                                            0x8C43
 #define GL_SRGB8_ALPHA8_EXT                                                        0x8C43
 #define GL_SRGB8_EXT                                                               0x8C41
+#define GL_SRGB8_NV                                                                0x8C41
 #define GL_SRGB_ALPHA                                                              0x8C42
 #define GL_SRGB_ALPHA_EXT                                                          0x8C42
 #define GL_SRGB_DECODE_ARB                                                         0x8299
@@ -4787,10 +5003,14 @@ typedef unsigned int GLhandleARB;
 #define GL_STENCIL_INDEX16                                                         0x8D49
 #define GL_STENCIL_INDEX16_EXT                                                     0x8D49
 #define GL_STENCIL_INDEX1_EXT                                                      0x8D46
+#define GL_STENCIL_INDEX1_OES                                                      0x8D46
 #define GL_STENCIL_INDEX4                                                          0x8D47
 #define GL_STENCIL_INDEX4_EXT                                                      0x8D47
+#define GL_STENCIL_INDEX4_OES                                                      0x8D47
 #define GL_STENCIL_INDEX8                                                          0x8D48
 #define GL_STENCIL_INDEX8_EXT                                                      0x8D48
+#define GL_STENCIL_INDEX8_OES                                                      0x8D48
+#define GL_STENCIL_INDEX_OES                                                       0x1901
 #define GL_STENCIL_OP_VALUE_AMD                                                    0x874C
 #define GL_STENCIL_PASS_DEPTH_FAIL                                                 0x0B95
 #define GL_STENCIL_PASS_DEPTH_PASS                                                 0x0B96
@@ -4842,6 +5062,9 @@ typedef unsigned int GLhandleARB;
 #define GL_SUPERSAMPLE_SCALE_X_NV                                                  0x9372
 #define GL_SUPERSAMPLE_SCALE_Y_NV                                                  0x9373
 #define GL_SUPPORTED_MULTISAMPLE_MODES_AMD                                         0x91B7
+#define GL_SURFACE_COMPRESSION_EXT                                                 0x96C0
+#define GL_SURFACE_COMPRESSION_FIXED_RATE_DEFAULT_EXT                              0x96C2
+#define GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT                                 0x96C1
 #define GL_SURFACE_MAPPED_NV                                                       0x8700
 #define GL_SURFACE_REGISTERED_NV                                                   0x86FD
 #define GL_SURFACE_STATE_NV                                                        0x86EB
@@ -5005,11 +5228,13 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_4DSIZE_SGIS                                                     0x8136
 #define GL_TEXTURE_4D_BINDING_SGIS                                                 0x814F
 #define GL_TEXTURE_4D_SGIS                                                         0x8134
+#define GL_TEXTURE_ALPHA_MODULATE_IMG                                              0x8C06
 #define GL_TEXTURE_ALPHA_SIZE                                                      0x805F
 #define GL_TEXTURE_ALPHA_SIZE_EXT                                                  0x805F
 #define GL_TEXTURE_ALPHA_TYPE                                                      0x8C13
 #define GL_TEXTURE_ALPHA_TYPE_ARB                                                  0x8C13
 #define GL_TEXTURE_APPLICATION_MODE_EXT                                            0x834F
+#define GL_TEXTURE_ASTC_DECODE_PRECISION_EXT                                       0x8F69
 #define GL_TEXTURE_BASE_LEVEL                                                      0x813C
 #define GL_TEXTURE_BASE_LEVEL_SGIS                                                 0x813C
 #define GL_TEXTURE_BINDING_1D                                                      0x8068
@@ -5028,7 +5253,10 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_BINDING_CUBE_MAP_ARB                                            0x8514
 #define GL_TEXTURE_BINDING_CUBE_MAP_ARRAY                                          0x900A
 #define GL_TEXTURE_BINDING_CUBE_MAP_ARRAY_ARB                                      0x900A
+#define GL_TEXTURE_BINDING_CUBE_MAP_ARRAY_EXT                                      0x900A
+#define GL_TEXTURE_BINDING_CUBE_MAP_ARRAY_OES                                      0x900A
 #define GL_TEXTURE_BINDING_CUBE_MAP_EXT                                            0x8514
+#define GL_TEXTURE_BINDING_EXTERNAL_OES                                            0x8D67
 #define GL_TEXTURE_BINDING_RECTANGLE                                               0x84F6
 #define GL_TEXTURE_BINDING_RECTANGLE_ARB                                           0x84F6
 #define GL_TEXTURE_BINDING_RECTANGLE_NV                                            0x84F6
@@ -5040,6 +5268,7 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_BLUE_TYPE_ARB                                                   0x8C12
 #define GL_TEXTURE_BORDER                                                          0x1005
 #define GL_TEXTURE_BORDER_COLOR                                                    0x1004
+#define GL_TEXTURE_BORDER_COLOR_NV                                                 0x1004
 #define GL_TEXTURE_BORDER_VALUES_NV                                                0x871A
 #define GL_TEXTURE_BUFFER                                                          0x8C2A
 #define GL_TEXTURE_BUFFER_ARB                                                      0x8C2A
@@ -5065,8 +5294,10 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_COMPARE_FAIL_VALUE_ARB                                          0x80BF
 #define GL_TEXTURE_COMPARE_FUNC                                                    0x884D
 #define GL_TEXTURE_COMPARE_FUNC_ARB                                                0x884D
+#define GL_TEXTURE_COMPARE_FUNC_EXT                                                0x884D
 #define GL_TEXTURE_COMPARE_MODE                                                    0x884C
 #define GL_TEXTURE_COMPARE_MODE_ARB                                                0x884C
+#define GL_TEXTURE_COMPARE_MODE_EXT                                                0x884C
 #define GL_TEXTURE_COMPARE_OPERATOR_SGIX                                           0x819B
 #define GL_TEXTURE_COMPARE_SGIX                                                    0x819A
 #define GL_TEXTURE_COMPONENTS                                                      0x1003
@@ -5104,6 +5335,8 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_CUBE_MAP_ARB                                                    0x8513
 #define GL_TEXTURE_CUBE_MAP_ARRAY                                                  0x9009
 #define GL_TEXTURE_CUBE_MAP_ARRAY_ARB                                              0x9009
+#define GL_TEXTURE_CUBE_MAP_ARRAY_EXT                                              0x9009
+#define GL_TEXTURE_CUBE_MAP_ARRAY_OES                                              0x9009
 #define GL_TEXTURE_CUBE_MAP_EXT                                                    0x8513
 #define GL_TEXTURE_CUBE_MAP_NEGATIVE_X                                             0x8516
 #define GL_TEXTURE_CUBE_MAP_NEGATIVE_X_ARB                                         0x8516
@@ -5138,6 +5371,7 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_ENV_BIAS_SGIX                                                   0x80BE
 #define GL_TEXTURE_ENV_COLOR                                                       0x2201
 #define GL_TEXTURE_ENV_MODE                                                        0x2200
+#define GL_TEXTURE_EXTERNAL_OES                                                    0x8D65
 #define GL_TEXTURE_FETCH_BARRIER_BIT                                               0x00000008
 #define GL_TEXTURE_FETCH_BARRIER_BIT_EXT                                           0x00000008
 #define GL_TEXTURE_FILTER4_SIZE_SGIS                                               0x8147
@@ -5145,6 +5379,7 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_FILTER_CONTROL_EXT                                              0x8500
 #define GL_TEXTURE_FIXED_SAMPLE_LOCATIONS                                          0x9107
 #define GL_TEXTURE_FLOAT_COMPONENTS_NV                                             0x888C
+#define GL_TEXTURE_FORMAT_SRGB_OVERRIDE_EXT                                        0x8FBF
 #define GL_TEXTURE_FREE_MEMORY_ATI                                                 0x87FC
 #define GL_TEXTURE_GATHER                                                          0x82A2
 #define GL_TEXTURE_GATHER_SHADOW                                                   0x82A3
@@ -5189,12 +5424,14 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_MATERIAL_FACE_EXT                                               0x8351
 #define GL_TEXTURE_MATERIAL_PARAMETER_EXT                                          0x8352
 #define GL_TEXTURE_MATRIX                                                          0x0BA8
+#define GL_TEXTURE_MATRIX_FLOAT_AS_INT_BITS_OES                                    0x898F
 #define GL_TEXTURE_MAX_ANISOTROPY                                                  0x84FE
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT                                              0x84FE
 #define GL_TEXTURE_MAX_CLAMP_R_SGIX                                                0x836B
 #define GL_TEXTURE_MAX_CLAMP_S_SGIX                                                0x8369
 #define GL_TEXTURE_MAX_CLAMP_T_SGIX                                                0x836A
 #define GL_TEXTURE_MAX_LEVEL                                                       0x813D
+#define GL_TEXTURE_MAX_LEVEL_APPLE                                                 0x813D
 #define GL_TEXTURE_MAX_LEVEL_SGIS                                                  0x813D
 #define GL_TEXTURE_MAX_LOD                                                         0x813B
 #define GL_TEXTURE_MAX_LOD_SGIS                                                    0x813B
@@ -5208,6 +5445,7 @@ typedef unsigned int GLhandleARB;
 #define GL_TEXTURE_PRE_SPECULAR_HP                                                 0x8169
 #define GL_TEXTURE_PRIORITY                                                        0x8066
 #define GL_TEXTURE_PRIORITY_EXT                                                    0x8066
+#define GL_TEXTURE_PROTECTED_EXT                                                   0x8BFA
 #define GL_TEXTURE_RANGE_LENGTH_APPLE                                              0x85B7
 #define GL_TEXTURE_RANGE_POINTER_APPLE                                             0x85B8
 #define GL_TEXTURE_RECTANGLE                                                       0x84F5
@@ -5415,10 +5653,13 @@ typedef unsigned int GLhandleARB;
 #define GL_UNPACK_RESAMPLE_SGIX                                                    0x842F
 #define GL_UNPACK_ROW_BYTES_APPLE                                                  0x8A16
 #define GL_UNPACK_ROW_LENGTH                                                       0x0CF2
+#define GL_UNPACK_ROW_LENGTH_EXT                                                   0x0CF2
 #define GL_UNPACK_SKIP_IMAGES                                                      0x806D
 #define GL_UNPACK_SKIP_IMAGES_EXT                                                  0x806D
 #define GL_UNPACK_SKIP_PIXELS                                                      0x0CF4
+#define GL_UNPACK_SKIP_PIXELS_EXT                                                  0x0CF4
 #define GL_UNPACK_SKIP_ROWS                                                        0x0CF3
+#define GL_UNPACK_SKIP_ROWS_EXT                                                    0x0CF3
 #define GL_UNPACK_SKIP_VOLUMES_SGIS                                                0x8132
 #define GL_UNPACK_SUBSAMPLE_RATE_SGIX                                              0x85A1
 #define GL_UNPACK_SWAP_BYTES                                                       0x0CF0
@@ -5447,14 +5688,19 @@ typedef unsigned int GLhandleARB;
 #define GL_UNSIGNED_INT8_VEC3_NV                                                   0x8FEE
 #define GL_UNSIGNED_INT8_VEC4_NV                                                   0x8FEF
 #define GL_UNSIGNED_INT_10F_11F_11F_REV                                            0x8C3B
+#define GL_UNSIGNED_INT_10F_11F_11F_REV_APPLE                                      0x8C3B
 #define GL_UNSIGNED_INT_10F_11F_11F_REV_EXT                                        0x8C3B
 #define GL_UNSIGNED_INT_10_10_10_2                                                 0x8036
 #define GL_UNSIGNED_INT_10_10_10_2_EXT                                             0x8036
+#define GL_UNSIGNED_INT_10_10_10_2_OES                                             0x8DF6
 #define GL_UNSIGNED_INT_24_8                                                       0x84FA
 #define GL_UNSIGNED_INT_24_8_EXT                                                   0x84FA
 #define GL_UNSIGNED_INT_24_8_NV                                                    0x84FA
+#define GL_UNSIGNED_INT_24_8_OES                                                   0x84FA
 #define GL_UNSIGNED_INT_2_10_10_10_REV                                             0x8368
+#define GL_UNSIGNED_INT_2_10_10_10_REV_EXT                                         0x8368
 #define GL_UNSIGNED_INT_5_9_9_9_REV                                                0x8C3E
+#define GL_UNSIGNED_INT_5_9_9_9_REV_APPLE                                          0x8C3E
 #define GL_UNSIGNED_INT_5_9_9_9_REV_EXT                                            0x8C3E
 #define GL_UNSIGNED_INT_8_8_8_8                                                    0x8035
 #define GL_UNSIGNED_INT_8_8_8_8_EXT                                                0x8035
@@ -5483,6 +5729,7 @@ typedef unsigned int GLhandleARB;
 #define GL_UNSIGNED_INT_IMAGE_CUBE_EXT                                             0x9066
 #define GL_UNSIGNED_INT_IMAGE_CUBE_MAP_ARRAY                                       0x906A
 #define GL_UNSIGNED_INT_IMAGE_CUBE_MAP_ARRAY_EXT                                   0x906A
+#define GL_UNSIGNED_INT_IMAGE_CUBE_MAP_ARRAY_OES                                   0x906A
 #define GL_UNSIGNED_INT_S8_S8_8_8_NV                                               0x86DA
 #define GL_UNSIGNED_INT_SAMPLER_1D                                                 0x8DD1
 #define GL_UNSIGNED_INT_SAMPLER_1D_ARRAY                                           0x8DD6
@@ -5505,6 +5752,8 @@ typedef unsigned int GLhandleARB;
 #define GL_UNSIGNED_INT_SAMPLER_CUBE_EXT                                           0x8DD4
 #define GL_UNSIGNED_INT_SAMPLER_CUBE_MAP_ARRAY                                     0x900F
 #define GL_UNSIGNED_INT_SAMPLER_CUBE_MAP_ARRAY_ARB                                 0x900F
+#define GL_UNSIGNED_INT_SAMPLER_CUBE_MAP_ARRAY_EXT                                 0x900F
+#define GL_UNSIGNED_INT_SAMPLER_CUBE_MAP_ARRAY_OES                                 0x900F
 #define GL_UNSIGNED_INT_SAMPLER_RENDERBUFFER_NV                                    0x8E58
 #define GL_UNSIGNED_INT_VEC2                                                       0x8DC6
 #define GL_UNSIGNED_INT_VEC2_EXT                                                   0x8DC6
@@ -5515,11 +5764,15 @@ typedef unsigned int GLhandleARB;
 #define GL_UNSIGNED_INVERT_NV                                                      0x8537
 #define GL_UNSIGNED_NORMALIZED                                                     0x8C17
 #define GL_UNSIGNED_NORMALIZED_ARB                                                 0x8C17
+#define GL_UNSIGNED_NORMALIZED_EXT                                                 0x8C17
 #define GL_UNSIGNED_SHORT                                                          0x1403
 #define GL_UNSIGNED_SHORT_1_5_5_5_REV                                              0x8366
+#define GL_UNSIGNED_SHORT_1_5_5_5_REV_EXT                                          0x8366
 #define GL_UNSIGNED_SHORT_4_4_4_4                                                  0x8033
 #define GL_UNSIGNED_SHORT_4_4_4_4_EXT                                              0x8033
 #define GL_UNSIGNED_SHORT_4_4_4_4_REV                                              0x8365
+#define GL_UNSIGNED_SHORT_4_4_4_4_REV_EXT                                          0x8365
+#define GL_UNSIGNED_SHORT_4_4_4_4_REV_IMG                                          0x8365
 #define GL_UNSIGNED_SHORT_5_5_5_1                                                  0x8034
 #define GL_UNSIGNED_SHORT_5_5_5_1_EXT                                              0x8034
 #define GL_UNSIGNED_SHORT_5_6_5                                                    0x8363
@@ -5821,6 +6074,7 @@ typedef unsigned int GLhandleARB;
 #define GL_YCRCB_444_SGIX                                                          0x81BC
 #define GL_YCRCB_SGIX                                                              0x8318
 #define GL_Y_EXT                                                                   0x87D6
+#define GL_Z400_BINARY_AMD                                                         0x8740
 #define GL_Z4Y12Z4CB12Z4A12Z4Y12Z4CR12Z4A12_4224_NV                                0x9036
 #define GL_Z4Y12Z4CB12Z4CR12_444_NV                                                0x9037
 #define GL_Z4Y12Z4CB12Z4Y12Z4CR12_422_NV                                           0x9035
@@ -6939,6 +7193,7 @@ typedef void       (GLAPIENTRY *PFN_glBinormal3sEXT)( GLshort bx, GLshort by, GL
 typedef void       (GLAPIENTRY *PFN_glBinormal3svEXT)( const GLshort *v );
 typedef void       (GLAPIENTRY *PFN_glBinormalPointerEXT)( GLenum type, GLsizei stride, const void *pointer );
 typedef void       (GLAPIENTRY *PFN_glBitmapxOES)( GLsizei width, GLsizei height, GLfixed xorig, GLfixed yorig, GLfixed xmove, GLfixed ymove, const GLubyte *bitmap );
+typedef void       (GLAPIENTRY *PFN_glBlendBarrier)(void);
 typedef void       (GLAPIENTRY *PFN_glBlendBarrierKHR)(void);
 typedef void       (GLAPIENTRY *PFN_glBlendBarrierNV)(void);
 typedef void       (GLAPIENTRY *PFN_glBlendColor)( GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha );
@@ -8449,6 +8704,7 @@ typedef void       (GLAPIENTRY *PFN_glPopDebugGroup)(void);
 typedef void       (GLAPIENTRY *PFN_glPopGroupMarkerEXT)(void);
 typedef void       (GLAPIENTRY *PFN_glPresentFrameDualFillNV)( GLuint video_slot, GLuint64EXT minPresentTime, GLuint beginPresentTimeId, GLuint presentDurationId, GLenum type, GLenum target0, GLuint fill0, GLenum target1, GLuint fill1, GLenum target2, GLuint fill2, GLenum target3, GLuint fill3 );
 typedef void       (GLAPIENTRY *PFN_glPresentFrameKeyedNV)( GLuint video_slot, GLuint64EXT minPresentTime, GLuint beginPresentTimeId, GLuint presentDurationId, GLenum type, GLenum target0, GLuint fill0, GLuint key0, GLenum target1, GLuint fill1, GLuint key1 );
+typedef void       (GLAPIENTRY *PFN_glPrimitiveBoundingBox)( GLfloat minX, GLfloat minY, GLfloat minZ, GLfloat minW, GLfloat maxX, GLfloat maxY, GLfloat maxZ, GLfloat maxW );
 typedef void       (GLAPIENTRY *PFN_glPrimitiveBoundingBoxARB)( GLfloat minX, GLfloat minY, GLfloat minZ, GLfloat minW, GLfloat maxX, GLfloat maxY, GLfloat maxZ, GLfloat maxW );
 typedef void       (GLAPIENTRY *PFN_glPrimitiveRestartIndex)( GLuint index );
 typedef void       (GLAPIENTRY *PFN_glPrimitiveRestartIndexNV)( GLuint index );
@@ -9978,6 +10234,8 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_3DFX_tbuffer) \
     USE_GL_EXT(GL_3DFX_texture_compression_FXT1) \
     USE_GL_EXT(GL_AMD_blend_minmax_factor) \
+    USE_GL_EXT(GL_AMD_compressed_3DC_texture) \
+    USE_GL_EXT(GL_AMD_compressed_ATC_texture) \
     USE_GL_EXT(GL_AMD_conservative_depth) \
     USE_GL_EXT(GL_AMD_debug_output) \
     USE_GL_EXT(GL_AMD_depth_clamp_separate) \
@@ -9995,6 +10253,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_AMD_occlusion_query_event) \
     USE_GL_EXT(GL_AMD_performance_monitor) \
     USE_GL_EXT(GL_AMD_pinned_memory) \
+    USE_GL_EXT(GL_AMD_program_binary_Z400) \
     USE_GL_EXT(GL_AMD_query_buffer_object) \
     USE_GL_EXT(GL_AMD_sample_positions) \
     USE_GL_EXT(GL_AMD_seamless_cubemap_per_texture) \
@@ -10017,6 +10276,8 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_AMD_vertex_shader_viewport_index) \
     USE_GL_EXT(GL_APPLE_aux_depth_stencil) \
     USE_GL_EXT(GL_APPLE_client_storage) \
+    USE_GL_EXT(GL_APPLE_clip_distance) \
+    USE_GL_EXT(GL_APPLE_color_buffer_packed_float) \
     USE_GL_EXT(GL_APPLE_element_array) \
     USE_GL_EXT(GL_APPLE_fence) \
     USE_GL_EXT(GL_APPLE_float_pixels) \
@@ -10025,6 +10286,10 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_APPLE_rgb_422) \
     USE_GL_EXT(GL_APPLE_row_bytes) \
     USE_GL_EXT(GL_APPLE_specular_vector) \
+    USE_GL_EXT(GL_APPLE_texture_2D_limited_npot) \
+    USE_GL_EXT(GL_APPLE_texture_format_BGRA8888) \
+    USE_GL_EXT(GL_APPLE_texture_max_level) \
+    USE_GL_EXT(GL_APPLE_texture_packed_float) \
     USE_GL_EXT(GL_APPLE_texture_range) \
     USE_GL_EXT(GL_APPLE_transform_hint) \
     USE_GL_EXT(GL_APPLE_vertex_array_object) \
@@ -10221,8 +10486,12 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_ATI_vertex_attrib_array_object) \
     USE_GL_EXT(GL_ATI_vertex_streams) \
     USE_GL_EXT(GL_EXT_422_pixels) \
+    USE_GL_EXT(GL_EXT_EGL_image_array) \
+    USE_GL_EXT(GL_EXT_EGL_image_external_wrap_modes) \
     USE_GL_EXT(GL_EXT_EGL_image_storage) \
+    USE_GL_EXT(GL_EXT_EGL_image_storage_compression) \
     USE_GL_EXT(GL_EXT_EGL_sync) \
+    USE_GL_EXT(GL_EXT_YUV_target) \
     USE_GL_EXT(GL_EXT_abgr) \
     USE_GL_EXT(GL_EXT_bgra) \
     USE_GL_EXT(GL_EXT_bindable_uniform) \
@@ -10232,10 +10501,15 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_blend_logic_op) \
     USE_GL_EXT(GL_EXT_blend_minmax) \
     USE_GL_EXT(GL_EXT_blend_subtract) \
+    USE_GL_EXT(GL_EXT_clip_cull_distance) \
     USE_GL_EXT(GL_EXT_clip_volume_hint) \
     USE_GL_EXT(GL_EXT_cmyka) \
+    USE_GL_EXT(GL_EXT_color_buffer_float) \
+    USE_GL_EXT(GL_EXT_color_buffer_half_float) \
     USE_GL_EXT(GL_EXT_color_subtable) \
     USE_GL_EXT(GL_EXT_compiled_vertex_array) \
+    USE_GL_EXT(GL_EXT_compressed_ETC1_RGB8_sub_texture) \
+    USE_GL_EXT(GL_EXT_conservative_depth) \
     USE_GL_EXT(GL_EXT_convolution) \
     USE_GL_EXT(GL_EXT_coordinate_frame) \
     USE_GL_EXT(GL_EXT_copy_texture) \
@@ -10243,12 +10517,15 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_debug_label) \
     USE_GL_EXT(GL_EXT_debug_marker) \
     USE_GL_EXT(GL_EXT_depth_bounds_test) \
+    USE_GL_EXT(GL_EXT_depth_clamp) \
     USE_GL_EXT(GL_EXT_direct_state_access) \
     USE_GL_EXT(GL_EXT_draw_buffers2) \
     USE_GL_EXT(GL_EXT_draw_instanced) \
     USE_GL_EXT(GL_EXT_draw_range_elements) \
     USE_GL_EXT(GL_EXT_external_buffer) \
+    USE_GL_EXT(GL_EXT_float_blend) \
     USE_GL_EXT(GL_EXT_fog_coord) \
+    USE_GL_EXT(GL_EXT_frag_depth) \
     USE_GL_EXT(GL_EXT_fragment_lighting) \
     USE_GL_EXT(GL_EXT_fragment_shading_rate) \
     USE_GL_EXT(GL_EXT_fragment_shading_rate_attachment) \
@@ -10259,9 +10536,11 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_framebuffer_multisample_blit_scaled) \
     USE_GL_EXT(GL_EXT_framebuffer_object) \
     USE_GL_EXT(GL_EXT_framebuffer_sRGB) \
+    USE_GL_EXT(GL_EXT_geometry_point_size) \
     USE_GL_EXT(GL_EXT_geometry_shader4) \
     USE_GL_EXT(GL_EXT_gpu_program_parameters) \
     USE_GL_EXT(GL_EXT_gpu_shader4) \
+    USE_GL_EXT(GL_EXT_gpu_shader5) \
     USE_GL_EXT(GL_EXT_histogram) \
     USE_GL_EXT(GL_EXT_index_array_formats) \
     USE_GL_EXT(GL_EXT_index_func) \
@@ -10274,6 +10553,9 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_misc_attribute) \
     USE_GL_EXT(GL_EXT_multi_draw_arrays) \
     USE_GL_EXT(GL_EXT_multisample) \
+    USE_GL_EXT(GL_EXT_multisample_compatibility) \
+    USE_GL_EXT(GL_EXT_multisampled_compatibility) \
+    USE_GL_EXT(GL_EXT_multisampled_render_to_texture2) \
     USE_GL_EXT(GL_EXT_multiview_tessellation_geometry_shader) \
     USE_GL_EXT(GL_EXT_multiview_texture_multisample) \
     USE_GL_EXT(GL_EXT_multiview_timer_query) \
@@ -10288,22 +10570,39 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_polygon_offset) \
     USE_GL_EXT(GL_EXT_polygon_offset_clamp) \
     USE_GL_EXT(GL_EXT_post_depth_coverage) \
+    USE_GL_EXT(GL_EXT_protected_textures) \
     USE_GL_EXT(GL_EXT_provoking_vertex) \
+    USE_GL_EXT(GL_EXT_pvrtc_sRGB) \
     USE_GL_EXT(GL_EXT_raster_multisample) \
+    USE_GL_EXT(GL_EXT_read_format_bgra) \
+    USE_GL_EXT(GL_EXT_render_snorm) \
     USE_GL_EXT(GL_EXT_rescale_normal) \
+    USE_GL_EXT(GL_EXT_sRGB) \
+    USE_GL_EXT(GL_EXT_sRGB_write_control) \
     USE_GL_EXT(GL_EXT_scene_marker) \
     USE_GL_EXT(GL_EXT_secondary_color) \
     USE_GL_EXT(GL_EXT_semaphore) \
     USE_GL_EXT(GL_EXT_semaphore_win32) \
+    USE_GL_EXT(GL_EXT_separate_depth_stencil) \
     USE_GL_EXT(GL_EXT_separate_shader_objects) \
     USE_GL_EXT(GL_EXT_separate_specular_color) \
+    USE_GL_EXT(GL_EXT_shader_clock) \
     USE_GL_EXT(GL_EXT_shader_framebuffer_fetch) \
     USE_GL_EXT(GL_EXT_shader_framebuffer_fetch_non_coherent) \
+    USE_GL_EXT(GL_EXT_shader_group_vote) \
     USE_GL_EXT(GL_EXT_shader_image_load_formatted) \
     USE_GL_EXT(GL_EXT_shader_image_load_store) \
+    USE_GL_EXT(GL_EXT_shader_implicit_conversions) \
     USE_GL_EXT(GL_EXT_shader_integer_mix) \
+    USE_GL_EXT(GL_EXT_shader_io_blocks) \
+    USE_GL_EXT(GL_EXT_shader_non_constant_global_initializers) \
+    USE_GL_EXT(GL_EXT_shader_pixel_local_storage) \
+    USE_GL_EXT(GL_EXT_shader_realtime_clock) \
     USE_GL_EXT(GL_EXT_shader_samples_identical) \
+    USE_GL_EXT(GL_EXT_shader_texture_lod) \
+    USE_GL_EXT(GL_EXT_shader_texture_samples) \
     USE_GL_EXT(GL_EXT_shadow_funcs) \
+    USE_GL_EXT(GL_EXT_shadow_samplers) \
     USE_GL_EXT(GL_EXT_shared_texture_palette) \
     USE_GL_EXT(GL_EXT_sparse_texture2) \
     USE_GL_EXT(GL_EXT_stencil_clear_tag) \
@@ -10311,26 +10610,38 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_stencil_wrap) \
     USE_GL_EXT(GL_EXT_subtexture) \
     USE_GL_EXT(GL_EXT_swap_control) \
+    USE_GL_EXT(GL_EXT_tessellation_point_size) \
     USE_GL_EXT(GL_EXT_texture) \
     USE_GL_EXT(GL_EXT_texture3D) \
     USE_GL_EXT(GL_EXT_texture_array) \
     USE_GL_EXT(GL_EXT_texture_buffer_object) \
+    USE_GL_EXT(GL_EXT_texture_compression_astc_decode_mode) \
+    USE_GL_EXT(GL_EXT_texture_compression_astc_decode_mode_rgb9e5) \
+    USE_GL_EXT(GL_EXT_texture_compression_bptc) \
     USE_GL_EXT(GL_EXT_texture_compression_dxt1) \
     USE_GL_EXT(GL_EXT_texture_compression_latc) \
     USE_GL_EXT(GL_EXT_texture_compression_rgtc) \
     USE_GL_EXT(GL_EXT_texture_compression_s3tc) \
+    USE_GL_EXT(GL_EXT_texture_compression_s3tc_srgb) \
     USE_GL_EXT(GL_EXT_texture_cube_map) \
+    USE_GL_EXT(GL_EXT_texture_cube_map_array) \
     USE_GL_EXT(GL_EXT_texture_env) \
     USE_GL_EXT(GL_EXT_texture_env_add) \
     USE_GL_EXT(GL_EXT_texture_env_combine) \
     USE_GL_EXT(GL_EXT_texture_env_dot3) \
     USE_GL_EXT(GL_EXT_texture_filter_anisotropic) \
     USE_GL_EXT(GL_EXT_texture_filter_minmax) \
+    USE_GL_EXT(GL_EXT_texture_format_BGRA8888) \
+    USE_GL_EXT(GL_EXT_texture_format_sRGB_override) \
     USE_GL_EXT(GL_EXT_texture_integer) \
     USE_GL_EXT(GL_EXT_texture_lod_bias) \
     USE_GL_EXT(GL_EXT_texture_mirror_clamp) \
+    USE_GL_EXT(GL_EXT_texture_mirror_clamp_to_edge) \
+    USE_GL_EXT(GL_EXT_texture_norm16) \
     USE_GL_EXT(GL_EXT_texture_object) \
     USE_GL_EXT(GL_EXT_texture_perturb_normal) \
+    USE_GL_EXT(GL_EXT_texture_query_lod) \
+    USE_GL_EXT(GL_EXT_texture_rg) \
     USE_GL_EXT(GL_EXT_texture_sRGB) \
     USE_GL_EXT(GL_EXT_texture_sRGB_R8) \
     USE_GL_EXT(GL_EXT_texture_sRGB_RG8) \
@@ -10340,8 +10651,10 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_EXT_texture_snorm) \
     USE_GL_EXT(GL_EXT_texture_storage) \
     USE_GL_EXT(GL_EXT_texture_swizzle) \
+    USE_GL_EXT(GL_EXT_texture_type_2_10_10_10_REV) \
     USE_GL_EXT(GL_EXT_timer_query) \
     USE_GL_EXT(GL_EXT_transform_feedback) \
+    USE_GL_EXT(GL_EXT_unpack_subimage) \
     USE_GL_EXT(GL_EXT_vertex_array) \
     USE_GL_EXT(GL_EXT_vertex_array_bgra) \
     USE_GL_EXT(GL_EXT_vertex_attrib_64bit) \
@@ -10362,6 +10675,13 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_IBM_static_data) \
     USE_GL_EXT(GL_IBM_texture_mirrored_repeat) \
     USE_GL_EXT(GL_IBM_vertex_array_lists) \
+    USE_GL_EXT(GL_IMG_program_binary) \
+    USE_GL_EXT(GL_IMG_read_format) \
+    USE_GL_EXT(GL_IMG_shader_binary) \
+    USE_GL_EXT(GL_IMG_texture_compression_pvrtc) \
+    USE_GL_EXT(GL_IMG_texture_compression_pvrtc2) \
+    USE_GL_EXT(GL_IMG_texture_env_enhanced_fixed_function) \
+    USE_GL_EXT(GL_IMG_texture_filter_cubic) \
     USE_GL_EXT(GL_INGR_blend_func_separate) \
     USE_GL_EXT(GL_INGR_color_clamp) \
     USE_GL_EXT(GL_INGR_interlace_read) \
@@ -10388,6 +10708,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_KHR_texture_compression_astc_sliced_3d) \
     USE_GL_EXT(GL_KTX_buffer_region) \
     USE_GL_EXT(GL_MESAX_texture_stack) \
+    USE_GL_EXT(GL_MESA_bgra) \
     USE_GL_EXT(GL_MESA_framebuffer_flip_x) \
     USE_GL_EXT(GL_MESA_framebuffer_flip_y) \
     USE_GL_EXT(GL_MESA_framebuffer_swap_xy) \
@@ -10405,8 +10726,11 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NVX_gpu_multicast2) \
     USE_GL_EXT(GL_NVX_linked_gpu_multicast) \
     USE_GL_EXT(GL_NVX_progress_fence) \
+    USE_GL_EXT(GL_NV_3dvision_settings) \
+    USE_GL_EXT(GL_NV_EGL_stream_consumer_external) \
     USE_GL_EXT(GL_NV_ES1_1_compatibility) \
     USE_GL_EXT(GL_NV_alpha_to_coverage_dither_control) \
+    USE_GL_EXT(GL_NV_bgr) \
     USE_GL_EXT(GL_NV_bindless_multi_draw_indirect) \
     USE_GL_EXT(GL_NV_bindless_multi_draw_indirect_count) \
     USE_GL_EXT(GL_NV_bindless_texture) \
@@ -10429,10 +10753,13 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_deep_texture3D) \
     USE_GL_EXT(GL_NV_depth_buffer_float) \
     USE_GL_EXT(GL_NV_depth_clamp) \
+    USE_GL_EXT(GL_NV_depth_nonlinear) \
     USE_GL_EXT(GL_NV_draw_texture) \
     USE_GL_EXT(GL_NV_draw_vulkan_image) \
     USE_GL_EXT(GL_NV_evaluators) \
+    USE_GL_EXT(GL_NV_explicit_attrib_location) \
     USE_GL_EXT(GL_NV_explicit_multisample) \
+    USE_GL_EXT(GL_NV_fbo_color_attachments) \
     USE_GL_EXT(GL_NV_fence) \
     USE_GL_EXT(GL_NV_fill_rectangle) \
     USE_GL_EXT(GL_NV_float_buffer) \
@@ -10446,6 +10773,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_fragment_shader_interlock) \
     USE_GL_EXT(GL_NV_framebuffer_mixed_samples) \
     USE_GL_EXT(GL_NV_framebuffer_multisample_coverage) \
+    USE_GL_EXT(GL_NV_generate_mipmap_sRGB) \
     USE_GL_EXT(GL_NV_geometry_program4) \
     USE_GL_EXT(GL_NV_geometry_shader4) \
     USE_GL_EXT(GL_NV_geometry_shader_passthrough) \
@@ -10455,6 +10783,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_gpu_program5_mem_extended) \
     USE_GL_EXT(GL_NV_gpu_shader5) \
     USE_GL_EXT(GL_NV_half_float) \
+    USE_GL_EXT(GL_NV_image_formats) \
     USE_GL_EXT(GL_NV_internalformat_sample_query) \
     USE_GL_EXT(GL_NV_light_max_exponent) \
     USE_GL_EXT(GL_NV_memory_attachment) \
@@ -10463,22 +10792,31 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_multisample_coverage) \
     USE_GL_EXT(GL_NV_multisample_filter_hint) \
     USE_GL_EXT(GL_NV_occlusion_query) \
+    USE_GL_EXT(GL_NV_pack_subimage) \
     USE_GL_EXT(GL_NV_packed_depth_stencil) \
+    USE_GL_EXT(GL_NV_packed_float) \
     USE_GL_EXT(GL_NV_parameter_buffer_object) \
     USE_GL_EXT(GL_NV_parameter_buffer_object2) \
     USE_GL_EXT(GL_NV_path_rendering) \
     USE_GL_EXT(GL_NV_path_rendering_shared_edge) \
+    USE_GL_EXT(GL_NV_pixel_buffer_object) \
     USE_GL_EXT(GL_NV_pixel_data_range) \
+    USE_GL_EXT(GL_NV_platform_binary) \
     USE_GL_EXT(GL_NV_point_sprite) \
     USE_GL_EXT(GL_NV_present_video) \
     USE_GL_EXT(GL_NV_primitive_restart) \
     USE_GL_EXT(GL_NV_primitive_shading_rate) \
     USE_GL_EXT(GL_NV_query_resource) \
     USE_GL_EXT(GL_NV_query_resource_tag) \
+    USE_GL_EXT(GL_NV_read_buffer_front) \
+    USE_GL_EXT(GL_NV_read_depth) \
+    USE_GL_EXT(GL_NV_read_depth_stencil) \
+    USE_GL_EXT(GL_NV_read_stencil) \
     USE_GL_EXT(GL_NV_register_combiners) \
     USE_GL_EXT(GL_NV_register_combiners2) \
     USE_GL_EXT(GL_NV_representative_fragment_test) \
     USE_GL_EXT(GL_NV_robustness_video_memory_purge) \
+    USE_GL_EXT(GL_NV_sRGB_formats) \
     USE_GL_EXT(GL_NV_sample_locations) \
     USE_GL_EXT(GL_NV_sample_mask_override_coverage) \
     USE_GL_EXT(GL_NV_scissor_exclusive) \
@@ -10489,21 +10827,30 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_shader_atomic_int64) \
     USE_GL_EXT(GL_NV_shader_buffer_load) \
     USE_GL_EXT(GL_NV_shader_buffer_store) \
+    USE_GL_EXT(GL_NV_shader_noperspective_interpolation) \
     USE_GL_EXT(GL_NV_shader_storage_buffer_object) \
     USE_GL_EXT(GL_NV_shader_subgroup_partitioned) \
     USE_GL_EXT(GL_NV_shader_texture_footprint) \
     USE_GL_EXT(GL_NV_shader_thread_group) \
     USE_GL_EXT(GL_NV_shader_thread_shuffle) \
     USE_GL_EXT(GL_NV_shading_rate_image) \
+    USE_GL_EXT(GL_NV_shadow_samplers_array) \
+    USE_GL_EXT(GL_NV_shadow_samplers_cube) \
     USE_GL_EXT(GL_NV_stereo_view_rendering) \
     USE_GL_EXT(GL_NV_tessellation_program5) \
     USE_GL_EXT(GL_NV_texgen_emboss) \
     USE_GL_EXT(GL_NV_texgen_reflection) \
+    USE_GL_EXT(GL_NV_texture_array) \
     USE_GL_EXT(GL_NV_texture_barrier) \
+    USE_GL_EXT(GL_NV_texture_border_clamp) \
+    USE_GL_EXT(GL_NV_texture_compression_latc) \
+    USE_GL_EXT(GL_NV_texture_compression_s3tc) \
+    USE_GL_EXT(GL_NV_texture_compression_s3tc_update) \
     USE_GL_EXT(GL_NV_texture_compression_vtc) \
     USE_GL_EXT(GL_NV_texture_env_combine4) \
     USE_GL_EXT(GL_NV_texture_expand_normal) \
     USE_GL_EXT(GL_NV_texture_multisample) \
+    USE_GL_EXT(GL_NV_texture_npot_2D_mipmap) \
     USE_GL_EXT(GL_NV_texture_rectangle) \
     USE_GL_EXT(GL_NV_texture_rectangle_compressed) \
     USE_GL_EXT(GL_NV_texture_shader) \
@@ -10529,12 +10876,54 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_EXT(GL_NV_video_capture) \
     USE_GL_EXT(GL_NV_viewport_array2) \
     USE_GL_EXT(GL_NV_viewport_swizzle) \
+    USE_GL_EXT(GL_OES_EGL_image_external_essl3) \
+    USE_GL_EXT(GL_OES_EGL_sync) \
     USE_GL_EXT(GL_OES_byte_coordinates) \
+    USE_GL_EXT(GL_OES_compressed_ETC1_RGB8_sub_texture) \
+    USE_GL_EXT(GL_OES_compressed_ETC1_RGB8_texture) \
     USE_GL_EXT(GL_OES_compressed_paletted_texture) \
+    USE_GL_EXT(GL_OES_depth24) \
+    USE_GL_EXT(GL_OES_depth32) \
+    USE_GL_EXT(GL_OES_depth_texture) \
+    USE_GL_EXT(GL_OES_depth_texture_cube_map) \
+    USE_GL_EXT(GL_OES_element_index_uint) \
+    USE_GL_EXT(GL_OES_extended_matrix_palette) \
+    USE_GL_EXT(GL_OES_fbo_render_mipmap) \
     USE_GL_EXT(GL_OES_fixed_point) \
+    USE_GL_EXT(GL_OES_fragment_precision_high) \
+    USE_GL_EXT(GL_OES_geometry_point_size) \
+    USE_GL_EXT(GL_OES_gpu_shader5) \
+    USE_GL_EXT(GL_OES_matrix_get) \
+    USE_GL_EXT(GL_OES_packed_depth_stencil) \
+    USE_GL_EXT(GL_OES_point_sprite) \
     USE_GL_EXT(GL_OES_query_matrix) \
     USE_GL_EXT(GL_OES_read_format) \
+    USE_GL_EXT(GL_OES_required_internalformat) \
+    USE_GL_EXT(GL_OES_rgb8_rgba8) \
+    USE_GL_EXT(GL_OES_sample_variables) \
+    USE_GL_EXT(GL_OES_shader_image_atomic) \
+    USE_GL_EXT(GL_OES_shader_io_blocks) \
+    USE_GL_EXT(GL_OES_shader_multisample_interpolation) \
     USE_GL_EXT(GL_OES_single_precision) \
+    USE_GL_EXT(GL_OES_standard_derivatives) \
+    USE_GL_EXT(GL_OES_stencil1) \
+    USE_GL_EXT(GL_OES_stencil4) \
+    USE_GL_EXT(GL_OES_stencil8) \
+    USE_GL_EXT(GL_OES_stencil_wrap) \
+    USE_GL_EXT(GL_OES_surfaceless_context) \
+    USE_GL_EXT(GL_OES_tessellation_point_size) \
+    USE_GL_EXT(GL_OES_texture_compression_astc) \
+    USE_GL_EXT(GL_OES_texture_cube_map_array) \
+    USE_GL_EXT(GL_OES_texture_env_crossbar) \
+    USE_GL_EXT(GL_OES_texture_float) \
+    USE_GL_EXT(GL_OES_texture_float_linear) \
+    USE_GL_EXT(GL_OES_texture_half_float) \
+    USE_GL_EXT(GL_OES_texture_half_float_linear) \
+    USE_GL_EXT(GL_OES_texture_mirrored_repeat) \
+    USE_GL_EXT(GL_OES_texture_npot) \
+    USE_GL_EXT(GL_OES_texture_stencil8) \
+    USE_GL_EXT(GL_OES_vertex_half_float) \
+    USE_GL_EXT(GL_OES_vertex_type_10_10_10_2) \
     USE_GL_EXT(GL_OML_interlace) \
     USE_GL_EXT(GL_OML_resample) \
     USE_GL_EXT(GL_OML_subsample) \
@@ -11059,6 +11448,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_FUNC(glBinormal3svEXT) \
     USE_GL_FUNC(glBinormalPointerEXT) \
     USE_GL_FUNC(glBitmapxOES) \
+    USE_GL_FUNC(glBlendBarrier) \
     USE_GL_FUNC(glBlendBarrierKHR) \
     USE_GL_FUNC(glBlendBarrierNV) \
     USE_GL_FUNC(glBlendColor) \
@@ -12569,6 +12959,7 @@ typedef BOOL       (GLAPIENTRY *PFN_wglSwapIntervalEXT)( int interval );
     USE_GL_FUNC(glPopGroupMarkerEXT) \
     USE_GL_FUNC(glPresentFrameDualFillNV) \
     USE_GL_FUNC(glPresentFrameKeyedNV) \
+    USE_GL_FUNC(glPrimitiveBoundingBox) \
     USE_GL_FUNC(glPrimitiveBoundingBoxARB) \
     USE_GL_FUNC(glPrimitiveRestartIndex) \
     USE_GL_FUNC(glPrimitiveRestartIndexNV) \

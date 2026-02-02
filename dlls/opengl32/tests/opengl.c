@@ -2265,6 +2265,16 @@ static void test_getprocaddress(HDC hdc)
     ok(expect, "GL_ARB_texture_compression missing\n");
     func = wglGetProcAddress("glCompressedTexImage2DARB");
     ok(func != NULL, "got glCompressedTexImage2DARB %p\n", func);
+
+    func = wglGetProcAddress("glBlendBarrier");
+    expect = gl_extension_supported(extensions, "GL_ARB_ES3_2_compatibility");
+    ok(expect ? func != NULL : func == NULL, "got glBlendBarrier %p\n", func);
+    func = wglGetProcAddress("glBlendBarrierNV");
+    expect = gl_extension_supported(extensions, "GL_NV_blend_equation_advanced");
+    ok(expect ? func != NULL : func == NULL, "got glBlendBarrierNV %p\n", func);
+    func = wglGetProcAddress("glBlendBarrierKHR");
+    expect = gl_extension_supported(extensions, "GL_KHR_blend_equation_advanced");
+    ok(expect ? func != NULL : func == NULL, "got glBlendBarrierKHR %p\n", func);
 }
 
 static void test_make_current_read(HDC hdc)

@@ -3552,6 +3552,14 @@ static void WINAPI glBitmapxOES( GLsizei width, GLsizei height, GLfixed xorig, G
     if ((status = UNIX_CALL( glBitmapxOES, &args ))) WARN( "glBitmapxOES returned %#lx\n", status );
 }
 
+static void WINAPI glBlendBarrier(void)
+{
+    struct glBlendBarrier_params args = { .teb = NtCurrentTeb() };
+    NTSTATUS status;
+    TRACE( "\n" );
+    if ((status = UNIX_CALL( glBlendBarrier, &args ))) WARN( "glBlendBarrier returned %#lx\n", status );
+}
+
 static void WINAPI glBlendBarrierKHR(void)
 {
     struct glBlendBarrierKHR_params args = { .teb = NtCurrentTeb() };
@@ -15694,6 +15702,14 @@ static void WINAPI glPresentFrameKeyedNV( GLuint video_slot, GLuint64EXT minPres
     if ((status = UNIX_CALL( glPresentFrameKeyedNV, &args ))) WARN( "glPresentFrameKeyedNV returned %#lx\n", status );
 }
 
+static void WINAPI glPrimitiveBoundingBox( GLfloat minX, GLfloat minY, GLfloat minZ, GLfloat minW, GLfloat maxX, GLfloat maxY, GLfloat maxZ, GLfloat maxW )
+{
+    struct glPrimitiveBoundingBox_params args = { .teb = NtCurrentTeb(), .minX = minX, .minY = minY, .minZ = minZ, .minW = minW, .maxX = maxX, .maxY = maxY, .maxZ = maxZ, .maxW = maxW };
+    NTSTATUS status;
+    TRACE( "minX %f, minY %f, minZ %f, minW %f, maxX %f, maxY %f, maxZ %f, maxW %f\n", minX, minY, minZ, minW, maxX, maxY, maxZ, maxW );
+    if ((status = UNIX_CALL( glPrimitiveBoundingBox, &args ))) WARN( "glPrimitiveBoundingBox returned %#lx\n", status );
+}
+
 static void WINAPI glPrimitiveBoundingBoxARB( GLfloat minX, GLfloat minY, GLfloat minZ, GLfloat minW, GLfloat maxX, GLfloat maxY, GLfloat maxZ, GLfloat maxW )
 {
     struct glPrimitiveBoundingBoxARB_params args = { .teb = NtCurrentTeb(), .minX = minX, .minY = minY, .minZ = minZ, .minW = minW, .maxX = maxX, .maxY = maxY, .maxZ = maxZ, .maxW = maxW };
@@ -24928,6 +24944,7 @@ const void *extension_procs[] =
     glBinormal3svEXT,
     glBinormalPointerEXT,
     glBitmapxOES,
+    glBlendBarrier,
     glBlendBarrierKHR,
     glBlendBarrierNV,
     glBlendColor,
@@ -26436,6 +26453,7 @@ const void *extension_procs[] =
     glPopGroupMarkerEXT,
     glPresentFrameDualFillNV,
     glPresentFrameKeyedNV,
+    glPrimitiveBoundingBox,
     glPrimitiveBoundingBoxARB,
     glPrimitiveRestartIndex,
     glPrimitiveRestartIndexNV,

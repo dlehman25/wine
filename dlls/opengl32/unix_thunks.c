@@ -4417,6 +4417,16 @@ static NTSTATUS ext_glBitmapxOES( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS ext_glBlendBarrier( void *args )
+{
+    struct glBlendBarrier_params *params = args;
+    const struct opengl_funcs *funcs = params->teb->glTable;
+    if (!funcs->p_glBlendBarrier) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glBlendBarrier();
+    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS ext_glBlendBarrierKHR( void *args )
 {
     struct glBlendBarrierKHR_params *params = args;
@@ -19082,6 +19092,16 @@ static NTSTATUS ext_glPresentFrameKeyedNV( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS ext_glPrimitiveBoundingBox( void *args )
+{
+    struct glPrimitiveBoundingBox_params *params = args;
+    const struct opengl_funcs *funcs = params->teb->glTable;
+    if (!funcs->p_glPrimitiveBoundingBox) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glPrimitiveBoundingBox( params->minX, params->minY, params->minZ, params->minW, params->maxX, params->maxY, params->maxZ, params->maxW );
+    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS ext_glPrimitiveBoundingBoxARB( void *args )
 {
     struct glPrimitiveBoundingBoxARB_params *params = args;
@@ -30968,6 +30988,7 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glBinormal3svEXT,
     ext_glBinormalPointerEXT,
     ext_glBitmapxOES,
+    ext_glBlendBarrier,
     ext_glBlendBarrierKHR,
     ext_glBlendBarrierNV,
     ext_glBlendColor,
@@ -32476,6 +32497,7 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glPopGroupMarkerEXT,
     ext_glPresentFrameDualFillNV,
     ext_glPresentFrameKeyedNV,
+    ext_glPrimitiveBoundingBox,
     ext_glPrimitiveBoundingBoxARB,
     ext_glPrimitiveRestartIndex,
     ext_glPrimitiveRestartIndexNV,
@@ -40936,6 +40958,20 @@ static NTSTATUS wow64_ext_glBitmapxOES( void *args )
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glBitmapxOES) return STATUS_NOT_IMPLEMENTED;
     funcs->p_glBitmapxOES( params->width, params->height, params->xorig, params->yorig, params->xmove, params->ymove, ULongToPtr(params->bitmap) );
+    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS wow64_ext_glBlendBarrier( void *args )
+{
+    struct
+    {
+        PTR32 teb;
+    } *params = args;
+    TEB *teb = get_teb64( params->teb );
+    const struct opengl_funcs *funcs = teb->glTable;
+    if (!funcs->p_glBlendBarrier) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glBlendBarrier();
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
     return STATUS_SUCCESS;
 }
@@ -66965,6 +67001,28 @@ static NTSTATUS wow64_ext_glPresentFrameKeyedNV( void *args )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS wow64_ext_glPrimitiveBoundingBox( void *args )
+{
+    struct
+    {
+        PTR32 teb;
+        GLfloat minX;
+        GLfloat minY;
+        GLfloat minZ;
+        GLfloat minW;
+        GLfloat maxX;
+        GLfloat maxY;
+        GLfloat maxZ;
+        GLfloat maxW;
+    } *params = args;
+    TEB *teb = get_teb64( params->teb );
+    const struct opengl_funcs *funcs = teb->glTable;
+    if (!funcs->p_glPrimitiveBoundingBox) return STATUS_NOT_IMPLEMENTED;
+    funcs->p_glPrimitiveBoundingBox( params->minX, params->minY, params->minZ, params->minW, params->maxX, params->maxY, params->maxZ, params->maxW );
+    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS wow64_ext_glPrimitiveBoundingBoxARB( void *args )
 {
     struct
@@ -87339,6 +87397,7 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glBinormal3svEXT,
     wow64_ext_glBinormalPointerEXT,
     wow64_ext_glBitmapxOES,
+    wow64_ext_glBlendBarrier,
     wow64_ext_glBlendBarrierKHR,
     wow64_ext_glBlendBarrierNV,
     wow64_ext_glBlendColor,
@@ -88847,6 +88906,7 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glPopGroupMarkerEXT,
     wow64_ext_glPresentFrameDualFillNV,
     wow64_ext_glPresentFrameKeyedNV,
+    wow64_ext_glPrimitiveBoundingBox,
     wow64_ext_glPrimitiveBoundingBoxARB,
     wow64_ext_glPrimitiveRestartIndex,
     wow64_ext_glPrimitiveRestartIndexNV,
@@ -91747,8 +91807,8 @@ struct opengl_funcs null_opengl_funcs =
     .p_glViewport = null_glViewport,
 };
 
-const int extension_registry_size = 2756;
-const struct registry_entry extension_registry[2756] =
+const int extension_registry_size = 2758;
+const struct registry_entry extension_registry[2758] =
 {
     { "glAccumxOES", "GL_OES_fixed_point\0", offsetof(struct opengl_funcs, p_glAccumxOES) },
     { "glAcquireKeyedMutexWin32EXT", "GL_EXT_win32_keyed_mutex\0", offsetof(struct opengl_funcs, p_glAcquireKeyedMutexWin32EXT) },
@@ -91851,6 +91911,7 @@ const struct registry_entry extension_registry[2756] =
     { "glBinormal3svEXT", "GL_EXT_coordinate_frame\0", offsetof(struct opengl_funcs, p_glBinormal3svEXT) },
     { "glBinormalPointerEXT", "GL_EXT_coordinate_frame\0", offsetof(struct opengl_funcs, p_glBinormalPointerEXT) },
     { "glBitmapxOES", "GL_OES_fixed_point\0", offsetof(struct opengl_funcs, p_glBitmapxOES) },
+    { "glBlendBarrier", "GL_ARB_ES3_2_compatibility\0", offsetof(struct opengl_funcs, p_glBlendBarrier) },
     { "glBlendBarrierKHR", "GL_KHR_blend_equation_advanced\0", offsetof(struct opengl_funcs, p_glBlendBarrierKHR) },
     { "glBlendBarrierNV", "GL_NV_blend_equation_advanced\0", offsetof(struct opengl_funcs, p_glBlendBarrierNV) },
     { "glBlendColor", "GL_ARB_imaging\0GL_VERSION_1_4\0", offsetof(struct opengl_funcs, p_glBlendColor) },
@@ -93359,6 +93420,7 @@ const struct registry_entry extension_registry[2756] =
     { "glPopGroupMarkerEXT", "GL_EXT_debug_marker\0", offsetof(struct opengl_funcs, p_glPopGroupMarkerEXT) },
     { "glPresentFrameDualFillNV", "GL_NV_present_video\0", offsetof(struct opengl_funcs, p_glPresentFrameDualFillNV) },
     { "glPresentFrameKeyedNV", "GL_NV_present_video\0", offsetof(struct opengl_funcs, p_glPresentFrameKeyedNV) },
+    { "glPrimitiveBoundingBox", "GL_ARB_ES3_2_compatibility\0", offsetof(struct opengl_funcs, p_glPrimitiveBoundingBox) },
     { "glPrimitiveBoundingBoxARB", "GL_ARB_ES3_2_compatibility\0", offsetof(struct opengl_funcs, p_glPrimitiveBoundingBoxARB) },
     { "glPrimitiveRestartIndex", "GL_VERSION_3_1\0", offsetof(struct opengl_funcs, p_glPrimitiveRestartIndex) },
     { "glPrimitiveRestartIndexNV", "GL_NV_primitive_restart\0", offsetof(struct opengl_funcs, p_glPrimitiveRestartIndexNV) },
