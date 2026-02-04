@@ -5040,6 +5040,23 @@ interface ID3D12SDKConfiguration : IUnknown
     HRESULT SetSDKVersion(UINT version, const char *path);
 }
 
+[
+    uuid(8aaf9303-ad25-48b9-9a57-d9c37e009d9f),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12SDKConfiguration1 : ID3D12SDKConfiguration
+{
+    HRESULT CreateDeviceFactory(
+        [in] UINT sdk_version,
+        [in] const char *sdk_path,
+        [in] REFIID riid,
+        [out] void **ppv);
+
+    void FreeUnusedSDKs();
+}
+
 typedef enum D3D12_AXIS_SHADING_RATE
 {
     D3D12_AXIS_SHADING_RATE_1X = 0x0,
