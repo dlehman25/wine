@@ -135,7 +135,6 @@ static HRESULT WINAPI vb_content_handler_endPrefixMapping(IVBSAXContentHandler *
 static HRESULT WINAPI vb_content_handler_startElement(IVBSAXContentHandler *iface, BSTR *uri, BSTR *localName,
         BSTR *qname, IVBSAXAttributes * oAttributes)
 {
-    todo_wine
     ok(uri != NULL && *uri != NULL, "Unexpected pointer.\n");
     ok(localName != NULL && *localName != NULL, "Unexpected pointer.\n");
     ok(qname != NULL && *qname != NULL, "Unexpected pointer.\n");
@@ -6028,7 +6027,6 @@ static void test_mxwriter_from_reader(void)
     V_VT(&var) = VT_BSTR;
     V_BSTR(&var) = _bstr_("<a>text</a>");
     hr = IVBSAXXMLReader_parse(reader, var);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     VariantClear(&var);
 
@@ -6036,7 +6034,6 @@ static void test_mxwriter_from_reader(void)
     hr = IMXWriter_get_output(writer, &var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&var) == VT_BSTR, "Unexpected output type %d.\n", V_VT(&var));
-    todo_wine
     ok(!lstrcmpW(L"<a>text</a>", V_BSTR(&var)), "Unexpected content %s.\n", wine_dbgstr_w(V_BSTR(&var)));
     VariantClear(&var);
 

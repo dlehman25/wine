@@ -134,7 +134,6 @@ static HRESULT WINAPI vb_content_handler_endPrefixMapping(IVBSAXContentHandler *
 static HRESULT WINAPI vb_content_handler_startElement(IVBSAXContentHandler *iface, BSTR *uri, BSTR *localName,
         BSTR *qname, IVBSAXAttributes * oAttributes)
 {
-    todo_wine
     ok(uri != NULL && *uri != NULL, "Unexpected pointer.\n");
     ok(localName != NULL && *localName != NULL, "Unexpected pointer.\n");
     ok(qname != NULL && *qname != NULL, "Unexpected pointer.\n");

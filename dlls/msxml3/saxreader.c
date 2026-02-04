@@ -194,6 +194,7 @@ typedef struct
     struct bstrpool pool;
     saxreader_feature features;
     BSTR xmldecl_version;
+    BSTR empty_bstr;
     MSXML_VERSION version;
 } saxreader;
 
@@ -1573,14 +1574,19 @@ static void libxmlStartElementNS(
             uri = local = NULL;
 
         if (This->vbInterface)
+        {
+            if (!uri) uri = This->saxreader->empty_bstr;
             hr = IVBSAXContentHandler_startElement(handler->vbhandler,
                     &uri, &local, &element->qname, &This->IVBSAXAttributes_iface);
+        }
         else
+        {
             hr = ISAXContentHandler_startElement(handler->handler,
                     uri ? uri : &empty_str, SysStringLen(uri),
                     local ? local : &empty_str, SysStringLen(local),
                     element->qname, SysStringLen(element->qname),
                     &This->ISAXAttributes_iface);
+        }
 
        if (sax_callback_failed(This, hr))
            format_error_message_from_id(This, hr);
@@ -1645,15 +1651,20 @@ static void libxmlEndElementNS(
         uri = local = NULL;
 
     if (This->vbInterface)
+    {
+        if (!uri) uri = This->saxreader->empty_bstr;
         hr = IVBSAXContentHandler_endElement(
                 handler->vbhandler,
                 &uri, &local, &element->qname);
+    }
     else
+    {
         hr = ISAXContentHandler_endElement(
                 handler->handler,
                 uri ? uri : &empty_str, SysStringLen(uri),
                 local ? local : &empty_str, SysStringLen(local),
                 element->qname, SysStringLen(element->qname));
+    }
 
     free_attribute_values(This);
     This->attr_count = 0;
@@ -2922,6 +2933,7 @@ static ULONG WINAPI saxxmlreader_Release(
         }
 
         SysFreeString(reader->xmldecl_version);
+        SysFreeString(reader->empty_bstr);
         free_bstr_pool(&reader->pool);
 
         free(reader);
@@ -3439,6 +3451,7 @@ HRESULT SAXXMLReader_create(MSXML_VERSION version, LPVOID *ppObj)
     reader->pool.len = 0;
     reader->features = Namespaces | NamespacePrefixes;
     reader->version = version;
+    reader->empty_bstr = SysAllocString(L"");
 
     init_dispex(&reader->dispex, (IUnknown*)&reader->IVBSAXXMLReader_iface, &saxreader_dispex);
 
