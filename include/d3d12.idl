@@ -5097,6 +5097,56 @@ interface ID3D12DeviceFactory : IUnknown
         [out] void **ppv_device);
 }
 
+typedef enum D3D12_DEVICE_FLAGS
+{
+    D3D12_DEVICE_FLAG_NONE = 0,
+    D3D12_DEVICE_FLAG_DEBUG_LAYER_ENABLED = 0x1,
+    D3D12_DEVICE_FLAG_GPU_BASED_VALIDATION_ENABLED = 0x2,
+    D3D12_DEVICE_FLAG_SYNCHRONIZED_COMMAND_QUEUE_VALIDATION_DISABLED = 0x4,
+    D3D12_DEVICE_FLAG_DRED_AUTO_BREADCRUMBS_ENABLED = 0x8,
+    D3D12_DEVICE_FLAG_DRED_PAGE_FAULT_REPORTING_ENABLED = 0x10,
+    D3D12_DEVICE_FLAG_DRED_WATSON_REPORTING_ENABLED = 0x20,
+    D3D12_DEVICE_FLAG_DRED_BREADCRUMB_CONTEXT_ENABLED = 0x40,
+    D3D12_DEVICE_FLAG_DRED_USE_MARKERS_ONLY_BREADCRUMBS = 0x80,
+    D3D12_DEVICE_FLAG_SHADER_INSTRUMENTATION_ENABLED = 0x100,
+    D3D12_DEVICE_FLAG_AUTO_DEBUG_NAME_ENABLED = 0x200,
+    D3D12_DEVICE_FLAG_FORCE_LEGACY_STATE_VALIDATION = 0x400,
+} D3D12_DEVICE_FLAGS;
+cpp_quote("DEFINE_ENUM_FLAG_OPERATORS(D3D12_DEVICE_FLAGS)")
+
+typedef struct D3D12_DEVICE_CONFIGURATION_DESC
+{
+    D3D12_DEVICE_FLAGS Flags;
+    UINT GpuBasedValidationFlags;
+    UINT SDKVersion;
+    UINT NumEnabledExperimentalFeatures;
+} D3D12_DEVICE_CONFIGURATION_DESC;
+
+[
+    uuid(78dbf87b-f766-422b-a61c-c8c446bdb9ad),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12DeviceConfiguration : IUnknown
+{
+    D3D12_DEVICE_CONFIGURATION_DESC GetDesc();
+    HRESULT GetEnabledExperimentalFeatures(
+        [out] GUID *guids,
+        [in] UINT num_guids);
+
+    HRESULT SerializeVersionedRootSignature(
+        [in] const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *desc,
+        [out] ID3DBlob **result,
+        [out, optional] ID3DBlob **error);
+
+    HRESULT CreateVersionedRootSignatureDeserializer(
+        [in] const void *blob,
+        [in] SIZE_T size,
+        [in] REFIID riid,
+        [out] void **deserializer);
+}
+
 typedef enum D3D12_AXIS_SHADING_RATE
 {
     D3D12_AXIS_SHADING_RATE_1X = 0x0,
