@@ -5057,6 +5057,46 @@ interface ID3D12SDKConfiguration1 : ID3D12SDKConfiguration
     void FreeUnusedSDKs();
 }
 
+typedef enum D3D12_DEVICE_FACTORY_FLAGS
+{
+    D3D12_DEVICE_FACTORY_FLAG_NONE = 0,
+    D3D12_DEVICE_FACTORY_FLAG_ALLOW_RETURNING_EXISTING_DEVICE = 0x1,
+    D3D12_DEVICE_FACTORY_FLAG_ALLOW_RETURNING_INCOMPATIBLE_EXISTING_DEVICE = 0x2,
+    D3D12_DEVICE_FACTORY_FLAG_DISALLOW_STORING_NEW_DEVICE_AS_SINGLETON = 0x4,
+} D3D12_DEVICE_FACTORY_FLAGS;
+cpp_quote("DEFINE_ENUM_FLAG_OPERATORS(D3D12_DEVICE_FACTORY_FLAGS)")
+
+[
+    uuid(61f307d3-d34e-4e7c-8374-3ba4de23cccb),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12DeviceFactory : IUnknown
+{
+    HRESULT InitializeFromGlobalState();
+    HRESULT ApplyToGlobalState();
+    HRESULT SetFlags(D3D12_DEVICE_FACTORY_FLAGS flags);
+    D3D12_DEVICE_FACTORY_FLAGS GetFlags();
+
+    HRESULT GetConfigurationInterface(
+        [in] REFCLSID clsid,
+        [in] REFIID iid,
+        [out] void **ppv);
+
+    HRESULT EnableExperimentalFeatures(
+        [in] UINT num_features,
+        [in] const IID *iids,
+        [in] void *configuration_structs,
+        [in] UINT *configuration_struct_sizes);
+
+    HRESULT CreateDevice(
+        [in, optional] IUnknown *adapter,
+        [in] D3D_FEATURE_LEVEL feature_level,
+        [in] REFIID riid,
+        [out] void **ppv_device);
+}
+
 typedef enum D3D12_AXIS_SHADING_RATE
 {
     D3D12_AXIS_SHADING_RATE_1X = 0x0,
