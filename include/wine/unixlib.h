@@ -34,6 +34,7 @@ typedef UINT64 unixlib_module_t;
 
 typedef NTSTATUS (*unixlib_entry_t)( void *args );
 
+extern DECLSPEC_EXPORT NTSTATUS __wine_unix_lib_init(void);
 extern DECLSPEC_EXPORT const unixlib_entry_t __wine_unix_call_funcs[];
 extern DECLSPEC_EXPORT const unixlib_entry_t __wine_unix_call_wow64_funcs[];
 

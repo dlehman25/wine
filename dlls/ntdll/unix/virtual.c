@@ -840,12 +840,11 @@ void *get_builtin_so_handle( void *module )
 /***********************************************************************
  *           get_unixlib_funcs
  */
-static NTSTATUS get_unixlib_funcs( void *so_handle, BOOL wow, const void **funcs )
+static NTSTATUS get_unixlib_funcs( void *so_handle, BOOL wow, const void **funcs, NTSTATUS (**entry)(void) )
 {
-    const char *name = wow ? "__wine_unix_call_wow64_funcs" : "__wine_unix_call_funcs";
-
-    *funcs = dlsym( so_handle, name );
-    return *funcs ? STATUS_SUCCESS : STATUS_ENTRYPOINT_NOT_FOUND;
+    *funcs = dlsym( so_handle, wow ? "__wine_unix_call_wow64_funcs" : "__wine_unix_call_funcs" );
+    *entry = dlsym( so_handle, "__wine_unix_lib_init" );
+    return *funcs || *entry ? STATUS_SUCCESS : STATUS_ENTRYPOINT_NOT_FOUND;
 }
 
 
@@ -854,6 +853,7 @@ static NTSTATUS get_unixlib_funcs( void *so_handle, BOOL wow, const void **funcs
  */
 static NTSTATUS load_builtin_unixlib( void *module, BOOL wow, const void **funcs )
 {
+    NTSTATUS (*entry)(void) = NULL;
     sigset_t sigset;
     NTSTATUS status = STATUS_DLL_NOT_FOUND;
     struct builtin_module *builtin;
@@ -867,9 +867,10 @@ static NTSTATUS load_builtin_unixlib( void *module, BOOL wow, const void **funcs
             if (!builtin->unix_handle)
                 WARN_(module)( "failed to load %s: %s\n", debugstr_a(builtin->unix_path), dlerror() );
         }
-        if (builtin->unix_handle) status = get_unixlib_funcs( builtin->unix_handle, wow, funcs );
+        if (builtin->unix_handle) status = get_unixlib_funcs( builtin->unix_handle, wow, funcs, &entry );
     }
     server_leave_uninterrupted_section( &virtual_mutex, &sigset );
+    if (!status && entry) status = entry();
     return status;
 }
 
@@ -6142,15 +6143,17 @@ NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
             {
                 UINT64 res[2];
                 const UNICODE_STRING *name = addr;
+                NTSTATUS (*entry)(void);
                 const void *funcs;
                 void *handle;
 
                 if ((status = load_unixlib_by_name( name, &handle ))) return status;
                 res[0] = (UINT_PTR)handle;
-                if (len >= sizeof(res))
+                if (!(status = get_unixlib_funcs( handle, info_class == MemoryWineLoadUnixLibByNameWow64,
+                                                  &funcs, &entry )))
                 {
-                    if (!(status = get_unixlib_funcs( handle, info_class == MemoryWineLoadUnixLibByNameWow64, &funcs )))
-                        res[1] = (UINT_PTR)funcs;
+                    res[1] = (UINT_PTR)funcs;
+                    if (entry) status = entry();
                 }
                 if (status) dlclose( handle );
                 else memcpy( buffer, res, min( len, sizeof(res) ));
