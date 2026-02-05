@@ -4013,6 +4013,8 @@ BOOL WINAPI DECLSPEC_HOTPATCH WriteFile( HANDLE file, LPCVOID buffer, DWORD coun
     else piosb->Information = 0;
     piosb->Status = STATUS_PENDING;
 
+    if (result) *result = 0;
+
     status = NtWriteFile( file, event, NULL, cvalue, piosb, buffer, count, poffset, NULL );
 
     if (status == STATUS_PENDING && !overlapped)
@@ -4021,7 +4023,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH WriteFile( HANDLE file, LPCVOID buffer, DWORD coun
         status = piosb->Status;
     }
 
-    if (result) *result = overlapped && status ? 0 : piosb->Information;
+    if (result && (!overlapped || !status)) *result = piosb->Information;
 
     if (status && status != STATUS_TIMEOUT)
     {
