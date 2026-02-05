@@ -3620,7 +3620,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH ReadFile( HANDLE file, LPVOID buffer, DWORD count,
         status = io_status->Status;
     }
 
-    if (result) *result = overlapped && status ? 0 : io_status->Information;
+    if (result && (!overlapped || !status)) *result = io_status->Information;
 
     if (status == STATUS_END_OF_FILE)
     {
