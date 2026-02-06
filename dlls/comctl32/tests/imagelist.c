@@ -2515,7 +2515,6 @@ static void test_copy(void)
     image_list_get_image_bits_by_bitmap(src, 0, &bits);
     ok(colour_match(bits, test_bitmaps[1]), "Got unexpected color %08x.\n", bits);
     image_list_get_image_bits_by_bitmap(src, 1, &bits);
-    todo_wine
     ok(colour_match(bits, test_bitmaps[0]), "Got unexpected color %08x.\n", bits);
 
     pImageList_Destroy(src);
