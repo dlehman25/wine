@@ -18,6 +18,7 @@ SOURCES = \
 	amstream.idl \
 	amva.h \
 	amvideo.idl \
+	apisetcconv.h \
 	appcompatapi.h \
 	appmgmt.h \
 	appmodel.h \
