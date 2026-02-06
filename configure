@@ -983,6 +983,7 @@ enable_adsldp
 enable_adsldpc
 enable_advapi32
 enable_advpack
+enable_aero_msstyles
 enable_amsi
 enable_amstream
 enable_apisetschema
@@ -1220,7 +1221,6 @@ enable_ksuser
 enable_ktmw32
 enable_l3codeca_acm
 enable_l3codecx_ax
-enable_light_msstyles
 enable_loadperf
 enable_localspl
 enable_localui
@@ -22320,6 +22320,7 @@ wine_fn_config_makefile dlls/advapi32 enable_advapi32
 wine_fn_config_makefile dlls/advapi32/tests enable_tests
 wine_fn_config_makefile dlls/advpack enable_advpack
 wine_fn_config_makefile dlls/advpack/tests enable_tests
+wine_fn_config_makefile dlls/aero.msstyles enable_aero_msstyles
 wine_fn_config_makefile dlls/amsi enable_amsi
 wine_fn_config_makefile dlls/amstream enable_amstream
 wine_fn_config_makefile dlls/amstream/tests enable_tests
@@ -22694,7 +22695,6 @@ wine_fn_config_makefile dlls/ksuser enable_ksuser
 wine_fn_config_makefile dlls/ktmw32 enable_ktmw32
 wine_fn_config_makefile dlls/l3codeca.acm enable_l3codeca_acm
 wine_fn_config_makefile dlls/l3codecx.ax enable_l3codecx_ax
-wine_fn_config_makefile dlls/light.msstyles enable_light_msstyles
 wine_fn_config_makefile dlls/loadperf enable_loadperf
 wine_fn_config_makefile dlls/localspl enable_localspl
 wine_fn_config_makefile dlls/localspl/tests enable_tests
