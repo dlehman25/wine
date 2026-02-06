@@ -1083,6 +1083,7 @@ SOURCES = \
 	wspiapi.h \
 	wtsapi32.h \
 	wtypes.idl \
+	wtypesbase.idl \
 	wuapi.idl \
 	x3daudio.h \
 	xact.h \
