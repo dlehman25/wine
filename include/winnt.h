@@ -7710,6 +7710,9 @@ static FORCEINLINE DWORD64 UnsignedMultiply128( DWORD64 a, DWORD64 b, DWORD64 *h
 }
 #endif
 
+#define Int32x32To64(a,b)  ((INT64)(INT)(a) * (INT64)(INT)(b))
+#define UInt32x32To64(a,b) ((UINT64)(UINT)(a) * (UINT64)(UINT)(b))
+
 #ifdef __cplusplus
 }
 #endif
