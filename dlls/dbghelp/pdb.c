@@ -112,11 +112,20 @@ struct pdb_dbi_hash_bucket
 struct pdb_compiland
 {
     pdbsize_t stream_offset; /* in DBI stream for compiland description */
-    unsigned short are_symbols_loaded;
     unsigned short compiland_stream_id;
     pdbsize_t compiland_symbols_size;
     pdbsize_t compiland_linetab2_offset;
     pdbsize_t compiland_linetab2_size; /* in compiland stream id (starting at compiland_linetab2_offset) */
+    /* following fields are for transitionning from symt to symref */
+    unsigned short is_shadow_table_loaded;
+    unsigned num_shadow_entries;
+    struct pdb_compiland_shadow_entry
+    {
+        struct symt *symt;
+        unsigned stream_offset;
+        unsigned symbol_size;
+        unsigned rva;
+    } *shadow_entries;
     struct symt_compiland* compiland;
 };
 
@@ -255,6 +264,13 @@ static enum pdb_result pdb_reader_get_segment_address(struct pdb_reader *pdb, un
     if (!segment || segment > pdb->num_sections) return R_PDB_INVALID_PDB_FILE;
     *address = pdb->module->module.BaseOfImage +
         pdb->sections[segment - 1].VirtualAddress + offset;
+    return R_PDB_SUCCESS;
+}
+
+static enum pdb_result pdb_reader_get_rva_from_segment_offset(struct pdb_reader *pdb, unsigned segment, unsigned offset, unsigned *rva)
+{
+    if (!segment || segment > pdb->num_sections) return R_PDB_INVALID_PDB_FILE;
+    *rva = pdb->sections[segment - 1].VirtualAddress + offset;
     return R_PDB_SUCCESS;
 }
 
@@ -895,7 +911,8 @@ static enum pdb_result pdb_reader_contrib_range_cmp(unsigned idx, int *cmp, void
     return R_PDB_SUCCESS;
 }
 
-static enum pdb_result pdb_reader_lookup_compiland_by_segment_offset(struct pdb_reader *pdb, unsigned segment, unsigned offset, unsigned *compiland)
+static enum pdb_result pdb_reader_lookup_compiland_by_segment_offset(struct pdb_reader *pdb, unsigned segment, unsigned offset,
+                                                                     unsigned *compiland)
 {
     enum pdb_result result;
     struct pdb_compiland_lookup lookup = {.pdb = pdb, .segment = segment, .offset = offset};
@@ -1985,8 +2002,9 @@ static enum pdb_result pdb_reader_init_DBI(struct pdb_reader *pdb)
     for (i = 0; i < pdb->num_compilands; i++)
     {
         pdb->compilands[i].stream_offset = compiland_iter.dbi_walker.offset;
-        pdb->compilands[i].compiland = NULL;
         pdb->compilands[i].compiland_stream_id = compiland_iter.dbi_cu_header.stream;
+        pdb->compilands[i].is_shadow_table_loaded = pdb->compilands[i].compiland_stream_id == 0xffff;
+
         pdb->compilands[i].compiland_symbols_size = compiland_iter.dbi_cu_header.symbol_size;
         /* in today's PDB, lineno_size is zero and we wouldn't need to store it...
          * but just in case...
@@ -1994,7 +2012,9 @@ static enum pdb_result pdb_reader_init_DBI(struct pdb_reader *pdb)
         pdb->compilands[i].compiland_linetab2_offset = compiland_iter.dbi_cu_header.symbol_size +
             compiland_iter.dbi_cu_header.lineno_size;
         pdb->compilands[i].compiland_linetab2_size = compiland_iter.dbi_cu_header.lineno2_size;
-        pdb->compilands[i].are_symbols_loaded = pdb->compilands[i].compiland_stream_id == 0xffff;
+        pdb->compilands[i].num_shadow_entries = 0;
+        pdb->compilands[i].shadow_entries = NULL;
+        pdb->compilands[i].compiland = NULL;
         result = pdb_reader_compiland_iterator_next(pdb, &compiland_iter);
         if ((result == R_PDB_SUCCESS) != (i + 1 < pdb->num_compilands)) return result ? result : R_PDB_INVALID_PDB_FILE;
     }
@@ -4942,105 +4962,101 @@ failure:
     return result;
 }
 
-static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb, struct symt_compiland *compiland, struct pdb_reader_walker *walker)
+static enum pdb_result pdb_reader_push_compiland_shadow_entry(struct pdb_reader *pdb, struct pdb_compiland *compiland,
+                                                              unsigned rva, unsigned size, pdbsize_t stream_offset)
 {
     enum pdb_result result;
-    union codeview_symbol *cv_symbol;
-    struct location loc;
-    DWORD64 address;
-    symref_t type_symref;
+    if (!(compiland->num_shadow_entries & (compiland->num_shadow_entries - 1)))
+    {
+        unsigned n = compiland->num_shadow_entries * 2;
+        if (!n) n = 16;
+        if ((result = pdb_reader_realloc(pdb, (void **)&compiland->shadow_entries, n * sizeof(compiland->shadow_entries[0])))) return result;
+    }
+    compiland->shadow_entries[compiland->num_shadow_entries].stream_offset = stream_offset;
+    compiland->shadow_entries[compiland->num_shadow_entries].symbol_size = size;
+    compiland->shadow_entries[compiland->num_shadow_entries].rva = rva;
+    compiland->shadow_entries[compiland->num_shadow_entries].symt = NULL;
+    compiland->num_shadow_entries++;
+    return R_PDB_SUCCESS;
+}
+
+static enum pdb_result pdb_reader_build_compiland_shadow_table(struct pdb_reader *pdb, struct pdb_compiland *compiland)
+{
+    enum pdb_result result;
+    struct pdb_reader_walker walker;
+    union codeview_symbol cv_symbol;
+    unsigned rva;
+
+    if ((result = pdb_reader_walker_init(pdb, compiland->compiland_stream_id, &walker))) return result;
+    if ((result = pdb_reader_walker_narrow(&walker, 0, compiland->compiland_symbols_size))) return result;
 
     /* skip first DWORD, always 4 AFAICT */
-    walker->offset += sizeof(UINT32);
+    walker.offset += sizeof(UINT32);
 
-    /*
-     * Loop over the different types of records and whenever we
-     * find something we are interested in, record it and move on.
-     */
-    while ((result = pdb_reader_alloc_and_read_full_codeview_symbol(pdb, walker, &cv_symbol)) == R_PDB_SUCCESS)
+    while ((result = pdb_reader_read_partial_codeview_symbol(pdb, &walker, &cv_symbol)) == R_PDB_SUCCESS)
     {
-        pdbsize_t symbol_start_offset = walker->offset - (sizeof(cv_symbol->generic.len) + cv_symbol->generic.len);
-        if (!cv_symbol->generic.id || cv_symbol->generic.len < 2) break;
-        if ((cv_symbol->generic.len + 2) & 3) WARN("unpadded len %u\n", cv_symbol->generic.len + 2);
+        pdbsize_t symbol_start_offset = walker.offset - sizeof(cv_symbol.generic.len);
+        if (!cv_symbol.generic.id || cv_symbol.generic.len < 2) break;
+        if ((cv_symbol.generic.len + 2) & 3) WARN("unpadded len %u\n", cv_symbol.generic.len + 2);
 
-        switch (cv_symbol->generic.id)
+        result = R_PDB_SUCCESS;
+        switch (cv_symbol.generic.id)
         {
         case S_THUNK32:
-            if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->thunk_v3.segment, cv_symbol->thunk_v3.offset, &address))) goto failure;
-            symt_new_thunk(pdb->module, compiland,
-                           cv_symbol->thunk_v3.name, cv_symbol->thunk_v3.thtype,
-                           address, cv_symbol->thunk_v3.thunk_len);
-            /* FIXME: we've seen S_FRAMEPROC inside S_THUNK...
-             * so until it's better supported, skip until end of thunk declaration
-             */
-            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->thunk_v3.pend, S_END))) goto failure;
-            break;
+            if (!(result = pdb_reader_get_rva_from_segment_offset(pdb, cv_symbol.thunk_v3.segment, cv_symbol.thunk_v3.offset, &rva)))
+                result = pdb_reader_push_compiland_shadow_entry(pdb, compiland, rva, cv_symbol.thunk_v3.thunk_len, symbol_start_offset);
+            result = pdb_reader_symbol_skip_if(pdb, &walker, cv_symbol.thunk_v3.pend, S_END);
+            continue;
 
         /*
          * Global and static functions.
          */
         case S_GPROC32:
         case S_LPROC32:
+            if (!(result = pdb_reader_get_rva_from_segment_offset(pdb, cv_symbol.proc_v3.segment, cv_symbol.proc_v3.offset, &rva)))
             {
-                struct symt_function *func;
-
-                if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->proc_v3.segment, cv_symbol->proc_v3.offset, &address))) goto failure;
-                if ((result = pdb_reader_symref_from_cv_typeid(pdb, cv_symbol->proc_v3.proctype, &type_symref))) goto failure;
-                if ((func = symt_new_function(pdb->module, symt_ptr_to_symref(&compiland->symt),
-                                              cv_symbol->proc_v3.name,
-                                              address, cv_symbol->proc_v3.proc_len,
-                                              type_symref, symbol_start_offset)))
-                {
-                    loc.kind = loc_absolute;
-                    loc.offset = cv_symbol->proc_v3.debug_start;
-                    symt_add_function_point(pdb->module, func, SymTagFuncDebugStart, &loc, NULL);
-                    loc.offset = cv_symbol->proc_v3.debug_end;
-                    symt_add_function_point(pdb->module, func, SymTagFuncDebugEnd, &loc, NULL);
-
-                    if ((result = pdb_reader_load_compiland_function(pdb, compiland, func, func, walker))) goto failure;
-                }
+                result = pdb_reader_push_compiland_shadow_entry(pdb, compiland, rva, cv_symbol.proc_v3.proc_len, symbol_start_offset);
             }
+            result = pdb_reader_symbol_skip_if(pdb, &walker, cv_symbol.proc_v3.pend, S_END);
+            continue;
             break;
 
         case S_COMPILE2:
-            TRACE("S-Compile-V3 machine:%x language:%x %s\n",
-                  cv_symbol->compile2_v3.machine, cv_symbol->compile2_v3.flags.iLanguage, debugstr_a(cv_symbol->compile2_v3.name));
+            /* FIXME not tracing name - out of partial symbol */
+            TRACE("S-Compile-V3 machine:%x language:%x\n",
+                  cv_symbol.compile2_v3.machine, cv_symbol.compile2_v3.flags.iLanguage);
             break;
         case S_COMPILE3:
-            TRACE("S-Compile3-V3 machine:%x language:%x %s\n",
-                  cv_symbol->compile3_v3.machine, cv_symbol->compile3_v3.flags.iLanguage, debugstr_a(cv_symbol->compile3_v3.name));
+            /* FIXME not tracing name - out of partial symbol */
+            TRACE("S-Compile3-V3 machine:%x language:%x\n",
+                  cv_symbol.compile3_v3.machine, cv_symbol.compile3_v3.flags.iLanguage);
             break;
 
         case S_ENVBLOCK:
             break;
 
         case S_OBJNAME:
-            TRACE("S-ObjName-V3 %s\n", debugstr_a(cv_symbol->objname_v3.name));
+            /* FIXME not tracing name - out of partial symbol */
+            TRACE("S-ObjName-V3\n");
             break;
 
         case S_LABEL32:
-            if ((result = pdb_reader_get_segment_address(pdb, cv_symbol->label_v3.segment, cv_symbol->label_v3.offset, &address))) goto failure;
-            symt_new_label(pdb->module, compiland, cv_symbol->label_v3.name, address);
+            if (!(result = pdb_reader_get_rva_from_segment_offset(pdb, cv_symbol.label_v3.segment, cv_symbol.label_v3.offset, &rva)))
+                result = pdb_reader_push_compiland_shadow_entry(pdb, compiland, rva, 1, symbol_start_offset);
             break;
 
         case S_SSEARCH:
             TRACE("Start search: seg=0x%x at offset 0x%08x\n",
-                  cv_symbol->ssearch_v1.segment, cv_symbol->ssearch_v1.offset);
+                  cv_symbol.ssearch_v1.segment, cv_symbol.ssearch_v1.offset);
             break;
 
         case S_ALIGN:
             TRACE("S-Align V1\n");
             break;
 
-        case S_HEAPALLOCSITE: /* FIXME likely function only */
-            TRACE("S-heap site V3: offset=0x%08x at sect_idx 0x%04x, inst_len 0x%08x, index 0x%08x\n",
-                  cv_symbol->heap_alloc_site_v3.offset, cv_symbol->heap_alloc_site_v3.sect_idx,
-                  cv_symbol->heap_alloc_site_v3.inst_len, cv_symbol->heap_alloc_site_v3.index);
-            break;
-
         case S_GMANPROC:
         case S_LMANPROC:
-            if ((result = pdb_reader_symbol_skip_if(pdb, walker, cv_symbol->managed_proc_v3.pend, S_END))) goto failure;
+            result = pdb_reader_symbol_skip_if(pdb, &walker, cv_symbol.managed_proc_v3.pend, S_END);
             break;
 
         /* the symbols we can safely ignore for now */
@@ -5071,7 +5087,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
         case S_UNAMESPACE:
         case S_INLINEES:
         case S_POGODATA:
-            TRACE("Unsupported symbol id %x\n", cv_symbol->generic.id);
+            TRACE("Unsupported symbol id %x\n", cv_symbol.generic.id);
             break;
 
         /* Symbols only expected inside a function, thunk... */
@@ -5086,6 +5102,7 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
         case S_INLINESITE_END:
         case S_FRAMEPROC:
         case S_SEPCODE:
+        case S_HEAPALLOCSITE:
         /* symbols only expected in compiland symbols' stream */
         case S_PUB32:
         case S_PROCREF:
@@ -5094,25 +5111,27 @@ static enum pdb_result pdb_reader_load_compiland_symbols(struct pdb_reader *pdb,
         case S_GDATA32:
         case S_UDT:
         default:
-            PDB_REPORT_UNEXPECTED("(compiland stream - top level) symbol id", cv_symbol->generic.id);
+            PDB_REPORT_UNEXPECTED("(compiland stream - top level) symbol id", cv_symbol.generic.id);
             break;
         }
-        pdb_reader_free(pdb, cv_symbol);
+        if (result) return result;
+        walker.offset += cv_symbol.generic.len;
     }
     return R_PDB_SUCCESS;
-
-failure:
-    pdb_reader_free(pdb, cv_symbol);
-    return result;
 }
 
-static enum pdb_result pdb_reader_ensure_symbols_loaded_from_compiland(struct pdb_reader *pdb, unsigned compiland_index)
+static int compiland_shadow_entry_stream_offset_cmp(const void *key, const void *entry)
+{
+    if (*(unsigned*)key < ((struct pdb_compiland_shadow_entry *)entry)->stream_offset) return -1;
+    if (*(unsigned*)key > ((struct pdb_compiland_shadow_entry *)entry)->stream_offset) return +1;
+    return 0;
+}
+
+static enum pdb_result pdb_reader_ensure_compiland_shadow_table(struct pdb_reader *pdb, struct pdb_compiland *compiland)
 {
     enum pdb_result result;
-    struct pdb_compiland *compiland = &pdb->compilands[compiland_index];
 
-    if (compiland_index >= pdb->num_compilands) return R_PDB_INVALID_ARGUMENT;
-    if (!compiland->are_symbols_loaded)
+    if (!compiland->is_shadow_table_loaded)
     {
         struct pdb_reader_walker walker;
         struct symref_code code;
@@ -5129,51 +5148,123 @@ static enum pdb_result pdb_reader_ensure_symbols_loaded_from_compiland(struct pd
         if ((result = pdb_reader_walker_init(pdb, compiland->compiland_stream_id, &walker))) return result;
         if ((result = pdb_reader_walker_narrow(&walker, 0, compiland->compiland_symbols_size))) return result;
 
-        if ((result = pdb_reader_load_compiland_symbols(pdb, (struct symt_compiland *)compiland->compiland, &walker))) return result;
-        compiland->are_symbols_loaded = TRUE;
+        if ((result = pdb_reader_build_compiland_shadow_table(pdb, compiland))) return result;
+        compiland->is_shadow_table_loaded = TRUE;
     }
     return R_PDB_SUCCESS;
+}
+
+static enum pdb_result pdb_reader_compiland_lookup_shadow_entry(struct pdb_reader *pdb, struct pdb_compiland *compiland,
+                                                                pdbsize_t stream_offset, struct pdb_compiland_shadow_entry **entry)
+{
+    enum pdb_result result;
+    struct pdb_compiland_shadow_entry *found;
+
+    if ((result = pdb_reader_ensure_compiland_shadow_table(pdb, compiland))) return result;
+
+    found = bsearch(&stream_offset, compiland->shadow_entries, compiland->num_shadow_entries, sizeof(compiland->shadow_entries[0]),
+                    compiland_shadow_entry_stream_offset_cmp);
+    if (!found || found->stream_offset != stream_offset) return R_PDB_NOT_FOUND;
+    *entry = found;
+    return R_PDB_SUCCESS;
+}
+
+static enum pdb_result pdb_reader_ensure_compiland_symbol_present(struct pdb_reader *pdb, unsigned compiland_index, pdbsize_t stream_offset, symref_t *symref)
+{
+    enum pdb_result result;
+    struct pdb_compiland *compiland;
+    struct pdb_compiland_shadow_entry *found;
+    struct pdb_reader_walker walker;
+    union codeview_symbol *cv_symbol;
+    struct location loc;
+    DWORD64 address;
+    symref_t type_symref;
+
+    if (compiland_index > pdb->num_compilands) return R_PDB_INVALID_PDB_FILE;
+    compiland = &pdb->compilands[compiland_index];
+
+    if ((result = pdb_reader_compiland_lookup_shadow_entry(pdb, compiland, stream_offset, &found))) return result;
+    if (found->symt)
+    {
+        *symref = symt_ptr_to_symref(found->symt);
+        return R_PDB_SUCCESS;
+    }
+
+    if ((result = pdb_reader_walker_init(pdb, compiland->compiland_stream_id, &walker))) return result;
+    /* skip first DWORD, always 4 AFAICT */
+    walker.offset = stream_offset;
+
+    /* Note: we should narrow walker from info in cv_symbol entry (=> offset to S_END) */
+    if ((result = pdb_reader_alloc_and_read_full_codeview_symbol(pdb, &walker, &cv_symbol)) == R_PDB_SUCCESS)
+    {
+        switch (cv_symbol->generic.id)
+        {
+        case S_THUNK32:
+            if (!(result = pdb_reader_get_segment_address(pdb, cv_symbol->thunk_v3.segment, cv_symbol->thunk_v3.offset, &address)))
+                found->symt = &symt_new_thunk(pdb->module, compiland->compiland,
+                                              cv_symbol->thunk_v3.name, cv_symbol->thunk_v3.thtype,
+                                              address, cv_symbol->thunk_v3.thunk_len)->symt;
+            break;
+
+        /*
+         * Global and static functions.
+         */
+        case S_GPROC32:
+        case S_LPROC32:
+            {
+                struct symt_function *func = NULL;
+                if (!(result = pdb_reader_get_segment_address(pdb, cv_symbol->proc_v3.segment, cv_symbol->proc_v3.offset, &address)) &&
+                    !(result = pdb_reader_symref_from_cv_typeid(pdb, cv_symbol->proc_v3.proctype, &type_symref)) &&
+                    (func = symt_new_function(pdb->module, symt_ptr_to_symref(&compiland->compiland->symt),
+                                              cv_symbol->proc_v3.name,
+                                              address, cv_symbol->proc_v3.proc_len,
+                                              type_symref, stream_offset)))
+                {
+                    loc.kind = loc_absolute;
+                    loc.offset = cv_symbol->proc_v3.debug_start;
+                    symt_add_function_point(pdb->module, func, SymTagFuncDebugStart, &loc, NULL);
+                    loc.offset = cv_symbol->proc_v3.debug_end;
+                    symt_add_function_point(pdb->module, func, SymTagFuncDebugEnd, &loc, NULL);
+
+                    result = pdb_reader_load_compiland_function(pdb, compiland->compiland, func, func, &walker);
+                }
+                if (result == R_PDB_SUCCESS)
+                {
+                    if (func) found->symt = &func->symt;
+                    else result = R_PDB_OUT_OF_MEMORY;
+                }
+            }
+            break;
+
+        case S_LABEL32:
+            if (!(result = pdb_reader_get_segment_address(pdb, cv_symbol->label_v3.segment, cv_symbol->label_v3.offset, &address)))
+                found->symt = &symt_new_label(pdb->module, compiland->compiland, cv_symbol->label_v3.name, address)->symt;
+            break;
+
+        default:
+            /* list of handled symbols should match the ones which push entries in pdb_reader_build_compiland_shadow_table */
+            break;
+        }
+        pdb_reader_free(pdb, cv_symbol);
+    }
+    if (result == R_PDB_SUCCESS)
+        *symref = symt_ptr_to_symref(found->symt);
+    return result;
 }
 
 static enum pdb_result pdb_reader_lookup_top_symbol_by_segment_offset(struct pdb_reader *pdb, unsigned segment, unsigned offset, symref_t *symref)
 {
     enum pdb_result result;
     unsigned compiland_index;
-    DWORD64 in_address;
-    struct symt_ht *symbol;
-
-    if ((result = pdb_reader_get_segment_address(pdb, segment, offset, &in_address))) return result;
-    result = pdb_reader_lookup_compiland_by_segment_offset(pdb, segment, offset, &compiland_index);
-    if (result == R_PDB_SUCCESS)
-    {
-        if ((result = pdb_reader_ensure_symbols_loaded_from_compiland(pdb, compiland_index)))
-            return result;
-    }
-    /* don't fail if not found as some symbols are only present in DBI, but not in compiland */
-    else if (result != R_PDB_NOT_FOUND) return result;
-    /* fallback to ptr symbols lookup (as ptr should be loaded by now) */
-    symbol = symt_find_symbol_at(pdb->module, in_address);
-    if (!symbol) return R_PDB_NOT_FOUND;
-    *symref = symt_ptr_to_symref(&symbol->symt);
-    return R_PDB_SUCCESS;
-}
-
-static enum method_result pdb_method_lookup_symbol_by_address(struct module_format *modfmt, DWORD_PTR address, symref_t *symref)
-{
-    enum pdb_result result;
-    struct pdb_reader *pdb;
-    unsigned segment, offset;
     struct pdb_global key, *found;
 
-    pdb = pdb_get_current_reader(modfmt);
-    if ((result = pdb_reader_get_segment_offset_from_address(pdb, address, &segment, &offset)))
-    {
-        struct symref_code code;
-        if (address == pdb->module->module.BaseOfImage && !pdb_reader_encode_symref(pdb,  symref_code_init_from_top(&code), symref))
-            return MR_SUCCESS;
-        return MR_FAILURE;
-    }
-    key.rva = address - pdb->module->module.BaseOfImage;
+    /* FIXME: that's a bit complex today
+     * - we first search globals from DBI (but procedures are not there yet),
+     * - if not found, lookup for symbol in its compiland (by contrib)
+     * - in last resort, search in old symt_ht table (eg the function static variable are here)
+     * When all symbols are migrated to symref, the latest point will not be needed
+     */
+    if ((result = pdb_reader_get_rva_from_segment_offset(pdb, segment, offset, &key.rva))) return result;
     found = bsearch(&key, pdb->globals, pdb->num_globals, sizeof(*pdb->globals), &pdb_global_cmp);
     if (found && found->rva == key.rva)
     {
@@ -5185,9 +5276,63 @@ static enum method_result pdb_method_lookup_symbol_by_address(struct module_form
         if (found + 1 < pdb->globals + pdb->num_globals && (found + 1)->rva == key.rva)
             WARN("Duplicate found after\n");
         *symref = found->symref;
-        return MR_SUCCESS;
+        return R_PDB_SUCCESS;
     }
-    return pdb_method_result(pdb_reader_lookup_top_symbol_by_segment_offset(pdb, segment, offset, symref));
+    if (!(result = pdb_reader_lookup_compiland_by_segment_offset(pdb, segment, offset, &compiland_index)))
+    {
+        struct pdb_compiland *compiland = &pdb->compilands[compiland_index];
+        struct pdb_compiland_shadow_entry *best = NULL;
+        unsigned i;
+
+        /* FIXME the entries are stored in ascending order wrt. stream_offset
+         * we use a linear search for now...
+         */
+        if ((result = pdb_reader_ensure_compiland_shadow_table(pdb, compiland))) return result;
+        for (i = 0; i < compiland->num_shadow_entries; i++)
+        {
+            if (compiland->shadow_entries[i].rva <= key.rva &&
+                key.rva < compiland->shadow_entries[i].rva + compiland->shadow_entries[i].symbol_size)
+            {
+                best = &compiland->shadow_entries[i];
+                break;
+            }
+        }
+        if (best)
+        {
+            result = pdb_reader_ensure_compiland_symbol_present(pdb, compiland_index, best->stream_offset, symref);
+            return result;
+        }
+    }
+    /* we can end up here when eg looking up for static variables inside a function...
+     * FIXME: this will only work if the symt for the function has been loaded
+     */
+    {
+        struct symt_ht *symt = symt_find_symbol_at(pdb->module, pdb->module->module.BaseOfImage + key.rva);
+        if (symt)
+        {
+            *symref = symt_ptr_to_symref(&symt->symt);
+            result = R_PDB_SUCCESS;
+        }
+    }
+    return R_PDB_NOT_FOUND;
+}
+
+static enum method_result pdb_method_lookup_symbol_by_address(struct module_format *modfmt, DWORD_PTR address, symref_t *symref)
+{
+    enum pdb_result result;
+    struct pdb_reader *pdb;
+    unsigned segment, offset;
+
+    pdb = pdb_get_current_reader(modfmt);
+    if ((result = pdb_reader_get_segment_offset_from_address(pdb, address, &segment, &offset)))
+    {
+        struct symref_code code;
+        if (address == pdb->module->module.BaseOfImage && !pdb_reader_encode_symref(pdb,  symref_code_init_from_top(&code), symref))
+            return MR_SUCCESS;
+        return MR_FAILURE;
+    }
+    result = pdb_reader_lookup_top_symbol_by_segment_offset(pdb, segment, offset, symref);
+    return pdb_method_result(result);
 }
 
 static enum pdb_result pdb_reader_dereference_procedure(struct pdb_reader *pdb, unsigned compiland_id, pdbsize_t stream_offset,
