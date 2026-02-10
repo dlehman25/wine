@@ -588,6 +588,8 @@ static struct strarray get_link_args( const char *output_name )
         else if (!try_link( link_args, "-Wl,--file-alignment,0x1000,--section-alignment,0x1000" ))
             strarray_add( &link_args, strmake( "-Wl,--file-alignment,%s,--section-alignment,%s",
                                                file_align, section_align ));
+        strarray_add( &link_args, target.cpu == CPU_i386 ?
+                      "-Wl,--undefined,___wine_call_gcc_ctors" : "-Wl,--undefined,__wine_call_gcc_ctors" );
         strarray_addall( &link_args, flags );
         return link_args;
 
