@@ -10375,16 +10375,16 @@ static void test_media_session_scrubbing(void)
     hr = WaitForSingleObject(media_sink->preroll_event, 100);
     ok(hr == WAIT_TIMEOUT, "Unexpected hr %#lx.\n", hr);
 
+    hr = wait_media_event_until_blocking(session, callback, MESessionStarted, 1000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    PropVariantClear(&propvar);
+
     todo_wine
     CHECK_CALLED(test_media_sink_GetPresentationClock);
     todo_wine
     CHECK_CALLED(test_transform_ProcessMessage_START_OF_STREAM);
     todo_wine
     CHECK_CALLED(test_media_sink_GetStreamSinkCount);
-
-    hr = wait_media_event_until_blocking(session, callback, MESessionStarted, 1000, &propvar);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    PropVariantClear(&propvar);
 
     SET_EXPECT(test_transform_ProcessMessage_FLUSH);
     SET_EXPECT(test_stream_sink_Flush);
