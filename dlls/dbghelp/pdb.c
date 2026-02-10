@@ -1758,40 +1758,119 @@ static enum pdb_result pdb_reader_extract_name_out_of_codeview_symbol(union code
     return R_PDB_SUCCESS;
 }
 
+struct pdb_reader_DBI_hash_iterator
+{
+    UINT32 hash;
+    unsigned int idx;
+    const WCHAR *regex_to_match;
+    const char *string_to_match;
+    union codeview_symbol *full_cv_symbol;
+    BOOL need_to_free_string_match;
+};
+
+static enum pdb_result pdb_reader_init_DBI_hash_iterator_string(struct pdb_reader *pdb, struct pdb_reader_DBI_hash_iterator *iter,
+                                                                const char *string_match)
+{
+    iter->hash = codeview_compute_hash(string_match, strlen(string_match)) % DBI_MAX_HASH;
+    iter->idx = 0;
+    iter->regex_to_match = NULL;
+    iter->string_to_match = string_match;
+    iter->full_cv_symbol = NULL;
+    iter->need_to_free_string_match = FALSE;
+    return R_PDB_SUCCESS;
+}
+
+
+static enum pdb_result pdb_reader_init_DBI_hash_iterator_regex(struct pdb_reader *pdb, struct pdb_reader_DBI_hash_iterator *iter,
+                                                               const WCHAR *match)
+{
+    if (!wcspbrk(match, L"?*#[]"))
+    {
+        SIZE_T len = WideCharToMultiByte(CP_ACP, 0, match, -1, NULL, 0, NULL, NULL);
+        char *buffer;
+
+        if (!len || !(buffer = malloc(len))) return R_PDB_OUT_OF_MEMORY;
+        WideCharToMultiByte(CP_ACP, 0, match, -1, buffer, len, NULL, NULL);
+        iter->hash = codeview_compute_hash(buffer, strlen(buffer)) % DBI_MAX_HASH;
+        iter->regex_to_match = NULL;
+        iter->string_to_match = buffer;
+        iter->need_to_free_string_match = TRUE;
+    }
+    else
+    {
+        iter->hash = 0;
+        iter->regex_to_match = match;
+        iter->string_to_match = NULL;
+        iter->need_to_free_string_match = FALSE;
+    }
+    iter->idx = 0;
+    iter->full_cv_symbol = NULL;
+    return R_PDB_SUCCESS;
+}
+
+static enum pdb_result pdb_reader_get_and_advance_DBI_hash_iterator(struct pdb_reader *pdb, struct pdb_reader_DBI_hash_iterator *iter,
+                                                                    pdbsize_t *stream_offset)
+{
+    enum pdb_result result;
+    struct pdb_dbi_hash_bucket *bucket;
+
+    for (; iter->hash < DBI_MAX_HASH; iter->hash++)
+    {
+        bucket = &pdb->dbi_symbols_hash_buckets[iter->hash];
+        for (; iter->idx < bucket->num_entries; iter->idx++)
+        {
+            struct pdb_reader_walker walker;
+            char *cv_name;
+
+            if (iter->full_cv_symbol)
+            {
+                pdb_reader_free(pdb, iter->full_cv_symbol);
+                iter->full_cv_symbol = NULL;
+            }
+
+            if ((result = pdb_reader_walker_init(pdb, pdb->dbi_header.gsym_stream, &walker))) return result;
+            walker.offset = bucket->entries[iter->idx].dbi_stream_offset;
+            if ((result = pdb_reader_alloc_and_read_full_codeview_symbol(pdb, &walker, &iter->full_cv_symbol))) return result;
+            if ((result = pdb_reader_extract_name_out_of_codeview_symbol(iter->full_cv_symbol, &cv_name))) return result;
+
+            if ((iter->string_to_match && !strcmp(iter->string_to_match, cv_name)) ||
+                (iter->regex_to_match && symt_match_stringAW(cv_name, iter->regex_to_match, TRUE)))
+            {
+                if (stream_offset) *stream_offset = bucket->entries[iter->idx].dbi_stream_offset;
+                iter->idx++;
+                return R_PDB_SUCCESS;
+            }
+        }
+        if (iter->string_to_match)
+        {
+            iter->hash = DBI_MAX_HASH;
+            break;
+        }
+        iter->idx = 0;
+    }
+    return R_PDB_NOT_FOUND;
+}
+
+static enum pdb_result pdb_reader_dispose_DBI_hash_iterator(struct pdb_reader *pdb, struct pdb_reader_DBI_hash_iterator *iter)
+{
+    pdb_reader_free(pdb, iter->full_cv_symbol);
+    if (iter->need_to_free_string_match) free((void *)iter->string_to_match);
+    return R_PDB_SUCCESS;
+}
+
 static enum pdb_result pdb_reader_read_DBI_codeview_symbol_by_name(struct pdb_reader *pdb, const char *name,
                                                                    pdbsize_t *stream_offset, union codeview_symbol *cv_symbol)
 {
     enum pdb_result result;
-    UINT32 hash;
-    struct pdb_reader_walker walker;
-    union codeview_symbol *full_cv_symbol;
-    char *cv_name;
+    struct pdb_reader_DBI_hash_iterator iter;
 
-    if ((result = pdb_reader_walker_init(pdb, pdb->dbi_header.gsym_stream, &walker))) return result;
-    hash = codeview_compute_hash(name, strlen(name)) % DBI_MAX_HASH;
-    if (pdb->dbi_symbols_hash_buckets[hash].num_entries)
+    if (!(result = pdb_reader_init_DBI_hash_iterator_string(pdb, &iter, name)))
     {
-        unsigned int i;
-        struct pdb_dbi_hash_bucket *bucket = &pdb->dbi_symbols_hash_buckets[hash];
-        for (i = 0; bucket->num_entries; i++)
-        {
-            walker.offset = bucket->entries[i].dbi_stream_offset;
-            if ((result = pdb_reader_alloc_and_read_full_codeview_symbol(pdb, &walker, &full_cv_symbol))) return result;
-            if (pdb_reader_extract_name_out_of_codeview_symbol(full_cv_symbol, &cv_name) == R_PDB_SUCCESS)
-            {
-                if (!strcmp(name, cv_name))
-                {
-                    *cv_symbol = *full_cv_symbol;
-                    pdb_reader_free(pdb, full_cv_symbol);
-                    *stream_offset = bucket->entries[i].dbi_stream_offset;
-                    return R_PDB_SUCCESS;
-                }
-                pdb_reader_free(pdb, full_cv_symbol);
-            }
-        }
+        if (!(result = pdb_reader_get_and_advance_DBI_hash_iterator(pdb, &iter, stream_offset)))
+            *cv_symbol = *iter.full_cv_symbol;
+        pdb_reader_dispose_DBI_hash_iterator(pdb, &iter);
     }
-    TRACE("not found in hash bucket %s\n", debugstr_a(name));
-    return R_PDB_NOT_FOUND;
+    return result;
 }
 
 struct pdb_reader_whole_stream
@@ -5100,84 +5179,53 @@ static enum method_result pdb_method_enumerate_symbols(struct module_format *mod
 {
     enum pdb_result result;
     struct pdb_reader *pdb;
-    struct pdb_reader_walker walker, symbol_walker;
-    union codeview_symbol cv_symbol;
-    unsigned segment;
-    unsigned offset;
+    pdbsize_t stream_offset;
+    struct pdb_reader_DBI_hash_iterator iter;
+    unsigned segment, offset;
     char *symbol_name;
+    symref_t symref;
 
     pdb = pdb_get_current_reader(modfmt);
 
-    /* FIXME could be optimized if match doesn't contain wild cards */
-    /* this is currently ugly, but basically we just ensure that all the compilands which contain matching symbols
-     * are actually loaded, and fall back to generic mode...
-     */
-    if ((result = pdb_reader_walker_init(pdb, pdb->dbi_header.gsym_stream, &walker))) return pdb_method_result(result);
-    while (pdb_reader_read_partial_codeview_symbol(pdb, &walker, &cv_symbol) == R_PDB_SUCCESS)
+    if (!(result = pdb_reader_init_DBI_hash_iterator_regex(pdb, &iter, match)))
     {
-        symbol_name = NULL;
-        symbol_walker = walker;
-        symbol_walker.offset -= sizeof(cv_symbol.generic.len);
-        switch (cv_symbol.generic.id)
+        while ((result = pdb_reader_get_and_advance_DBI_hash_iterator(pdb, &iter, &stream_offset)) == R_PDB_SUCCESS)
         {
-        case S_GDATA32:
-        case S_LDATA32:
-            segment = cv_symbol.data_v3.segment;
-            offset = cv_symbol.data_v3.offset;
-            symbol_walker.offset += offsetof(union codeview_symbol, data_v3.name);
-            if ((result = pdb_reader_alloc_and_fetch_string(pdb, &symbol_walker, &symbol_name))) return pdb_method_result(result);
-            break;
-        case S_GTHREAD32:
-        case S_LTHREAD32:
-            segment = cv_symbol.thread_v3.segment;
-            offset = cv_symbol.thread_v3.offset;
-            symbol_walker.offset += offsetof(union codeview_symbol, thread_v3.name);
-            if ((result = pdb_reader_alloc_and_fetch_string(pdb, &symbol_walker, &symbol_name))) return pdb_method_result(result);
-            break;
-        case S_PROCREF:
-        case S_LPROCREF:
-            if ((result = pdb_reader_dereference_procedure(pdb, cv_symbol.refsym2_v3.imod, cv_symbol.refsym2_v3.ibSym,
-                                                           &segment, &offset)))
+            switch (iter.full_cv_symbol->generic.id)
             {
-                return pdb_method_result(result);
-            }
-            symbol_walker.offset += offsetof(union codeview_symbol, refsym2_v3.name);
-            if ((result = pdb_reader_alloc_and_fetch_string(pdb, &symbol_walker, &symbol_name))) return pdb_method_result(result);
-            break;
-        case S_UDT:
-        case S_CONSTANT:
-        case S_PUB32:
-            break;
-        default:
-            PDB_REPORT_UNEXPECTED("codeview symbol-id", cv_symbol.generic.id);
-            break;
-        }
-        if (symbol_name)
-        {
-            BOOL do_continue = TRUE;
-
-            if (symt_match_stringAW(symbol_name, match, TRUE))
-            {
-                symref_t symref;
-                switch (cv_symbol.generic.id)
-                {
-                case S_GDATA32:
-                case S_LDATA32:
-                case S_GTHREAD32:
-                case S_LTHREAD32:
-                    result = pdb_reader_DBI_globals_symref(pdb, walker.offset - sizeof(cv_symbol.generic.len), &symref);
-                    break;
-                default:
+            case S_GDATA32:
+            case S_LDATA32:
+                result = pdb_reader_DBI_globals_symref(pdb, stream_offset, &symref);
+                break;
+            case S_GTHREAD32:
+            case S_LTHREAD32:
+                result = pdb_reader_DBI_globals_symref(pdb, stream_offset, &symref);
+                break;
+            case S_PROCREF:
+            case S_LPROCREF:
+                if (!(result = pdb_reader_dereference_procedure(pdb, iter.full_cv_symbol->refsym2_v3.imod,
+                                                                iter.full_cv_symbol->refsym2_v3.ibSym,
+                                                                &segment, &offset)))
                     result = pdb_reader_lookup_top_symbol_by_segment_offset(pdb, segment, offset, &symref);
-                    break;
-                }
-                if (result == R_PDB_SUCCESS)
-                    do_continue = cb(symref, symbol_name, user);
+                break;
+            default:
+                PDB_REPORT_UNEXPECTED("codeview symbol-id", iter.full_cv_symbol->generic.id);
+            case S_UDT:
+            case S_CONSTANT:
+            case S_PUB32:
+                result = R_PDB_NOT_FOUND;
+                break;
             }
-            pdb_reader_free(pdb, symbol_name);
-            if (!do_continue) return MR_SUCCESS;
+            if (result) continue;
+
+            if (pdb_reader_extract_name_out_of_codeview_symbol(iter.full_cv_symbol, &symbol_name) == R_PDB_SUCCESS)
+            {
+                if (!cb(symref, symbol_name, user))
+                    break;
+            }
         }
-        walker.offset += cv_symbol.generic.len;
+        pdb_reader_dispose_DBI_hash_iterator(pdb, &iter);
+        return MR_SUCCESS;
     }
     return MR_FAILURE;
 }
