@@ -2008,13 +2008,40 @@ static HRESULT WINAPI domdoc_getElementsByTagName(
     return hr;
 }
 
-static HRESULT get_node_type(VARIANT Type, DOMNodeType * type)
+static bool get_node_type_from_typestring(const WCHAR *name, DOMNodeType *type)
+{
+    if (!wcsicmp(name, L"attribute")) *type = NODE_ATTRIBUTE;
+    else if (!wcsicmp(name, L"cdatasection")) *type = NODE_CDATA_SECTION;
+    else if (!wcsicmp(name, L"comment")) *type = NODE_COMMENT;
+    else if (!wcsicmp(name, L"document")) *type = NODE_DOCUMENT;
+    else if (!wcsicmp(name, L"documentfragment")) *type = NODE_DOCUMENT_FRAGMENT;
+    else if (!wcsicmp(name, L"documentype")) *type = NODE_DOCUMENT_TYPE;
+    else if (!wcsicmp(name, L"element")) *type = NODE_ELEMENT;
+    else if (!wcsicmp(name, L"entity")) *type = NODE_ENTITY;
+    else if (!wcsicmp(name, L"entityreference")) *type = NODE_ENTITY_REFERENCE;
+    else if (!wcsicmp(name, L"notation")) *type = NODE_NOTATION;
+    else if (!wcsicmp(name, L"processinginstruction")) *type = NODE_PROCESSING_INSTRUCTION;
+    else if (!wcsicmp(name, L"text")) *type = NODE_TEXT;
+    else return false;
+
+    return true;
+}
+
+static HRESULT get_node_type(const VARIANT *v, DOMNodeType * type)
 {
     VARIANT tmp;
     HRESULT hr;
 
+    /* Check for type strings first, still allowing BSTR -> I4 conversion. */
+
+    if (V_VT(v) == VT_BSTR)
+    {
+        if (get_node_type_from_typestring(V_BSTR(v), type))
+            return S_OK;
+    }
+
     VariantInit(&tmp);
-    hr = VariantChangeType(&tmp, &Type, 0, VT_I4);
+    hr = VariantChangeType(&tmp, v, 0, VT_I4);
     if(FAILED(hr))
         return E_INVALIDARG;
 
@@ -2040,7 +2067,7 @@ static HRESULT WINAPI domdoc_createNode(
 
     if(!node) return E_INVALIDARG;
 
-    hr = get_node_type(Type, &node_type);
+    hr = get_node_type(&Type, &node_type);
     if(FAILED(hr)) return hr;
 
     TRACE("node_type %d\n", node_type);

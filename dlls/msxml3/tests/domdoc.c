@@ -3089,24 +3089,18 @@ static void test_create(void)
     V_BSTR(&var) = SysAllocString(L"comment");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_BSTR;
     V_BSTR(&var) = SysAllocString(L"coMment");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_BSTR;
@@ -3171,24 +3165,18 @@ static void test_create(void)
     V_BSTR(&var) = SysAllocString(L"text");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_BSTR;
     V_BSTR(&var) = SysAllocString(L"teXt");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     /* NODE_CDATA_SECTION */
@@ -3244,24 +3232,18 @@ static void test_create(void)
     V_BSTR(&var) = SysAllocString(L"cdatasection");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_BSTR;
     V_BSTR(&var) = SysAllocString(L"cdataSection");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     /* NODE_ATTRIBUTE */
@@ -3302,24 +3284,18 @@ static void test_create(void)
     V_BSTR(&var) = SysAllocString(L"attribute");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_BSTR;
     V_BSTR(&var) = SysAllocString(L"attriBute");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     /* NODE_PROCESSING_INSTRUCTION */
@@ -3376,24 +3352,18 @@ static void test_create(void)
     V_BSTR(&var) = SysAllocString(L"element");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_BSTR;
     V_BSTR(&var) = SysAllocString(L"elemEnt");
     node = NULL;
     hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!!node, "Unexpected object %p.\n", node);
-    if (node)
-        IXMLDOMNode_Release(node);
+    IXMLDOMNode_Release(node);
     VariantClear(&var);
 
     V_VT(&var) = VT_I1;
