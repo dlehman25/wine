@@ -7991,7 +7991,7 @@ static void test_add_font_path(void)
      * Stratego (1997) depends on it being redirected,
      * and fails on 64-bit Windows */
     count = AddFontResourceExA( "winetest_font.ttf", 0, NULL );
-    todo_wine ok( count == 1 || broken( wow64 ), "got %d\n", count );
+    ok( count == 1 || broken( wow64 ), "got %d\n", count );
     if (count == 1)
     {
         path = get_font_path( "wine_heavy" );
