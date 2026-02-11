@@ -830,6 +830,10 @@ static NTSTATUS key_export_ecc_public( struct key *key, UCHAR *buf, ULONG len, U
     case ALG_ID_ECDH:
         switch (key->u.a.curve_id)
         {
+        case ECC_CURVE_25519:
+            magic = BCRYPT_ECDH_PUBLIC_GENERIC_MAGIC;
+            size = 32;
+            break;
         case ECC_CURVE_P256R1:
             magic = BCRYPT_ECDH_PUBLIC_P256_MAGIC;
             size = 32;
@@ -915,7 +919,8 @@ static NTSTATUS key_export_ecc_public( struct key *key, UCHAR *buf, ULONG len, U
         return STATUS_INTERNAL_ERROR;
     }
 
-    if (curve != GNUTLS_ECC_CURVE_SECP256R1 && curve != GNUTLS_ECC_CURVE_SECP384R1 && curve != GNUTLS_ECC_CURVE_SECP521R1)
+    if (curve != GNUTLS_ECC_CURVE_X25519 && curve != GNUTLS_ECC_CURVE_SECP256R1 &&
+        curve != GNUTLS_ECC_CURVE_SECP384R1 && curve != GNUTLS_ECC_CURVE_SECP521R1)
     {
         FIXME( "curve %u not supported\n", curve );
         free( x.data ); free( y.data );
@@ -1264,6 +1269,10 @@ static NTSTATUS key_export_ecc( struct key *key, UCHAR *buf, ULONG len, ULONG *r
     case ALG_ID_ECDH:
         switch (key->u.a.curve_id)
         {
+        case ECC_CURVE_25519:
+            magic = BCRYPT_ECDH_PRIVATE_GENERIC_MAGIC;
+            size = 32;
+            break;
         case ECC_CURVE_P256R1:
             magic = BCRYPT_ECDH_PRIVATE_P256_MAGIC;
             size = 32;
@@ -1346,7 +1355,8 @@ static NTSTATUS key_export_ecc( struct key *key, UCHAR *buf, ULONG len, ULONG *r
         return STATUS_INTERNAL_ERROR;
     }
 
-    if (curve != GNUTLS_ECC_CURVE_SECP256R1 && curve != GNUTLS_ECC_CURVE_SECP384R1 && curve != GNUTLS_ECC_CURVE_SECP521R1)
+    if (curve != GNUTLS_ECC_CURVE_X25519 && curve != GNUTLS_ECC_CURVE_SECP256R1 &&
+        curve != GNUTLS_ECC_CURVE_SECP384R1 && curve != GNUTLS_ECC_CURVE_SECP521R1)
     {
         FIXME( "curve %u not supported\n", curve );
         free( x.data ); free( y.data ); free( d.data );
@@ -1380,6 +1390,19 @@ static NTSTATUS key_import_ecc( struct key *key, UCHAR *buf, ULONG len )
 
     switch (key->alg_id)
     {
+    case ALG_ID_ECDH:
+        switch (key->u.a.curve_id)
+        {
+        case ECC_CURVE_25519:  curve = GNUTLS_ECC_CURVE_X25519; break;
+        case ECC_CURVE_P256R1: curve = GNUTLS_ECC_CURVE_SECP256R1; break;
+        case ECC_CURVE_P384R1: curve = GNUTLS_ECC_CURVE_SECP384R1; break;
+        case ECC_CURVE_P521R1: curve = GNUTLS_ECC_CURVE_SECP521R1; break;
+        default:
+            FIXME( "curve %u not supported\n", key->u.a.curve_id );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        break;
+
     case ALG_ID_ECDH_P256:
     case ALG_ID_ECDSA_P256:
         curve = GNUTLS_ECC_CURVE_SECP256R1;
@@ -1652,6 +1675,19 @@ static NTSTATUS key_import_ecc_public( struct key *key, UCHAR *buf, ULONG len )
 
     switch (key->alg_id)
     {
+    case ALG_ID_ECDH:
+        switch (key->u.a.curve_id)
+        {
+        case ECC_CURVE_25519:  curve = GNUTLS_ECC_CURVE_X25519; break;
+        case ECC_CURVE_P256R1: curve = GNUTLS_ECC_CURVE_SECP256R1; break;
+        case ECC_CURVE_P384R1: curve = GNUTLS_ECC_CURVE_SECP384R1; break;
+        case ECC_CURVE_P521R1: curve = GNUTLS_ECC_CURVE_SECP521R1; break;
+        default:
+            FIXME( "curve %u not supported\n", key->u.a.curve_id );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        break;
+
     case ALG_ID_ECDH_P256:
     case ALG_ID_ECDSA_P256:
         curve = GNUTLS_ECC_CURVE_SECP256R1; break;

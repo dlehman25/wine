@@ -3467,9 +3467,11 @@ static void test_ECDH(void)
         },
     };
     BCRYPT_ALG_HANDLE alg;
-    BCRYPT_KEY_HANDLE key;
+    BCRYPT_KEY_HANDLE key, key2;
+    BCRYPT_ECCKEY_BLOB *blob;
     NTSTATUS status;
     ULONG strength, size, i;
+    UCHAR *buf;
 
     for (i = 0; i < ARRAY_SIZE(tests); ++i)
     {
@@ -3534,6 +3536,23 @@ static void test_ECDH(void)
     status = BCryptFinalizeKeyPair(key, 0);
     ok(status == STATUS_SUCCESS, "got %#lx\n", status);
 
+    size = 0;
+    status = BCryptExportKey(key, NULL, BCRYPT_ECCPRIVATE_BLOB, NULL, 0, &size, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+    ok(size, "size not set\n");
+
+    buf = malloc(size);
+    status = BCryptExportKey(key, NULL, BCRYPT_ECCPRIVATE_BLOB, buf, size, &size, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+    blob = (BCRYPT_ECCKEY_BLOB *)buf;
+    ok(blob->dwMagic == BCRYPT_ECDH_PRIVATE_GENERIC_MAGIC, "got %08lx\n", blob->dwMagic);
+    ok(blob->cbKey == 32, "got %lu\n", blob->cbKey);
+
+    status = BCryptImportKeyPair(alg, NULL, BCRYPT_ECCPUBLIC_BLOB, &key2, buf, size, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+
+    free( buf );
+    BCryptDestroyKey(key2);
     BCryptDestroyKey(key);
     BCryptCloseAlgorithmProvider(alg, 0);
 }

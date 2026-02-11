@@ -1787,47 +1787,60 @@ static NTSTATUS key_import_pair( struct algorithm *alg, const WCHAR *type, BCRYP
     if (!wcscmp( type, BCRYPT_ECCPUBLIC_BLOB ))
     {
         BCRYPT_ECCKEY_BLOB *ecc_blob = (BCRYPT_ECCKEY_BLOB *)input;
-        DWORD bitlen, magic;
+        DWORD bitlen, magic, magic_priv;
         enum ecc_curve_id curve;
 
         if (input_len < sizeof(*ecc_blob)) return STATUS_INVALID_PARAMETER;
 
         switch (alg->id)
         {
+        case ALG_ID_ECDH:
+            bitlen = ecc_blob->cbKey * 8;
+            curve = alg->curve_id;
+            magic = BCRYPT_ECDH_PUBLIC_GENERIC_MAGIC;
+            magic_priv = BCRYPT_ECDH_PRIVATE_GENERIC_MAGIC;
+            break;
+
         case ALG_ID_ECDH_P256:
             bitlen = 256;
             curve = ECC_CURVE_P256R1;
             magic = BCRYPT_ECDH_PUBLIC_P256_MAGIC;
+            magic_priv = BCRYPT_ECDH_PRIVATE_P256_MAGIC;
             break;
 
         case ALG_ID_ECDH_P384:
             bitlen = 384;
             curve = ECC_CURVE_P384R1;
             magic = BCRYPT_ECDH_PUBLIC_P384_MAGIC;
+            magic_priv = BCRYPT_ECDH_PRIVATE_P384_MAGIC;
             break;
 
         case ALG_ID_ECDH_P521:
             bitlen = 521;
             curve = ECC_CURVE_P521R1;
             magic = BCRYPT_ECDH_PUBLIC_P521_MAGIC;
+            magic_priv = BCRYPT_ECDH_PRIVATE_P521_MAGIC;
             break;
 
         case ALG_ID_ECDSA_P256:
             bitlen = 256;
             curve = ECC_CURVE_P256R1;
             magic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
+            magic_priv = BCRYPT_ECDSA_PRIVATE_P256_MAGIC;
             break;
 
         case ALG_ID_ECDSA_P384:
             bitlen = 384;
             curve = ECC_CURVE_P384R1;
             magic = BCRYPT_ECDSA_PUBLIC_P384_MAGIC;
+            magic_priv = BCRYPT_ECDSA_PRIVATE_P384_MAGIC;
             break;
 
         case ALG_ID_ECDSA_P521:
             bitlen = 521;
             curve = ECC_CURVE_P521R1;
             magic = BCRYPT_ECDSA_PUBLIC_P521_MAGIC;
+            magic_priv = BCRYPT_ECDSA_PRIVATE_P521_MAGIC;
             break;
 
         default:
@@ -1835,7 +1848,7 @@ static NTSTATUS key_import_pair( struct algorithm *alg, const WCHAR *type, BCRYP
             return STATUS_NOT_SUPPORTED;
         }
 
-        if (ecc_blob->dwMagic != magic) return STATUS_INVALID_PARAMETER;
+        if (ecc_blob->dwMagic != magic && ecc_blob->dwMagic != magic_priv) return STATUS_INVALID_PARAMETER;
         if (ecc_blob->cbKey != len_from_bitlen( bitlen ) || input_len < sizeof(*ecc_blob) + ecc_blob->cbKey * 2)
             return STATUS_INVALID_PARAMETER;
 
@@ -1860,6 +1873,12 @@ static NTSTATUS key_import_pair( struct algorithm *alg, const WCHAR *type, BCRYP
 
         switch (alg->id)
         {
+        case ALG_ID_ECDH:
+            bitlen = ecc_blob->cbKey * 8;
+            curve = alg->curve_id;
+            magic = BCRYPT_ECDH_PRIVATE_GENERIC_MAGIC;
+            break;
+
         case ALG_ID_ECDH_P256:
             bitlen = 256;
             curve = ECC_CURVE_P256R1;
