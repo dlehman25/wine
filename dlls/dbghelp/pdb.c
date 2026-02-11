@@ -509,6 +509,7 @@ static enum pdb_result pdb_reader_internal_binary_search(size_t num_elt,
                                                          enum pdb_result (*cmp)(unsigned idx, int *cmp_ressult, void *user),
                                                          size_t *found, void *user);
 static enum pdb_result pdb_reader_symref_from_cv_typeid(struct pdb_reader *pdb, cv_typ_t cv_typeid, symref_t *symref);
+static enum pdb_result pdb_reader_ensure_compiland_symbol_present(struct pdb_reader *pdb, unsigned compiland_index, pdbsize_t stream_offset, symref_t *symref);
 
 static enum pdb_result pdb_reader_init(struct pdb_reader *pdb, struct module *module, HANDLE file,
                                        const IMAGE_SECTION_HEADER *sections, unsigned num_sections)
@@ -3835,6 +3836,26 @@ static enum pdb_result pdb_reader_top_fill_in(struct pdb_reader *pdb, struct pdb
             }
         }
     }
+    /* now push compiland specific bits */
+    if (!result && compiland)
+    {
+        int i;
+        symref_t symref;
+        for (i = 0; !result && i < compiland->num_shadow_entries; i++)
+        {
+            /* FIXME for now this requires loading all corresponding symt... */
+            if (!(result = pdb_reader_ensure_compiland_symbol_present(pdb, compiland - pdb->compilands,
+                                                                      compiland->shadow_entries[i].stream_offset, &symref)) &&
+                ids)
+            {
+                if (*count >= last)
+                    result = R_PDB_BUFFER_TOO_SMALL;
+                if (*count >= first)
+                    ids[*count] = symt_symref_to_index(pdb->module, symref);
+            }
+            (*count)++;
+        }
+    }
     (void)pdb_reader_dispose_whole_stream(pdb, &whole);
     return result;
 }
@@ -5178,11 +5199,14 @@ static enum pdb_result pdb_reader_ensure_compiland_symbol_present(struct pdb_rea
     union codeview_symbol *cv_symbol;
     struct location loc;
     DWORD64 address;
-    symref_t type_symref;
+    symref_t type_symref, compiland_symref;
+    struct symref_code code;
 
     if (compiland_index > pdb->num_compilands) return R_PDB_INVALID_PDB_FILE;
     compiland = &pdb->compilands[compiland_index];
 
+    if ((result = pdb_reader_encode_symref(pdb, symref_code_init_from_compiland(&code, compiland_index), &compiland_symref)))
+        return result;
     if ((result = pdb_reader_compiland_lookup_shadow_entry(pdb, compiland, stream_offset, &found))) return result;
     if (found->symt)
     {
@@ -5215,7 +5239,7 @@ static enum pdb_result pdb_reader_ensure_compiland_symbol_present(struct pdb_rea
                 struct symt_function *func = NULL;
                 if (!(result = pdb_reader_get_segment_address(pdb, cv_symbol->proc_v3.segment, cv_symbol->proc_v3.offset, &address)) &&
                     !(result = pdb_reader_symref_from_cv_typeid(pdb, cv_symbol->proc_v3.proctype, &type_symref)) &&
-                    (func = symt_new_function(pdb->module, symt_ptr_to_symref(&compiland->compiland->symt),
+                    (func = symt_new_function(pdb->module, compiland_symref,
                                               cv_symbol->proc_v3.name,
                                               address, cv_symbol->proc_v3.proc_len,
                                               type_symref, stream_offset)))
@@ -5423,6 +5447,8 @@ static enum method_result pdb_method_enumerate_symbols(struct module_format *mod
     unsigned segment, offset;
     char *symbol_name;
     symref_t symref;
+    /* default is to keep enumerating with this module's symt... as function static variables are still only stored as symt */
+    enum method_result mr = MR_NOT_FOUND;
 
     pdb = pdb_get_current_reader(modfmt);
 
@@ -5460,13 +5486,15 @@ static enum method_result pdb_method_enumerate_symbols(struct module_format *mod
             if (pdb_reader_extract_name_out_of_codeview_symbol(iter.full_cv_symbol, &symbol_name) == R_PDB_SUCCESS)
             {
                 if (!cb(symref, symbol_name, user))
+                {
+                    mr = MR_SUCCESS;
                     break;
+                }
             }
         }
         pdb_reader_dispose_DBI_hash_iterator(pdb, &iter);
-        return MR_SUCCESS;
     }
-    return MR_FAILURE;
+    return mr;
 }
 
 static void pdb_module_remove(struct module_format* modfmt)
