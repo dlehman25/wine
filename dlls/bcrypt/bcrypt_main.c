@@ -768,7 +768,14 @@ static NTSTATUS set_alg_property( struct algorithm *alg, const WCHAR *prop, UCHA
     case ALG_ID_ECDSA:
         if (!wcscmp( prop, BCRYPT_ECC_CURVE_NAME ))
         {
-            if (!wcscmp( (WCHAR *)value, BCRYPT_ECC_CURVE_SECP256R1 ))
+            TRACE( "curve %s\n", debugstr_w((const WCHAR *)value) );
+            if (!wcscmp( (const WCHAR *)value, BCRYPT_ECC_CURVE_25519 ))
+            {
+                if (alg->id != ALG_ID_ECDH) return STATUS_NOT_SUPPORTED;
+                alg->curve_id = ECC_CURVE_25519;
+                return STATUS_SUCCESS;
+            }
+            else if (!wcscmp( (WCHAR *)value, BCRYPT_ECC_CURVE_SECP256R1 ))
             {
                 alg->curve_id = ECC_CURVE_P256R1;
                 return STATUS_SUCCESS;
@@ -1144,6 +1151,7 @@ static ULONG curve_strength( enum ecc_curve_id curve_id )
 {
     switch (curve_id)
     {
+    case ECC_CURVE_25519:  return 253;
     case ECC_CURVE_P256R1: return 256;
     case ECC_CURVE_P384R1: return 384;
     case ECC_CURVE_P521R1: return 521;

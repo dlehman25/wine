@@ -2454,6 +2454,13 @@ static void test_ECDSA(void)
     ok(status == STATUS_SUCCESS, "got %#lx\n", status);
     BCryptDestroyKey(key);
     BCryptCloseAlgorithmProvider(alg, 0);
+
+    status = BCryptOpenAlgorithmProvider(&alg, BCRYPT_ECDSA_ALGORITHM, NULL, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+
+    status = BCryptSetProperty(alg, BCRYPT_ECC_CURVE_NAME, (UCHAR *)BCRYPT_ECC_CURVE_25519, sizeof(BCRYPT_ECC_CURVE_25519), 0);
+    ok(status == STATUS_NOT_SUPPORTED, "got %#lx\n", status);
+    BCryptCloseAlgorithmProvider(alg, 0);
 }
 
 static UCHAR rsaPublicBlob[] =
@@ -3333,11 +3340,6 @@ derive_end:
 
 static void test_ECDH(void)
 {
-    BCRYPT_ALG_HANDLE alg;
-    BCRYPT_KEY_HANDLE key;
-    NTSTATUS status;
-    ULONG strength, size;
-
     static BYTE ecc256privkey[] =
     {
         0x45, 0x43, 0x4b, 0x32, 0x20, 0x00, 0x00, 0x00,
@@ -3464,7 +3466,10 @@ static void test_ECDH(void)
             BCRYPT_ECDH_PUBLIC_P521_MAGIC, BCRYPT_ECDH_PRIVATE_P521_MAGIC,
         },
     };
-    unsigned int i;
+    BCRYPT_ALG_HANDLE alg;
+    BCRYPT_KEY_HANDLE key;
+    NTSTATUS status;
+    ULONG strength, size, i;
 
     for (i = 0; i < ARRAY_SIZE(tests); ++i)
     {
@@ -3509,6 +3514,26 @@ static void test_ECDH(void)
 
     status = BCryptFinalizeKeyPair(key, 0);
     ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+    BCryptDestroyKey(key);
+    BCryptCloseAlgorithmProvider(alg, 0);
+
+    status = BCryptOpenAlgorithmProvider(&alg, BCRYPT_ECDH_ALGORITHM, NULL, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+
+    status = BCryptSetProperty(alg, BCRYPT_ECC_CURVE_NAME, (UCHAR *)BCRYPT_ECC_CURVE_25519, sizeof(BCRYPT_ECC_CURVE_25519), 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+
+    status = BCryptGenerateKeyPair(alg, &key, 0, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+
+    strength = 0;
+    status = BCryptGetProperty(key, BCRYPT_KEY_STRENGTH, (UCHAR *)&strength, sizeof(strength), &size, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+    ok(strength == 253, "got %lu\n", strength);
+
+    status = BCryptFinalizeKeyPair(key, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+
     BCryptDestroyKey(key);
     BCryptCloseAlgorithmProvider(alg, 0);
 }

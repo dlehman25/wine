@@ -94,6 +94,7 @@ enum chain_mode
 enum ecc_curve_id
 {
     ECC_CURVE_NONE,
+    ECC_CURVE_25519,
     ECC_CURVE_P256R1,
     ECC_CURVE_P384R1,
     ECC_CURVE_P521R1,

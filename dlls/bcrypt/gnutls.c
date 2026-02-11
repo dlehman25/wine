@@ -1178,6 +1178,11 @@ static NTSTATUS key_asymmetric_generate( void *args )
         pk_alg = GNUTLS_PK_ECC;
         switch (key->u.a.curve_id)
         {
+        case ECC_CURVE_25519:
+            assert( key->alg_id == ALG_ID_ECDH );
+            pk_alg = GNUTLS_PK_ECDH_X25519;
+            bitlen = GNUTLS_CURVE_TO_BITS( GNUTLS_ECC_CURVE_X25519 );
+            break;
         case ECC_CURVE_P256R1:
             bitlen = GNUTLS_CURVE_TO_BITS( GNUTLS_ECC_CURVE_SECP256R1 );
             break;
