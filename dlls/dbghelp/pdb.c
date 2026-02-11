@@ -1729,7 +1729,7 @@ on_error:
     return result;
 }
 
-static enum pdb_result pdb_reader_extract_name_out_of_codeview_symbol(union codeview_symbol *cv_symbol, char **name, size_t *length)
+static enum pdb_result pdb_reader_extract_name_out_of_codeview_symbol(union codeview_symbol *cv_symbol, char **name)
 {
     switch (cv_symbol->generic.id)
     {
@@ -1755,7 +1755,6 @@ static enum pdb_result pdb_reader_extract_name_out_of_codeview_symbol(union code
     default:
         return R_PDB_INVALID_ARGUMENT;
     }
-    *length = strlen(*name);
     return R_PDB_SUCCESS;
 }
 
@@ -1767,7 +1766,6 @@ static enum pdb_result pdb_reader_read_DBI_codeview_symbol_by_name(struct pdb_re
     struct pdb_reader_walker walker;
     union codeview_symbol *full_cv_symbol;
     char *cv_name;
-    size_t cv_length;
 
     if ((result = pdb_reader_walker_init(pdb, pdb->dbi_header.gsym_stream, &walker))) return result;
     hash = codeview_compute_hash(name, strlen(name)) % DBI_MAX_HASH;
@@ -1779,7 +1777,7 @@ static enum pdb_result pdb_reader_read_DBI_codeview_symbol_by_name(struct pdb_re
         {
             walker.offset = bucket->entries[i].dbi_stream_offset;
             if ((result = pdb_reader_alloc_and_read_full_codeview_symbol(pdb, &walker, &full_cv_symbol))) return result;
-            if (pdb_reader_extract_name_out_of_codeview_symbol(full_cv_symbol, &cv_name, &cv_length) == R_PDB_SUCCESS)
+            if (pdb_reader_extract_name_out_of_codeview_symbol(full_cv_symbol, &cv_name) == R_PDB_SUCCESS)
             {
                 if (!strcmp(name, cv_name))
                 {
