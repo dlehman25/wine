@@ -1742,7 +1742,7 @@ static enum pdb_result pdb_reader_extract_name_out_of_codeview_symbol(union code
         *name = cv_symbol->refsym2_v3.name;
         break;
     case S_CONSTANT:
-        *name = (char *)(cv_symbol->constant_v3.data + codeview_get_leaf_length(*(unsigned short*)cv_symbol->constant_v3.data));
+        *name = (char *)(cv_symbol->constant_v3.data + sizeof(unsigned short int) + codeview_get_leaf_length(*(unsigned short*)cv_symbol->constant_v3.data));
         break;
     case S_LDATA32:
     case S_GDATA32:
