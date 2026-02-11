@@ -1976,16 +1976,27 @@ static int pdb_global_cmp(const void *p1, const void *p2)
     return 0;
 }
 
+static int my_action_global_cmp(const void *p1, const void *p2)
+{
+    pdbsize_t o1 = ((const struct pdb_action_entry *)p1)->stream_offset;
+    pdbsize_t o2 = ((const struct pdb_action_entry *)p2)->stream_offset;
+
+    if (o1 < o2) return -1;
+    if (o1 > o2) return +1;
+    return 0;
+}
+
 static enum pdb_result pdb_reader_init_DBI(struct pdb_reader *pdb)
 {
     enum pdb_result result;
     struct pdb_reader_compiland_iterator compiland_iter;
+    struct pdb_reader_whole_stream whole;
     struct pdb_reader_walker walker;
-    union codeview_symbol cv_symbol;
+    const union codeview_symbol *cv_symbol;
     struct symref_code code;
+    unsigned hash, i, rva;
     symref_t top_symref;
     symref_t symref;
-    unsigned i;
 
     if ((result = pdb_reader_read_DBI_header(pdb, &pdb->dbi_header, &walker))) return result;
     if ((result = pdb_reader_read_TPI_header(pdb))) return result;
@@ -2026,39 +2037,54 @@ static enum pdb_result pdb_reader_init_DBI(struct pdb_reader *pdb)
 
     pdb->num_globals = 0;
     pdb->globals = NULL;
-    while (!(result = pdb_reader_read_partial_codeview_symbol(pdb, &walker, &cv_symbol)))
+
+    pdb_reader_alloc_and_load_whole_stream(pdb, pdb->dbi_header.gsym_stream, &whole);
+    for (hash = 0; hash < DBI_MAX_HASH; hash++)
     {
-        DWORD64 addr;
-        switch (cv_symbol.generic.id)
+        struct pdb_dbi_hash_bucket *bucket = &pdb->dbi_symbols_hash_buckets[hash];
+        for (i = 0; i < bucket->num_entries; i++)
         {
-        case S_GDATA32:
-        case S_LDATA32:
-        case S_GTHREAD32:
-        case S_LTHREAD32:
-        case S_UDT:
-            if ((result = pdb_reader_push_action(pdb, action_type_globals, walker.offset - sizeof(cv_symbol.generic.len),
-                                                 cv_symbol.generic.len + sizeof(cv_symbol.generic.len),
-                                                 top_symref, &symref))) return result;
-            if (cv_symbol.generic.id == S_GDATA32 || cv_symbol.generic.id == S_LDATA32)
+            if ((result = pdb_reader_whole_stream_access_codeview_symbol(pdb, &whole, bucket->entries[i].dbi_stream_offset, &cv_symbol))) return result;
+            switch (cv_symbol->generic.id)
             {
-                if (!pdb_reader_get_segment_address(pdb, cv_symbol.data_v3.segment, cv_symbol.data_v3.offset, &addr))
-                {
-                    if (!(pdb->num_globals & (pdb->num_globals - 1)))
-                    {
-                        unsigned sz = pdb->num_globals ? pdb->num_globals * 2 : 1;
-                        if ((result = pdb_reader_realloc(pdb, (void **)&pdb->globals, sz * sizeof(pdb->globals[0]))))
-                            return result;
-                    }
-                    pdb->globals[pdb->num_globals].rva = addr - pdb->module->module.BaseOfImage;
-                    pdb->globals[pdb->num_globals].symref = symref;
-                    pdb->num_globals++;
-                }
+            case S_GDATA32:
+            case S_LDATA32:
+            case S_GTHREAD32:
+            case S_LTHREAD32:
+            case S_UDT:
+                if ((result = pdb_reader_push_action(pdb, action_type_globals, bucket->entries[i].dbi_stream_offset,
+                                                     cv_symbol->generic.len + 2, top_symref, &symref))) return result;
+                break;
             }
-            break;
         }
-        walker.offset += cv_symbol.generic.len;
     }
+
+    /* resort action in ascending order wrt. stream_offsets */
     pdb->num_action_globals = pdb->num_action_entries;
+    qsort(pdb->action_store, pdb->num_action_globals, sizeof(pdb->action_store[0]), &my_action_global_cmp);
+
+    /* now build the global rva map */
+    for (int i = 0; i < pdb->num_action_globals; i++)
+    {
+        if ((result = pdb_reader_whole_stream_access_codeview_symbol(pdb, &whole, pdb->action_store[i].stream_offset, &cv_symbol))) return result;
+        if (cv_symbol->generic.id == S_GDATA32 || cv_symbol->generic.id == S_LDATA32)
+        {
+            if (!pdb_reader_get_rva_from_segment_offset(pdb, cv_symbol->data_v3.segment, cv_symbol->data_v3.offset, &rva))
+            {
+                if (!(pdb->num_globals & (pdb->num_globals - 1)))
+                {
+                    unsigned sz = pdb->num_globals ? pdb->num_globals * 2 : 1;
+                    if ((result = pdb_reader_realloc(pdb, (void **)&pdb->globals, sz * sizeof(pdb->globals[0]))))
+                        return result;
+                }
+                pdb->globals[pdb->num_globals].rva = rva;
+                pdb_reader_encode_symref(pdb, symref_code_init_from_action(&code, i), &pdb->globals[pdb->num_globals].symref);
+                pdb->num_globals++;
+            }
+        }
+    }
+    pdb_reader_dispose_whole_stream(pdb, &whole);
+
     /* Note: rva is not unique */
     qsort(pdb->globals, pdb->num_globals, sizeof(*pdb->globals), &pdb_global_cmp);
     if ((result = pdb_reader_init_DBI_substreams(pdb))) return result;
@@ -2675,22 +2701,15 @@ static enum pdb_result pdb_reader_read_codeview_type_by_name(struct pdb_reader *
     return R_PDB_NOT_FOUND;
 }
 
-static int my_action_global_cmp(const void *p1, const void *p2)
-{
-    pdbsize_t o1 = *(pdbsize_t*)p1;
-    pdbsize_t o2 = ((const struct pdb_action_entry *)p2)->stream_offset;
-
-    if (o1 < o2) return -1;
-    if (o1 > o2) return +1;
-    return 0;
-}
-
 static enum pdb_result pdb_reader_DBI_globals_symref(struct pdb_reader *pdb, unsigned globals_offset, symref_t *symref)
 {
     struct symref_code code;
     struct pdb_action_entry *entry;
+    struct pdb_action_entry key;
 
-    entry = bsearch(&globals_offset, pdb->action_store, pdb->num_action_globals, sizeof(pdb->action_store[0]),
+    key.stream_offset = globals_offset;
+
+    entry = bsearch(&key, pdb->action_store, pdb->num_action_globals, sizeof(pdb->action_store[0]),
                     &my_action_global_cmp);
     if (entry)
         return pdb_reader_encode_symref(pdb, symref_code_init_from_action(&code, entry - pdb->action_store), symref);
