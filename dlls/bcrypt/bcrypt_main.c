@@ -2648,9 +2648,11 @@ NTSTATUS WINAPI BCryptDeriveKeyPBKDF2( BCRYPT_ALG_HANDLE handle, UCHAR *pwd, ULO
 NTSTATUS WINAPI BCryptSecretAgreement( BCRYPT_KEY_HANDLE privkey_handle, BCRYPT_KEY_HANDLE pubkey_handle,
                                        BCRYPT_SECRET_HANDLE *ret_handle, ULONG flags )
 {
+    struct key_asymmetric_derive_key_params params;
     struct key *privkey = get_key_object( privkey_handle );
     struct key *pubkey = get_key_object( pubkey_handle );
     struct secret *secret;
+    ULONG len;
     NTSTATUS status;
 
     TRACE( "%p, %p, %p, %#lx\n", privkey_handle, pubkey_handle, ret_handle, flags );
@@ -2661,17 +2663,25 @@ NTSTATUS WINAPI BCryptSecretAgreement( BCRYPT_KEY_HANDLE privkey_handle, BCRYPT_
 
     if (!(secret = calloc( 1, sizeof(*secret) ))) return STATUS_NO_MEMORY;
     secret->hdr.magic = MAGIC_SECRET;
-    if ((status = key_duplicate( privkey, &secret->privkey )))
+    secret->derived_key_len = len_from_bitlen( privkey->u.a.bitlen );
+    if (!(secret->derived_key = malloc( secret->derived_key_len )))
     {
+        free( secret );
+        return STATUS_NO_MEMORY;
+    }
+
+    params.privkey    = privkey;
+    params.pubkey     = pubkey;
+    params.output     = secret->derived_key;
+    params.output_len = secret->derived_key_len;
+    params.ret_len    = &len;
+    if ((status = UNIX_CALL( key_asymmetric_derive_key, &params )))
+    {
+        free( secret->derived_key );
         free( secret );
         return status;
     }
-    if ((status = key_duplicate( pubkey, &secret->pubkey )))
-    {
-        key_destroy( secret->privkey );
-        free( secret );
-        return status;
-    }
+    secret->derived_key_len = len;
 
     *ret_handle = secret;
     TRACE( "returning handle %p\n", *ret_handle );
@@ -2685,8 +2695,8 @@ NTSTATUS WINAPI BCryptDestroySecret( BCRYPT_SECRET_HANDLE handle )
     TRACE( "%p\n", handle );
 
     if (!secret) return STATUS_INVALID_HANDLE;
-    key_destroy( secret->privkey );
-    key_destroy( secret->pubkey );
+    SecureZeroMemory( secret->derived_key, secret->derived_key_len );
+    free( secret->derived_key );
     destroy_object( &secret->hdr );
     return STATUS_SUCCESS;
 }
@@ -2704,16 +2714,13 @@ static void reverse_bytes( UCHAR *buf, ULONG len )
 
 static NTSTATUS derive_key_raw( struct secret *secret, UCHAR *output, ULONG output_len, ULONG *ret_len )
 {
-    struct key_asymmetric_derive_key_params params;
-    NTSTATUS status;
-
-    params.privkey    = secret->privkey;
-    params.pubkey     = secret->pubkey;
-    params.output     = output;
-    params.output_len = output_len;
-    params.ret_len    = ret_len;
-    if (!(status = UNIX_CALL( key_asymmetric_derive_key, &params )) && output) reverse_bytes( output, *ret_len );
-    return status;
+    if (output && output_len >= secret->derived_key_len)
+    {
+        memcpy( output, secret->derived_key, secret->derived_key_len );
+        reverse_bytes( output, secret->derived_key_len );
+    }
+    *ret_len = secret->derived_key_len;
+    return STATUS_SUCCESS;
 }
 
 static struct algorithm *get_hash_alg( BCryptBuffer *buf, BOOL hmac )
@@ -2738,11 +2745,9 @@ static struct algorithm *get_hash_alg( BCryptBuffer *buf, BOOL hmac )
 static NTSTATUS derive_key_hash( struct secret *secret, BCryptBufferDesc *desc, UCHAR *output, ULONG output_len,
                                  ULONG *ret_len )
 {
-    struct key_asymmetric_derive_key_params params;
-    ULONG hash_len, derived_key_len = len_from_bitlen( secret->privkey->u.a.bitlen );
+    ULONG hash_len;
     UCHAR hash_buf[MAX_HASH_OUTPUT_BYTES];
     struct algorithm *alg = NULL;
-    UCHAR *derived_key;
     NTSTATUS status;
     ULONG i;
 
@@ -2757,22 +2762,9 @@ static NTSTATUS derive_key_hash( struct secret *secret, BCryptBufferDesc *desc, 
     }
     if (!alg) alg = get_alg_object( BCRYPT_SHA1_ALG_HANDLE );
 
-    if (!(derived_key = malloc( derived_key_len ))) return STATUS_NO_MEMORY;
-
-    params.privkey    = secret->privkey;
-    params.pubkey     = secret->pubkey;
-    params.output     = derived_key;
-    params.output_len = derived_key_len;
-    params.ret_len    = ret_len;
-    if ((status = UNIX_CALL( key_asymmetric_derive_key, &params )))
-    {
-        free( derived_key );
-        return status;
-    }
-
     hash_len = builtin_algorithms[alg->id].hash_length;
     assert( hash_len <= sizeof(hash_buf) );
-    if (!(status = hash_single( alg, NULL, 0, derived_key, *params.ret_len, hash_buf, hash_len )))
+    if (!(status = hash_single( alg, NULL, 0, secret->derived_key, secret->derived_key_len, hash_buf, hash_len )))
     {
         if (!output) *ret_len = hash_len;
         else
@@ -2781,8 +2773,6 @@ static NTSTATUS derive_key_hash( struct secret *secret, BCryptBufferDesc *desc, 
             memcpy( output, hash_buf, *ret_len );
         }
     }
-
-    free( derived_key );
     return status;
 }
 

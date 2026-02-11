@@ -147,8 +147,8 @@ struct key
 struct secret
 {
     struct object hdr;
-    struct key *privkey;
-    struct key *pubkey;
+    UCHAR        *derived_key;
+    ULONG         derived_key_len;
 };
 
 struct key_symmetric_set_auth_data_params
