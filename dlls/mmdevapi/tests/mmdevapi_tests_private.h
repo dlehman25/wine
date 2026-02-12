@@ -20,6 +20,15 @@
 
 #include "audioclient.h"
 
+struct wave_format
+{
+    WAVEFORMATEXTENSIBLE format;
+    const char *additional_context;
+};
+
+extern struct wave_format *wave_formats;
+extern size_t wave_format_count;
+
 inline static void push_format_context(const WAVEFORMATEXTENSIBLE *fmt)
 {
     static const char *format_str[] =
@@ -44,3 +53,4 @@ inline static void push_format_context(const WAVEFORMATEXTENSIBLE *fmt)
 }
 
 HRESULT validate_fmt(const WAVEFORMATEXTENSIBLE *fmt, BOOL compatible);
+void fill_wave_formats(const WAVEFORMATEXTENSIBLE *base_fmt);

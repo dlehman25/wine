@@ -39,11 +39,6 @@
 
 #include "mmdevapi_tests_private.h"
 
-static const unsigned int sampling_rates[] = { 8000, 16000, 22050, 44100, 48000, 96000 };
-static const unsigned int channel_counts[] = { 1, 2, 8 };
-static const unsigned int sample_formats[][2] = { {WAVE_FORMAT_PCM, 8}, {WAVE_FORMAT_PCM, 16},
-                                                  {WAVE_FORMAT_PCM, 32}, {WAVE_FORMAT_IEEE_FLOAT, 32} };
-
 #define NULL_PTR_ERR MAKE_HRESULT(SEVERITY_ERROR, FACILITY_WIN32, RPC_X_NULL_REF_POINTER)
 
 /* undocumented error code */
@@ -475,6 +470,8 @@ static void test_audioclient(void)
                                &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)?"FLOAT":"Other"));
         }
 
+        fill_wave_formats((WAVEFORMATEXTENSIBLE *)pwfx);
+
         pwfx2 = (WAVEFORMATEX*)0xDEADF00D;
         hr = IAudioClient_IsFormatSupported(ac, AUDCLNT_SHAREMODE_SHARED, pwfx, &pwfx2);
         ok(hr == S_OK, "Valid IsFormatSupported(Shared) call returns %08lx\n", hr);
@@ -610,11 +607,12 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
              * error codes, including S_OK and S_FALSE, without any apparent logic.
              * I tried to find some regularity, but it seems hopeless. Also different
              * drivers do wildly different things. */
+            todo_wine_if(SUCCEEDED(hr))
             ok(hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG || broken(hr == S_OK || hr == S_FALSE),
                     "IsFormatSupported() returns %08lx\n", hr);
         }
     } else {
-        ok(hr == S_OK || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || (hr == E_INVALIDARG && extensible),
+        ok(hr == S_OK || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG || (hr == E_INVALIDARG && extensible),
                 "IsFormatSupported() returns %08lx\n", hr);
     }
 
@@ -694,41 +692,21 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
 
 static void test_formats(AUDCLNT_SHAREMODE mode, BOOL extensible)
 {
-    WAVEFORMATEXTENSIBLE fmt;
-    int i, j, k;
+    unsigned int i;
 
     winetest_push_context("%s", mode == AUDCLNT_SHAREMODE_SHARED ? "shared" : "exclusive");
 
-    fmt.Format.cbSize = extensible ? sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX) : 0;
+    for (i = 0; i < wave_format_count; ++i)
+    {
+        const char *additional_context = wave_formats[i].additional_context;
+        WAVEFORMATEXTENSIBLE fmt = wave_formats[i].format;
 
-    for (i = 0; i < ARRAY_SIZE(sampling_rates); i++) {
-        for (j = 0; j < ARRAY_SIZE(channel_counts); j++) {
-            for (k = 0; k < ARRAY_SIZE(sample_formats); k++) {
-                fmt.Format.wFormatTag     = extensible ? WAVE_FORMAT_EXTENSIBLE : sample_formats[k][0];
-                fmt.Format.nSamplesPerSec = sampling_rates[i];
-                fmt.Format.wBitsPerSample = sample_formats[k][1];
-                fmt.Format.nChannels      = channel_counts[j];
-                fmt.Format.nBlockAlign    = fmt.Format.nChannels * fmt.Format.wBitsPerSample / 8;
-                fmt.Format.nAvgBytesPerSec= fmt.Format.nBlockAlign * fmt.Format.nSamplesPerSec;
-
-                if (extensible) {
-                    fmt.Samples.wValidBitsPerSample = fmt.Format.wBitsPerSample;
-                    switch (fmt.Format.nChannels) {
-                        case 1: fmt.dwChannelMask = KSAUDIO_SPEAKER_MONO; break;
-                        case 2: fmt.dwChannelMask = KSAUDIO_SPEAKER_STEREO; break;
-                        case 4: fmt.dwChannelMask = KSAUDIO_SPEAKER_SURROUND; break;
-                        case 6: fmt.dwChannelMask = KSAUDIO_SPEAKER_5POINT1; break;
-                        case 8: fmt.dwChannelMask = KSAUDIO_SPEAKER_7POINT1_SURROUND; break;
-                    }
-                    fmt.SubFormat = sample_formats[k][0] == WAVE_FORMAT_PCM ?
-                            KSDATAFORMAT_SUBTYPE_PCM : KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
-                }
-
-                push_format_context(&fmt);
-                test_format(mode, &fmt);
-                winetest_pop_context();
-            }
-        }
+        winetest_push_context("test %u%s%s", i, additional_context ? ", " : "",
+                additional_context ? additional_context : "");
+        push_format_context(&fmt);
+        test_format(mode, &fmt);
+        winetest_pop_context();
+        winetest_pop_context();
     }
 
     winetest_pop_context();

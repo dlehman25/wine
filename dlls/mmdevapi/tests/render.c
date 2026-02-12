@@ -24,6 +24,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "wine/test.h"
 
@@ -42,11 +43,6 @@
 #include "endpointvolume.h"
 
 #include "mmdevapi_tests_private.h"
-
-static const unsigned int sampling_rates[] = { 8000, 16000, 22050, 44100, 48000, 96000 };
-static const unsigned int channel_counts[] = { 1, 2, 8 };
-static const unsigned int sample_formats[][2] = { {WAVE_FORMAT_PCM, 8}, {WAVE_FORMAT_PCM, 16},
-                                                  {WAVE_FORMAT_PCM, 32}, {WAVE_FORMAT_IEEE_FLOAT, 32} };
 
 #define NULL_PTR_ERR MAKE_HRESULT(SEVERITY_ERROR, FACILITY_WIN32, RPC_X_NULL_REF_POINTER)
 
@@ -260,6 +256,8 @@ static void test_audioclient(void)
             ok(pwfx2 == NULL, "pwfx2 is non-null\n");
             CoTaskMemFree(pwfx2);
         }
+
+        fill_wave_formats((WAVEFORMATEXTENSIBLE *)pwfx);
 
         pwfx2 = (WAVEFORMATEX*)0xDEADF00D;
         hr = IAudioClient_IsFormatSupported(ac, AUDCLNT_SHAREMODE_SHARED, pwfx, &pwfx2);
@@ -509,6 +507,280 @@ cleanup:
     CoTaskMemFree(pwfx);
 }
 
+struct wave_format *wave_formats = NULL;
+size_t wave_format_count = 0;
+size_t wave_format_capacity = 0;
+
+static WAVEFORMATEXTENSIBLE *push_wave_format_with_context(const WAVEFORMATEXTENSIBLE *base_fmt,
+        const char *additional_context)
+{
+    if (wave_format_count == wave_format_capacity)
+    {
+        wave_format_capacity = max(1, 2 * wave_format_capacity);
+
+        wave_formats = realloc(wave_formats,
+                sizeof(*wave_formats) * wave_format_capacity);
+        assert(wave_formats);
+    }
+
+    wave_formats[wave_format_count].format = *base_fmt;
+    wave_formats[wave_format_count].additional_context = additional_context;
+
+    return &wave_formats[wave_format_count++].format;
+}
+
+static WAVEFORMATEXTENSIBLE *push_wave_format(const WAVEFORMATEXTENSIBLE *base_fmt)
+{
+    return push_wave_format_with_context(base_fmt, NULL);
+}
+
+static void convert_to_unextensible(WAVEFORMATEXTENSIBLE *fmt)
+{
+    assert(fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
+
+    fmt->Format.wFormatTag = fmt->SubFormat.Data1;
+    fmt->Format.cbSize = 0;
+    memset((&fmt->Format) + 1, 0, sizeof(*fmt) - sizeof(fmt->Format));
+}
+
+static WAVEFORMATEX *repush_wave_format_as_unextensible(void)
+{
+    WAVEFORMATEXTENSIBLE *fmt;
+
+    fmt = push_wave_format_with_context(&wave_formats[wave_format_count - 1].format,
+            wave_formats[wave_format_count - 1].additional_context);
+
+    convert_to_unextensible(fmt);
+
+    return &fmt->Format;
+}
+
+void fill_wave_formats(const WAVEFORMATEXTENSIBLE *base_fmt)
+{
+    static const DWORD channel_count_mask[][2] =
+    {
+        {0, 0},
+
+        {1, KSAUDIO_SPEAKER_DIRECTOUT},
+        {1, KSAUDIO_SPEAKER_MONO},
+        {1, KSAUDIO_SPEAKER_STEREO},
+        {1, SPEAKER_BACK_LEFT},
+        {1, SPEAKER_BACK_LEFT | SPEAKER_TOP_BACK_CENTER},
+        {1, KSAUDIO_SPEAKER_7POINT1_SURROUND},
+        {1, KSAUDIO_SPEAKER_MONO | SPEAKER_ALL},
+        {1, SPEAKER_ALL},
+        {1, KSAUDIO_SPEAKER_MONO | SPEAKER_RESERVED},
+        {1, SPEAKER_RESERVED},
+
+        {2, KSAUDIO_SPEAKER_DIRECTOUT},
+        {2, KSAUDIO_SPEAKER_MONO},
+        {2, KSAUDIO_SPEAKER_STEREO},
+        {2, SPEAKER_BACK_LEFT},
+        {2, SPEAKER_BACK_LEFT | SPEAKER_TOP_BACK_CENTER},
+        {2, KSAUDIO_SPEAKER_7POINT1_SURROUND},
+        {2, KSAUDIO_SPEAKER_MONO | SPEAKER_ALL},
+        {2, KSAUDIO_SPEAKER_STEREO | SPEAKER_ALL},
+        {2, SPEAKER_ALL},
+        {2, KSAUDIO_SPEAKER_STEREO | SPEAKER_RESERVED},
+        {2, SPEAKER_RESERVED},
+
+        {4, KSAUDIO_SPEAKER_DIRECTOUT},
+        {4, KSAUDIO_SPEAKER_QUAD},
+        {4, KSAUDIO_SPEAKER_QUAD | SPEAKER_ALL},
+        {4, SPEAKER_ALL},
+        {4, KSAUDIO_SPEAKER_QUAD | SPEAKER_RESERVED},
+        {4, SPEAKER_RESERVED},
+
+        {4, KSAUDIO_SPEAKER_DIRECTOUT},
+        {4, KSAUDIO_SPEAKER_5POINT1},
+        {4, KSAUDIO_SPEAKER_5POINT1 | SPEAKER_ALL},
+        {4, SPEAKER_ALL},
+        {4, KSAUDIO_SPEAKER_5POINT1 | SPEAKER_RESERVED},
+        {4, SPEAKER_RESERVED},
+
+        {8, KSAUDIO_SPEAKER_DIRECTOUT},
+        {8, KSAUDIO_SPEAKER_MONO},
+        {8, KSAUDIO_SPEAKER_STEREO},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND & ~SPEAKER_SIDE_LEFT},
+        {8, (KSAUDIO_SPEAKER_7POINT1_SURROUND & ~SPEAKER_SIDE_LEFT) | SPEAKER_FRONT_RIGHT_OF_CENTER},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND | SPEAKER_ALL},
+        {8, SPEAKER_ALL},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND | SPEAKER_RESERVED},
+        {8, SPEAKER_RESERVED},
+    };
+
+    static const DWORD sample_formats[][3] =
+    {
+        {WAVE_FORMAT_PCM, 0, 0},
+        {WAVE_FORMAT_PCM, 1, 1},
+        {WAVE_FORMAT_PCM, 15, 15},
+        {WAVE_FORMAT_PCM, 16, 0},
+        {WAVE_FORMAT_PCM, 16, 1},
+        {WAVE_FORMAT_PCM, 16, 8},
+        {WAVE_FORMAT_PCM, 16, 15},
+        {WAVE_FORMAT_PCM, 16, 16},
+        {WAVE_FORMAT_PCM, 16, 17},
+        {WAVE_FORMAT_PCM, 24, 16},
+        {WAVE_FORMAT_PCM, 24, 23},
+        {WAVE_FORMAT_PCM, 24, 24},
+        {WAVE_FORMAT_PCM, 24, 25},
+        {WAVE_FORMAT_PCM, 32, 0},
+        {WAVE_FORMAT_PCM, 32, 1},
+        {WAVE_FORMAT_PCM, 32, 8},
+        {WAVE_FORMAT_PCM, 32, 16},
+        {WAVE_FORMAT_PCM, 32, 17},
+        {WAVE_FORMAT_PCM, 32, 24},
+        {WAVE_FORMAT_PCM, 32, 31},
+        {WAVE_FORMAT_PCM, 32, 33},
+        {WAVE_FORMAT_PCM, 32, 32},
+        {WAVE_FORMAT_PCM, 64, 64},
+        {WAVE_FORMAT_PCM, 96, 96},
+        {WAVE_FORMAT_PCM, 100, 100},
+
+        {WAVE_FORMAT_IEEE_FLOAT, 0, 0},
+        {WAVE_FORMAT_IEEE_FLOAT, 1, 1},
+        {WAVE_FORMAT_IEEE_FLOAT, 15, 15},
+        {WAVE_FORMAT_IEEE_FLOAT, 16, 16},
+        {WAVE_FORMAT_IEEE_FLOAT, 24, 24},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 0},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 1},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 16},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 31},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 32},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 33},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 0},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 32},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 63},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 64},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 65},
+        {WAVE_FORMAT_IEEE_FLOAT, 96, 96},
+        {WAVE_FORMAT_IEEE_FLOAT, 100, 100},
+
+        {WAVE_FORMAT_ALAW, 8, 0},
+        {WAVE_FORMAT_ALAW, 8, 1},
+        {WAVE_FORMAT_ALAW, 8, 7},
+        {WAVE_FORMAT_ALAW, 8, 8},
+        {WAVE_FORMAT_ALAW, 8, 9},
+        {WAVE_FORMAT_ALAW, 16, 0},
+        {WAVE_FORMAT_ALAW, 16, 1},
+        {WAVE_FORMAT_ALAW, 16, 8},
+        {WAVE_FORMAT_ALAW, 16, 16},
+        {WAVE_FORMAT_ALAW, 16, 17},
+
+        {WAVE_FORMAT_MULAW, 8, 0},
+        {WAVE_FORMAT_MULAW, 8, 1},
+        {WAVE_FORMAT_MULAW, 8, 7},
+        {WAVE_FORMAT_MULAW, 8, 8},
+        {WAVE_FORMAT_MULAW, 8, 9},
+        {WAVE_FORMAT_MULAW, 16, 0},
+        {WAVE_FORMAT_MULAW, 16, 1},
+        {WAVE_FORMAT_MULAW, 16, 8},
+        {WAVE_FORMAT_MULAW, 16, 16},
+        {WAVE_FORMAT_MULAW, 16, 17},
+    };
+
+    static const DWORD sample_rates[] =
+    {
+        0,
+        100,
+        8000,
+        11025,
+        16000,
+        22050,
+        43123,
+        44100,
+        48000,
+        96000,
+        192000,
+        384000,
+    };
+
+    WAVEFORMATEXTENSIBLE *fmt;
+    unsigned int i;
+
+    wave_format_count = 0;
+
+    push_wave_format(base_fmt);
+    repush_wave_format_as_unextensible();
+
+    /* Change channel count or mask. */
+    for (i = 0; i < ARRAY_SIZE(channel_count_mask); ++i)
+    {
+        fmt = push_wave_format(base_fmt);
+        fmt->Format.nChannels = channel_count_mask[i][0];
+        fmt->dwChannelMask = channel_count_mask[i][1];
+
+        if (i == 0 || channel_count_mask[i][0] != channel_count_mask[i - 1][0])
+            repush_wave_format_as_unextensible();
+    }
+
+    /* Change sample format. */
+    for (i = 0; i < ARRAY_SIZE(sample_formats); ++i)
+    {
+        fmt = push_wave_format(base_fmt);
+        fmt->SubFormat.Data1 = sample_formats[i][0];
+        fmt->Format.wBitsPerSample = sample_formats[i][1];
+        fmt->Samples.wValidBitsPerSample = sample_formats[i][2];
+
+        if (fmt->Format.wBitsPerSample == fmt->Samples.wValidBitsPerSample)
+            repush_wave_format_as_unextensible();
+    }
+
+    /* Change the sample rate. */
+    for (i = 0; i < ARRAY_SIZE(sample_rates); ++i)
+    {
+        fmt = push_wave_format(base_fmt);
+        fmt->Format.nSamplesPerSec = sample_rates[i];
+        repush_wave_format_as_unextensible();
+    }
+
+    /* Fix nBlockAlign and nAvgBytesPerSec up to here. */
+    for (i = 0; i < wave_format_count; ++i)
+    {
+        fmt = &wave_formats[i].format;
+
+        fmt->Format.nBlockAlign = fmt->Format.nChannels * fmt->Format.wBitsPerSample / CHAR_BIT;
+        fmt->Format.nAvgBytesPerSec = fmt->Format.nBlockAlign * fmt->Format.nSamplesPerSec;
+    }
+
+    /* Break nAvgBytesPerSec. */
+    fmt = push_wave_format_with_context(base_fmt, "nAvgBytesPerSec = 0");
+    fmt->Format.nAvgBytesPerSec = 0;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nAvgBytesPerSec += 1");
+    fmt->Format.nAvgBytesPerSec += 1;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nAvgBytesPerSec -= 1");
+    fmt->Format.nAvgBytesPerSec -= 1;
+    repush_wave_format_as_unextensible();
+
+    /* Break nBlockAlign. */
+    fmt = push_wave_format_with_context(base_fmt, "nBlockAlign = 0");
+    fmt->Format.nBlockAlign = 0;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nBlockAlign += 1");
+    fmt->Format.nBlockAlign += 1;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nBlockAlign -= 1");
+    fmt->Format.nBlockAlign -= 1;
+    repush_wave_format_as_unextensible();
+
+    /* Break cbSize. */
+    fmt = push_wave_format_with_context(base_fmt, "cbSize = 0");
+    fmt->Format.cbSize = 0;
+
+    fmt = push_wave_format_with_context(base_fmt, "cbSize += 1");
+    fmt->Format.cbSize += 1;
+
+    fmt = push_wave_format_with_context(base_fmt, "cbSize -= 1");
+    fmt->Format.cbSize -= 1;
+}
+
 HRESULT validate_fmt(const WAVEFORMATEXTENSIBLE *fmt, BOOL compatible)
 {
     WAVEFORMATEXTENSIBLE fmt2 = *fmt;
@@ -581,11 +853,9 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     IAudioClient *ac;
     HRESULT hr, hrs, expected;
     WAVEFORMATEX *pwfx, *pwfx2;
-    BOOL compatible, extensible, channel_mismatch = FALSE;
+    BOOL compatible, channel_mismatch = FALSE;
 
-    extensible = fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE;
-
-    if (extensible)
+    if (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
         switch (fmt->Format.nChannels)
         {
@@ -643,11 +913,12 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
              * error codes, including S_OK and S_FALSE, without any apparent logic.
              * I tried to find some regularity, but it seems hopeless. Also different
              * drivers do wildly different things. */
+            todo_wine_if(SUCCEEDED(hr))
             ok(hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG || broken(hr == S_OK || hr == S_FALSE),
                     "IsFormatSupported() returns %08lx\n", hr);
         }
     } else {
-        ok(hr == S_OK || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == hexcl,
+        ok(hr == S_OK || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG || hr == hexcl,
                 "IsFormatSupported() returns %08lx\n", hr);
     }
 
@@ -676,9 +947,9 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
             "Initialize() returns %08lx(%08lx)\n", hr, hrs);
     else
         /* For some drivers Initialize() doesn't match IsFormatSupported(). */
-        ok(hrs == S_OK ? hr == S_OK || broken(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED)
-            : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT ||
-                (hr == E_INVALIDARG && fmt->Format.nChannels > 2 && !extensible) || broken(hr == S_OK),
+        ok(hrs == S_OK ? hr == S_OK || broken(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == E_INVALIDARG)
+            : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT
+            || hr == E_INVALIDARG || broken(hr == S_OK),
             "Initialize() returns %08lx\n", hr);
 
     IAudioClient_Release(ac);
@@ -703,9 +974,9 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
             "Initialize(RATEADJUST) returns %08lx(%08lx)\n", hr, hrs);
     else
         /* For some drivers Initialize() doesn't match IsFormatSupported(). */
-        ok(hrs == S_OK ? hr == S_OK || broken(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED)
-            : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT ||
-                (hr == E_INVALIDARG && fmt->Format.nChannels > 2 && !extensible) || broken(hr == S_OK),
+        ok(hrs == S_OK ? hr == S_OK || broken(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == E_INVALIDARG)
+            : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT
+            || hr == E_INVALIDARG || broken(hr == S_OK),
             "Initialize(RATEADJUST) returns %08lx\n", hr);
 
     IAudioClient_Release(ac);
@@ -739,43 +1010,23 @@ static void test_format(AUDCLNT_SHAREMODE mode, WAVEFORMATEXTENSIBLE *fmt)
     IAudioClient_Release(ac);
 }
 
-static void test_formats(AUDCLNT_SHAREMODE mode, BOOL extensible)
+static void test_formats(AUDCLNT_SHAREMODE mode)
 {
-    WAVEFORMATEXTENSIBLE fmt;
-    int i, j, k;
+    unsigned int i;
 
     winetest_push_context("%s", mode == AUDCLNT_SHAREMODE_SHARED ? "shared" : "exclusive");
 
-    fmt.Format.cbSize = extensible ? sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX) : 0;
+    for (i = 0; i < wave_format_count; ++i)
+    {
+        const char *additional_context = wave_formats[i].additional_context;
+        WAVEFORMATEXTENSIBLE fmt = wave_formats[i].format;
 
-    for (i = 0; i < ARRAY_SIZE(sampling_rates); i++) {
-        for (j = 0; j < ARRAY_SIZE(channel_counts); j++) {
-            for (k = 0; k < ARRAY_SIZE(sample_formats); k++) {
-                fmt.Format.wFormatTag     = extensible ? WAVE_FORMAT_EXTENSIBLE : sample_formats[k][0];
-                fmt.Format.nSamplesPerSec = sampling_rates[i];
-                fmt.Format.wBitsPerSample = sample_formats[k][1];
-                fmt.Format.nChannels      = channel_counts[j];
-                fmt.Format.nBlockAlign    = fmt.Format.nChannels * fmt.Format.wBitsPerSample / 8;
-                fmt.Format.nAvgBytesPerSec= fmt.Format.nBlockAlign * fmt.Format.nSamplesPerSec;
-
-                if (extensible) {
-                    fmt.Samples.wValidBitsPerSample = fmt.Format.wBitsPerSample;
-                    switch (fmt.Format.nChannels) {
-                        case 1: fmt.dwChannelMask = KSAUDIO_SPEAKER_MONO; break;
-                        case 2: fmt.dwChannelMask = KSAUDIO_SPEAKER_STEREO; break;
-                        case 4: fmt.dwChannelMask = KSAUDIO_SPEAKER_SURROUND; break;
-                        case 6: fmt.dwChannelMask = KSAUDIO_SPEAKER_5POINT1; break;
-                        case 8: fmt.dwChannelMask = KSAUDIO_SPEAKER_7POINT1_SURROUND; break;
-                    }
-                    fmt.SubFormat = sample_formats[k][0] == WAVE_FORMAT_PCM ?
-                            KSDATAFORMAT_SUBTYPE_PCM : KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
-                }
-
-                push_format_context(&fmt);
-                test_format(mode, &fmt);
-                winetest_pop_context();
-            }
-        }
+        winetest_push_context("test %u%s%s", i, additional_context ? ", " : "",
+                additional_context ? additional_context : "");
+        push_format_context(&fmt);
+        test_format(mode, &fmt);
+        winetest_pop_context();
+        winetest_pop_context();
     }
 
     winetest_pop_context();
@@ -2977,10 +3228,8 @@ START_TEST(render)
     test_worst_case();
     test_endpointvolume();
     test_audio_clock_adjustment();
-    test_formats(AUDCLNT_SHAREMODE_EXCLUSIVE, FALSE);
-    test_formats(AUDCLNT_SHAREMODE_SHARED, FALSE);
-    test_formats(AUDCLNT_SHAREMODE_EXCLUSIVE, TRUE);
-    test_formats(AUDCLNT_SHAREMODE_SHARED, TRUE);
+    test_formats(AUDCLNT_SHAREMODE_EXCLUSIVE);
+    test_formats(AUDCLNT_SHAREMODE_SHARED);
 
     IMMDevice_Release(dev);
 
