@@ -1350,6 +1350,26 @@ static struct file *open_same_dir_generated_file( const struct makefile *make,
 
 
 /*******************************************************************
+ *         open_local_explicit_file
+ *
+ * Open a file explicitly listed in the makefile.
+ */
+static struct file *open_local_explicit_file( const struct makefile *make, struct incl_file *file )
+{
+    struct incl_file *include;
+
+    if (!(include = find_src_file( make, file->name )))
+    {
+        if (strchr( file->included_by->name, '/' ))
+            include = find_src_file( make, replace_filename( file->included_by->name, file->name ));
+    }
+    if (!include) return NULL;
+    file->filename = include->filename;
+    return include->file;
+}
+
+
+/*******************************************************************
  *         open_local_file
  *
  * Open a file in the source directory of the makefile.
@@ -1469,11 +1489,11 @@ static struct file *open_global_generated_file( const struct makefile *make, str
 /*******************************************************************
  *         open_src_file
  */
-static struct file *open_src_file( const struct makefile *make, struct incl_file *pFile )
+static struct file *open_src_file( const struct makefile *make, struct incl_file *source )
 {
-    struct file *file = open_local_file( make, pFile->name, &pFile->filename );
+    struct file *file = open_local_file( make, source->name, &source->filename );
 
-    if (!file) fatal_perror( "open %s", pFile->name );
+    if (!file) fatal_perror( "open %s", source->name );
     return file;
 }
 
@@ -1499,65 +1519,60 @@ static struct makefile *find_importlib_module( const char *name )
 /*******************************************************************
  *         open_include_file
  */
-static struct file *open_include_file( const struct makefile *make, struct incl_file *pFile )
+static struct file *open_include_file( const struct makefile *make, struct incl_file *source )
 {
     struct file *file = NULL;
-    struct incl_file *include;
     unsigned int len;
 
     errno = ENOENT;
 
     /* check for generated files */
-    if ((file = open_local_generated_file( make, pFile, ".tab.h", ".y" ))) return file;
-    if ((file = open_local_generated_file( make, pFile, ".h", ".idl" ))) return file;
-    if (fontforge && (file = open_local_generated_file( make, pFile, ".ttf", ".sfd" ))) return file;
+    if ((file = open_local_generated_file( make, source, ".tab.h", ".y" ))) return file;
+    if ((file = open_local_generated_file( make, source, ".h", ".idl" ))) return file;
+    if (fontforge && (file = open_local_generated_file( make, source, ".ttf", ".sfd" ))) return file;
     if (convert && rsvg && icotool)
     {
-        if ((file = open_local_maintainer_file( make, pFile, ".bmp", ".svg" ))) return file;
-        if ((file = open_local_maintainer_file( make, pFile, ".cur", ".svg" ))) return file;
-        if ((file = open_local_maintainer_file( make, pFile, ".ico", ".svg" ))) return file;
+        if ((file = open_local_maintainer_file( make, source, ".bmp", ".svg" ))) return file;
+        if ((file = open_local_maintainer_file( make, source, ".cur", ".svg" ))) return file;
+        if ((file = open_local_maintainer_file( make, source, ".ico", ".svg" ))) return file;
     }
-    if ((file = open_local_generated_file( make, pFile, "-client-protocol.h", ".xml" ))) return file;
-    if ((file = open_local_generated_file( make, pFile, ".winmd", ".idl" ))) return file;
+    if ((file = open_local_generated_file( make, source, "-client-protocol.h", ".xml" ))) return file;
+    if ((file = open_local_generated_file( make, source, ".winmd", ".idl" ))) return file;
 
     /* check for extra targets */
-    if (strarray_exists( make->extra_targets, pFile->name ))
+    if (strarray_exists( make->extra_targets, source->name ))
     {
-        pFile->sourcename = src_dir_path( make, pFile->name );
-        pFile->filename = obj_dir_path( make, pFile->name );
+        source->sourcename = src_dir_path( make, source->name );
+        source->filename = obj_dir_path( make, source->name );
         return NULL;
     }
 
     /* check for header explicitly listed in the makefile */
-    if ((include = find_src_file( make, pFile->name )))
-    {
-        pFile->filename = include->filename;
-        return include->file;
-    }
+    if ((file = open_local_explicit_file( make, source ))) return file;
 
     /* check for global importlib (module dependency) */
-    if (pFile->type == INCL_IMPORTLIB && find_importlib_module( pFile->name ))
+    if (source->type == INCL_IMPORTLIB && find_importlib_module( source->name ))
     {
-        pFile->filename = pFile->name;
+        source->filename = source->name;
         return NULL;
     }
 
     /* check for generated files in global includes */
-    if ((file = open_global_generated_file( make, pFile, ".h", ".idl" ))) return file;
-    if ((file = open_global_generated_file( make, pFile, ".h", ".h.in" ))) return file;
-    if (strendswith( pFile->name, "tmpl.h" ) &&
-        (file = open_global_generated_file( make, pFile, ".h", ".x" ))) return file;
+    if ((file = open_global_generated_file( make, source, ".h", ".idl" ))) return file;
+    if ((file = open_global_generated_file( make, source, ".h", ".h.in" ))) return file;
+    if (strendswith( source->name, "tmpl.h" ) &&
+        (file = open_global_generated_file( make, source, ".h", ".x" ))) return file;
 
     /* check in global includes source dir */
-    if ((file = open_global_header( pFile->name, &pFile->filename ))) return file;
+    if ((file = open_global_header( source->name, &source->filename ))) return file;
 
     /* check in global msvcrt includes */
-    if (pFile->use_msvcrt &&
-        (file = open_global_header( strmake( "msvcrt/%s", pFile->name ), &pFile->filename )))
+    if (source->use_msvcrt &&
+        (file = open_global_header( strmake( "msvcrt/%s", source->name ), &source->filename )))
         return file;
 
     /* now try in source dir */
-    if ((file = open_local_file( make, pFile->name, &pFile->filename ))) return file;
+    if ((file = open_local_file( make, source->name, &source->filename ))) return file;
 
     /* now search in include paths */
     STRARRAY_FOR_EACH( dir, &make->include_paths )
@@ -1568,42 +1583,42 @@ static struct file *open_include_file( const struct makefile *make, struct incl_
             if (!strncmp( dir, root_src_dir, len ) && (!dir[len] || dir[len] == '/'))
             {
                 while (dir[len] == '/') len++;
-                file = open_global_file( concat_paths( dir + len, pFile->name ), &pFile->filename );
+                file = open_global_file( concat_paths( dir + len, source->name ), &source->filename );
             }
         }
         else
         {
             if (*dir == '/') continue;
-            file = open_include_path_file( make, dir, pFile->name, &pFile->filename );
+            file = open_include_path_file( make, dir, source->name, &source->filename );
         }
         if (!file) continue;
-        pFile->is_external = 1;
+        source->is_external = 1;
         return file;
     }
 
-    if (pFile->type == INCL_SYSTEM) return NULL;  /* ignore system files we cannot find */
+    if (source->type == INCL_SYSTEM) return NULL;  /* ignore system files we cannot find */
 
     /* try in src file directory */
-    if ((file = open_same_dir_generated_file( make, pFile->included_by, pFile, ".tab.h", ".y" )) ||
-        (file = open_same_dir_generated_file( make, pFile->included_by, pFile, ".h", ".idl" )) ||
-        (file = open_file_same_dir( pFile->included_by, pFile->name, &pFile->filename )))
+    if ((file = open_same_dir_generated_file( make, source->included_by, source, ".tab.h", ".y" )) ||
+        (file = open_same_dir_generated_file( make, source->included_by, source, ".h", ".idl" )) ||
+        (file = open_file_same_dir( source->included_by, source->name, &source->filename )))
     {
-        pFile->is_external = pFile->included_by->is_external;
+        source->is_external = source->included_by->is_external;
         return file;
     }
 
     if (make->extlib) return NULL; /* ignore missing files in external libs */
 
-    fprintf( stderr, "%s:%d: error: ", pFile->included_by->file->name, pFile->included_line );
-    perror( pFile->name );
-    pFile = pFile->included_by;
-    while (pFile && pFile->included_by)
+    fprintf( stderr, "%s:%d: error: ", source->included_by->file->name, source->included_line );
+    perror( source->name );
+    source = source->included_by;
+    while (source && source->included_by)
     {
-        const char *parent = pFile->included_by->sourcename;
-        if (!parent) parent = pFile->included_by->file->name;
+        const char *parent = source->included_by->sourcename;
+        if (!parent) parent = source->included_by->file->name;
         fprintf( stderr, "%s:%d: note: %s was first included here\n",
-                 parent, pFile->included_line, pFile->name );
-        pFile = pFile->included_by;
+                 parent, source->included_line, source->name );
+        source = source->included_by;
     }
     exit(1);
 }
