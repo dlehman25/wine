@@ -1856,7 +1856,7 @@ static BOOL context_sync_drawables( struct opengl_context *context, HDC draw_hdc
         if (new_read != new_draw) opengl_drawable_set_context( new_draw, context );
 
         opengl_drawable_flush( new_read, new_read->interval, 0 );
-        opengl_drawable_flush( new_draw, new_draw->interval, GL_FLUSH_PRESENT );
+        opengl_drawable_flush( new_draw, new_draw->interval, 0 );
     }
 
     if (ret)
