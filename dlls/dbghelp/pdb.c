@@ -5309,17 +5309,22 @@ static enum pdb_result pdb_reader_lookup_top_symbol_by_segment_offset(struct pdb
      */
     if ((result = pdb_reader_get_rva_from_segment_offset(pdb, segment, offset, &key.rva))) return result;
     found = bsearch(&key, pdb->globals, pdb->num_globals, sizeof(*pdb->globals), &pdb_global_cmp);
-    if (found && found->rva == key.rva)
+    if (found && found->rva <= key.rva)
     {
-        /* Note: we can have several names for the same address.
-         * For now, we return one of the entries, no clear way of choosing one or another
-         */
-        if (found > pdb->globals && (found - 1)->rva == key.rva)
-            WARN("Duplicate found before\n");
-        if (found + 1 < pdb->globals + pdb->num_globals && (found + 1)->rva == key.rva)
-            WARN("Duplicate found after\n");
-        *symref = found->symref;
-        return R_PDB_SUCCESS;
+        DWORD64 len;
+        if (found->rva == key.rva ||
+            (!pdb_reader_request_symref_t(pdb, found->symref, TI_GET_LENGTH, &len) && key.rva < found->rva + len))
+        {
+            /* Note: we can have several names for the same address.
+             * For now, we return one of the entries, no clear way of choosing one or another
+             */
+            if (found > pdb->globals && (found - 1)->rva == key.rva)
+                WARN("Duplicate found before\n");
+            if (found + 1 < pdb->globals + pdb->num_globals && (found + 1)->rva == key.rva)
+                WARN("Duplicate found after\n");
+            *symref = found->symref;
+            return R_PDB_SUCCESS;
+        }
     }
     if (!(result = pdb_reader_lookup_compiland_by_segment_offset(pdb, segment, offset, &compiland_index)))
     {
