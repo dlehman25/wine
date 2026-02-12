@@ -152,7 +152,6 @@ static void test_play(void)
     ok(res != 0, "Play should have worked\n");
     /* Test ACM_OPEN after playing an animation */
     res = SendMessageA(hAnimateWnd, ACM_OPENA, 0, 0);
-    todo_wine
     ok(res == 0, "ACM_OPENA with a NULL lparam while playing should return 0\n");
     destroy_animate();
 
@@ -161,7 +160,6 @@ static void test_play(void)
     res = SendMessageA(hAnimateWnd, ACM_OPENA, (WPARAM)shell32, MAKEINTRESOURCE(SEARCHING_AVI_INDEX));
     ok(res != 0, "Load AVI resource failed\n");
     res = SendMessageA(hAnimateWnd, ACM_OPENA, 0, 0);
-    todo_wine
     ok(res == 0, "ACM_OPENA with a NULL lparam should return 0\n");
     destroy_animate();
 
