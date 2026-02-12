@@ -264,6 +264,29 @@ static const char *dbgstr_dbus_error( const DBusError *error )
     return wine_dbg_sprintf( "{%s: %s}", debugstr_a( error->name ), debugstr_a( error->message ) );
 }
 
+static const char *dbgstr_dbus_iter( DBusMessageIter *iter )
+{
+    int arg_type, next;
+
+    if (!iter) return "(null)";
+
+    arg_type = p_dbus_message_iter_get_arg_type( iter );
+    if (arg_type == DBUS_TYPE_INVALID)
+        return wine_dbg_sprintf( "{%p arg=DBUS_TYPE_INVALID}", iter );
+
+    next = p_dbus_message_iter_has_next( iter );
+    if (arg_type == DBUS_TYPE_ARRAY)
+    {
+        int elem_type, count;
+
+        elem_type = p_dbus_message_iter_get_element_type( iter );
+        count = p_dbus_message_iter_get_element_count( iter );
+        return wine_dbg_sprintf( "{%p arg=%c elem=%c count=%d next=%d}", iter, arg_type, elem_type,
+                                 count, next );
+    }
+    return wine_dbg_sprintf( "{%p arg=%c next=%d}", iter, arg_type, next );
+}
+
 static NTSTATUS bluez_get_objects_async( DBusConnection *connection, DBusPendingCall **call )
 {
     DBusMessage *request;
@@ -638,7 +661,7 @@ static void bluez_radio_prop_from_dict_entry( const char *prop_name, DBusMessage
                                               winebluetooth_radio_props_mask_t *props_mask,
                                               winebluetooth_radio_props_mask_t wanted_props_mask )
 {
-    TRACE_(dbus)( "(%s, %p, %p, %p, %#x)\n", debugstr_a( prop_name ), variant, props, props_mask,
+    TRACE_(dbus)( "(%s, %s, %p, %p, %#x)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), props, props_mask,
                   wanted_props_mask );
 
     if (wanted_props_mask & WINEBLUETOOTH_RADIO_PROPERTY_NAME &&
@@ -730,7 +753,7 @@ static void bluez_device_prop_from_dict_entry( const char *prop_name, DBusMessag
                                                winebluetooth_device_props_mask_t *props_mask,
                                                winebluetooth_device_props_mask_t wanted_props_mask )
 {
-    TRACE_( dbus )( "(%s, %p, %p, %p, %#x)\n", debugstr_a( prop_name ), variant, props, props_mask,
+    TRACE_( dbus )( "(%s, %s, %p, %p, %#x)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), props, props_mask,
                     wanted_props_mask );
 
 
@@ -809,7 +832,7 @@ static void bluez_device_prop_from_dict_entry( const char *prop_name, DBusMessag
 static void bluez_gatt_service_props_from_dict_entry( const char *prop_name, DBusMessageIter *variant,
                                                       struct winebluetooth_watcher_event_gatt_service_added *service )
 {
-    TRACE_( dbus )( "(%s, %p, %p)\n", debugstr_a( prop_name ), variant, service );
+    TRACE_( dbus )( "(%s, %s, %p)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), service );
 
     if (!strcmp( prop_name, "Device" )
         && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_OBJECT_PATH )
@@ -857,7 +880,7 @@ static void
 bluez_gatt_characteristic_props_from_dict_entry( const char *prop_name, DBusMessageIter *variant,
                                                  struct winebluetooth_watcher_event_gatt_characteristic_added *chrc )
 {
-    TRACE_( dbus )( "(%s, %p, %p)\n", debugstr_a( prop_name ), variant, chrc );
+    TRACE_( dbus )( "(%s, %s, %p)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), chrc );
 
     if (!strcmp( prop_name, "Flags" )
         && p_dbus_message_iter_get_arg_type ( variant ) == DBUS_TYPE_ARRAY
