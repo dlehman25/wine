@@ -1878,9 +1878,9 @@ static BOOL context_sync_drawables( struct opengl_context *context, HDC draw_hdc
     return ret;
 }
 
-static void push_internal_context( struct opengl_context *context, HDC hdc, int format )
+static void push_internal_context( struct opengl_context *context, struct opengl_drawable *drawable, int format )
 {
-    TRACE( "context %p, hdc %p\n", context, hdc );
+    TRACE( "context %p, drawable %s\n", context, debugstr_opengl_drawable( drawable ));
 
     if (!context->internal_context)
     {
@@ -1888,7 +1888,7 @@ static void push_internal_context( struct opengl_context *context, HDC hdc, int 
         if (!context->internal_context) ERR( "Failed to create internal context\n" );
     }
 
-    driver_funcs->p_make_current( context->draw, context->read, context->internal_context );
+    driver_funcs->p_make_current( drawable, drawable, context->internal_context );
 }
 
 static void pop_internal_context( struct opengl_context *context )
@@ -2174,11 +2174,12 @@ static BOOL win32u_wglBindTexImageARB( HPBUFFERARB client_pbuffer, int buffer )
         return ret;
 
     funcs->p_glGetIntegerv( binding_from_target( pbuffer->texture_target ), &prev_texture );
-    push_internal_context( NtCurrentTeb()->glContext, pbuffer->hdc, format );
+    push_internal_context( NtCurrentTeb()->glContext, pbuffer->drawable, format );
 
     /* Make sure that the prev_texture is set as the current texture state isn't shared
      * between contexts. After that copy the pbuffer texture data. */
     funcs->p_glBindTexture( pbuffer->texture_target, prev_texture );
+    funcs->p_glReadBuffer( source );
     funcs->p_glCopyTexImage2D( pbuffer->texture_target, 0, pbuffer->texture_format, 0, 0,
                                         pbuffer->width, pbuffer->height, 0 );
 
