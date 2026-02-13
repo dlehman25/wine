@@ -4765,7 +4765,7 @@ MONITORINFO monitor_info_from_window( HWND hwnd, UINT flags )
  */
 ULONG WINAPI NtUserGetSystemDpiForProcess( HANDLE process )
 {
-    if (process && process != GetCurrentProcess())
+    if (process && process != GetCurrentProcess() && NtCompareObjects( GetCurrentProcess(), process ))
     {
         FIXME( "not supported on other process %p\n", process );
         return 0;
