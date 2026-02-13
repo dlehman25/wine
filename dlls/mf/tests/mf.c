@@ -4014,7 +4014,6 @@ static HRESULT WINAPI test_time_source_sink_OnClockStart(IMFClockStateSink *ifac
     HRESULT hr;
 
     hr = (expect_test_time_source_sink_OnClockStart) ? S_OK : E_NOTIMPL;
-    todo_wine_if(!expect_test_time_source_sink_OnClockStart)
     CHECK_EXPECT(test_time_source_sink_OnClockStart);
     return hr;
 }
