@@ -4418,7 +4418,6 @@ static void test_presentation_clock(void)
     timer_callback = impl_from_IMFAsyncCallback(callback);
     hr = IMFTimer_SetTimer(timer, 0, 1000000, callback, NULL, &timer_cancel_key);
     ok(hr == S_OK, "got hr %#lx.\n", hr);
-    todo_wine
     ok(WaitForSingleObject(timer_callback->event, 4000) == WAIT_TIMEOUT, "WaitForSingleObject should timeout.\n");
 
     /* the timer will only trigger when the time of the time source is within 5ms of the target time */
@@ -4426,7 +4425,6 @@ static void test_presentation_clock(void)
     ok(WaitForSingleObject(timer_callback->event, 4000) == WAIT_TIMEOUT, "WaitForSingleObject should timeout.\n");
 
     test_time_source->time = 1000000-50000;
-    todo_wine
     ok(WaitForSingleObject(timer_callback->event, 4000) == WAIT_OBJECT_0, "WaitForSingleObject failed.\n");
 
     IUnknown_Release(timer_cancel_key);
