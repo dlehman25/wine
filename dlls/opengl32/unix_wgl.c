@@ -911,6 +911,7 @@ static void flush_context( TEB *teb, void (*flush)(void) )
     if (flush && ctx && !ctx->draw_fbo && context_draws_front( ctx ) && draw->client) flags |= GL_FLUSH_PRESENT;
     if ((flags & GL_FLUSH_PRESENT) && draw->buffer_map[0] == GL_BACK_LEFT) flags |= GL_FLUSH_FORCE_SWAP;
 
+    if (flags & GL_FLUSH_PRESENT) resolve_default_fbo( teb, FALSE );
     if (!ctx || !funcs->p_context_flush( ctx, flush, flags ))
     {
         /* default implementation: call the functions directly */
@@ -953,13 +954,11 @@ static void set_default_fbo_buffers( TEB *teb, struct opengl_context *ctx )
 
 void wrap_glFinish( TEB *teb, PFN_glFinish p_glFinish )
 {
-    resolve_default_fbo( teb, FALSE );
     flush_context( teb, p_glFinish );
 }
 
 void wrap_glFlush( TEB *teb, PFN_glFlush p_glFlush )
 {
-    resolve_default_fbo( teb, FALSE );
     flush_context( teb, p_glFlush );
 }
 
@@ -967,14 +966,12 @@ void wrap_glClear( TEB *teb, GLbitfield mask, PFN_glClear p_glClear )
 {
     flush_context( teb, NULL );
     p_glClear( mask );
-    resolve_default_fbo( teb, FALSE );
 }
 
 void wrap_glDrawPixels( TEB *teb, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels, PFN_glDrawPixels p_glDrawPixels )
 {
     flush_context( teb, NULL );
     p_glDrawPixels( width, height, format, type, pixels );
-    resolve_default_fbo( teb, FALSE );
 }
 
 void wrap_glReadPixels( TEB *teb, GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void *pixels, PFN_glReadPixels p_glReadPixels )
@@ -987,7 +984,6 @@ void wrap_glViewport( TEB *teb, GLint x, GLint y, GLsizei width, GLsizei height,
 {
     flush_context( teb, NULL );
     p_glViewport( x, y, width, height );
-    resolve_default_fbo( teb, FALSE );
 }
 
 BOOL wrap_wglSwapBuffers( TEB *teb, HDC hdc )
