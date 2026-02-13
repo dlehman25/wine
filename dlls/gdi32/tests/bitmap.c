@@ -6374,7 +6374,6 @@ static void test_GdiTransparentBlt(void)
     src_buffer[0] = 0xffffffff;
     ret = GdiTransparentBlt( hdc_dst, 0, 0, 1, 1, hdc_src, 0, 0, 1, 1, RGB(0xff, 0xff, 0xff) );
     ok( ret, "GdiTransparentBlt failed, error %lu.\n", GetLastError() );
-    todo_wine
     ok( dst_buffer[0] == 0x123456, "Got unexpected color %#x.\n", dst_buffer[0] );
 
     SelectObject( hdc_src, old_src );
