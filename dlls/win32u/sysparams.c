@@ -7387,7 +7387,7 @@ ULONG WINAPI NtUserGetProcessDpiAwarenessContext( HANDLE process )
 {
     ULONG context;
 
-    if (process && process != GetCurrentProcess())
+    if (process && process != GetCurrentProcess() && NtCompareObjects( GetCurrentProcess(), process ))
     {
         WARN( "not supported on other process %p\n", process );
         return NTUSER_DPI_UNAWARE;
