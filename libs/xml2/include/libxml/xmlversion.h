@@ -162,7 +162,7 @@
 #define LIBXML_XINCLUDE_ENABLED
 #endif
 
-#if 1
+#if 0
 /**
  * Whether iconv support is available
  */
