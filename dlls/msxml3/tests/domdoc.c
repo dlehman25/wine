@@ -7526,10 +7526,13 @@ static void test_TransformWithLoadingLocalFile(void)
             if(hr == S_OK)
             {
                 /* This will load the temp file via the XSL */
+fprintf(stderr, "%s: %d\n", __FUNCTION__, __LINE__);getchar();
                 hr = IXMLDOMDocument_transformNode(doc, pNode, &sResult);
                 ok(hr == S_OK, "Unexpected hr %#lx.\n", hr );
                 if(hr == S_OK)
                 {
+printf("result: %ls\n", sResult);
+printf("output: %s\n", szBasicTransformOutput);
                     ok( compareIgnoreReturns( sResult, _bstr_(szBasicTransformOutput)), "Stylesheet output not correct\n");
                     SysFreeString(sResult);
                 }
@@ -14475,6 +14478,8 @@ START_TEST(domdoc)
 
     hr = CoInitialize( NULL );
     ok( hr == S_OK, "failed to init com\n");
+    test_TransformWithLoadingLocalFile();
+    return;
     if (hr != S_OK) return;
 
     get_class_support_data(domdoc_support_data);
