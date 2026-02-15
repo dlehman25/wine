@@ -21,5 +21,7 @@
   #endif
 #endif
 
+#define XML_SYSCONFDIR "/usr/local/etc"
+
 #endif /* __LIBXML_WIN32_CONFIG__ */
 
