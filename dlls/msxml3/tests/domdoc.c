@@ -7515,6 +7515,7 @@ static void test_TransformWithLoadingLocalFile(void)
         lstrcatW(sXSL, sPart2);
 
         hr = IXMLDOMDocument_loadXML(xsl, sXSL, &bSucc);
+printf("%ls\n", sXSL);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr );
         ok(bSucc == VARIANT_TRUE, "Expected VARIANT_TRUE got VARIANT_FALSE\n");
         if(bSucc == VARIANT_TRUE)
