@@ -203,13 +203,12 @@ static void test_create_delete_svc(void)
     static const struct
     {
         const CHAR *account;
-        BOOL todo;
     } localsystem_account_tests[] =
     {
         {"LocalSystem"},
         {"localsystem"},
-        {".\\LocalSystem", TRUE},
-        {".\\localsystem", TRUE},
+        {".\\LocalSystem"},
+        {".\\localsystem"},
     };
     char buffer[200];
     DWORD size;
@@ -356,16 +355,10 @@ static void test_create_delete_svc(void)
             svc_handle1 = CreateServiceA(scm_handle, servicename, NULL, GENERIC_ALL, SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
                                          SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, localsystem_account_tests[i].account, NULL);
         } while (!svc_handle1 && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE);
-        todo_wine_if(localsystem_account_tests[i].todo)
         ok(!!svc_handle1, "Failed to create service, error %lu\n", GetLastError());
-
-        if (svc_handle1)
-        {
-            ret = DeleteService(svc_handle1);
-            ok(ret, "Failed to delete service, error %lu\n", GetLastError());
-            CloseServiceHandle(svc_handle1);
-        }
-
+        ret = DeleteService(svc_handle1);
+        ok(ret, "Failed to delete service, error %lu\n", GetLastError());
+        CloseServiceHandle(svc_handle1);
         winetest_pop_context();
     }
 
