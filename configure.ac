@@ -540,9 +540,7 @@ This is an error since --enable-archs=$wine_arch was requested.])])
 
     AS_VAR_IF([wine_arch],[$extra_arch],[],[AS_VAR_APPEND([PE_ARCHS],[" $wine_arch"])])
 
-    case "$target" in
-      *-windows) wine_compiler_rt_libs="compiler-rt" ;;
-    esac
+    wine_compiler_rt_libs="compiler-rt"
 
     WINE_TRY_PE_CFLAGS([-fno-strict-aliasing])
     dnl clang needs to be told to fail on unknown options

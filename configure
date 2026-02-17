@@ -7973,9 +7973,7 @@ else case e in #(
 esac
 fi
 
-    case "$target" in
-      *-windows) wine_compiler_rt_libs="compiler-rt" ;;
-    esac
+    wine_compiler_rt_libs="compiler-rt"
 
     { as_ac_var=`printf "%s\n" "ac_cv_${wine_arch}_cflags_-fno-strict-aliasing" | sed "$as_sed_sh"`
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether $CC supports -fno-strict-aliasing" >&5
