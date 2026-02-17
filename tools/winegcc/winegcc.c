@@ -1026,51 +1026,6 @@ static char *find_static_lib( const char *dll )
     return NULL;
 }
 
-static const char *find_libgcc(void)
-{
-    const char *out = make_temp_file( "find_libgcc", ".out" );
-    const char *err = make_temp_file( "find_libgcc", ".err" );
-    struct strarray link = get_translator();
-    int sout = -1, serr = -1;
-    char *libgcc, *p;
-    struct stat st;
-    size_t cnt;
-    int ret;
-
-    STRARRAY_FOR_EACH( arg, &linker_args )
-	if (strcmp(arg, "--no-default-config" )) strarray_add( &link, arg );
-
-    strarray_add( &link, "-print-libgcc-file-name" );
-
-    sout = dup( fileno(stdout) );
-    freopen( out, "w", stdout );
-    serr = dup( fileno(stderr) );
-    freopen( err, "w", stderr );
-    ret = spawn( link, 1 );
-    if (sout >= 0)
-    {
-        dup2( sout, fileno(stdout) );
-        close( sout );
-    }
-    if (serr >= 0)
-    {
-        dup2( serr, fileno(stderr) );
-        close( serr );
-    }
-
-    if (ret || stat(out, &st) || !st.st_size) return NULL;
-
-    libgcc = xmalloc(st.st_size + 1);
-    sout = open(out, O_RDONLY);
-    if (sout == -1) return NULL;
-    cnt = read(sout, libgcc, st.st_size);
-    close(sout);
-    libgcc[cnt] = 0;
-    if ((p = strchr(libgcc, '\n'))) *p = 0;
-    return libgcc;
-}
-
-
 /* add specified library to the list of files */
 static void add_library( struct strarray lib_dirs, struct strarray *files, const char *library )
 {
@@ -1331,8 +1286,7 @@ static void build(struct strarray input_files, const char *output)
         add_library(lib_dirs, &files, "advapi32");
         add_library(lib_dirs, &files, "user32");
         add_library(lib_dirs, &files, "winecrt0");
-        if (target.platform == PLATFORM_WINDOWS)
-            add_library(lib_dirs, &files, "compiler-rt");
+        if (is_pe) add_library(lib_dirs, &files, "compiler-rt");
         if (use_msvcrt)
         {
             if (!crt_lib)
@@ -1383,18 +1337,6 @@ static void build(struct strarray input_files, const char *output)
 
     /* link everything together now */
     link_args = get_link_args( output_name );
-
-    switch (target.platform)
-    {
-    case PLATFORM_MINGW:
-    case PLATFORM_CYGWIN:
-        libgcc = find_libgcc();
-        if (!libgcc) libgcc = "-lgcc";
-        break;
-    default:
-        break;
-    }
-
     strarray_add(&link_args, "-o");
     strarray_add(&link_args, output_file_name);
 
