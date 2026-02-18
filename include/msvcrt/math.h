@@ -45,6 +45,9 @@ struct _complex
 };
 #endif /* _COMPLEX_DEFINED */
 
+typedef float float_t;
+typedef double double_t;
+
 _ACRTIMP double __cdecl sin(double);
 _ACRTIMP double __cdecl cos(double);
 _ACRTIMP double __cdecl tan(double);
