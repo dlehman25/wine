@@ -7474,7 +7474,6 @@ static void test_TransformWithLoadingLocalFile(void)
     HANDLE file;
     DWORD dwWritten;
     char lpPathBuffer[MAX_PATH];
-    int i;
 
     /* Create a Temp File. */
     GetTempPathA(MAX_PATH, lpPathBuffer);
@@ -7487,13 +7486,6 @@ static void test_TransformWithLoadingLocalFile(void)
 
     WriteFile(file, szBasicTransformXML, strlen(szBasicTransformXML), &dwWritten, NULL);
     CloseHandle(file);
-
-    /* Correct path to not include an escape character. */
-    for(i=0; i < strlen(lpPathBuffer); i++)
-    {
-        if(lpPathBuffer[i] == '\\')
-            lpPathBuffer[i] = '/';
-    }
 
     doc = create_document(&IID_IXMLDOMDocument);
     xsl = create_document(&IID_IXMLDOMDocument);
@@ -7530,6 +7522,7 @@ static void test_TransformWithLoadingLocalFile(void)
                 ok(hr == S_OK, "Unexpected hr %#lx.\n", hr );
                 if(hr == S_OK)
                 {
+                    todo_wine
                     ok( compareIgnoreReturns( sResult, _bstr_(szBasicTransformOutput)), "Stylesheet output not correct\n");
                     SysFreeString(sResult);
                 }
