@@ -89,6 +89,7 @@ _ACRTIMP double __cdecl _y1(double);
 _ACRTIMP double __cdecl _yn(int, double);
 
 _ACRTIMP double __cdecl cbrt(double);
+_ACRTIMP double __cdecl erfc(double);
 _ACRTIMP double __cdecl exp2(double);
 _ACRTIMP double __cdecl expm1(double);
 _ACRTIMP double __cdecl log1p(double);
@@ -99,6 +100,7 @@ _ACRTIMP double __cdecl round(double);
 _ACRTIMP double __cdecl trunc(double);
 
 _ACRTIMP float __cdecl cbrtf(float);
+_ACRTIMP float __cdecl erfcf(float);
 _ACRTIMP float __cdecl exp2f(float);
 _ACRTIMP float __cdecl expm1f(float);
 _ACRTIMP float __cdecl log1pf(float);
@@ -290,6 +292,9 @@ _ACRTIMP short __cdecl _fdtest(float*);
 _ACRTIMP int   __cdecl _dsign(double);
 _ACRTIMP int   __cdecl _ldsign(long double);
 _ACRTIMP int   __cdecl _fdsign(float);
+
+_ACRTIMP double __cdecl nan(const char *);
+_ACRTIMP float __cdecl nanf(const char *);
 
 #ifdef __cplusplus
 
