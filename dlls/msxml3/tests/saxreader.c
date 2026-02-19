@@ -1910,14 +1910,12 @@ static HRESULT WINAPI isaxlexical_startDTD(ISAXLexicalHandler* iface,
     const WCHAR * pName, int nName, const WCHAR * pPublicId,
     int nPublicId, const WCHAR * pSystemId, int nSystemId)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI isaxlexical_endDTD(ISAXLexicalHandler* iface)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI isaxlexical_startEntity(ISAXLexicalHandler *iface,
@@ -2037,8 +2035,7 @@ static ULONG WINAPI isaxdecl_Release(ISAXDeclHandler* iface)
 static HRESULT WINAPI isaxdecl_elementDecl(ISAXDeclHandler* iface,
     const WCHAR * pName, int nName, const WCHAR * pModel, int nModel)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI isaxdecl_attributeDecl(ISAXDeclHandler* iface,
@@ -2046,23 +2043,20 @@ static HRESULT WINAPI isaxdecl_attributeDecl(ISAXDeclHandler* iface,
     int nAttributeName, const WCHAR * pType, int nType, const WCHAR * pValueDefault,
     int nValueDefault, const WCHAR * pValue, int nValue)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI isaxdecl_internalEntityDecl(ISAXDeclHandler* iface,
     const WCHAR * pName, int nName, const WCHAR * pValue, int nValue)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI isaxdecl_externalEntityDecl(ISAXDeclHandler* iface,
     const WCHAR * pName, int nName, const WCHAR * pPublicId, int nPublicId,
     const WCHAR * pSystemId, int nSystemId)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static const ISAXDeclHandlerVtbl SAXDeclHandlerVtbl =
@@ -6175,6 +6169,94 @@ static void test_mxwriter_from_reader(void)
     IVBSAXContentHandler_Release(content_handler);
 }
 
+static const WCHAR xml_dtd[] =
+    L"<?xml version=\"1.0\" ?>\n"
+    "<!DOCTYPE dummy:td-name PUBLIC \"dtd-pub-id\" \"dtd-sys-id\" [\n"
+    "<!NOTATION notation0 PUBLIC \"pub-id\" \"sys-id\" >\n"
+    "<!ENTITY ent1 SYSTEM \"sys-id\" NDATA notation1 >\n"
+    "<!ENTITY % ent1 \"sys-id\" >\n"
+    "<!ENTITY % ent2 SYSTEM \"sys-id-2\" >\n"
+    "<!ELEMENT div1 (head, (p | list | note)*, div2*)>\n"
+    "<!ELEMENT div2 (head, (p | list | note)*, div2*)>\n"
+    "<!ELEMENT div3 ( #PCDATA )* >\n"
+    "<!ELEMENT div4 ( #PCDATA | name | name)* >\n"
+    "<!ELEMENT div5 ( #PCDATA | name)*>\n"
+    "<!ELEMENT div6 (a | b* | c?)* >\n"
+    "<!ENTITY % ent1 SYSTEM \"sys-id\" >\n"
+    "<!ENTITY ent1.1 SYSTEM \"sys-id2\" >\n"
+    "<!ENTITY ent2 \"inte&#39;rnal &someent; ent2\" >\n"
+    "<!ENTITY ent3 \"t_e_x_t&ent4;\" >\n"
+    "<!ENTITY ent4 \"w\" >\n"
+    "<!ENTITY ent5 \"w2\" >\n"
+    "<!ENTITY % ent5 \"<!ENTITY ent11 \'&ent3;\'>\" >\n"
+    "<!ENTITY % ent10 \"<!ELEMENT div3 (head) >\" >\n"
+    "<!ENTITY % ent13 \"test\" >\n"
+    "<!ENTITY % ent14 \"\" >\n"
+    "<!ENTITY ent6 \"a&ent8;\" >\n"
+    "<!ENTITY ent7 \"some&:;\" >\n"
+    "<!ENTITY ent8 \"ab&ent9;cd&ent4;ef\" >\n"
+    "<!ENTITY ent9 \"&ent4;\" >\n"
+    "<!ENTITY apos \"blah-apos\" >\n"
+    "<!ENTITY quot \"blah-quot\" >\n"
+    "<!ENTITY entA \"a\" >\n"
+    "<!ENTITY ent11 \"<a/>\" >\n"
+    "<!ENTITY ent12 \"\" >\n"
+    "<!ATTLIST termdef2 >\n"
+    "<!ATTLIST termdef\n"
+    "          id      ID      #REQUIRED\n"
+    "          name    CDATA   #IMPLIED\n"
+    "          na:me2   CDATA   #FIXED \"default&#x20;value\"\n"
+    "          name3   CDATA #FIXED \"a-&#x20;-&ent4;b\" >\n"
+    "<!ATTLIST termdef\n"
+    "          id2     ID      #IMPLIED\n"
+    "          id      ID      #IMPLIED\n"
+    "          type    (bullets|ordered|:glo-ssary) \"ordered\"\n"
+    "          n    NOTATION  (name1 | name2) \"ordered\"\n"
+    "          n2    NOTATION  (name3) \"ordered\"\n"
+    "          id3     ID      #IMPLIED>\n"
+    "<!ATTLIST BankAccount\n"
+    "          ns:d CDATA \"defval\">\n"
+    "<!ATTLIST BankAccount\n"
+    "          ns:s CDATA \"defval2\">\n"
+    "]>\n"
+    "<a></a>";
+
+static void test_saxreader_dtd(void)
+{
+    ISAXXMLReader *reader;
+    VARIANT var;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SAXXMLReader, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    init_saxdeclhandler(&declhandler, S_OK);
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)&declhandler.ISAXDeclHandler_iface;
+    hr = ISAXXMLReader_putProperty(reader, _bstr_("http://xml.org/sax/properties/declaration-handler"), var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    init_saxlexicalhandler(&lexicalhandler, S_OK);
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)&lexicalhandler.ISAXLexicalHandler_iface;
+    hr = ISAXXMLReader_putProperty(reader, _bstr_("http://xml.org/sax/properties/lexical-handler"), var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(xml_dtd);
+
+    hr = ISAXXMLReader_parse(reader, var);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    VariantClear(&var);
+
+    ISAXXMLReader_Release(reader);
+}
+
 START_TEST(saxreader)
 {
     ISAXXMLReader *reader;
@@ -6204,6 +6286,7 @@ START_TEST(saxreader)
     test_saxreader_encoding();
     test_saxreader_dispex();
     test_saxreader_vb_content_handler();
+    test_saxreader_dtd();
 
     /* MXXMLWriter tests */
     get_class_support_data(mxwriter_support_data, &IID_IMXWriter);
