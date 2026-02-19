@@ -213,7 +213,11 @@ typedef __msvcrt_long __time32_t;
 #endif
 
 #ifndef _TIME64_T_DEFINED
+#if defined(_MSC_VER) || defined(__MINGW32__)
+typedef __int64 __time64_t;
+#else
 typedef __int64 DECLSPEC_ALIGN(8) __time64_t;
+#endif
 #define _TIME64_T_DEFINED
 #endif
 
