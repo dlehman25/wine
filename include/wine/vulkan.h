@@ -121,7 +121,7 @@ struct OH_NativeBuffer;
     #endif
 #endif
 #define VK_FALSE 0
-#define VK_HEADER_VERSION 340
+#define VK_HEADER_VERSION 344
 #define VK_HEADER_VERSION_COMPLETE VK_MAKE_API_VERSION(0, 1, 4, VK_HEADER_VERSION)
 #define VK_LOD_CLAMP_NONE 1000.0F
 #define VK_LUID_SIZE 8
@@ -307,7 +307,7 @@ typedef void* VkRemoteAddressNV;
 #define VK_ARM_SHADER_CORE_PROPERTIES_EXTENSION_NAME "VK_ARM_shader_core_properties"
 #define VK_ARM_SHADER_CORE_PROPERTIES_SPEC_VERSION 1
 #define VK_ARM_TENSORS_EXTENSION_NAME "VK_ARM_tensors"
-#define VK_ARM_TENSORS_SPEC_VERSION 1
+#define VK_ARM_TENSORS_SPEC_VERSION 2
 #define VK_EXT_4444_FORMATS_EXTENSION_NAME "VK_EXT_4444_formats"
 #define VK_EXT_4444_FORMATS_SPEC_VERSION 1
 #define VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME "VK_EXT_astc_decode_mode"
@@ -994,6 +994,8 @@ typedef void* VkRemoteAddressNV;
 #define VK_NV_VIEWPORT_ARRAY_2_SPEC_VERSION 1
 #define VK_NV_VIEWPORT_SWIZZLE_EXTENSION_NAME "VK_NV_viewport_swizzle"
 #define VK_NV_VIEWPORT_SWIZZLE_SPEC_VERSION 1
+#define VK_QCOM_COOPERATIVE_MATRIX_CONVERSION_EXTENSION_NAME "VK_QCOM_cooperative_matrix_conversion"
+#define VK_QCOM_COOPERATIVE_MATRIX_CONVERSION_SPEC_VERSION 1
 #define VK_QCOM_DATA_GRAPH_MODEL_EXTENSION_NAME "VK_QCOM_data_graph_model"
 #define VK_QCOM_DATA_GRAPH_MODEL_SPEC_VERSION 1
 #define VK_QCOM_FILTER_CUBIC_CLAMP_EXTENSION_NAME "VK_QCOM_filter_cubic_clamp"
@@ -1050,6 +1052,8 @@ typedef void* VkRemoteAddressNV;
 #define VK_VALVE_FRAGMENT_DENSITY_MAP_LAYERED_SPEC_VERSION 1
 #define VK_VALVE_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME "VK_VALVE_mutable_descriptor_type"
 #define VK_VALVE_MUTABLE_DESCRIPTOR_TYPE_SPEC_VERSION 1
+#define VK_VALVE_SHADER_MIXED_FLOAT_DOT_PRODUCT_EXTENSION_NAME "VK_VALVE_shader_mixed_float_dot_product"
+#define VK_VALVE_SHADER_MIXED_FLOAT_DOT_PRODUCT_SPEC_VERSION 1
 #define VK_VALVE_VIDEO_ENCODE_RGB_CONVERSION_EXTENSION_NAME "VK_VALVE_video_encode_rgb_conversion"
 #define VK_VALVE_VIDEO_ENCODE_RGB_CONVERSION_SPEC_VERSION 1
 
@@ -3401,6 +3405,9 @@ typedef enum VkFormat
     VK_FORMAT_A4R4G4B4_UNORM_PACK16 = 1000340000,
     VK_FORMAT_A4B4G4R4_UNORM_PACK16 = 1000340001,
     VK_FORMAT_R8_BOOL_ARM = 1000460000,
+    VK_FORMAT_R16_SFLOAT_FPENCODING_BFLOAT16_ARM = 1000460001,
+    VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM = 1000460002,
+    VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM = 1000460003,
     VK_FORMAT_R16G16_SFIXED5_NV = 1000464000,
     VK_FORMAT_A1B5G5R5_UNORM_PACK16 = 1000470000,
     VK_FORMAT_A8_UNORM = 1000470001,
@@ -5794,6 +5801,7 @@ typedef enum VkStructureType
     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_SUPPORT = 1000168001,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_VIEW_IMAGE_FORMAT_INFO_EXT = 1000170000,
     VK_STRUCTURE_TYPE_FILTER_CUBIC_IMAGE_VIEW_IMAGE_FORMAT_PROPERTIES_EXT = 1000170001,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM = 1000172000,
     VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO = 1000174000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES = 1000175000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES = 1000177000,
@@ -6448,6 +6456,7 @@ typedef enum VkStructureType
     VK_STRUCTURE_TYPE_COMPUTE_OCCUPANCY_PRIORITY_PARAMETERS_NV = 1000645000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_OCCUPANCY_PRIORITY_FEATURES_NV = 1000645001,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_PARTITIONED_FEATURES_EXT = 1000662000,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE = 1000673000,
     VK_STRUCTURE_TYPE_MAX_ENUM = 0x7fffffff,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTER_FEATURES = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETER_FEATURES = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
@@ -14106,6 +14115,13 @@ typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV
     uint32_t cooperativeMatrixWorkgroupScopeReservedSharedMemory;
 } VkPhysicalDeviceCooperativeMatrix2PropertiesNV;
 
+typedef struct VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM
+{
+    VkStructureType sType;
+    void *pNext;
+    VkBool32 cooperativeMatrixConversion;
+} VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM;
+
 typedef struct VkPhysicalDeviceCooperativeMatrixFeaturesKHR
 {
     VkStructureType sType;
@@ -16454,6 +16470,16 @@ typedef struct VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR
     void *pNext;
     VkBool32 shaderMaximalReconvergence;
 } VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR;
+
+typedef struct VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE
+{
+    VkStructureType sType;
+    void *pNext;
+    VkBool32 shaderMixedFloatDotProductFloat16AccFloat32;
+    VkBool32 shaderMixedFloatDotProductFloat16AccFloat16;
+    VkBool32 shaderMixedFloatDotProductBFloat16Acc;
+    VkBool32 shaderMixedFloatDotProductFloat8AccFloat32;
+} VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE;
 
 typedef struct VkPhysicalDeviceShaderModuleIdentifierFeaturesEXT
 {
@@ -22057,6 +22083,7 @@ VkResult VKAPI_CALL vkWriteSamplerDescriptorsEXT(VkDevice device, uint32_t sampl
     USE_VK_EXT(VK_NV_shading_rate_image) \
     USE_VK_EXT(VK_NV_viewport_array2) \
     USE_VK_EXT(VK_NV_viewport_swizzle) \
+    USE_VK_EXT(VK_QCOM_cooperative_matrix_conversion) \
     USE_VK_EXT(VK_QCOM_data_graph_model) \
     USE_VK_EXT(VK_QCOM_filter_cubic_clamp) \
     USE_VK_EXT(VK_QCOM_filter_cubic_weights) \
@@ -22077,6 +22104,7 @@ VkResult VKAPI_CALL vkWriteSamplerDescriptorsEXT(VkDevice device, uint32_t sampl
     USE_VK_EXT(VK_VALVE_descriptor_set_host_mapping) \
     USE_VK_EXT(VK_VALVE_fragment_density_map_layered) \
     USE_VK_EXT(VK_VALVE_mutable_descriptor_type) \
+    USE_VK_EXT(VK_VALVE_shader_mixed_float_dot_product) \
     USE_VK_EXT(VK_VALVE_video_encode_rgb_conversion)
 
 #define ALL_VK_DEVICE_EXTS ALL_VK_CLIENT_DEVICE_EXTS \

@@ -4719,6 +4719,13 @@ typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV32
     uint32_t cooperativeMatrixWorkgroupScopeReservedSharedMemory;
 } VkPhysicalDeviceCooperativeMatrix2PropertiesNV32;
 
+typedef struct VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32
+{
+    VkStructureType sType;
+    PTR32 pNext;
+    VkBool32 cooperativeMatrixConversion;
+} VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32;
+
 typedef struct VkPhysicalDeviceCooperativeMatrixFeaturesKHR32
 {
     VkStructureType sType;
@@ -7041,6 +7048,16 @@ typedef struct VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR32
     PTR32 pNext;
     VkBool32 shaderMaximalReconvergence;
 } VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR32;
+
+typedef struct VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32
+{
+    VkStructureType sType;
+    PTR32 pNext;
+    VkBool32 shaderMixedFloatDotProductFloat16AccFloat32;
+    VkBool32 shaderMixedFloatDotProductFloat16AccFloat16;
+    VkBool32 shaderMixedFloatDotProductBFloat16Acc;
+    VkBool32 shaderMixedFloatDotProductFloat8AccFloat32;
+} VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32;
 
 typedef struct VkPhysicalDeviceShaderModuleIdentifierFeaturesEXT32
 {
@@ -18037,6 +18054,17 @@ static void convert_VkDeviceCreateInfo_win64_to_host(struct conversion_context *
             out_header = (void *)out_ext;
             break;
         }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM:
+        {
+            VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
+            const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *in_ext = (const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM;
+            out_ext->pNext = NULL;
+            out_ext->cooperativeMatrixConversion = in_ext->cooperativeMatrixConversion;
+            out_header->pNext = (void *)out_ext;
+            out_header = (void *)out_ext;
+            break;
+        }
         case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR:
         {
             VkPhysicalDeviceCooperativeMatrixFeaturesKHR *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
@@ -19966,6 +19994,20 @@ static void convert_VkDeviceCreateInfo_win64_to_host(struct conversion_context *
             out_header = (void *)out_ext;
             break;
         }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE:
+        {
+            VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
+            const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *in_ext = (const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE;
+            out_ext->pNext = NULL;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat32 = in_ext->shaderMixedFloatDotProductFloat16AccFloat32;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat16 = in_ext->shaderMixedFloatDotProductFloat16AccFloat16;
+            out_ext->shaderMixedFloatDotProductBFloat16Acc = in_ext->shaderMixedFloatDotProductBFloat16Acc;
+            out_ext->shaderMixedFloatDotProductFloat8AccFloat32 = in_ext->shaderMixedFloatDotProductFloat8AccFloat32;
+            out_header->pNext = (void *)out_ext;
+            out_header = (void *)out_ext;
+            break;
+        }
         case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MODULE_IDENTIFIER_FEATURES_EXT:
         {
             VkPhysicalDeviceShaderModuleIdentifierFeaturesEXT *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
@@ -21128,6 +21170,17 @@ static void convert_VkDeviceCreateInfo_win32_to_host(struct conversion_context *
             out_ext->cooperativeMatrixPerElementOperations = in_ext->cooperativeMatrixPerElementOperations;
             out_ext->cooperativeMatrixTensorAddressing = in_ext->cooperativeMatrixTensorAddressing;
             out_ext->cooperativeMatrixBlockLoads = in_ext->cooperativeMatrixBlockLoads;
+            out_header->pNext = (void *)out_ext;
+            out_header = (void *)out_ext;
+            break;
+        }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM:
+        {
+            VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
+            const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32 *in_ext = (const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32 *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM;
+            out_ext->pNext = NULL;
+            out_ext->cooperativeMatrixConversion = in_ext->cooperativeMatrixConversion;
             out_header->pNext = (void *)out_ext;
             out_header = (void *)out_ext;
             break;
@@ -23057,6 +23110,20 @@ static void convert_VkDeviceCreateInfo_win32_to_host(struct conversion_context *
             out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MAXIMAL_RECONVERGENCE_FEATURES_KHR;
             out_ext->pNext = NULL;
             out_ext->shaderMaximalReconvergence = in_ext->shaderMaximalReconvergence;
+            out_header->pNext = (void *)out_ext;
+            out_header = (void *)out_ext;
+            break;
+        }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE:
+        {
+            VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
+            const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32 *in_ext = (const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32 *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE;
+            out_ext->pNext = NULL;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat32 = in_ext->shaderMixedFloatDotProductFloat16AccFloat32;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat16 = in_ext->shaderMixedFloatDotProductFloat16AccFloat16;
+            out_ext->shaderMixedFloatDotProductBFloat16Acc = in_ext->shaderMixedFloatDotProductBFloat16Acc;
+            out_ext->shaderMixedFloatDotProductFloat8AccFloat32 = in_ext->shaderMixedFloatDotProductFloat8AccFloat32;
             out_header->pNext = (void *)out_ext;
             out_header = (void *)out_ext;
             break;
@@ -30857,6 +30924,17 @@ static void convert_VkPhysicalDeviceFeatures2_win32_to_host(struct conversion_co
             out_header = (void *)out_ext;
             break;
         }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM:
+        {
+            VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
+            const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32 *in_ext = (const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32 *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM;
+            out_ext->pNext = NULL;
+            out_ext->cooperativeMatrixConversion = in_ext->cooperativeMatrixConversion;
+            out_header->pNext = (void *)out_ext;
+            out_header = (void *)out_ext;
+            break;
+        }
         case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR:
         {
             VkPhysicalDeviceCooperativeMatrixFeaturesKHR *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
@@ -32775,6 +32853,20 @@ static void convert_VkPhysicalDeviceFeatures2_win32_to_host(struct conversion_co
             out_header = (void *)out_ext;
             break;
         }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE:
+        {
+            VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
+            const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32 *in_ext = (const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32 *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE;
+            out_ext->pNext = NULL;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat32 = in_ext->shaderMixedFloatDotProductFloat16AccFloat32;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat16 = in_ext->shaderMixedFloatDotProductFloat16AccFloat16;
+            out_ext->shaderMixedFloatDotProductBFloat16Acc = in_ext->shaderMixedFloatDotProductBFloat16Acc;
+            out_ext->shaderMixedFloatDotProductFloat8AccFloat32 = in_ext->shaderMixedFloatDotProductFloat8AccFloat32;
+            out_header->pNext = (void *)out_ext;
+            out_header = (void *)out_ext;
+            break;
+        }
         case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MODULE_IDENTIFIER_FEATURES_EXT:
         {
             VkPhysicalDeviceShaderModuleIdentifierFeaturesEXT *out_ext = conversion_context_alloc(ctx, sizeof(*out_ext));
@@ -33709,6 +33801,15 @@ static void convert_VkPhysicalDeviceFeatures2_host_to_win32(const VkPhysicalDevi
             out_ext->cooperativeMatrixPerElementOperations = in_ext->cooperativeMatrixPerElementOperations;
             out_ext->cooperativeMatrixTensorAddressing = in_ext->cooperativeMatrixTensorAddressing;
             out_ext->cooperativeMatrixBlockLoads = in_ext->cooperativeMatrixBlockLoads;
+            out_header = (void *)out_ext;
+            break;
+        }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM:
+        {
+            VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM32 *out_ext = find_next_struct32(out_header, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM);
+            const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *in_ext = (const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM;
+            out_ext->cooperativeMatrixConversion = in_ext->cooperativeMatrixConversion;
             out_header = (void *)out_ext;
             break;
         }
@@ -35305,6 +35406,18 @@ static void convert_VkPhysicalDeviceFeatures2_host_to_win32(const VkPhysicalDevi
             const VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR *in_ext = (const VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR *)in_header;
             out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MAXIMAL_RECONVERGENCE_FEATURES_KHR;
             out_ext->shaderMaximalReconvergence = in_ext->shaderMaximalReconvergence;
+            out_header = (void *)out_ext;
+            break;
+        }
+        case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE:
+        {
+            VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE32 *out_ext = find_next_struct32(out_header, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE);
+            const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *in_ext = (const VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE *)in_header;
+            out_ext->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat32 = in_ext->shaderMixedFloatDotProductFloat16AccFloat32;
+            out_ext->shaderMixedFloatDotProductFloat16AccFloat16 = in_ext->shaderMixedFloatDotProductFloat16AccFloat16;
+            out_ext->shaderMixedFloatDotProductBFloat16Acc = in_ext->shaderMixedFloatDotProductBFloat16Acc;
+            out_ext->shaderMixedFloatDotProductFloat8AccFloat32 = in_ext->shaderMixedFloatDotProductFloat8AccFloat32;
             out_header = (void *)out_ext;
             break;
         }
