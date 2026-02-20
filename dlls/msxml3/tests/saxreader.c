@@ -2741,21 +2741,22 @@ static void test_saxreader(void)
     free_bstrs();
 }
 
-struct saxreader_props_test_t
-{
-    const WCHAR *prop_name;
-    IUnknown   *iface;
-};
-
-static const struct saxreader_props_test_t props_test_data[] = {
-    { L"http://xml.org/sax/properties/lexical-handler", (IUnknown*)&lexicalhandler.ISAXLexicalHandler_iface },
-    { L"http://xml.org/sax/properties/declaration-handler", (IUnknown*)&declhandler.ISAXDeclHandler_iface },
-    { 0 }
-};
-
 static void test_saxreader_properties(void)
 {
+    static const struct saxreader_props_test_t
+    {
+        const WCHAR *prop_name;
+        IUnknown *iface;
+    }
+    props_test_data[] =
+    {
+        { L"http://xml.org/sax/properties/lexical-handler", (IUnknown *)&lexicalhandler.ISAXLexicalHandler_iface },
+        { L"http://xml.org/sax/properties/declaration-handler", (IUnknown *)&declhandler.ISAXDeclHandler_iface },
+        { 0 }
+    };
+
     const struct saxreader_props_test_t *ptr = props_test_data;
+    IVBSAXXMLReader *vb_reader;
     ISAXXMLReader *reader;
     HRESULT hr;
     VARIANT v;
@@ -2904,6 +2905,28 @@ static void test_saxreader_properties(void)
     }
 
     ISAXXMLReader_Release(reader);
+
+    /* Getters with VB interface */
+    hr = CoCreateInstance(&CLSID_SAXXMLReader, NULL, CLSCTX_INPROC_SERVER, &IID_IVBSAXXMLReader, (void **)&vb_reader);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    V_VT(&v) = VT_EMPTY;
+    V_DISPATCH(&v) = (IDispatch *)0xdeadbeef;
+    hr = IVBSAXXMLReader_getProperty(vb_reader, _bstr_("http://xml.org/sax/properties/lexical-handler"), &v);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(V_VT(&v) == VT_DISPATCH, "Unexpected type %d.\n", V_VT(&v));
+    ok(!V_DISPATCH(&v), "Unexpected value %p.\n", V_UNKNOWN(&v));
+
+    V_VT(&v) = VT_EMPTY;
+    V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
+    hr = IVBSAXXMLReader_getProperty(vb_reader, _bstr_("http://xml.org/sax/properties/declaration-handler"), &v);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(V_VT(&v) == VT_DISPATCH, "Unexpected type %d.\n", V_VT(&v));
+    ok(!V_DISPATCH(&v), "Unexpected value %p.\n", V_UNKNOWN(&v));
+
+    IVBSAXXMLReader_Release(vb_reader);
 
     if (!is_clsid_supported(&CLSID_SAXXMLReader40, reader_support_data))
         return;
