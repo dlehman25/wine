@@ -4749,7 +4749,7 @@ static void test_saxreader(void)
     V_BSTR(&var) = _bstr_(xmlspace_attr);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "xml:space handling", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "xml:space handling", FALSE);
 
     /* switch off 'namespaces' feature */
     hr = ISAXXMLReader_putFeature(reader, L"http://xml.org/sax/features/namespaces", VARIANT_FALSE);
@@ -4763,7 +4763,7 @@ static void test_saxreader(void)
     set_expected_seq(test_seq);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", FALSE);
     IStream_Release(stream);
     hr = ISAXXMLReader_putFeature(reader, L"http://xml.org/sax/features/namespaces", VARIANT_TRUE);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -4813,7 +4813,7 @@ static void test_saxreader(void)
     set_expected_seq(test_seq);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "pi test 1", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "pi test 1", FALSE);
     VariantClear(&var);
 
     ISAXXMLReader_Release(reader);
@@ -5059,7 +5059,7 @@ static void test_saxreader_cdata(void)
     set_expected_seq(test_seq);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test 3", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test 3", FALSE);
 
     IStream_Release(stream);
 
@@ -5125,7 +5125,7 @@ static void test_saxreader_characters(void)
     set_expected_seq(chardata_test);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, chardata_test, "char data test", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, chardata_test, "char data test", FALSE);
     VariantClear(&var);
 
     V_VT(&var) = VT_UNKNOWN;
@@ -5164,7 +5164,7 @@ static void test_saxreader_pi(void)
     set_expected_seq(pi_test);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test 1", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test 1", FALSE);
     VariantClear(&var);
 
     ISAXXMLReader_Release(reader);

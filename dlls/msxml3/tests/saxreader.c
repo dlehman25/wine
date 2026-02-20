@@ -2524,12 +2524,7 @@ static void test_saxreader(void)
         set_expected_seq(test_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-
-        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
-            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", FALSE);
-        else
-            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", TRUE);
-
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", FALSE);
         IStream_Release(stream);
 
         V_VT(&var) = VT_UNKNOWN;
@@ -2655,13 +2650,7 @@ static void test_saxreader(void)
         V_BSTR(&var) = _bstr_(xmlspace_attr);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-
-        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
-        {
-            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "xml:space handling", TRUE);
-        }
-        else
-            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "xml:space handling", FALSE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "xml:space handling", FALSE);
 
         /* switch off 'namespaces' feature */
         hr = ISAXXMLReader_putFeature(reader, L"http://xml.org/sax/features/namespaces", VARIANT_FALSE);
@@ -2681,7 +2670,7 @@ static void test_saxreader(void)
         set_expected_seq(test_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", TRUE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "content test attributes", FALSE);
         IStream_Release(stream);
         hr = ISAXXMLReader_putFeature(reader, L"http://xml.org/sax/features/namespaces", VARIANT_TRUE);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -2798,7 +2787,10 @@ static void test_saxreader_cdata(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: cdata test", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        else
+            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
 
         IStream_Release(stream);
 
@@ -2816,7 +2808,10 @@ static void test_saxreader_cdata(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: cdata test 2", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        else
+            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
 
         IStream_Release(stream);
 
@@ -2834,7 +2829,7 @@ static void test_saxreader_cdata(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: cdata test 3", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
 
         IStream_Release(stream);
 
@@ -2891,7 +2886,7 @@ static void test_saxreader_pi(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: pi test", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
         VariantClear(&var);
 
         ISAXXMLReader_Release(reader);
@@ -2947,7 +2942,7 @@ static void test_saxreader_characters(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: char data test", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
         VariantClear(&var);
 
         V_VT(&var) = VT_UNKNOWN;
@@ -2962,7 +2957,10 @@ static void test_saxreader_characters(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: char data test", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        else
+            ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
         VariantClear(&var);
 
         ISAXXMLReader_Release(reader);
@@ -3145,7 +3143,6 @@ static void test_saxreader_properties(void)
     V_DISPATCH(&v) = (IDispatch *)0xdeadbeef;
     hr = IVBSAXXMLReader_getProperty(vb_reader, _bstr_("http://xml.org/sax/properties/lexical-handler"), &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(V_VT(&v) == VT_DISPATCH, "Unexpected type %d.\n", V_VT(&v));
     ok(!V_DISPATCH(&v), "Unexpected value %p.\n", V_UNKNOWN(&v));
 
@@ -3153,7 +3150,6 @@ static void test_saxreader_properties(void)
     V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
     hr = IVBSAXXMLReader_getProperty(vb_reader, _bstr_("http://xml.org/sax/properties/declaration-handler"), &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(V_VT(&v) == VT_DISPATCH, "Unexpected type %d.\n", V_VT(&v));
     ok(!V_DISPATCH(&v), "Unexpected value %p.\n", V_UNKNOWN(&v));
 
@@ -3497,9 +3493,9 @@ static void test_saxreader_encoding(void)
         create_test_file(testXmlA, ucs4_le_test, sizeof(ucs4_le_test));
         hr = ISAXXMLReader_parseURL(reader, L"test.xml");
         if (IsEqualGUID(entry->guid, &CLSID_SAXXMLReader40))
+            todo_wine
             ok(FAILED(hr), "Unexpected hr %#lx.\n", hr);
         else
-            todo_wine
             ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         DeleteFileA(testXmlA);
 
@@ -3507,9 +3503,9 @@ static void test_saxreader_encoding(void)
         create_test_file(testXmlA, ucs4_be_test, sizeof(ucs4_be_test));
         hr = ISAXXMLReader_parseURL(reader, L"test.xml");
         if (IsEqualGUID(entry->guid, &CLSID_SAXXMLReader40))
+            todo_wine
             ok(FAILED(hr), "Unexpected hr %#lx.\n", hr);
         else
-            todo_wine
             ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         DeleteFileA(testXmlA);
 
@@ -3535,29 +3531,28 @@ static void test_saxreader_encoding(void)
     set_expected_seq(xml_win1252_seq);
     hr = ISAXXMLReader_parseURL(reader, L"test.xml");
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_win1252_seq, "Content test with windows-1252", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_win1252_seq, "Content test with windows-1252", FALSE);
     DeleteFileA(testXmlA);
 
     create_test_file(testXmlA, xml_win1253_test, sizeof(xml_win1253_test) - 1);
     set_expected_seq(xml_win1253_seq);
     hr = ISAXXMLReader_parseURL(reader, L"test.xml");
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_win1253_seq, "Content test with windows-1252", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_win1253_seq, "Content test with windows-1253", FALSE);
     DeleteFileA(testXmlA);
 
     create_test_file(testXmlA, xml_us_ascii_test, sizeof(xml_us_ascii_test) - 1);
     set_expected_seq(xml_us_ascii_seq);
     hr = ISAXXMLReader_parseURL(reader, L"test.xml");
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_us_ascii_seq, "Content test with us-ascii", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_us_ascii_seq, "Content test with us-ascii", FALSE);
     DeleteFileA(testXmlA);
 
     create_test_file(testXmlA, xml_iso_8859_1_test, sizeof(xml_iso_8859_1_test) - 1);
     set_expected_seq(xml_iso_8859_1_seq);
     hr = ISAXXMLReader_parseURL(reader, L"test.xml");
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_iso_8859_1_seq, "Content test with iso-8859-1", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, xml_iso_8859_1_seq, "Content test with iso-8859-1", FALSE);
     DeleteFileA(testXmlA);
 
     ISAXXMLReader_Release(reader);
@@ -6534,7 +6529,6 @@ static void test_saxreader_dtd(void)
     V_BSTR(&var) = SysAllocString(xml_dtd);
 
     hr = ISAXXMLReader_parse(reader, var);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     VariantClear(&var);
