@@ -2743,13 +2743,13 @@ static void test_saxreader(void)
 
 struct saxreader_props_test_t
 {
-    const char *prop_name;
+    const WCHAR *prop_name;
     IUnknown   *iface;
 };
 
 static const struct saxreader_props_test_t props_test_data[] = {
-    { "http://xml.org/sax/properties/lexical-handler", (IUnknown*)&lexicalhandler.ISAXLexicalHandler_iface },
-    { "http://xml.org/sax/properties/declaration-handler", (IUnknown*)&declhandler.ISAXDeclHandler_iface },
+    { L"http://xml.org/sax/properties/lexical-handler", (IUnknown*)&lexicalhandler.ISAXLexicalHandler_iface },
+    { L"http://xml.org/sax/properties/declaration-handler", (IUnknown*)&declhandler.ISAXDeclHandler_iface },
     { 0 }
 };
 
@@ -2765,7 +2765,7 @@ static void test_saxreader_properties(void)
             &IID_ISAXXMLReader, (void**)&reader);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("http://xml.org/sax/properties/lexical-handler"), NULL);
+    hr = ISAXXMLReader_getProperty(reader, L"http://xml.org/sax/properties/lexical-handler", NULL);
     ok(hr == E_POINTER, "Unexpected hr %#lx.\n", hr);
 
     while (ptr->prop_name)
@@ -2778,7 +2778,7 @@ static void test_saxreader_properties(void)
 
         V_VT(&v) = VT_EMPTY;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_getProperty(reader, _bstr_(ptr->prop_name), &v);
+        hr = ISAXXMLReader_getProperty(reader, ptr->prop_name, &v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(V_VT(&v) == VT_UNKNOWN, "got %d\n", V_VT(&v));
         ok(V_UNKNOWN(&v) == NULL, "got %p\n", V_UNKNOWN(&v));
@@ -2787,15 +2787,15 @@ static void test_saxreader_properties(void)
         V_VT(&v) = VT_UNKNOWN;
         V_UNKNOWN(&v) = ptr->iface;
         ref = get_refcount(ptr->iface);
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-        ok(ref < get_refcount(ptr->iface), "expected inreased refcount\n");
+        ok(ref < get_refcount(ptr->iface), "Unexpected refcount.\n");
 
         /* VT_DISPATCH */
         V_VT(&v) = VT_DISPATCH;
         V_UNKNOWN(&v) = ptr->iface;
         ref = get_refcount(ptr->iface);
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(ref == get_refcount(ptr->iface), "got wrong refcount %ld, expected %ld\n", get_refcount(ptr->iface), ref);
 
@@ -2806,7 +2806,7 @@ static void test_saxreader_properties(void)
         V_VT(&v) = VT_VARIANT|VT_BYREF;
         V_VARIANTREF(&v) = &varref;
         ref = get_refcount(ptr->iface);
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(ref == get_refcount(ptr->iface), "got wrong refcount %ld, expected %ld\n", get_refcount(ptr->iface), ref);
 
@@ -2817,7 +2817,7 @@ static void test_saxreader_properties(void)
         V_VT(&v) = VT_VARIANT|VT_BYREF;
         V_VARIANTREF(&v) = &varref;
         ref = get_refcount(ptr->iface);
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(ref == get_refcount(ptr->iface), "got wrong refcount %ld, expected %ld\n", get_refcount(ptr->iface), ref);
 
@@ -2825,7 +2825,7 @@ static void test_saxreader_properties(void)
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
 
         ref = get_refcount(ptr->iface);
-        hr = ISAXXMLReader_getProperty(reader, _bstr_(ptr->prop_name), &v);
+        hr = ISAXXMLReader_getProperty(reader, ptr->prop_name, &v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(V_VT(&v) == VT_UNKNOWN, "got %d\n", V_VT(&v));
         ok(V_UNKNOWN(&v) == ptr->iface, "got %p\n", V_UNKNOWN(&v));
@@ -2834,30 +2834,30 @@ static void test_saxreader_properties(void)
 
         V_VT(&v) = VT_EMPTY;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
         V_VT(&v) = VT_EMPTY;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_getProperty(reader, _bstr_(ptr->prop_name), &v);
+        hr = ISAXXMLReader_getProperty(reader, ptr->prop_name, &v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(V_VT(&v) == VT_UNKNOWN, "got %d\n", V_VT(&v));
         ok(V_UNKNOWN(&v) == NULL, "got %p\n", V_UNKNOWN(&v));
 
         V_VT(&v) = VT_UNKNOWN;
         V_UNKNOWN(&v) = ptr->iface;
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
         /* only VT_EMPTY seems to be valid to reset property */
         V_VT(&v) = VT_I4;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
 
         V_VT(&v) = VT_EMPTY;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_getProperty(reader, _bstr_(ptr->prop_name), &v);
+        hr = ISAXXMLReader_getProperty(reader, ptr->prop_name, &v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(V_VT(&v) == VT_UNKNOWN, "got %d\n", V_VT(&v));
         ok(V_UNKNOWN(&v) == ptr->iface, "got %p\n", V_UNKNOWN(&v));
@@ -2865,12 +2865,12 @@ static void test_saxreader_properties(void)
 
         V_VT(&v) = VT_UNKNOWN;
         V_UNKNOWN(&v) = NULL;
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
         V_VT(&v) = VT_EMPTY;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_getProperty(reader, _bstr_(ptr->prop_name), &v);
+        hr = ISAXXMLReader_getProperty(reader, ptr->prop_name, &v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(V_VT(&v) == VT_UNKNOWN, "got %d\n", V_VT(&v));
         ok(V_UNKNOWN(&v) == NULL, "got %p\n", V_UNKNOWN(&v));
@@ -2878,7 +2878,7 @@ static void test_saxreader_properties(void)
         /* block QueryInterface on handler riid */
         V_VT(&v) = VT_UNKNOWN;
         V_UNKNOWN(&v) = ptr->iface;
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
         init_saxlexicalhandler(&lexicalhandler, E_NOINTERFACE);
@@ -2888,13 +2888,13 @@ static void test_saxreader_properties(void)
         V_UNKNOWN(&v) = ptr->iface;
         EXPECT_REF(ptr->iface, 1);
         ref = get_refcount(ptr->iface);
-        hr = ISAXXMLReader_putProperty(reader, _bstr_(ptr->prop_name), v);
+        hr = ISAXXMLReader_putProperty(reader, ptr->prop_name, v);
         ok(hr == E_NOINTERFACE, "Unexpected hr %#lx.\n", hr);
         EXPECT_REF(ptr->iface, 1);
 
         V_VT(&v) = VT_EMPTY;
         V_UNKNOWN(&v) = (IUnknown*)0xdeadbeef;
-        hr = ISAXXMLReader_getProperty(reader, _bstr_(ptr->prop_name), &v);
+        hr = ISAXXMLReader_getProperty(reader, ptr->prop_name, &v);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(V_VT(&v) == VT_UNKNOWN, "got %d\n", V_VT(&v));
         ok(V_UNKNOWN(&v) != NULL, "got %p\n", V_UNKNOWN(&v));
@@ -2915,7 +2915,7 @@ static void test_saxreader_properties(void)
     /* xmldecl-version property */
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("xmldecl-version"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"xmldecl-version", &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&v) == VT_BSTR, "got %d\n", V_VT(&v));
     ok(V_BSTR(&v) == NULL, "got %s\n", wine_dbgstr_w(V_BSTR(&v)));
@@ -2928,14 +2928,14 @@ static void test_saxreader_properties(void)
 
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("xmldecl-version"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"xmldecl-version", &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&v) == VT_BSTR, "got %d\n", V_VT(&v));
     ok(V_BSTR(&v) == NULL, "got %s\n", wine_dbgstr_w(V_BSTR(&v)));
 
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("xmldecl-encoding"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"xmldecl-encoding", &v);
     todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     todo_wine
@@ -2945,7 +2945,7 @@ static void test_saxreader_properties(void)
 
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("charset"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"charset", &v);
     todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     todo_wine
@@ -2968,7 +2968,7 @@ static void test_saxreader_properties(void)
 
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("xmldecl-version"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"xmldecl-version", &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&v) == VT_BSTR, "got %d\n", V_VT(&v));
     ok(!lstrcmpW(V_BSTR(&v), L"1.0"), "got %s\n", wine_dbgstr_w(V_BSTR(&v)));
@@ -2982,7 +2982,7 @@ static void test_saxreader_properties(void)
 
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("xmldecl-encoding"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"xmldecl-encoding", &v);
     todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     if (hr == S_OK)
@@ -2994,7 +2994,7 @@ static void test_saxreader_properties(void)
 
     V_VT(&v) = VT_EMPTY;
     V_BSTR(&v) = (void*)0xdeadbeef;
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("charset"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"charset", &v);
     todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     todo_wine
