@@ -1174,13 +1174,11 @@ static ULONG WINAPI SAXContentHandler_Release(ISAXContentHandler *iface)
     return IMXWriter_Release(&This->IMXWriter_iface);
 }
 
-static HRESULT WINAPI SAXContentHandler_putDocumentLocator(
-    ISAXContentHandler *iface,
-    ISAXLocator *locator)
+static HRESULT WINAPI SAXContentHandler_putDocumentLocator(ISAXContentHandler *iface, ISAXLocator *locator)
 {
-    mxwriter *This = impl_from_ISAXContentHandler( iface );
-    FIXME("(%p)->(%p)\n", This, locator);
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, locator);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI SAXContentHandler_startDocument(ISAXContentHandler *iface)
@@ -2085,8 +2083,8 @@ static HRESULT WINAPI VBSAXContentHandler_Invoke(IVBSAXContentHandler *iface, DI
 
 static HRESULT WINAPI VBSAXContentHandler_putref_documentLocator(IVBSAXContentHandler *iface, IVBSAXLocator *locator)
 {
-    mxwriter *This = impl_from_IVBSAXContentHandler( iface );
-    TRACE("(%p)->(%p)\n", This, locator);
+    TRACE("%p, %p.\n", iface, locator);
+
     return S_OK;
 }
 
