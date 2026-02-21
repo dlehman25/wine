@@ -1671,7 +1671,7 @@ static ULONG WINAPI isaxattributes_Release(ISAXAttributes* iface)
 
 static HRESULT WINAPI isaxattributes_getLength(ISAXAttributes* iface, int *length)
 {
-    *length = 3;
+    *length = 4;
     return S_OK;
 }
 
@@ -1703,15 +1703,19 @@ static HRESULT WINAPI isaxattributes_getQName(
 {
     static const WCHAR attrqnamesW[][15] = {L"a:attr1junk",
                                             L"attr2junk",
-                                            L"attr3"};
-    static const int attrqnamelen[] = {7, 5, 5};
+                                            L"attr3",
+                                            L"attr4"};
+    static const int attrqnamelen[] = {7, 5, 5, 5};
 
-    ok(index >= 0 && index <= 2, "invalid index received %d\n", index);
+    ok(index >= 0 && index <= 3, "invalid index received %d\n", index);
 
-    if (index >= 0 && index <= 2) {
+    if (index >= 0 && index <= 3)
+    {
         *QName = attrqnamesW[index];
         *QNameLength = attrqnamelen[index];
-    } else {
+    }
+    else
+    {
         *QName = NULL;
         *QNameLength = 0;
     }
@@ -1794,15 +1798,19 @@ static HRESULT WINAPI isaxattributes_getValue(ISAXAttributes* iface, int index,
 {
     static const WCHAR attrvaluesW[][10] = {L"a1junk",
                                             L"a2junk",
-                                            L"<&\">'"};
-    static const int attrvalueslen[] = {2, 2, 5};
+                                            L"<&\">'",
+                                            L"a\rb\nc\r\n"};
+    static const int attrvalueslen[] = {2, 2, 5, 7};
 
-    ok(index >= 0 && index <= 2, "invalid index received %d\n", index);
+    ok(index >= 0 && index <= 3, "invalid index received %d\n", index);
 
-    if (index >= 0 && index <= 2) {
+    if (index >= 0 && index <= 3)
+    {
         *value = attrvaluesW[index];
         *nValue = attrvalueslen[index];
-    } else {
+    }
+    else
+    {
         *value = NULL;
         *nValue = 0;
     }
@@ -3919,9 +3927,9 @@ struct writer_startendelement_t {
     ISAXAttributes *attr;
 };
 
-static const WCHAR startelement_xml[] = L"<uri:local a:attr1=\"a1\" attr2=\"a2\" attr3=\"&lt;&amp;&quot;&gt;\'\">";
-static const WCHAR startendelement_xml[] = L"<uri:local a:attr1=\"a1\" attr2=\"a2\" attr3=\"&lt;&amp;&quot;&gt;\'\"/>";
-static const WCHAR startendelement_noescape_xml[] = L"<uri:local a:attr1=\"a1\" attr2=\"a2\" attr3=\"<&\">\'\"/>";
+static const WCHAR startelement_xml[] = L"<uri:local a:attr1=\"a1\" attr2=\"a2\" attr3=\"&lt;&amp;&quot;&gt;\'\" attr4=\"a\r\nb\r\nc\r\n\">";
+static const WCHAR startendelement_xml[] = L"<uri:local a:attr1=\"a1\" attr2=\"a2\" attr3=\"&lt;&amp;&quot;&gt;\'\" attr4=\"a\r\nb\r\nc\r\n\"/>";
+static const WCHAR startendelement_noescape_xml[] = L"<uri:local a:attr1=\"a1\" attr2=\"a2\" attr3=\"<&\">\'\" attr4=\"a\r\nb\r\nc\r\n\"/>";
 
 static const struct writer_startendelement_t writer_startendelement[] =
 {
@@ -4081,6 +4089,7 @@ static void test_mxwriter_startendelement_batch(const struct writer_startendelem
             hr = IMXWriter_get_output(writer, &dest);
             ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
             ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
+            todo_wine_if((i >= 48 && i <= 53) || (i >= 57 && i <= 59))
             ok(!lstrcmpW(table->output, V_BSTR(&dest)),
                 "test %d: got wrong content %s, expected %s\n", i, wine_dbgstr_w(V_BSTR(&dest)), wine_dbgstr_w(table->output));
             VariantClear(&dest);
