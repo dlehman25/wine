@@ -246,11 +246,12 @@ static const char *get_event_name(CH event)
     return event_names[event];
 }
 
-struct attribute_entry {
-    const char *uri;
-    const char *local;
-    const char *qname;
-    const char *value;
+struct attribute_entry
+{
+    const WCHAR *uri;
+    const WCHAR *local;
+    const WCHAR *qname;
+    const WCHAR *value;
 
     /* used for actual call data only, null for expected call data */
     BSTR uriW;
@@ -265,9 +266,9 @@ struct call_entry
     int line;
     int column;
     HRESULT ret;
-    const char *arg1;
-    const char *arg2;
-    const char *arg3;
+    const WCHAR *arg1;
+    const WCHAR *arg2;
+    const WCHAR *arg3;
 
     /* allocated once at startElement callback */
     struct attribute_entry *attributes;
@@ -290,10 +291,9 @@ struct call_sequence
 #define NUM_CALL_SEQUENCES    1
 static struct call_sequence *sequences[NUM_CALL_SEQUENCES];
 
-static void test_saxstr(const char *file, unsigned line, BSTR str, const char *expected, BOOL todo, int *failcount)
+static void test_saxstr(const char *file, unsigned line, BSTR str, const WCHAR *expected, BOOL todo, int *failcount)
 {
     int len, lenexp, cmp;
-    WCHAR buf[1024];
 
     len = SysStringLen(str);
 
@@ -318,32 +318,30 @@ static void test_saxstr(const char *file, unsigned line, BSTR str, const char *e
         return;
     }
 
-    lenexp = strlen(expected);
+    lenexp = lstrlenW(expected);
     if (lenexp != len && todo)
     {
         (*failcount)++;
         todo_wine
-        ok_(file, line) (lenexp == len, "len %d (%s), expected %d (%s)\n", len, wine_dbgstr_wn(str, len), lenexp, expected);
+        ok_(file, line) (lenexp == len, "len %d (%s), expected %d (%s)\n", len, wine_dbgstr_wn(str, len), lenexp, wine_dbgstr_w(expected));
     }
     else
-        ok_(file, line) (lenexp == len, "len %d (%s), expected %d (%s)\n", len, wine_dbgstr_wn(str, len), lenexp, expected);
+        ok_(file, line) (lenexp == len, "len %d (%s), expected %d (%s)\n", len, wine_dbgstr_wn(str, len), lenexp, wine_dbgstr_w(expected));
 
     /* exit earlier on length mismatch */
     if (lenexp != len) return;
 
-    MultiByteToWideChar(CP_ACP, 0, expected, -1, buf, ARRAY_SIZE(buf));
-
-    cmp = memcmp(str, buf, lenexp*sizeof(WCHAR));
+    cmp = lstrcmpW(str, expected);
     if (cmp && todo)
     {
         (*failcount)++;
         todo_wine
         ok_(file, line) (!cmp, "unexpected str %s, expected %s\n",
-                         wine_dbgstr_wn(str, len), expected);
+                         wine_dbgstr_wn(str, len), wine_dbgstr_w(expected));
     }
     else
         ok_(file, line) (!cmp, "unexpected str %s, expected %s\n",
-                             wine_dbgstr_wn(str, len), expected);
+                             wine_dbgstr_wn(str, len), wine_dbgstr_w(expected));
 }
 
 static void init_call_entry(ISAXLocator *locator, struct call_entry *call)
@@ -700,6 +698,12 @@ static const char test3_cdata_xml[] =
 
 static const char test_pi_xml[] =
 "<?xml version=\"1.0\" ?><a><?t some text ?></a>";
+
+static const char test_chardata_xml[] =
+"<?xml version=\"1.0\" ?><a>\nabc<b>de\nf</b>gh\n</a>";
+
+static const char test_chardata_xml2[] =
+"<?xml version=\"1.0\" ?><a>\rabc<b>de\rf</b>gh\r</a>";
 
 struct class_support
 {
@@ -3729,39 +3733,38 @@ static void test_saxreader_dispex(void)
 }
 
 static struct saxlexicalhandler lexicalhandler;
-//static struct saxdeclhandler declhandler;
 
 static struct call_entry content_handler_test1_alternate[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 2, 13, S_OK, "", "BankAccount", "BankAccount" },
-    { CH_CHARACTERS, 3, 4, S_OK, "\n   " },
-    { CH_STARTELEMENT, 3, 11, S_OK, "", "Number", "Number" },
-    { CH_CHARACTERS, 3, 16, S_OK, "1234" },
-    { CH_ENDELEMENT, 3, 24, S_OK, "", "Number", "Number" },
-    { CH_CHARACTERS, 4, 4, S_OK, "\n   " },
-    { CH_STARTELEMENT, 4, 9, S_OK, "", "Name", "Name" },
-    { CH_CHARACTERS, 4, 22, S_OK, "Captain Ahab" },
-    { CH_ENDELEMENT, 4, 28, S_OK, "", "Name", "Name" },
-    { CH_CHARACTERS, 5, 1, S_OK, "\n" },
-    { CH_ENDELEMENT, 5, 14, S_OK, "", "BankAccount", "BankAccount" },
+    { CH_STARTELEMENT, 2, 13, S_OK, L"", L"BankAccount", L"BankAccount" },
+    { CH_CHARACTERS, 3, 4, S_OK, L"\n   " },
+    { CH_STARTELEMENT, 3, 11, S_OK, L"", L"Number", L"Number" },
+    { CH_CHARACTERS, 3, 16, S_OK, L"1234" },
+    { CH_ENDELEMENT, 3, 24, S_OK, L"", L"Number", L"Number" },
+    { CH_CHARACTERS, 4, 4, S_OK, L"\n   " },
+    { CH_STARTELEMENT, 4, 9, S_OK, L"", L"Name", L"Name" },
+    { CH_CHARACTERS, 4, 22, S_OK, L"Captain Ahab" },
+    { CH_ENDELEMENT, 4, 28, S_OK, L"", L"Name", L"Name" },
+    { CH_CHARACTERS, 5, 1, S_OK, L"\n" },
+    { CH_ENDELEMENT, 5, 14, S_OK, L"", L"BankAccount", L"BankAccount" },
     { CH_ENDDOCUMENT, 6, 0, S_OK },
     { CH_ENDTEST }
 };
 
 static struct attribute_entry ch_attributes_alt_6[] = {
-    { "prefix_test", "arg1", "test:arg1", "arg1" },
-    { "", "arg2", "arg2", "arg2" },
-    { "prefix_test", "ar3", "test:ar3", "arg3" },
-    { "http://www.w3.org/2000/xmlns/", "", "xmlns:test", "prefix_test" },
-    { "http://www.w3.org/2000/xmlns/", "", "xmlns", "prefix" },
+    { L"prefix_test", L"arg1", L"test:arg1", L"arg1" },
+    { L"", L"arg2", L"arg2", L"arg2" },
+    { L"prefix_test", L"ar3", L"test:ar3", L"arg3" },
+    { L"http://www.w3.org/2000/xmlns/", L"", L"xmlns:test", L"prefix_test" },
+    { L"http://www.w3.org/2000/xmlns/", L"", L"xmlns", L"prefix" },
     { NULL }
 };
 
 static struct attribute_entry ch_attributes2_6[] =
 {
-    { "http://www.w3.org/2000/xmlns/", "", "xmlns:p", "test" },
+    { L"http://www.w3.org/2000/xmlns/", L"", L"xmlns:p", L"test" },
     { NULL }
 };
 
@@ -3769,24 +3772,24 @@ static struct call_entry content_handler_test_attributes_alternate_6[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, "test", "prefix_test" },
-    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, "", "prefix" },
-    { CH_STARTELEMENT, 2, 95, S_OK, "prefix", "document", "document", ch_attributes_alt_6 },
-    { CH_CHARACTERS, 3, 1, S_OK, "\n" },
-    { CH_STARTPREFIXMAPPING, 3, 24, S_OK, "p", "test" },
-    { CH_STARTELEMENT, 3, 24, S_OK, "prefix", "node1", "node1", ch_attributes2_6 },
-    { CH_ENDELEMENT, 3, 24, S_OK, "prefix", "node1", "node1" },
-    { CH_ENDPREFIXMAPPING, 3, 24, S_OK, "p" },
-    { CH_ENDELEMENT, 3, 35, S_OK, "prefix", "document", "document" },
-    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, "test" },
-    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, "" },
+    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, L"test", L"prefix_test" },
+    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, L"", L"prefix" },
+    { CH_STARTELEMENT, 2, 95, S_OK, L"prefix", L"document", L"document", ch_attributes_alt_6 },
+    { CH_CHARACTERS, 3, 1, S_OK, L"\n" },
+    { CH_STARTPREFIXMAPPING, 3, 24, S_OK, L"p", L"test" },
+    { CH_STARTELEMENT, 3, 24, S_OK, L"prefix", L"node1", L"node1", ch_attributes2_6 },
+    { CH_ENDELEMENT, 3, 24, S_OK, L"prefix", L"node1", L"node1" },
+    { CH_ENDPREFIXMAPPING, 3, 24, S_OK, L"p" },
+    { CH_ENDELEMENT, 3, 35, S_OK, L"prefix", L"document", L"document" },
+    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, L"test" },
+    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, L"" },
     { CH_ENDDOCUMENT, 4, 0, S_OK },
     { CH_ENDTEST }
 };
 
 static struct attribute_entry read_test_attrs[] =
 {
-    { "", "attr", "attr", "val" },
+    { L"", L"attr", L"attr", L"val" },
     { NULL }
 };
 
@@ -3794,20 +3797,20 @@ static struct call_entry read_test_seq[] =
 {
     { CH_PUTDOCUMENTLOCATOR, -1, 0, S_OK },
     { CH_STARTDOCUMENT, -1, -1, S_OK },
-    { CH_STARTELEMENT, -1, -1, S_OK, "", "rootelem", "rootelem" },
-    { CH_STARTELEMENT, -1, -1, S_OK, "", "elem", "elem", read_test_attrs },
-    { CH_CHARACTERS, -1, -1, S_OK, "text" },
-    { CH_ENDELEMENT, -1, -1, S_OK, "", "elem", "elem" },
-    { CH_STARTELEMENT, -1, -1, S_OK, "", "elem", "elem", read_test_attrs },
-    { CH_CHARACTERS, -1, -1, S_OK, "text" },
-    { CH_ENDELEMENT, -1, -1, S_OK, "", "elem", "elem" },
-    { CH_STARTELEMENT, -1, -1, S_OK, "", "elem", "elem", read_test_attrs },
-    { CH_CHARACTERS, -1, -1, S_OK, "text" },
-    { CH_ENDELEMENT, -1, -1, S_OK, "", "elem", "elem" },
-    { CH_STARTELEMENT, -1, -1, S_OK, "", "elem", "elem", read_test_attrs },
-    { CH_CHARACTERS, -1, -1, S_OK, "text" },
-    { CH_ENDELEMENT, -1, -1, S_OK, "", "elem", "elem" },
-    { CH_ENDELEMENT, -1, -1, S_OK, "", "rootelem", "rootelem" },
+    { CH_STARTELEMENT, -1, -1, S_OK, L"", L"rootelem", L"rootelem" },
+    { CH_STARTELEMENT, -1, -1, S_OK, L"", L"elem", L"elem", read_test_attrs },
+    { CH_CHARACTERS, -1, -1, S_OK, L"text" },
+    { CH_ENDELEMENT, -1, -1, S_OK, L"", L"elem", L"elem" },
+    { CH_STARTELEMENT, -1, -1, S_OK, L"", L"elem", L"elem", read_test_attrs },
+    { CH_CHARACTERS, -1, -1, S_OK, L"text" },
+    { CH_ENDELEMENT, -1, -1, S_OK, L"", L"elem", L"elem" },
+    { CH_STARTELEMENT, -1, -1, S_OK, L"", L"elem", L"elem", read_test_attrs },
+    { CH_CHARACTERS, -1, -1, S_OK, L"text" },
+    { CH_ENDELEMENT, -1, -1, S_OK, L"", L"elem", L"elem" },
+    { CH_STARTELEMENT, -1, -1, S_OK, L"", L"elem", L"elem", read_test_attrs },
+    { CH_CHARACTERS, -1, -1, S_OK, L"text" },
+    { CH_ENDELEMENT, -1, -1, S_OK, L"", L"elem", L"elem" },
+    { CH_ENDELEMENT, -1, -1, S_OK, L"", L"rootelem", L"rootelem" },
     { CH_ENDDOCUMENT, -1, -1, S_OK},
     { CH_ENDTEST }
 };
@@ -3816,19 +3819,19 @@ static struct call_entry content_handler_test2_alternate[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 21, S_OK },
-    { CH_STARTELEMENT, 2, 13, S_OK, "", "BankAccount", "BankAccount" },
-    { CH_CHARACTERS, 3, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 3, 2, S_OK, "\t" },
-    { CH_STARTELEMENT, 3, 9, S_OK, "", "Number", "Number" },
-    { CH_CHARACTERS, 3, 14, S_OK, "1234" },
-    { CH_ENDELEMENT, 3, 22, S_OK, "", "Number", "Number" },
-    { CH_CHARACTERS, 4, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 4, 2, S_OK, "\t" },
-    { CH_STARTELEMENT, 4, 7, S_OK, "", "Name", "Name" },
-    { CH_CHARACTERS, 4, 20, S_OK, "Captain Ahab" },
-    { CH_ENDELEMENT, 4, 26, S_OK, "", "Name", "Name" },
-    { CH_CHARACTERS, 5, 0, S_OK, "\n" },
-    { CH_ENDELEMENT, 5, 14, S_OK, "", "BankAccount", "BankAccount" },
+    { CH_STARTELEMENT, 2, 13, S_OK, L"", L"BankAccount", L"BankAccount" },
+    { CH_CHARACTERS, 3, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 3, 2, S_OK, L"\t" },
+    { CH_STARTELEMENT, 3, 9, S_OK, L"", L"Number", L"Number" },
+    { CH_CHARACTERS, 3, 14, S_OK, L"1234" },
+    { CH_ENDELEMENT, 3, 22, S_OK, L"", L"Number", L"Number" },
+    { CH_CHARACTERS, 4, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 4, 2, S_OK, L"\t" },
+    { CH_STARTELEMENT, 4, 7, S_OK, L"", L"Name", L"Name" },
+    { CH_CHARACTERS, 4, 20, S_OK, L"Captain Ahab" },
+    { CH_ENDELEMENT, 4, 26, S_OK, L"", L"Name", L"Name" },
+    { CH_CHARACTERS, 5, 0, S_OK, L"\n" },
+    { CH_ENDELEMENT, 5, 14, S_OK, L"", L"BankAccount", L"BankAccount" },
     { CH_ENDDOCUMENT, 6, 0, S_OK },
     { CH_ENDTEST }
 };
@@ -3845,24 +3848,24 @@ static struct call_entry content_handler_test_callback_rets_alt[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_FALSE },
     { CH_STARTDOCUMENT, 1, 22, S_FALSE },
-    { CH_STARTELEMENT, 2, 13, S_FALSE, "", "BankAccount", "BankAccount" },
-    { CH_CHARACTERS, 3, 4, S_FALSE, "\n   " },
-    { CH_STARTELEMENT, 3, 11, S_FALSE, "", "Number", "Number" },
-    { CH_CHARACTERS, 3, 16, S_FALSE, "1234" },
-    { CH_ENDELEMENT, 3, 24, S_FALSE, "", "Number", "Number" },
-    { CH_CHARACTERS, 4, 4, S_FALSE, "\n   " },
-    { CH_STARTELEMENT, 4, 9, S_FALSE, "", "Name", "Name" },
-    { CH_CHARACTERS, 4, 22, S_FALSE, "Captain Ahab" },
-    { CH_ENDELEMENT, 4, 28, S_FALSE, "", "Name", "Name" },
-    { CH_CHARACTERS, 5, 1, S_FALSE, "\n" },
-    { CH_ENDELEMENT, 5, 14, S_FALSE, "", "BankAccount", "BankAccount" },
+    { CH_STARTELEMENT, 2, 13, S_FALSE, L"", L"BankAccount", L"BankAccount" },
+    { CH_CHARACTERS, 3, 4, S_FALSE, L"\n   " },
+    { CH_STARTELEMENT, 3, 11, S_FALSE, L"", L"Number", L"Number" },
+    { CH_CHARACTERS, 3, 16, S_FALSE, L"1234" },
+    { CH_ENDELEMENT, 3, 24, S_FALSE, L"", L"Number", L"Number" },
+    { CH_CHARACTERS, 4, 4, S_FALSE, L"\n   " },
+    { CH_STARTELEMENT, 4, 9, S_FALSE, L"", L"Name", L"Name" },
+    { CH_CHARACTERS, 4, 22, S_FALSE, L"Captain Ahab" },
+    { CH_ENDELEMENT, 4, 28, S_FALSE, L"", L"Name", L"Name" },
+    { CH_CHARACTERS, 5, 1, S_FALSE, L"\n" },
+    { CH_ENDELEMENT, 5, 14, S_FALSE, L"", L"BankAccount", L"BankAccount" },
     { CH_ENDDOCUMENT, 6, 0, S_FALSE },
     { CH_ENDTEST }
 };
 
 static struct attribute_entry xmlspace_attrs[] =
 {
-    { "http://www.w3.org/XML/1998/namespace", "space", "xml:space", "preserve" },
+    { L"http://www.w3.org/XML/1998/namespace", L"space", L"xml:space", L"preserve" },
     { NULL }
 };
 
@@ -3870,25 +3873,25 @@ static struct call_entry xmlspaceattr_test_alternate[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 39, S_OK },
-    { CH_STARTELEMENT, 1, 63, S_OK, "", "a", "a", xmlspace_attrs },
-    { CH_CHARACTERS, 1, 80, S_OK, " Some text data " },
-    { CH_ENDELEMENT, 1, 83, S_OK, "", "a", "a" },
+    { CH_STARTELEMENT, 1, 63, S_OK, L"", L"a", L"a", xmlspace_attrs },
+    { CH_CHARACTERS, 1, 80, S_OK, L" Some text data " },
+    { CH_ENDELEMENT, 1, 83, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 1, 83, S_OK },
     { CH_ENDTEST }
 };
 
 static struct attribute_entry ch_attributes2[] = {
-    { "", "", "xmlns:p", "test" },
+    { L"", L"", L"xmlns:p", L"test" },
     { NULL }
 };
 
 /* 'namespace' feature switched off */
 static struct attribute_entry ch_attributes_alt_no_ns[] = {
-    { "", "", "xmlns:test", "prefix_test" },
-    { "", "", "xmlns", "prefix" },
-    { "", "", "test:arg1", "arg1" },
-    { "", "", "arg2", "arg2" },
-    { "", "", "test:ar3", "arg3" },
+    { L"", L"", L"xmlns:test", L"prefix_test" },
+    { L"", L"", L"xmlns", L"prefix" },
+    { L"", L"", L"test:arg1", L"arg1" },
+    { L"", L"", L"arg2", L"arg2" },
+    { L"", L"", L"test:ar3", L"arg3" },
     { NULL }
 };
 
@@ -3896,11 +3899,11 @@ static struct call_entry content_handler_test_attributes_alt_no_ns[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 2, 95, S_OK, "", "", "document", ch_attributes_alt_no_ns },
-    { CH_CHARACTERS, 3, 1, S_OK, "\n" },
-    { CH_STARTELEMENT, 3, 24, S_OK, "", "", "node1", ch_attributes2 },
-    { CH_ENDELEMENT, 3, 24, S_OK, "", "", "node1" },
-    { CH_ENDELEMENT, 3, 35, S_OK, "", "", "document" },
+    { CH_STARTELEMENT, 2, 95, S_OK, L"", L"", L"document", ch_attributes_alt_no_ns },
+    { CH_CHARACTERS, 3, 1, S_OK, L"\n" },
+    { CH_STARTELEMENT, 3, 24, S_OK, L"", L"", L"node1", ch_attributes2 },
+    { CH_ENDELEMENT, 3, 24, S_OK, L"", L"", L"node1" },
+    { CH_ENDELEMENT, 3, 35, S_OK, L"", L"", L"document" },
     { CH_ENDDOCUMENT, 4, 0, S_OK },
     { CH_ENDTEST }
 };
@@ -3908,9 +3911,9 @@ static struct call_entry content_handler_test_attributes_alt_no_ns[] =
 /* 'namespaces' is on, 'namespace-prefixes' if off */
 static struct attribute_entry ch_attributes_no_prefix[] =
 {
-    { "prefix_test", "arg1", "test:arg1", "arg1" },
-    { "", "arg2", "arg2", "arg2" },
-    { "prefix_test", "ar3", "test:ar3", "arg3" },
+    { L"prefix_test", L"arg1", L"test:arg1", L"arg1" },
+    { L"", L"arg2", L"arg2", L"arg2" },
+    { L"prefix_test", L"ar3", L"test:ar3", L"arg3" },
     { NULL }
 };
 
@@ -3918,24 +3921,24 @@ static struct call_entry content_handler_test_attributes_alt_no_prefix[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, "test", "prefix_test" },
-    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, "", "prefix" },
-    { CH_STARTELEMENT, 2, 95, S_OK, "prefix", "document", "document", ch_attributes_no_prefix },
-    { CH_CHARACTERS, 3, 1, S_OK, "\n" },
-    { CH_STARTPREFIXMAPPING, 3, 24, S_OK, "p", "test" },
-    { CH_STARTELEMENT, 3, 24, S_OK, "prefix", "node1", "node1", NULL },
-    { CH_ENDELEMENT, 3, 24, S_OK, "prefix", "node1", "node1" },
-    { CH_ENDPREFIXMAPPING, 3, 24, S_OK, "p" },
-    { CH_ENDELEMENT, 3, 35, S_OK, "prefix", "document", "document" },
-    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, "test" },
-    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, "" },
+    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, L"test", L"prefix_test" },
+    { CH_STARTPREFIXMAPPING, 2, 95, S_OK, L"", L"prefix" },
+    { CH_STARTELEMENT, 2, 95, S_OK, L"prefix", L"document", L"document", ch_attributes_no_prefix },
+    { CH_CHARACTERS, 3, 1, S_OK, L"\n" },
+    { CH_STARTPREFIXMAPPING, 3, 24, S_OK, L"p", L"test" },
+    { CH_STARTELEMENT, 3, 24, S_OK, L"prefix", L"node1", L"node1", NULL },
+    { CH_ENDELEMENT, 3, 24, S_OK, L"prefix", L"node1", L"node1" },
+    { CH_ENDPREFIXMAPPING, 3, 24, S_OK, L"p" },
+    { CH_ENDELEMENT, 3, 35, S_OK, L"prefix", L"document", L"document" },
+    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, L"test" },
+    { CH_ENDPREFIXMAPPING, 3, 35, S_OK, L"" },
     { CH_ENDDOCUMENT, 4, 0, S_OK },
     { CH_ENDTEST }
 };
 
 static struct attribute_entry attribute_norm_attrs[] =
 {
-    { "", "attr1", "attr1", "      attr_value A & &        " },
+    { L"", L"attr1", L"attr1", L"      attr_value A & &        " },
     { NULL }
 };
 
@@ -3943,8 +3946,8 @@ static struct call_entry attribute_norm_alt[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 8, 3, S_OK, "", "a", "a", attribute_norm_attrs },
-    { CH_ENDELEMENT, 8, 3, S_OK, "", "a", "a" },
+    { CH_STARTELEMENT, 8, 3, S_OK, L"", L"a", L"a", attribute_norm_attrs },
+    { CH_ENDELEMENT, 8, 3, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 9, 0, S_OK },
     { CH_ENDTEST }
 };
@@ -3953,15 +3956,15 @@ static struct call_entry cdata_test_alt[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 1, 25, S_OK, "", "a", "a" },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
     { LH_STARTCDATA, 1, 34, S_OK },
-    { CH_CHARACTERS, 1, 40, S_OK, "Some " },
-    { CH_CHARACTERS, 2, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 3, 1, S_OK, "text\n" },
-    { CH_CHARACTERS, 4, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 6, 3, S_OK, "data\n\n" },
+    { CH_CHARACTERS, 1, 40, S_OK, L"Some " },
+    { CH_CHARACTERS, 2, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 3, 1, S_OK, L"text\n" },
+    { CH_CHARACTERS, 4, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 6, 3, S_OK, L"data\n\n" },
     { LH_ENDCDATA, 6, 3, S_OK },
-    { CH_ENDELEMENT, 6, 7, S_OK, "", "a", "a" },
+    { CH_ENDELEMENT, 6, 7, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 6, 7, S_OK },
     { CH_ENDTEST }
 };
@@ -3970,17 +3973,17 @@ static struct call_entry cdata_test2_alt[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 1, 25, S_OK, "", "a", "a" },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
     { LH_STARTCDATA, 1, 34, S_OK },
-    { CH_CHARACTERS, 2, 1, S_OK, "\n" },
-    { CH_CHARACTERS, 3, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 3, 6, S_OK, "Some " },
-    { CH_CHARACTERS, 4, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 5, 1, S_OK, "text\n" },
-    { CH_CHARACTERS, 6, 0, S_OK, "\n" },
-    { CH_CHARACTERS, 8, 3, S_OK, "data\n\n" },
+    { CH_CHARACTERS, 2, 1, S_OK, L"\n" },
+    { CH_CHARACTERS, 3, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 3, 6, S_OK, L"Some " },
+    { CH_CHARACTERS, 4, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 5, 1, S_OK, L"text\n" },
+    { CH_CHARACTERS, 6, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 8, 3, S_OK, L"data\n\n" },
     { LH_ENDCDATA, 8, 3, S_OK },
-    { CH_ENDELEMENT, 8, 7, S_OK, "", "a", "a" },
+    { CH_ENDELEMENT, 8, 7, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 8, 7, S_OK },
     { CH_ENDTEST }
 };
@@ -3989,11 +3992,11 @@ static struct call_entry cdata_test3_alt[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 1, 25, S_OK, "", "a", "a" },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
     { LH_STARTCDATA, 1, 34, S_OK },
-    { CH_CHARACTERS, 1, 51, S_OK, "Some text data" },
+    { CH_CHARACTERS, 1, 51, S_OK, L"Some text data" },
     { LH_ENDCDATA, 1, 51, S_OK },
-    { CH_ENDELEMENT, 1, 55, S_OK, "", "a", "a" },
+    { CH_ENDELEMENT, 1, 55, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 1, 55, S_OK },
     { CH_ENDTEST }
 };
@@ -4002,9 +4005,9 @@ static struct call_entry pi_test[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
-    { CH_STARTELEMENT, 1, 25, S_OK, "", "a", "a" },
-    { CH_PROCESSINGINSTRUCTION, 1, 41, S_OK, "t", "some text " },
-    { CH_ENDELEMENT, 1, 45, S_OK, "", "a", "a" },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
+    { CH_PROCESSINGINSTRUCTION, 1, 41, S_OK, L"t", L"some text " },
+    { CH_ENDELEMENT, 1, 45, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 1, 45, S_OK },
     { CH_ENDTEST }
 };
@@ -5065,6 +5068,80 @@ static void test_saxreader_cdata(void)
     free_bstrs();
 }
 
+static struct call_entry chardata_test[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
+    { CH_STARTDOCUMENT, 1, 22, S_OK },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
+    { CH_CHARACTERS, 2, 4, S_OK, L"\nabc" },
+    { CH_STARTELEMENT, 2, 6, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 3, 2, S_OK, L"de\nf" },
+    { CH_ENDELEMENT, 3, 5, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 4, 1, S_OK, L"gh\n" },
+    { CH_ENDELEMENT, 4, 4, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 4, 4, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry chardata_test2[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
+    { CH_STARTDOCUMENT, 1, 22, S_OK },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
+    { CH_CHARACTERS, 2, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 2, 4, S_OK, L"abc" },
+    { CH_STARTELEMENT, 2, 6, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 2, 9, S_OK, L"de" },
+    { CH_CHARACTERS, 3, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 3, 2, S_OK, L"f" },
+    { CH_ENDELEMENT, 3, 5, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 3, 8, S_OK, L"gh" },
+    { CH_CHARACTERS, 4, 0, S_OK, L"\n" },
+    { CH_ENDELEMENT, 4, 4, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 4, 4, S_OK },
+    { CH_ENDTEST }
+};
+
+static void test_saxreader_characters(void)
+{
+    ISAXXMLReader *reader;
+    VARIANT var;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SAXXMLReader60, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    g_reader = reader;
+
+    hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXXMLReader_putErrorHandler(reader, &errorHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* Character data. */
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_chardata_xml, -1);
+
+    set_expected_seq(chardata_test);
+    hr = ISAXXMLReader_parse(reader, var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, chardata_test, "char data test", TRUE);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_chardata_xml2, -1);
+
+    set_expected_seq(chardata_test);
+    hr = ISAXXMLReader_parse(reader, var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, chardata_test2, "char data test 2", TRUE);
+    VariantClear(&var);
+
+    ISAXXMLReader_Release(reader);
+
+    free_bstrs();
+}
+
 static void test_saxreader_pi(void)
 {
     ISAXXMLReader *reader;
@@ -5115,6 +5192,7 @@ START_TEST(saxreader)
         test_saxreader_dispex();
         test_saxreader_vb_content_handler();
         test_saxreader_cdata();
+        test_saxreader_characters();
         test_saxreader_pi();
     }
 

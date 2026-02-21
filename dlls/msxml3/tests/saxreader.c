@@ -761,6 +761,12 @@ static const char test3_cdata_xml[] =
 static const char test_pi_xml[] =
 "<?xml version=\"1.0\" ?><a><?t some text ?></a>";
 
+static const char test_chardata_xml[] =
+"<?xml version=\"1.0\" ?><a>\nabc<b>de\nf</b>gh\n</a>";
+
+static const char test_chardata_xml2[] =
+"<?xml version=\"1.0\" ?><a>\rabc<b>de\rf</b>gh\r</a>";
+
 static struct call_entry content_handler_test1[] = {
     { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
     { CH_STARTDOCUMENT, 0, 0, S_OK },
@@ -1117,6 +1123,72 @@ static struct call_entry pi_test_v4[] =
     { CH_PROCESSINGINSTRUCTION, 1, 41, S_OK, L"t", L"some text " },
     { CH_ENDELEMENT, 1, 45, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 1, 45, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry chardata_test[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 26, S_OK, L"", L"a", L"a" },
+    { CH_CHARACTERS, 1, 26, S_OK, L"\nabc" },
+    { CH_STARTELEMENT, 2, 7, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 2, 7, S_OK, L"de\nf" },
+    { CH_ENDELEMENT, 3, 4, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 3, 6, S_OK, L"gh\n" },
+    { CH_ENDELEMENT, 4, 3, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry chardata_test_v4[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
+    { CH_STARTDOCUMENT, 1, 22, S_OK },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
+    { CH_CHARACTERS, 2, 4, S_OK, L"\nabc" },
+    { CH_STARTELEMENT, 2, 6, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 3, 2, S_OK, L"de\nf" },
+    { CH_ENDELEMENT, 3, 5, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 4, 1, S_OK, L"gh\n" },
+    { CH_ENDELEMENT, 4, 4, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 4, 4, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry chardata_test2[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 26, S_OK, L"", L"a", L"a" },
+    { CH_CHARACTERS, 1, 26, S_OK, L"\n" },
+    { CH_CHARACTERS, 2, 1, S_OK, L"abc" },
+    { CH_STARTELEMENT, 2, 7, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 2, 7, S_OK, L"de\n" },
+    { CH_CHARACTERS, 3, 1, S_OK, L"f" },
+    { CH_ENDELEMENT, 3, 4, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 3, 6, S_OK, L"gh\n" },
+    { CH_ENDELEMENT, 4, 3, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry chardata_test2_v4[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
+    { CH_STARTDOCUMENT, 1, 22, S_OK },
+    { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
+    { CH_CHARACTERS, 2, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 2, 4, S_OK, L"abc" },
+    { CH_STARTELEMENT, 2, 6, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 2, 9, S_OK, L"de" },
+    { CH_CHARACTERS, 3, 0, S_OK, L"\n" },
+    { CH_CHARACTERS, 3, 2, S_OK, L"f" },
+    { CH_ENDELEMENT, 3, 5, S_OK, L"", L"b", L"b" },
+    { CH_CHARACTERS, 3, 8, S_OK, L"gh" },
+    { CH_CHARACTERS, 4, 0, S_OK, L"\n" },
+    { CH_ENDELEMENT, 4, 4, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 4, 4, S_OK },
     { CH_ENDTEST }
 };
 
@@ -2819,6 +2891,77 @@ static void test_saxreader_pi(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: pi test", table->name);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        VariantClear(&var);
+
+        ISAXXMLReader_Release(reader);
+        table++;
+    }
+
+    free_bstrs();
+}
+
+static void test_saxreader_characters(void)
+{
+    const struct msxmlsupported_data_t *table = reader_support_data;
+    ISAXXMLReader *reader;
+    char seqname[50];
+    VARIANT var;
+    HRESULT hr;
+
+    while (table->clsid)
+    {
+        struct call_entry *test_seq;
+
+        if (!is_clsid_supported(table->clsid, reader_support_data))
+        {
+            table++;
+            continue;
+        }
+
+        hr = CoCreateInstance(table->clsid, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void**)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        g_reader = reader;
+
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            msxml_version = 4;
+        else
+            msxml_version = 0;
+
+        hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        hr = ISAXXMLReader_putErrorHandler(reader, &errorHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        /* Character data. */
+        V_VT(&var) = VT_UNKNOWN;
+        V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_chardata_xml, -1);
+
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            test_seq = chardata_test_v4;
+        else
+            test_seq = chardata_test;
+
+        set_expected_seq(test_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        sprintf(seqname, "%s: char data test", table->name);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        VariantClear(&var);
+
+        V_VT(&var) = VT_UNKNOWN;
+        V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_chardata_xml2, -1);
+
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            test_seq = chardata_test2_v4;
+        else
+            test_seq = chardata_test2;
+
+        set_expected_seq(test_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        sprintf(seqname, "%s: char data test", table->name);
         ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
         VariantClear(&var);
 
@@ -6430,6 +6573,7 @@ START_TEST(saxreader)
     test_saxreader_vb_content_handler();
     test_saxreader_cdata();
     test_saxreader_pi();
+    test_saxreader_characters();
     test_saxreader_dtd();
 
     /* MXXMLWriter tests */
