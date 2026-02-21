@@ -3779,6 +3779,7 @@ dlls/wineandroid.drv/wine-debug.apk: dlls/wineandroid.drv/build.gradle ${wine_sr
 
 dnl Misc rules
 
+AC_SUBST([EXTERNAL_SUBDIRS],["_AC_EXTERNAL_SUBDIRS"])
 AC_SUBST(TAGSFLAGS,["--langmap='c:+.idl.l.rh,make:(Make*.in)'"])
 WINE_APPEND_RULE(
 [TAGS etags:
