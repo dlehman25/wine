@@ -1559,7 +1559,8 @@ static struct file *open_include_file( const struct makefile *make, struct incl_
 
     /* check for generated files in global includes */
     if ((file = open_global_generated_file( make, source, ".h", ".idl" ))) return file;
-    if ((file = open_global_generated_file( make, source, ".h", ".h.in" ))) return file;
+    if ((strcmp( source->name, "config.h") || !source->use_msvcrt) &&
+        (file = open_global_generated_file( make, source, ".h", ".h.in" ))) return file;
     if (strendswith( source->name, "tmpl.h" ) &&
         (file = open_global_generated_file( make, source, ".h", ".x" ))) return file;
 
@@ -2146,7 +2147,7 @@ static void get_dependencies( struct incl_file *file, struct incl_file *source )
 
         /* sanity checks */
         if (!strcmp( file->filename, "include/config.h" ) &&
-            file != *ARRAY_ENTRY( &source->files, 0, struct incl_file * ) && !source->is_external)
+            file != *ARRAY_ENTRY( &source->files, 0, struct incl_file * ))
         {
             input_file_name = source->filename;
             input_line = 0;
