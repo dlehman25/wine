@@ -648,7 +648,6 @@ TAGSFLAGS
 EXTERNAL_SUBDIRS
 RT_LIBS
 WINELOADER_PROGRAMS
-DELAYLOADFLAG
 MSVCRTFLAGS
 NETAPI_LIBS
 NETAPI_CFLAGS
@@ -769,6 +768,7 @@ IOKIT_LIBS
 DISKARBITRATION_LIBS
 COREFOUNDATION_LIBS
 CORETEXT_LIBS
+DELAYLOADFLAG
 CONFIGURE_TARGETS
 DISABLED_SUBDIRS
 SUBDIRS
@@ -11497,6 +11497,37 @@ case $host_os in
   cygwin*|mingw32*)
     LIBEXT="dll"
     DLLEXT=""
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wl,-delayload,autoconftest.dll" >&5
+printf %s "checking whether the compiler supports -Wl,-delayload,autoconftest.dll... " >&6; }
+if test ${ac_cv_cflags__Wl__delayload_autoconftest_dll+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_wine_try_cflags_saved=$CFLAGS
+CFLAGS="$CFLAGS -Wl,-delayload,autoconftest.dll"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+int main(int argc, char **argv) { return 0; }
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_cflags__Wl__delayload_autoconftest_dll=yes
+else case e in #(
+  e) ac_cv_cflags__Wl__delayload_autoconftest_dll=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+CFLAGS=$ac_wine_try_cflags_saved ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cflags__Wl__delayload_autoconftest_dll" >&5
+printf "%s\n" "$ac_cv_cflags__Wl__delayload_autoconftest_dll" >&6; }
+if test "x$ac_cv_cflags__Wl__delayload_autoconftest_dll" = xyes
+then :
+  DELAYLOADFLAG="-Wl,-delayload,"
+
+fi
     ;;
 
   darwin*)
@@ -20830,42 +20861,11 @@ then :
 fi
   fi
 
-    MSVCRTFLAGS=""
+  if test -n "$DLLEXT"
+  then
+    MSVCRTFLAGS="-D_WIN32"
 
-  case $host_os in
-    mingw32*)         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wl,-delayload,autoconftest.dll" >&5
-printf %s "checking whether the compiler supports -Wl,-delayload,autoconftest.dll... " >&6; }
-if test ${ac_cv_cflags__Wl__delayload_autoconftest_dll+y}
-then :
-  printf %s "(cached) " >&6
-else case e in #(
-  e) ac_wine_try_cflags_saved=$CFLAGS
-CFLAGS="$CFLAGS -Wl,-delayload,autoconftest.dll"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-int main(int argc, char **argv) { return 0; }
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_cflags__Wl__delayload_autoconftest_dll=yes
-else case e in #(
-  e) ac_cv_cflags__Wl__delayload_autoconftest_dll=no ;;
-esac
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-CFLAGS=$ac_wine_try_cflags_saved ;;
-esac
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cflags__Wl__delayload_autoconftest_dll" >&5
-printf "%s\n" "$ac_cv_cflags__Wl__delayload_autoconftest_dll" >&6; }
-if test "x$ac_cv_cflags__Wl__delayload_autoconftest_dll" = xyes
-then :
-  DELAYLOADFLAG="-Wl,-delayload,"
-
-fi ;;
-    *) MSVCRTFLAGS="-D_WIN32"
-       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -mlong-double-64" >&5
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -mlong-double-64" >&5
 printf %s "checking whether the compiler supports -mlong-double-64... " >&6; }
 if test ${ac_cv_cflags__mlong_double_64+y}
 then :
@@ -20895,7 +20895,7 @@ if test "x$ac_cv_cflags__mlong_double_64" = xyes
 then :
   MSVCRTFLAGS="$MSVCRTFLAGS -mlong-double-64"
 fi
-       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fno-builtin" >&5
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fno-builtin" >&5
 printf %s "checking whether the compiler supports -fno-builtin... " >&6; }
 if test ${ac_cv_cflags__fno_builtin+y}
 then :
@@ -20925,7 +20925,7 @@ if test "x$ac_cv_cflags__fno_builtin" = xyes
 then :
   MSVCRTFLAGS="$MSVCRTFLAGS -fno-builtin"
 fi
-       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fshort-wchar" >&5
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fshort-wchar" >&5
 printf %s "checking whether the compiler supports -fshort-wchar... " >&6; }
 if test ${ac_cv_cflags__fshort_wchar+y}
 then :
@@ -20955,7 +20955,7 @@ if test "x$ac_cv_cflags__fshort_wchar" = xyes
 then :
   MSVCRTFLAGS="$MSVCRTFLAGS -fshort-wchar"
 fi
-       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wno-format" >&5
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wno-format" >&5
 printf %s "checking whether the compiler supports -Wno-format... " >&6; }
 if test ${ac_cv_cflags__Wno_format+y}
 then :
@@ -20984,11 +20984,10 @@ printf "%s\n" "$ac_cv_cflags__Wno_format" >&6; }
 if test "x$ac_cv_cflags__Wno_format" = xyes
 then :
   MSVCRTFLAGS="$MSVCRTFLAGS -Wno-format"
-fi ;;
-  esac
-
-  case $HOST_ARCH in
-        i386) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fno-omit-frame-pointer" >&5
+fi
+    if test "$HOST_ARCH" = i386
+    then
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fno-omit-frame-pointer" >&5
 printf %s "checking whether the compiler supports -fno-omit-frame-pointer... " >&6; }
 if test ${ac_cv_cflags__fno_omit_frame_pointer+y}
 then :
@@ -21017,47 +21016,16 @@ printf "%s\n" "$ac_cv_cflags__fno_omit_frame_pointer" >&6; }
 if test "x$ac_cv_cflags__fno_omit_frame_pointer" = xyes
 then :
   MSVCRTFLAGS="$MSVCRTFLAGS -fno-omit-frame-pointer"
-fi ;;
-    x86_64)
-      case $host_os in
-                cygwin*|mingw32*) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wno-format" >&5
-printf %s "checking whether the compiler supports -Wno-format... " >&6; }
-if test ${ac_cv_cflags__Wno_format+y}
-then :
-  printf %s "(cached) " >&6
-else case e in #(
-  e) ac_wine_try_cflags_saved=$CFLAGS
-CFLAGS="$CFLAGS -Wno-format"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-int main(int argc, char **argv) { return 0; }
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_cflags__Wno_format=yes
-else case e in #(
-  e) ac_cv_cflags__Wno_format=no ;;
-esac
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-CFLAGS=$ac_wine_try_cflags_saved ;;
-esac
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cflags__Wno_format" >&5
-printf "%s\n" "$ac_cv_cflags__Wno_format" >&6; }
-if test "x$ac_cv_cflags__Wno_format" = xyes
-then :
-  EXTRACFLAGS="$EXTRACFLAGS -Wno-format"
-fi ;;
-                *) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for working -mabi=ms" >&5
+    else
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for working -mabi=ms" >&5
 printf %s "checking for working -mabi=ms... " >&6; }
 if test ${ac_cv_mabi_ms+y}
 then :
   printf %s "(cached) " >&6
 else case e in #(
   e) CFLAGS="$CFLAGS -mabi=ms"
-                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <stdarg.h>
 void a(int b, ...) { __builtin_ms_va_list list; __builtin_ms_va_start(list,b); }
@@ -21077,52 +21045,21 @@ else case e in #(
 esac
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-                CFLAGS=$saved_CFLAGS ;;
+              CFLAGS=$saved_CFLAGS ;;
 esac
 fi
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_mabi_ms" >&5
 printf "%s\n" "$ac_cv_mabi_ms" >&6; }
-           if test "x$ac_cv_mabi_ms" = xyes
+      if test "x$ac_cv_mabi_ms" = xyes
 then :
   MSVCRTFLAGS="$MSVCRTFLAGS -mabi=ms"
 else case e in #(
   e) test -n "$PE_ARCHS" || as_fn_error $? "The compiler doesn't support -mabi=ms. Use gcc instead of clang, or install mingw-w64." "$LINENO" 5
-                      DLLEXT="" ;;
-esac
-fi ;;
-      esac ;;
-    arm)
-      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wincompatible-function-pointer-types" >&5
-printf %s "checking whether the compiler supports -Wincompatible-function-pointer-types... " >&6; }
-if test ${ac_cv_cflags__Wincompatible_function_pointer_types+y}
-then :
-  printf %s "(cached) " >&6
-else case e in #(
-  e) ac_wine_try_cflags_saved=$CFLAGS
-CFLAGS="$CFLAGS -Wincompatible-function-pointer-types"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-int main(int argc, char **argv) { return 0; }
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_cflags__Wincompatible_function_pointer_types=yes
-else case e in #(
-  e) ac_cv_cflags__Wincompatible_function_pointer_types=no ;;
+                 DLLEXT="" ;;
 esac
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-CFLAGS=$ac_wine_try_cflags_saved ;;
-esac
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cflags__Wincompatible_function_pointer_types" >&5
-printf "%s\n" "$ac_cv_cflags__Wincompatible_function_pointer_types" >&6; }
-if test "x$ac_cv_cflags__Wincompatible_function_pointer_types" = xyes
-then :
-  EXTRACFLAGS="$EXTRACFLAGS -Wno-error=incompatible-function-pointer-types"
-fi ;;
-  esac
+    fi
+  fi
 
   CFLAGS=$saved_CFLAGS
 
@@ -24575,6 +24512,7 @@ READELF = $READELF
 SUBDIRS = $SUBDIRS
 DISABLED_SUBDIRS = $DISABLED_SUBDIRS
 CONFIGURE_TARGETS = $CONFIGURE_TARGETS
+DELAYLOADFLAG = $DELAYLOADFLAG
 CORETEXT_LIBS = $CORETEXT_LIBS
 COREFOUNDATION_LIBS = $COREFOUNDATION_LIBS
 DISKARBITRATION_LIBS = $DISKARBITRATION_LIBS
@@ -24695,7 +24633,6 @@ PROCSTAT_LIBS = $PROCSTAT_LIBS
 NETAPI_CFLAGS = $NETAPI_CFLAGS
 NETAPI_LIBS = $NETAPI_LIBS
 MSVCRTFLAGS = $MSVCRTFLAGS
-DELAYLOADFLAG = $DELAYLOADFLAG
 WINELOADER_PROGRAMS = $WINELOADER_PROGRAMS
 RT_LIBS = $RT_LIBS
 EXTERNAL_SUBDIRS = $EXTERNAL_SUBDIRS
