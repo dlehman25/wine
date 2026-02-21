@@ -4803,52 +4803,6 @@ static void test_saxreader(void)
     hr = ISAXXMLReader_putEntityResolver(reader, NULL);
     ok(hr == S_OK || broken(hr == E_FAIL), "Unexpected hr %#lx.\n", hr);
 
-    /* CDATA sections */
-    init_saxlexicalhandler(&lexicalhandler, S_OK);
-
-    V_VT(&var) = VT_UNKNOWN;
-    V_UNKNOWN(&var) = (IUnknown*)&lexicalhandler.ISAXLexicalHandler_iface;
-    hr = ISAXXMLReader_putProperty(reader, L"http://xml.org/sax/properties/lexical-handler", var);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-
-    stream = create_test_stream(test_cdata_xml, -1);
-    V_VT(&var) = VT_UNKNOWN;
-    V_UNKNOWN(&var) = (IUnknown*)stream;
-
-    test_seq = cdata_test_alt;
-    set_expected_seq(test_seq);
-    hr = ISAXXMLReader_parse(reader, var);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test", TRUE);
-
-    IStream_Release(stream);
-
-    /* 2. CDATA sections */
-    stream = create_test_stream(test2_cdata_xml, -1);
-    V_VT(&var) = VT_UNKNOWN;
-    V_UNKNOWN(&var) = (IUnknown*)stream;
-
-    test_seq = cdata_test2_alt;
-    set_expected_seq(test_seq);
-    hr = ISAXXMLReader_parse(reader, var);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test 2", TRUE);
-
-    IStream_Release(stream);
-
-    /* 3. CDATA sections */
-    stream = create_test_stream(test3_cdata_xml, -1);
-    V_VT(&var) = VT_UNKNOWN;
-    V_UNKNOWN(&var) = (IUnknown*)stream;
-
-    test_seq = cdata_test3_alt;
-    set_expected_seq(test_seq);
-    hr = ISAXXMLReader_parse(reader, var);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test 3", TRUE);
-
-    IStream_Release(stream);
-
     /* PI */
     V_VT(&var) = VT_UNKNOWN;
     V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_pi_xml, -1);
@@ -5042,6 +4996,105 @@ static void test_saxreader_vb_content_handler(void)
     free_bstrs();
 }
 
+static void test_saxreader_cdata(void)
+{
+    struct call_entry *test_seq;
+    ISAXXMLReader *reader;
+    IStream *stream;
+    VARIANT var;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SAXXMLReader60, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void**)&reader);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    g_reader = reader;
+
+    hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXXMLReader_putErrorHandler(reader, &errorHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* CDATA sections */
+    init_saxlexicalhandler(&lexicalhandler, S_OK);
+
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown*)&lexicalhandler.ISAXLexicalHandler_iface;
+    hr = ISAXXMLReader_putProperty(reader, L"http://xml.org/sax/properties/lexical-handler", var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    stream = create_test_stream(test_cdata_xml, -1);
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)stream;
+
+    test_seq = cdata_test_alt;
+    set_expected_seq(test_seq);
+    hr = ISAXXMLReader_parse(reader, var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test", TRUE);
+
+    IStream_Release(stream);
+
+    /* 2. CDATA sections */
+    stream = create_test_stream(test2_cdata_xml, -1);
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)stream;
+
+    test_seq = cdata_test2_alt;
+    set_expected_seq(test_seq);
+    hr = ISAXXMLReader_parse(reader, var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test 2", TRUE);
+
+    IStream_Release(stream);
+
+    /* 3. CDATA sections */
+    stream = create_test_stream(test3_cdata_xml, -1);
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)stream;
+
+    test_seq = cdata_test3_alt;
+    set_expected_seq(test_seq);
+    hr = ISAXXMLReader_parse(reader, var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "cdata test 3", TRUE);
+
+    IStream_Release(stream);
+
+    ISAXXMLReader_Release(reader);
+
+    free_bstrs();
+}
+
+static void test_saxreader_pi(void)
+{
+    ISAXXMLReader *reader;
+    VARIANT var;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SAXXMLReader60, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void**)&reader);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    g_reader = reader;
+
+    hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXXMLReader_putErrorHandler(reader, &errorHandler);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* PI */
+    V_VT(&var) = VT_UNKNOWN;
+    V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_pi_xml, -1);
+    set_expected_seq(pi_test);
+    hr = ISAXXMLReader_parse(reader, var);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test 1", TRUE);
+    VariantClear(&var);
+
+    ISAXXMLReader_Release(reader);
+
+    free_bstrs();
+}
+
 START_TEST(saxreader)
 {
     HRESULT hr;
@@ -5061,6 +5114,8 @@ START_TEST(saxreader)
         test_saxreader_encoding();
         test_saxreader_dispex();
         test_saxreader_vb_content_handler();
+        test_saxreader_cdata();
+        test_saxreader_pi();
     }
 
     if (is_class_supported(&CLSID_MXXMLWriter60))

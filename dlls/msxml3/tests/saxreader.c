@@ -2328,7 +2328,6 @@ static void test_saxreader(void)
     HANDLE file;
     static const CHAR testXmlA[] = "test.xml";
     IXMLDOMDocument *doc;
-    char seqname[50];
     VARIANT_BOOL v;
 
     while (table->clsid)
@@ -2665,17 +2664,58 @@ static void test_saxreader(void)
         hr = ISAXXMLReader_putEntityResolver(reader, NULL);
         ok(hr == S_OK || broken(hr == E_FAIL), "Unexpected hr %#lx.\n", hr);
 
+        ISAXXMLReader_Release(reader);
+        table++;
+    }
+
+    free_bstrs();
+}
+
+static void test_saxreader_cdata(void)
+{
+    const struct msxmlsupported_data_t *table = reader_support_data;
+    ISAXXMLReader *reader = NULL;
+    char seqname[50];
+    IStream *stream;
+    VARIANT var;
+    HRESULT hr;
+
+    while (table->clsid)
+    {
+        struct call_entry *test_seq;
+
+        if (!is_clsid_supported(table->clsid, reader_support_data))
+        {
+            table++;
+            continue;
+        }
+
+        hr = CoCreateInstance(table->clsid, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        g_reader = reader;
+
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            msxml_version = 4;
+        else
+            msxml_version = 0;
+
+        hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        hr = ISAXXMLReader_putErrorHandler(reader, &errorHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
         /* CDATA sections */
         init_saxlexicalhandler(&lexicalhandler, S_OK);
 
         V_VT(&var) = VT_UNKNOWN;
-        V_UNKNOWN(&var) = (IUnknown*)&lexicalhandler.ISAXLexicalHandler_iface;
+        V_UNKNOWN(&var) = (IUnknown *)&lexicalhandler.ISAXLexicalHandler_iface;
         hr = ISAXXMLReader_putProperty(reader, L"http://xml.org/sax/properties/lexical-handler", var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
         stream = create_test_stream(test_cdata_xml, -1);
         V_VT(&var) = VT_UNKNOWN;
-        V_UNKNOWN(&var) = (IUnknown*)stream;
+        V_UNKNOWN(&var) = (IUnknown *)stream;
 
         if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
             test_seq = cdata_test_alt;
@@ -2711,7 +2751,7 @@ static void test_saxreader(void)
         /* 3. CDATA sections */
         stream = create_test_stream(test3_cdata_xml, -1);
         V_VT(&var) = VT_UNKNOWN;
-        V_UNKNOWN(&var) = (IUnknown*)stream;
+        V_UNKNOWN(&var) = (IUnknown *)stream;
 
         if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
             test_seq = cdata_test3_alt;
@@ -2725,6 +2765,46 @@ static void test_saxreader(void)
         ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
 
         IStream_Release(stream);
+
+        ISAXXMLReader_Release(reader);
+        table++;
+    }
+
+    free_bstrs();
+}
+
+static void test_saxreader_pi(void)
+{
+    const struct msxmlsupported_data_t *table = reader_support_data;
+    ISAXXMLReader *reader;
+    char seqname[50];
+    VARIANT var;
+    HRESULT hr;
+
+    while (table->clsid)
+    {
+        struct call_entry *test_seq;
+
+        if (!is_clsid_supported(table->clsid, reader_support_data))
+        {
+            table++;
+            continue;
+        }
+
+        hr = CoCreateInstance(table->clsid, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void**)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        g_reader = reader;
+
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            msxml_version = 4;
+        else
+            msxml_version = 0;
+
+        hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        hr = ISAXXMLReader_putErrorHandler(reader, &errorHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
         /* PI */
         V_VT(&var) = VT_UNKNOWN;
@@ -6348,6 +6428,8 @@ START_TEST(saxreader)
     test_saxreader_encoding();
     test_saxreader_dispex();
     test_saxreader_vb_content_handler();
+    test_saxreader_cdata();
+    test_saxreader_pi();
     test_saxreader_dtd();
 
     /* MXXMLWriter tests */
