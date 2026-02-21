@@ -1766,7 +1766,6 @@ static void test_mxwriter_startendelement_batch(void)
             hr = IMXWriter_get_output(writer, &dest);
             ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
             ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-            todo_wine_if(i == 16 || i == 17 || i == 19)
             ok(!lstrcmpW(table->output, V_BSTR(&dest)),
                 "test %d: got wrong content %s, expected %s\n", i, wine_dbgstr_w(V_BSTR(&dest)), wine_dbgstr_w(table->output));
             VariantClear(&dest);
