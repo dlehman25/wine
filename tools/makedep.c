@@ -73,8 +73,7 @@ struct incl_file
     int                included_line; /* line where this file was included */
     enum incl_type     type;          /* type of include */
     unsigned int       arch;          /* architecture for multi-arch files, otherwise 0 */
-    bool               use_msvcrt:1;  /* put msvcrt headers in the search path? */
-    bool               is_external:1; /* file from external library? */
+    bool               use_msvcrt;    /* put msvcrt headers in the search path? */
     struct incl_file  *owner;
     struct array       files;         /* array of struct incl_file* */
     struct strarray    dependencies;  /* file dependencies */
@@ -1592,21 +1591,15 @@ static struct file *open_include_file( const struct makefile *make, struct incl_
             if (*dir == '/') continue;
             file = open_include_path_file( make, dir, source->name, &source->filename );
         }
-        if (!file) continue;
-        source->is_external = true;
-        return file;
+        if (file) return file;
     }
 
     if (source->type == INCL_SYSTEM) return NULL;  /* ignore system files we cannot find */
 
     /* try in src file directory */
-    if ((file = open_same_dir_generated_file( make, source->included_by, source, ".tab.h", ".y" )) ||
-        (file = open_same_dir_generated_file( make, source->included_by, source, ".h", ".idl" )) ||
-        (file = open_file_same_dir( source->included_by, source->name, &source->filename )))
-    {
-        source->is_external = source->included_by->is_external;
-        return file;
-    }
+    if ((file = open_same_dir_generated_file( make, source->included_by, source, ".tab.h", ".y" ))) return file;
+    if ((file = open_same_dir_generated_file( make, source->included_by, source, ".h", ".idl" ))) return file;
+    if ((file = open_file_same_dir( source->included_by, source->name, &source->filename ))) return file;
 
     if (make->extlib) return NULL; /* ignore missing files in external libs */
 
@@ -1717,7 +1710,6 @@ static struct incl_file *add_src_file( struct makefile *make, const char *name )
     memset( file, 0, sizeof(*file) );
     file->name = xstrdup(name);
     file->use_msvcrt = is_using_msvcrt( make );
-    file->is_external = !!make->extlib;
     list_add_tail( &make->sources, &file->entry );
     if (make == include_makefile)
     {
