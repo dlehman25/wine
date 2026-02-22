@@ -2729,6 +2729,9 @@ MMRESULT WINAPI waveOutOpen(LPHWAVEOUT lphWaveOut, UINT uDeviceID,
     if(!lphWaveOut && !(dwFlags & WAVE_FORMAT_QUERY))
         return MMSYSERR_INVALPARAM;
 
+    if(!lpFormat)
+        return MMSYSERR_INVALPARAM;
+
     res = WINMM_CheckCallback(dwCallback, dwFlags, FALSE);
     if(res != MMSYSERR_NOERROR)
         return res;
