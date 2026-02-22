@@ -3256,6 +3256,140 @@ static void test_saxreader_properties(void)
     free_bstrs();
 }
 
+static void test_saxreader_max_xml_size(void)
+{
+    static const char test_text[] =
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa"
+        "aaaaaaaaaa";
+    const struct msxmlsupported_data_t *table = reader_support_data;
+    ISAXXMLReader *reader;
+    LARGE_INTEGER pos;
+    IStream *stream;
+    DWORD written;
+    VARIANT var;
+    HRESULT hr;
+
+    hr = CreateStreamOnHGlobal(NULL, TRUE, &stream);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IStream_Write(stream, "<a>", 3, &written);
+    for (int i = 0; i < 20; ++i)
+        IStream_Write(stream, test_text, sizeof(test_text)-1, &written);
+    IStream_Write(stream, "</a>", 4, &written);
+    pos.QuadPart = 0;
+    IStream_Seek(stream, pos, STREAM_SEEK_SET, NULL);
+
+    while (table->clsid)
+    {
+        if (!is_clsid_supported(table->clsid, reader_support_data))
+        {
+            table++;
+            continue;
+        }
+
+        winetest_push_context("%s", table->name);
+
+        hr = CoCreateInstance(table->clsid, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_EMPTY;
+        V_I4(&var) = 123;
+        hr = ISAXXMLReader_getProperty(reader, L"max-xml-size", &var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(V_VT(&var) == VT_I4, "Unexpected type %d.\n", V_VT(&var));
+        ok(!V_I4(&var), "Unexpected value %ld.\n", V_I4(&var));
+
+        V_VT(&var) = VT_R4;
+        V_R4(&var) = 10.0;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_EMPTY;
+        V_I4(&var) = 0;
+        hr = ISAXXMLReader_getProperty(reader, L"max-xml-size", &var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(V_VT(&var) == VT_I4, "Unexpected type %d.\n", V_VT(&var));
+        ok(V_I4(&var) == 10, "Unexpected value %ld.\n", V_I4(&var));
+
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("abc");
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(FAILED(hr), "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_EMPTY;
+        V_I4(&var) = 0;
+        hr = ISAXXMLReader_getProperty(reader, L"max-xml-size", &var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(V_VT(&var) == VT_I4, "Unexpected type %d.\n", V_VT(&var));
+        ok(V_I4(&var) == 10, "Unexpected value %ld.\n", V_I4(&var));
+
+        V_VT(&var) = VT_I4;
+        V_I4(&var) = -123;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_I4;
+        V_I4(&var) = 4194303;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_I4;
+        V_I4(&var) = 4194304;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        if (IsEqualGUID(table->clsid, &CLSID_SAXXMLReader40))
+            ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        else
+            ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_I4;
+        V_I4(&var) = 4194305;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        /* Limit to 1K */
+        V_VT(&var) = VT_I4;
+        V_I4(&var) = 1;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        pos.QuadPart = 0;
+        IStream_Seek(stream, pos, STREAM_SEEK_SET, NULL);
+
+        V_VT(&var) = VT_UNKNOWN;
+        V_UNKNOWN(&var) = (IUnknown *)stream;
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(FAILED(hr), "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_I4;
+        V_I4(&var) = 3;
+        hr = ISAXXMLReader_putProperty(reader, L"max-xml-size", var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        pos.QuadPart = 0;
+        IStream_Seek(stream, pos, STREAM_SEEK_SET, NULL);
+
+        V_VT(&var) = VT_UNKNOWN;
+        V_UNKNOWN(&var) = (IUnknown *)stream;
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        ISAXXMLReader_Release(reader);
+        table++;
+
+        winetest_pop_context();
+    }
+
+    free_bstrs();
+    IStream_Release(stream);
+}
+
 struct feature_ns_entry_t {
     const GUID *guid;
     const char *clsid;
@@ -6561,6 +6695,7 @@ START_TEST(saxreader)
 
     test_saxreader();
     test_saxreader_properties();
+    test_saxreader_max_xml_size();
     test_saxreader_features();
     test_saxreader_encoding();
     test_saxreader_dispex();

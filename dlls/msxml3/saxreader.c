@@ -455,6 +455,7 @@ struct saxreader
     BSTR xmldecl_version;
     BSTR xmldecl_standalone;
     BSTR xmldecl_encoding;
+    int max_xml_size;
     BSTR empty_bstr;
     MSXML_VERSION version;
 };
@@ -790,6 +791,7 @@ struct input_buffer
     UINT code_page;
     struct text_position position;
     size_t consumed;
+    size_t raw_size;
     bool last_cr;
 
     unsigned int chunk_size;
@@ -1892,6 +1894,22 @@ static bool saxreader_reserve_buffer(struct saxlocator *locator, struct encoded_
             buffer->written + size, sizeof(*buffer->data));
 }
 
+static bool saxreader_limit_xml_size(struct saxlocator *locator, ULONG read)
+{
+    if (locator->saxreader->max_xml_size > 0)
+    {
+        locator->buffer.raw_size += read;
+        if (locator->buffer.raw_size > locator->saxreader->max_xml_size * 1024)
+        {
+            saxreader_set_error(locator, E_FAIL);
+            locator->eos = true;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool saxreader_stream_read(struct saxlocator *locator, void *buffer, ULONG size, ULONG *read)
 {
     HRESULT hr;
@@ -1905,6 +1923,9 @@ static bool saxreader_stream_read(struct saxlocator *locator, void *buffer, ULON
         locator->eos = true;
         return false;
     }
+
+    if (!saxreader_limit_xml_size(locator, *read))
+        return false;
 
     locator->eos = *read == 0;
     return true;
@@ -5205,6 +5226,10 @@ static void saxreader_detect_encoding(struct saxlocator *locator)
 
     if (FAILED(hr = ISequentialStream_Read(locator->stream, raw->data, locator->buffer.chunk_size, &read)))
         return saxreader_set_error(locator, hr);
+
+    if (!saxreader_limit_xml_size(locator, read))
+        return;
+
     if (!read)
         return saxreader_set_error(locator, E_SAX_MISSINGROOT);
 
@@ -5562,6 +5587,18 @@ static HRESULT saxreader_put_handler_from_variant(struct saxreader *reader, enum
     return S_OK;
 }
 
+static HRESULT saxreader_get_int_property(const VARIANT *v, int *ret)
+{
+    VARIANT dest;
+
+    VariantInit(&dest);
+    if (FAILED(VariantChangeType(&dest, v, 0, VT_I4)))
+        return E_FAIL;
+
+    *ret = V_I4(&dest);
+    return S_OK;
+}
+
 static HRESULT saxreader_put_property(struct saxreader *reader, const WCHAR *prop, VARIANT value, bool vbInterface)
 {
     VARIANT *v;
@@ -5580,9 +5617,21 @@ static HRESULT saxreader_put_property(struct saxreader *reader, const WCHAR *pro
 
     if (!wcscmp(prop, L"max-xml-size"))
     {
-        if (V_VT(v) == VT_I4 && V_I4(v) == 0) return S_OK;
-        FIXME("(%p)->(%s): max-xml-size unsupported\n", reader, debugstr_variant(v));
-        return E_NOTIMPL;
+        int size;
+
+        if (FAILED(saxreader_get_int_property(&value, &size)))
+            return E_FAIL;
+
+        if (size < 0)
+            return E_INVALIDARG;
+
+        if (reader->version >= MSXML4 && size > 4194304)
+            return E_INVALIDARG;
+        if (reader->version < MSXML4 && size >= 4194304)
+            return E_INVALIDARG;
+
+        reader->max_xml_size = size;
+        return S_OK;
     }
 
     if (!wcscmp(prop, L"max-element-depth"))
@@ -5640,6 +5689,13 @@ static HRESULT saxreader_get_property(const struct saxreader *reader, const WCHA
     {
         V_VT(value) = VT_BSTR;
         return return_bstr(reader->xmldecl_version, &V_BSTR(value));
+    }
+
+    if (!wcscmp(prop, L"max-xml-size"))
+    {
+        V_VT(value) = VT_I4;
+        V_I4(value) = reader->max_xml_size;
+        return S_OK;
     }
 
     FIXME("(%p)->(%s) unsupported property\n", reader, debugstr_w(prop));
