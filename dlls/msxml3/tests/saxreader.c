@@ -344,6 +344,7 @@ typedef enum _CH {
     CH_SKIPPEDENTITY,
     LH_STARTCDATA,
     LH_ENDCDATA,
+    LH_COMMENT,
     EH_ERROR,
     EH_FATALERROR,
     EH_IGNORABLEWARNING,
@@ -365,6 +366,7 @@ static const char *event_names[EVENT_LAST] = {
     "skippedEntity",
     "startCDATA",
     "endCDATA",
+    "comment",
     "error",
     "fatalError",
     "ignorableWarning"
@@ -614,6 +616,7 @@ static void ok_sequence_(struct call_sequence **seq, int sequence_index,
                 break;
             case CH_CHARACTERS:
             case CH_IGNORABLEWHITESPACE:
+            case LH_COMMENT:
                 /* char data */
                 test_saxstr(file, line, actual->arg1W, expected->arg1, todo, &failcount);
                 break;
@@ -2035,10 +2038,16 @@ static HRESULT WINAPI isaxlexical_endCDATA(ISAXLexicalHandler *iface)
 }
 
 static HRESULT WINAPI isaxlexical_comment(ISAXLexicalHandler *iface,
-    const WCHAR * pChars, int nChars)
+    const WCHAR *chars, int len)
 {
-    ok(0, "call not expected\n");
-    return E_NOTIMPL;
+    struct call_entry call;
+
+    init_call_entry(locator, &call);
+    call.id = LH_COMMENT;
+    call.arg1W = SysAllocStringLen(chars, len);
+    add_call(sequences, CONTENT_HANDLER_INDEX, &call);
+
+    return get_expected_ret();
 }
 
 static const ISAXLexicalHandlerVtbl SAXLexicalHandlerVtbl =
@@ -3388,6 +3397,277 @@ static void test_saxreader_max_xml_size(void)
 
     free_bstrs();
     IStream_Release(stream);
+}
+
+static struct call_entry normalize_line_breaks_text_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { CH_CHARACTERS, 1, 4, S_OK, L"a\n" },
+    { CH_CHARACTERS, 2, 1, S_OK, L"b" },
+    { CH_ENDELEMENT, 2, 4, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_off_text_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { CH_CHARACTERS, 1, 4, S_OK, L"a\rb" },
+    { CH_ENDELEMENT, 2, 4, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct attribute_entry normalize_line_breaks_attrs[] =
+{
+    { L"", L"attr", L"attr", L"a b" },
+    { NULL }
+};
+
+static struct call_entry normalize_line_breaks_attr_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 2, 5, S_OK, L"", L"e", L"e", normalize_line_breaks_attrs },
+    { CH_ENDELEMENT, 2, 7, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_comment_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { LH_COMMENT, 1, 8, S_OK, L" ab\n" },
+    { LH_COMMENT, 2, 1, S_OK, L"c " },
+    { CH_ENDELEMENT, 2, 8, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_off_comment_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { LH_COMMENT, 1, 8, S_OK, L" ab\rc " },
+    { CH_ENDELEMENT, 2, 8, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_cdata_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { LH_STARTCDATA, 1, 13, S_OK },
+    { CH_CHARACTERS, 1, 13, S_OK, L" ab\n" },
+    { CH_CHARACTERS, 2, 1, S_OK, L"c " },
+    { LH_ENDCDATA, 2, 1, S_OK },
+    { CH_ENDELEMENT, 2, 8, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_off_cdata_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { LH_STARTCDATA, 1, 13, S_OK },
+    { CH_CHARACTERS, 1, 13, S_OK, L" ab\rc " },
+    { LH_ENDCDATA, 1, 13, S_OK },
+    { CH_ENDELEMENT, 2, 8, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_pi_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { CH_PROCESSINGINSTRUCTION, 1, 9, S_OK, L"pi", L"ab\nc " },
+    { CH_ENDELEMENT, 2, 7, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static struct call_entry normalize_line_breaks_off_pi_seq[] =
+{
+    { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
+    { CH_STARTDOCUMENT, 0, 0, S_OK },
+    { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
+    { CH_PROCESSINGINSTRUCTION, 1, 9, S_OK, L"pi", L"ab\rc " },
+    { CH_ENDELEMENT, 2, 7, S_OK, L"", L"e", L"e" },
+    { CH_ENDDOCUMENT, 0, 0, S_OK },
+    { CH_ENDTEST }
+};
+
+static void test_saxreader_normalize_line_breaks(void)
+{
+    static struct msxmlsupported_data_t classes[] =
+    {
+        { &CLSID_SAXXMLReader,   "SAXReader"   },
+        { &CLSID_SAXXMLReader30, "SAXReader30" },
+        { NULL }
+    };
+    const struct msxmlsupported_data_t *table = classes;
+    ISAXXMLReader *reader;
+    VARIANT_BOOL v;
+    VARIANT var;
+    HRESULT hr;
+
+    if (is_clsid_supported(&CLSID_SAXXMLReader40, reader_support_data))
+    {
+        hr = CoCreateInstance(&CLSID_SAXXMLReader40, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        v = 123;
+        hr = ISAXXMLReader_getFeature(reader, L"normalize-line-breaks", &v);
+        todo_wine
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+        ok(v == 123, "Unexpected value %d.\n", v);
+
+        hr = ISAXXMLReader_putFeature(reader, L"normalize-line-breaks", VARIANT_FALSE);
+        todo_wine
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        hr = ISAXXMLReader_putFeature(reader, L"normalize-line-breaks", VARIANT_TRUE);
+        todo_wine
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        ISAXXMLReader_Release(reader);
+    }
+
+    while (table->clsid)
+    {
+        if (!is_clsid_supported(table->clsid, reader_support_data))
+        {
+            table++;
+            continue;
+        }
+
+        winetest_push_context("%s", table->name);
+
+        hr = CoCreateInstance(table->clsid, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        g_reader = reader;
+
+        v = VARIANT_FALSE;
+        hr = ISAXXMLReader_getFeature(reader, L"normalize-line-breaks", &v);
+        todo_wine
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        todo_wine
+        ok(v == VARIANT_TRUE, "Unexpected value %d.\n", v);
+
+        hr = ISAXXMLReader_putContentHandler(reader, &contentHandler);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&var) = VT_UNKNOWN;
+        V_UNKNOWN(&var) = (IUnknown *)&lexicalhandler.ISAXLexicalHandler_iface;
+        init_saxlexicalhandler(&lexicalhandler, S_OK);
+        hr = ISAXXMLReader_putProperty(reader, L"http://xml.org/sax/properties/lexical-handler", var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        /* Text content */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e>a\rb</e>");
+        set_expected_seq(normalize_line_breaks_text_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_text_seq, "Normalize line breaks: text", FALSE);
+
+        /* Attribute values */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e attr=\"a\rb\" ></e>");
+        set_expected_seq(normalize_line_breaks_attr_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_attr_seq, "Normalize line breaks: attribute", TRUE);
+
+        /* Comments */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e><!-- ab\rc --></e>");
+        set_expected_seq(normalize_line_breaks_comment_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_comment_seq, "Normalize line breaks: comment", TRUE);
+
+        /* CDATA */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e><![CDATA[ ab\rc ]]></e>");
+        set_expected_seq(normalize_line_breaks_cdata_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_cdata_seq, "Normalize line breaks: cdata", FALSE);
+
+        /* PI */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e><?pi ab\rc ?></e>");
+        set_expected_seq(normalize_line_breaks_pi_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_pi_seq, "Normalize line breaks: PI", TRUE);
+
+        /* Disable normalization */
+        hr = ISAXXMLReader_putFeature(reader, L"normalize-line-breaks", VARIANT_FALSE);
+        todo_wine
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        /* Text content */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e>a\rb</e>");
+        set_expected_seq(normalize_line_breaks_off_text_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_off_text_seq, "Normalize line breaks (off): text", TRUE);
+
+        /* Attribute values */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e attr=\"a\rb\" ></e>");
+        set_expected_seq(normalize_line_breaks_attr_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_attr_seq, "Normalize line breaks (off): attribute", TRUE);
+
+        /* Comments */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e><!-- ab\rc --></e>");
+        set_expected_seq(normalize_line_breaks_off_comment_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_off_comment_seq, "Normalize line breaks (off): comment", FALSE);
+
+        /* CDATA */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e><![CDATA[ ab\rc ]]></e>");
+        set_expected_seq(normalize_line_breaks_off_cdata_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_off_cdata_seq, "Normalize line breaks (off): cdata", TRUE);
+
+        /* PI */
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = _bstr_("<e><?pi ab\rc ?></e>");
+        set_expected_seq(normalize_line_breaks_off_pi_seq);
+        hr = ISAXXMLReader_parse(reader, var);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_off_pi_seq, "Normalize line breaks (off): PI", FALSE);
+
+        ISAXXMLReader_Release(reader);
+        table++;
+
+        winetest_pop_context();
+    }
+
+    free_bstrs();
 }
 
 struct feature_ns_entry_t {
@@ -6696,6 +6976,7 @@ START_TEST(saxreader)
     test_saxreader();
     test_saxreader_properties();
     test_saxreader_max_xml_size();
+    test_saxreader_normalize_line_breaks();
     test_saxreader_features();
     test_saxreader_encoding();
     test_saxreader_dispex();
