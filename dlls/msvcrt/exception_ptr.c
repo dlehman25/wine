@@ -116,10 +116,7 @@ void __cdecl __ExceptionPtrAssign(exception_ptr *ep, const exception_ptr *assign
 {
     TRACE("(%p %p)\n", ep, assign);
 
-    /* don't destroy object stored in ep */
-    if (ep->ref)
-        InterlockedDecrement(ep->ref);
-
+    __ExceptionPtrDestroy(ep);
     *ep = *assign;
     if (ep->ref)
         InterlockedIncrement(ep->ref);
