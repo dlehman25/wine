@@ -2222,7 +2222,6 @@ static void test_mxwriter_characters(void)
     hr = IMXWriter_get_output(writer, &dest);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&dest) == VT_BSTR, "Unexpected type %d.\n", V_VT(&dest));
-    todo_wine
     ok(!lstrcmpW(L"ab\r\n\r\ncd", V_BSTR(&dest)), "Unexpected content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
     VariantClear(&dest);
 
@@ -2237,7 +2236,6 @@ static void test_mxwriter_characters(void)
     hr = IMXWriter_get_output(writer, &dest);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&dest) == VT_BSTR, "Unexpected type %d.\n", V_VT(&dest));
-    todo_wine
     ok(!lstrcmpW(L"\r\nab\r\nc\r\n", V_BSTR(&dest)), "Unexpected content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
     VariantClear(&dest);
 
