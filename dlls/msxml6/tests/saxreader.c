@@ -697,7 +697,7 @@ static const char test3_cdata_xml[] =
 "<?xml version=\"1.0\" ?><a><![CDATA[Some text data]]></a>";
 
 static const char test_pi_xml[] =
-"<?xml version=\"1.0\" ?><a><?t some text ?></a>";
+"<?xml version=\"1.0\" ?><a><?t some t\rex\r\nt ?></a>";
 
 static const char test_chardata_xml[] =
 "<?xml version=\"1.0\" ?><a>\nabc<b>de\nf</b>gh\n</a>";
@@ -4004,9 +4004,9 @@ static struct call_entry pi_test[] =
     { CH_PUTDOCUMENTLOCATOR, 1, 0, S_OK },
     { CH_STARTDOCUMENT, 1, 22, S_OK },
     { CH_STARTELEMENT, 1, 25, S_OK, L"", L"a", L"a" },
-    { CH_PROCESSINGINSTRUCTION, 1, 41, S_OK, L"t", L"some text " },
-    { CH_ENDELEMENT, 1, 45, S_OK, L"", L"a", L"a" },
-    { CH_ENDDOCUMENT, 1, 45, S_OK },
+    { CH_PROCESSINGINSTRUCTION, 3, 4, S_OK, L"t", L"some t\nex\nt " },
+    { CH_ENDELEMENT, 3, 8, S_OK, L"", L"a", L"a" },
+    { CH_ENDDOCUMENT, 3, 8, S_OK },
     { CH_ENDTEST }
 };
 
@@ -4804,16 +4804,6 @@ static void test_saxreader(void)
     hr = ISAXXMLReader_putEntityResolver(reader, NULL);
     ok(hr == S_OK || broken(hr == E_FAIL), "Unexpected hr %#lx.\n", hr);
 
-    /* PI */
-    V_VT(&var) = VT_UNKNOWN;
-    V_UNKNOWN(&var) = (IUnknown *)create_test_stream(test_pi_xml, -1);
-    test_seq = pi_test;
-    set_expected_seq(test_seq);
-    hr = ISAXXMLReader_parse(reader, var);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "pi test 1", FALSE);
-    VariantClear(&var);
-
     ISAXXMLReader_Release(reader);
 
     free_bstrs();
@@ -5184,7 +5174,7 @@ static void test_saxreader_pi(void)
     set_expected_seq(pi_test);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test 1", FALSE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test 1", TRUE);
     VariantClear(&var);
 
     ISAXXMLReader_Release(reader);

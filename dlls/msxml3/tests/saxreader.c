@@ -762,7 +762,7 @@ static const char test3_cdata_xml[] =
 "<?xml version=\"1.0\" ?><a><![CDATA[Some text data]]></a>";
 
 static const char test_pi_xml[] =
-"<?xml version=\"1.0\" ?><a><?t some text ?></a>";
+"<?xml version=\"1.0\" ?><a><?t some t\rex\r\nt ?></a>";
 
 static const char test_chardata_xml[] =
 "<?xml version=\"1.0\" ?><a>\nabc<b>de\nf</b>gh\n</a>";
@@ -962,8 +962,8 @@ static struct call_entry pi_test[] =
     { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
     { CH_STARTDOCUMENT, 0, 0, S_OK },
     { CH_STARTELEMENT, 1, 26, S_OK, L"", L"a", L"a" },
-    { CH_PROCESSINGINSTRUCTION, 1, 30, S_OK, L"t", L"some text " },
-    { CH_ENDELEMENT, 1, 44, S_OK, L"", L"a", L"a" },
+    { CH_PROCESSINGINSTRUCTION, 1, 30, S_OK, L"t", L"some t\nex\nt " },
+    { CH_ENDELEMENT, 3, 7, S_OK, L"", L"a", L"a" },
     { CH_ENDDOCUMENT, 0, 0, S_OK },
     { CH_ENDTEST }
 };
@@ -2556,7 +2556,7 @@ static void test_saxreader_pi(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: pi test", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
         VariantClear(&var);
 
         ISAXXMLReader_Release(reader);
