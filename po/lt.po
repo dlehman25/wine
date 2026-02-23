@@ -7283,10 +7283,8 @@ msgid "Call failed.\n"
 msgstr "Kreipinys nepavyko.\n"
 
 #: dlls/kernelbase/winerror.mc:3817
-#, fuzzy
-#| msgid "Unable to unload media.\n"
 msgid "Unable to find matching object.\n"
-msgstr "Nepavyko išstumti laikmenos.\n"
+msgstr "Nepavyko rasti atitinkančio objekto.\n"
 
 #: dlls/kernelbase/winerror.mc:3824
 msgid "No Signature found in file.\n"
