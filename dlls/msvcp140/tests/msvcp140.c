@@ -714,7 +714,8 @@ static void test__TaskEventLogger(void)
 static void __cdecl chore_callback(void *arg)
 {
     HANDLE event = arg;
-    SetEvent(event);
+    if (event)
+        SetEvent(event);
 }
 
 static void test_chore(void)
@@ -725,11 +726,14 @@ static void test_chore(void)
     int ret;
 
     memset(&chore, 0, sizeof(chore));
+    chore.callback = chore_callback;
     ret = p__Schedule_chore(&chore);
     ok(!ret, "_Schedule_chore returned %d\n", ret);
     ok(chore.work != NULL, "chore.work == NULL\n");
-    ok(!chore.callback, "chore.callback != NULL\n");
+    ok(chore.callback == chore_callback, "chore.callback != chore_callback\n");
     p__Release_chore(&chore);
+    ok(!chore.work, "chore.work != NULL\n");
+    ok(chore.callback == chore_callback, "chore.callback != chore_callback\n");
 
     chore.work = NULL;
     chore.callback = chore_callback;
