@@ -4820,12 +4820,10 @@ static void test_saxreader_normalize_line_breaks(void)
 
     v = 123;
     hr = ISAXXMLReader_getFeature(reader, L"normalize-line-breaks", &v);
-    todo_wine
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
     ok(v == 123, "Unexpected value %d.\n", v);
 
     hr = ISAXXMLReader_putFeature(reader, L"normalize-line-breaks", VARIANT_FALSE);
-    todo_wine
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
 
     ISAXXMLReader_Release(reader);
