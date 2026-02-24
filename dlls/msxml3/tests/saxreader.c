@@ -3190,6 +3190,35 @@ static void test_saxreader_normalize_line_breaks(void)
     free_bstrs();
 }
 
+static void test_saxreader_exhaustive_errors(void)
+{
+    static const GUID *classes[] = { &CLSID_SAXXMLReader, &CLSID_SAXXMLReader30 };
+    ISAXXMLReader *reader;
+    VARIANT_BOOL v;
+    HRESULT hr;
+
+    for (int i = 0; i < ARRAYSIZE(classes); ++i)
+    {
+        hr = CoCreateInstance(classes[i], NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        v = 123;
+        hr = ISAXXMLReader_getFeature(reader, L"exhaustive-errors", &v);
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+        ok(v == 123, "Unexpected value %d.\n", v);
+
+        hr = ISAXXMLReader_putFeature(reader, L"exhaustive-errors", VARIANT_TRUE);
+        todo_wine
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        hr = ISAXXMLReader_putFeature(reader, L"exhaustive-errors", VARIANT_FALSE);
+        todo_wine
+        ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+        ISAXXMLReader_Release(reader);
+    }
+}
+
 struct feature_ns_entry_t {
     const GUID *guid;
     const char *clsid;
@@ -3228,11 +3257,6 @@ static void test_saxreader_features(void)
             entry++;
             continue;
         }
-
-        value = 123;
-        hr = ISAXXMLReader_getFeature(reader, L"exhaustive-errors", &value);
-        ok(hr == E_INVALIDARG, "Failed to get feature value, hr %#lx.\n", hr);
-        ok(value == 123, "Unexpected value %d.\n", value);
 
         value = 123;
         hr = ISAXXMLReader_getFeature(reader, L"schema-validation", &value);
@@ -6404,6 +6428,7 @@ START_TEST(saxreader)
     test_saxreader_properties();
     test_saxreader_max_xml_size();
     test_saxreader_normalize_line_breaks();
+    test_saxreader_exhaustive_errors();
     test_saxreader_features();
     test_saxreader_encoding();
     test_saxreader_dispex();

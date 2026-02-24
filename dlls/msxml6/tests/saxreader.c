@@ -4829,6 +4829,30 @@ static void test_saxreader_normalize_line_breaks(void)
     ISAXXMLReader_Release(reader);
 }
 
+static void test_saxreader_exhaustive_errors(void)
+{
+    ISAXXMLReader *reader;
+    VARIANT_BOOL v;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_SAXXMLReader60, NULL, CLSCTX_INPROC_SERVER, &IID_ISAXXMLReader, (void **)&reader);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    v = VARIANT_TRUE;
+    hr = ISAXXMLReader_getFeature(reader, L"exhaustive-errors", &v);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(v == VARIANT_FALSE, "Unexpected value %d.\n", v);
+
+    hr = ISAXXMLReader_putFeature(reader, L"exhaustive-errors", VARIANT_TRUE);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXXMLReader_putFeature(reader, L"exhaustive-errors", VARIANT_FALSE);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    ISAXXMLReader_Release(reader);
+}
+
 static const WCHAR *feature_names[] =
 {
     L"http://xml.org/sax/features/namespaces",
@@ -5313,6 +5337,7 @@ START_TEST(saxreader)
         test_saxreader_properties();
         test_saxreader_max_xml_size();
         test_saxreader_normalize_line_breaks();
+        test_saxreader_exhaustive_errors();
         test_saxreader_features();
         test_saxreader_encoding();
         test_saxreader_dispex();
