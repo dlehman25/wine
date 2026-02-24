@@ -3947,8 +3947,16 @@ static void saxreader_parse_pi(struct saxlocator *locator)
             return;
         }
 
-        saxreader_string_append(locator, &buffer, &ch, 1);
-        saxreader_skip(locator, 1);
+        if (saxreader_cmp(locator, L"\r\n")
+                || saxreader_cmp(locator, L"\r"))
+        {
+            saxreader_string_append(locator, &buffer, L"\n", 1);
+        }
+        else
+        {
+            saxreader_string_append(locator, &buffer, &ch, 1);
+            saxreader_skip(locator, 1);
+        }
         ch = *saxreader_get_ptr_noread(locator);
     }
 

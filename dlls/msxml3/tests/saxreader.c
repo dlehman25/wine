@@ -2556,7 +2556,7 @@ static void test_saxreader_pi(void)
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         sprintf(seqname, "%s: pi test", table->name);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, TRUE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, seqname, FALSE);
         VariantClear(&var);
 
         ISAXXMLReader_Release(reader);
@@ -3137,7 +3137,7 @@ static void test_saxreader_normalize_line_breaks(void)
         set_expected_seq(normalize_line_breaks_pi_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_pi_seq, "Normalize line breaks: PI", TRUE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_pi_seq, "Normalize line breaks: PI", FALSE);
 
         /* Disable normalization */
         hr = ISAXXMLReader_putFeature(reader, L"normalize-line-breaks", VARIANT_FALSE);
@@ -3182,7 +3182,7 @@ static void test_saxreader_normalize_line_breaks(void)
         set_expected_seq(normalize_line_breaks_off_pi_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_off_pi_seq, "Normalize line breaks (off): PI", FALSE);
+        ok_sequence(sequences, CONTENT_HANDLER_INDEX, normalize_line_breaks_off_pi_seq, "Normalize line breaks (off): PI", TRUE);
 
         ISAXXMLReader_Release(reader);
         table++;

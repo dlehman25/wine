@@ -2419,7 +2419,7 @@ static void test_saxreader_pi(void)
     set_expected_seq(pi_test);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, pi_test, "pi test", FALSE);
     VariantClear(&var);
 
     ISAXXMLReader_Release(reader);
