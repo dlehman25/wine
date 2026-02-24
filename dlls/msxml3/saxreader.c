@@ -3728,9 +3728,19 @@ static BSTR saxreader_parse_attvalue(struct saxlocator *locator)
         }
         else
         {
-            ch = *saxreader_get_ptr_noread(locator);
-            saxreader_string_append(locator, &buffer, &ch, 1);
-            saxreader_skip(locator, 1);
+            if (saxreader_cmp(locator, L"\r\n")
+                    || saxreader_cmp(locator, L"\r")
+                    || saxreader_cmp(locator, L"\n")
+                    || saxreader_cmp(locator, L"\t"))
+            {
+                saxreader_string_append(locator, &buffer, L" ", 1);
+            }
+            else
+            {
+                ch = *saxreader_get_ptr_noread(locator);
+                saxreader_string_append(locator, &buffer, &ch, 1);
+                saxreader_skip(locator, 1);
+            }
         }
     }
 

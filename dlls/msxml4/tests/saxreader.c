@@ -2311,7 +2311,7 @@ static void test_saxreader(void)
     set_expected_seq(test_seq);
     hr = ISAXXMLReader_parse(reader, var);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "attribute value normalization", TRUE);
+    ok_sequence(sequences, CONTENT_HANDLER_INDEX, test_seq, "attribute value normalization", FALSE);
     IStream_Release(stream);
 
     resolver = (void*)0xdeadbeef;

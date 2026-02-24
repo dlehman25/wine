@@ -2969,7 +2969,7 @@ static struct call_entry normalize_line_breaks_off_text_seq[] =
 
 static struct attribute_entry normalize_line_breaks_attrs[] =
 {
-    { L"", L"attr", L"attr", L"a b" },
+    { L"", L"attr", L"attr", L"a b c d" },
     { NULL }
 };
 
@@ -2977,8 +2977,8 @@ static struct call_entry normalize_line_breaks_attr_seq[] =
 {
     { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
     { CH_STARTDOCUMENT, 0, 0, S_OK },
-    { CH_STARTELEMENT, 2, 5, S_OK, L"", L"e", L"e", normalize_line_breaks_attrs },
-    { CH_ENDELEMENT, 2, 7, S_OK, L"", L"e", L"e" },
+    { CH_STARTELEMENT, 3, 5, S_OK, L"", L"e", L"e", normalize_line_breaks_attrs },
+    { CH_ENDELEMENT, 3, 7, S_OK, L"", L"e", L"e" },
     { CH_ENDDOCUMENT, 0, 0, S_OK },
     { CH_ENDTEST }
 };
@@ -3049,8 +3049,8 @@ static struct call_entry normalize_line_breaks_off_pi_seq[] =
     { CH_PUTDOCUMENTLOCATOR, 0, 0, S_OK },
     { CH_STARTDOCUMENT, 0, 0, S_OK },
     { CH_STARTELEMENT, 1, 4, S_OK, L"", L"e", L"e" },
-    { CH_PROCESSINGINSTRUCTION, 1, 9, S_OK, L"pi", L"ab\rc " },
-    { CH_ENDELEMENT, 2, 7, S_OK, L"", L"e", L"e" },
+    { CH_PROCESSINGINSTRUCTION, 1, 9, S_OK, L"pi", L"ab\rc \r\nd " },
+    { CH_ENDELEMENT, 3, 7, S_OK, L"", L"e", L"e" },
     { CH_ENDDOCUMENT, 0, 0, S_OK },
     { CH_ENDTEST }
 };
@@ -3109,7 +3109,7 @@ static void test_saxreader_normalize_line_breaks(void)
 
         /* Attribute values */
         V_VT(&var) = VT_BSTR;
-        V_BSTR(&var) = _bstr_("<e attr=\"a\rb\" ></e>");
+        V_BSTR(&var) = _bstr_("<e attr=\"a\rb\nc\r\nd\" ></e>");
         set_expected_seq(normalize_line_breaks_attr_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -3154,7 +3154,7 @@ static void test_saxreader_normalize_line_breaks(void)
 
         /* Attribute values */
         V_VT(&var) = VT_BSTR;
-        V_BSTR(&var) = _bstr_("<e attr=\"a\rb\" ></e>");
+        V_BSTR(&var) = _bstr_("<e attr=\"a\rb\nc\r\nd\" ></e>");
         set_expected_seq(normalize_line_breaks_attr_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -3178,7 +3178,7 @@ static void test_saxreader_normalize_line_breaks(void)
 
         /* PI */
         V_VT(&var) = VT_BSTR;
-        V_BSTR(&var) = _bstr_("<e><?pi ab\rc ?></e>");
+        V_BSTR(&var) = _bstr_("<e><?pi ab\rc \r\nd ?></e>");
         set_expected_seq(normalize_line_breaks_off_pi_seq);
         hr = ISAXXMLReader_parse(reader, var);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
