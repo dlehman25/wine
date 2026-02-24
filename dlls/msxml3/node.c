@@ -386,7 +386,7 @@ HRESULT node_get_next_sibling(xmlnode *This, IXMLDOMNode **ret)
     return get_node(This, "next", This->node->next, ret);
 }
 
-static int node_get_inst_cnt(xmlNodePtr node)
+int node_get_inst_cnt(xmlNodePtr node)
 {
     int ret = *(LONG *)&node->_private & NODE_PRIV_REFCOUNT_MASK;
     xmlNodePtr child;
