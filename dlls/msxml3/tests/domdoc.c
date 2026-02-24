@@ -14517,13 +14517,11 @@ static void test_put_text(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     expected = L"<open what=\"window\">sesame</open>";
-    todo_wine
     ok(!lstrcmpW(str, expected), "Incorrect element string, got '%s'\n", wine_dbgstr_w(str));
     SysFreeString(str);
 
     IXMLDOMNode_Release(node2);
     IXMLDOMNamedNodeMap_Release(map);
-    if (0) /* crashes on wine with IXMLDOMElement_put_text */
     IXMLDOMNode_Release(node);
     IXMLDOMElement_Release(element);
     IXMLDOMDocument2_Release(doc);

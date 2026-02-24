@@ -247,6 +247,7 @@ extern HRESULT node_transform_node(const xmlnode*,IXMLDOMNode*,BSTR*);
 extern HRESULT node_transform_node_params(const xmlnode*,IXMLDOMNode*,BSTR*,ISequentialStream*,
     const struct xslprocessor_params*);
 extern HRESULT node_create_supporterrorinfo(const tid_t*,void**);
+extern int node_get_inst_cnt(xmlNodePtr);
 
 extern HRESULT get_domdoc_from_xmldoc(xmlDocPtr xmldoc, IXMLDOMDocument3 **document);
 

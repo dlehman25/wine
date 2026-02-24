@@ -405,6 +405,20 @@ static HRESULT WINAPI domelem_put_text(
 {
     domelem *This = impl_from_IXMLDOMElement( iface );
     TRACE("(%p)->(%s)\n", This, debugstr_w(p));
+
+    /* libxml2 calls xmlNodeParseContent from node_put_text for Elements
+       xmlNodeParseContent calls xmlFreeNodeList on the child Text node
+       an IXMLDOMTextNode was created from that Text node will crash
+       on Release because it holds a pointer to that freed node
+       pre-free and NULL the pointer before-hand to avoid that crash
+       but only if there's no outstanding references to it */
+    if (This->node.node && This->node.node->children &&
+        This->node.node->children->type == XML_TEXT_NODE)
+    {
+        if (!node_get_inst_cnt(This->node.node->children))
+            xmlFreeNodeList(This->node.node->children);
+        This->node.node->children = NULL;
+    }
     return node_put_text( &This->node, p );
 }
 
