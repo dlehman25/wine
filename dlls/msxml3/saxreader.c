@@ -2149,10 +2149,10 @@ static void saxreader_fatal_error(struct saxlocator *locator)
     {
         WCHAR msg[1024];
 
-        if (!FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, NULL, locator->status, 0, msg, ARRAY_SIZE(msg), NULL))
+        if (!FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_FROM_HMODULE, MSXML_hInstance, locator->status, 0,
+                msg, ARRAY_SIZE(msg), NULL))
         {
-            FIXME("MSXML errors not yet supported.\n");
-            msg[0] = '\0';
+            *msg = 0;
         }
 
         if (locator->vbInterface)
