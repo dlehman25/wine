@@ -415,9 +415,7 @@ static void test_get_ownerDocument(void)
 
     doc1 = (void *)0xdead;
     hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
-    todo_wine
     ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!doc1, "Unexpected pointer.\n");
 
     hr = IXMLDOMDocument2_loadXML(doc, _bstr_(L"<a>text</a>"), &b);
@@ -429,9 +427,7 @@ static void test_get_ownerDocument(void)
 
     doc1 = (void *)0xdead;
     hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
-    todo_wine
     ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!doc1, "Unexpected pointer.\n");
 
     IXMLDOMDocument2_Release(doc);

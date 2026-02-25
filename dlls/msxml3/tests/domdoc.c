@@ -8401,9 +8401,7 @@ static void test_get_ownerDocument(void)
 
     doc1 = (void *)0xdead;
     hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
-    todo_wine
     ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!doc1, "Unexpected pointer.\n");
 
     VariantInit(&var);
@@ -8417,9 +8415,7 @@ static void test_get_ownerDocument(void)
 
     doc1 = (void *)0xdead;
     hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
-    todo_wine
     ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!doc1, "Unexpected pointer.\n");
 
     check_default_props(doc);
