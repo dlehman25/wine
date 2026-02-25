@@ -355,6 +355,26 @@ static void test_get_ownerDocument(void)
     IXMLDOMDocument2_Release(doc);
 }
 
+static void test_get_parentNode(void)
+{
+    IXMLDOMDocument *doc;
+    IXMLDOMNode *node;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_DOMDocument40, NULL, CLSCTX_INPROC_SERVER, &IID_IXMLDOMDocument, (void **)&doc);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDOMDocument_get_parentNode(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    node = (void *)0x1;
+    hr = IXMLDOMDocument_get_parentNode(doc, &node);
+    ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
+    ok(!node, "Unexpected node %p.\n", node);
+
+    IXMLDOMDocument_Release(doc);
+}
+
 START_TEST(domdoc)
 {
     HRESULT hr;
@@ -374,6 +394,7 @@ START_TEST(domdoc)
     test_namespaces_as_attributes();
     test_create_attribute();
     test_get_ownerDocument();
+    test_get_parentNode();
 
     CoUninitialize();
 }
