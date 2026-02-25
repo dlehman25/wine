@@ -8396,11 +8396,31 @@ static void test_get_ownerDocument(void)
     doc = create_document(&IID_IXMLDOMDocument2);
     cache = create_cache(&IID_IXMLDOMSchemaCollection);
 
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    doc1 = (void *)0xdead;
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
+    todo_wine
+    ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(!doc1, "Unexpected pointer.\n");
+
     VariantInit(&var);
 
     hr = IXMLDOMDocument2_loadXML(doc, _bstr_(complete4A), &b);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(b == VARIANT_TRUE, "failed to load XML string\n");
+
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    doc1 = (void *)0xdead;
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
+    todo_wine
+    ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(!doc1, "Unexpected pointer.\n");
 
     check_default_props(doc);
 

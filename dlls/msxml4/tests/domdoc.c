@@ -321,6 +321,40 @@ static void test_namespaces_as_attributes(void)
     free_bstrs();
 }
 
+static void test_get_ownerDocument(void)
+{
+    IXMLDOMDocument *doc1;
+    IXMLDOMDocument2 *doc;
+    VARIANT_BOOL b;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_DOMDocument40, NULL, CLSCTX_INPROC_SERVER, &IID_IXMLDOMDocument2, (void **)&doc);
+
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    doc1 = (void *)0xdead;
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(!doc1, "Unexpected pointer.\n");
+
+    hr = IXMLDOMDocument2_loadXML(doc, _bstr_(L"<a>text</a>"), &b);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(b == VARIANT_TRUE, "Unexpected result %d.\n", b);
+
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    doc1 = (void *)0xdead;
+    hr = IXMLDOMDocument2_get_ownerDocument(doc, &doc1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(!doc1, "Unexpected pointer.\n");
+
+    IXMLDOMDocument2_Release(doc);
+}
+
 START_TEST(domdoc)
 {
     HRESULT hr;
@@ -339,6 +373,7 @@ START_TEST(domdoc)
 
     test_namespaces_as_attributes();
     test_create_attribute();
+    test_get_ownerDocument();
 
     CoUninitialize();
 }
