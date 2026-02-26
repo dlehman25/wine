@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: Wine\n"
 "Report-Msgid-Bugs-To: https://bugs.winehq.org\n"
 "POT-Creation-Date: N/A\n"
-"PO-Revision-Date: 2026-02-24 17:38+0100\n"
+"PO-Revision-Date: 2026-02-26 09:02+0100\n"
 "Last-Translator: Adam Markowski <wbcwknvstb@proton.me>\n"
 "Language-Team: Polish <kde-i18n-doc@kde.org>\n"
 "Language: pl\n"
@@ -8880,226 +8880,172 @@ msgid "Wine Video 1 video codec"
 msgstr "Kodek Wine Video 1"
 
 #: dlls/msxml3/msxml.mc:31
-#, fuzzy
-#| msgid "Undefined external error."
 msgid "Undefined reference\n"
-msgstr "Niezdefiniowany błąd zewnętrzny."
+msgstr "Niezdefiniowane odniesienie\n"
 
 #: dlls/msxml3/msxml.mc:38
 msgid "Found self-referential entity\n"
-msgstr ""
+msgstr "Znaleziono jednostkę autoreferencyjną\n"
 
 #: dlls/msxml3/msxml.mc:45
 msgid "Unparsed entity reference\n"
-msgstr ""
+msgstr "Nieprzetworzone odniesienie do encji\n"
 
 #: dlls/msxml3/msxml.mc:52
 msgid "Name text contains colon ':'\n"
-msgstr ""
+msgstr "Tekst nazwy zawiera dwukropek ':'\n"
 
 #: dlls/msxml3/msxml.mc:59
 msgid "Namespace prefix hasn't been declared\n"
-msgstr ""
+msgstr "Prefiks przestrzeni nazw nie został zadeklarowany\n"
 
 #: dlls/msxml3/msxml.mc:66
-#, fuzzy
-#| msgid "Expected '='"
 msgid "Expected '=' character\n"
-msgstr "Oczekiwano ';'"
+msgstr "Oczekiwano znaku '='\n"
 
 #: dlls/msxml3/msxml.mc:73
-#, fuzzy
-#| msgid "Expected an operator.\n"
 msgid "Expected a quote character\n"
-msgstr "Oczekiwano operatora.\n"
+msgstr "Oczekiwano znaku cytatu\n"
 
 #: dlls/msxml3/msxml.mc:80
 msgid "Malformed comment\n"
-msgstr ""
+msgstr "Nieprawidłowy komentarz\n"
 
 #: dlls/msxml3/msxml.mc:87
-#, fuzzy
-#| msgid "Invalid character"
 msgid "Invalid name start character\n"
-msgstr "Nieprawidłowy znak"
+msgstr "Nieprawidłowy znak początkowy nazwy\n"
 
 #: dlls/msxml3/msxml.mc:94
-#, fuzzy
-#| msgid "Invalid character"
 msgid "Invalid name character\n"
-msgstr "Nieprawidłowy znak"
+msgstr "Nieprawidłowy znak nazwy\n"
 
 #: dlls/msxml3/msxml.mc:101
 msgid "The '<' character found in attribute value\n"
-msgstr ""
+msgstr "Znaleziono znak '<' w wartości atrybutu\n"
 
 #: dlls/msxml3/msxml.mc:108
-#, fuzzy
-#| msgid "Expected an operator.\n"
 msgid "Expected whitespace character\n"
-msgstr "Oczekiwano operatora.\n"
+msgstr "Oczekiwano znaku odstępu\n"
 
 #: dlls/msxml3/msxml.mc:115
-#, fuzzy
-#| msgid "Expected an operator.\n"
 msgid "Expected end tag character '>'\n"
-msgstr "Oczekiwano operatora.\n"
+msgstr "Oczekiwano znaku końcowego znacznika '>'\n"
 
 #: dlls/msxml3/msxml.mc:122
-#, fuzzy
-#| msgid "Invalid character(s) in path"
 msgid "Invalid character in DTD content\n"
-msgstr "Błędny(e) znak(i) w nazwie"
+msgstr "Nieprawidłowy znak w treści DTD\n"
 
 #: dlls/msxml3/msxml.mc:129
-#, fuzzy
-#| msgid "Expected ';'"
 msgid "Expected ';' character\n"
-msgstr "Oczekiwano ';'"
+msgstr "Oczekiwano znaku ';'\n"
 
 #: dlls/msxml3/msxml.mc:136
-#, fuzzy
-#| msgid "Invalid character(s) in path"
 msgid "Invalid character in entity reference\n"
-msgstr "Błędny(e) znak(i) w nazwie"
+msgstr "Nieprawidłowy znak w odniesieniu do encji\n"
 
 #: dlls/msxml3/msxml.mc:143
-#, fuzzy
-#| msgid "Invalid character(s) in path"
 msgid "Invalid character in mixed DTD content\n"
-msgstr "Błędny(e) znak(i) w nazwie"
+msgstr "Nieprawidłowy znak w mieszanej zawartości DTD\n"
 
 #: dlls/msxml3/msxml.mc:150
-#, fuzzy
-#| msgid "Expected an operator.\n"
 msgid "Expected '*' character\n"
-msgstr "Oczekiwano operatora.\n"
+msgstr "Oczekiwano znaku '*'\n"
 
 #: dlls/msxml3/msxml.mc:157
-#, fuzzy
-#| msgid "Expected an operator.\n"
 msgid "Expected parenthesis character\n"
-msgstr "Oczekiwano operatora.\n"
+msgstr "Oczekiwano znaku nawiasu\n"
 
 #: dlls/msxml3/msxml.mc:164
-#, fuzzy
-#| msgid "Invalid character(s) in path"
 msgid "Invalid character in DTD enumeration\n"
-msgstr "Błędny(e) znak(i) w nazwie"
+msgstr "Nieprawidłowy znak w wyliczeniu DTD\n"
 
 #: dlls/msxml3/msxml.mc:171
-#, fuzzy
-#| msgid "Invalid name syntax.\n"
 msgid "Invalid PI syntax\n"
-msgstr "Niepoprawna nazwa składni.\n"
+msgstr "Nieprawidłowa składnia PI\n"
 
 #: dlls/msxml3/msxml.mc:178
-#, fuzzy
-#| msgid "Expected an operator.\n"
 msgid "Expected closing quote character\n"
-msgstr "Oczekiwano operatora.\n"
+msgstr "Oczekiwano znaku zamknięcia cudzysłowu\n"
 
 #: dlls/msxml3/msxml.mc:185
 msgid "Multiple colon character found\n"
-msgstr ""
+msgstr "Znaleziono wiele znaków dwukropka\n"
 
 #: dlls/msxml3/msxml.mc:192
-#, fuzzy
-#| msgid "Invalid character"
 msgid "Invalid Unicode character\n"
-msgstr "Nieprawidłowy znak"
+msgstr "Nieprawidłowy znak Unicode\n"
 
 #: dlls/msxml3/msxml.mc:199
 msgid "Expected whitespace or '?' character\n"
-msgstr ""
+msgstr "Oczekiwano spacji lub znaku '?'\n"
 
 #: dlls/msxml3/msxml.mc:206
 msgid "Unexpected end tag '>' character\n"
-msgstr ""
+msgstr "Nieoczekiwany znak końcowy znacznika '>'\n"
 
 #: dlls/msxml3/msxml.mc:213
-#, fuzzy
-#| msgid "Invalid group attributes.\n"
 msgid "Found duplicate attribute\n"
-msgstr "Niepoprawne atrybuty grupy.\n"
+msgstr "Znaleziono duplikat atrybutu\n"
 
 #: dlls/msxml3/msxml.mc:220
-#, fuzzy
-#| msgid "Key is invalid.\n"
 msgid "Document root is invalid\n"
-msgstr "Nieprawidłowy klucz.\n"
+msgstr "Katalog główny dokumentów jest nieprawidłowy\n"
 
 #: dlls/msxml3/msxml.mc:227
-#, fuzzy
-#| msgid "Invalid handle operation.\n"
 msgid "Invalid xml declaration\n"
-msgstr "Nieprawidłowe działanie na uchwycie.\n"
+msgstr "Nieprawidłowa deklaracja XML\n"
 
 #: dlls/msxml3/msxml.mc:234
-#, fuzzy
-#| msgid "Source is missing.\n"
 msgid "Document root is missing\n"
-msgstr "Brakuje źródła.\n"
+msgstr "Brakuje katalogu głównego dokumentów\n"
 
 #: dlls/msxml3/msxml.mc:241
 msgid "Unexpected end of input data stream\n"
-msgstr ""
+msgstr "Nieoczekiwany koniec strumienia danych wejściowych\n"
 
 #: dlls/msxml3/msxml.mc:248
 msgid "Found unexpected CDATA closing markup ']]>'\n"
-msgstr ""
+msgstr "Znaleziono nieoczekiwany znacznik zamykający CDATA ']]>'\n"
 
 #: dlls/msxml3/msxml.mc:255
 msgid "Found unterminated PI declaration\n"
-msgstr ""
+msgstr "Znaleziono niezakończoną deklarację PI\n"
 
 #: dlls/msxml3/msxml.mc:262
 msgid "Found unterminated end tag\n"
-msgstr ""
+msgstr "Znaleziono niezakończony znacznik końcowy\n"
 
 #: dlls/msxml3/msxml.mc:269
 msgid "Found unterminated CDATA block\n"
-msgstr ""
+msgstr "Znaleziono niezakończony blok CDATA\n"
 
 #: dlls/msxml3/msxml.mc:276
 msgid "Use namespace prefix is reserved\n"
-msgstr ""
+msgstr "Używany prefiks przestrzeni nazw jest zarezerwowany\n"
 
 #: dlls/msxml3/msxml.mc:283
-#, fuzzy
-#| msgid "The passwords do not match."
 msgid "End tag does not match\n"
-msgstr "Niezgodność haseł."
+msgstr "Znacznik końcowy nie pasuje\n"
 
 #: dlls/msxml3/msxml.mc:290
-#, fuzzy
-#| msgid "Invalid domain name.\n"
 msgid "Invalid encoding name\n"
-msgstr "Niepoprawna nazwa domeny.\n"
+msgstr "Nieprawidłowa nazwa kodowania\n"
 
 #: dlls/msxml3/msxml.mc:297
-#, fuzzy
-#| msgid "Invalid media type.\n"
 msgid "Invalid model in DTD contentspec\n"
-msgstr "Nieprawidłowy rodzaj treści.\n"
+msgstr "Nieprawidłowy model w specyfikacji zawartości DTD\n"
 
 #: dlls/msxml3/msxml.mc:304
-#, fuzzy
-#| msgid "Invalid group attributes.\n"
 msgid "Invalid DTD attribute type\n"
-msgstr "Niepoprawne atrybuty grupy.\n"
+msgstr "Nieprawidłowy typ atrybutu DTD\n"
 
 #: dlls/msxml3/msxml.mc:311
-#, fuzzy
-#| msgid "Invalid handle operation.\n"
 msgid "Invalid standalone declaration\n"
-msgstr "Nieprawidłowe działanie na uchwycie.\n"
+msgstr "Nieprawidłowa deklaracja samodzielna\n"
 
 #: dlls/msxml3/msxml.mc:318
-#, fuzzy
-#| msgid "Invalid version option.\n"
 msgid "Invalid xml version\n"
-msgstr "Niepoprawne ustawienie wersji.\n"
+msgstr "Nieprawidłowa wersja XML\n"
 
 #: dlls/oleacc/oleacc.rc:31
 msgid "unknown object"
