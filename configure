@@ -748,8 +748,6 @@ FLUIDSYNTH_PE_LIBS
 FLUIDSYNTH_PE_CFLAGS
 FAUDIO_PE_LIBS
 FAUDIO_PE_CFLAGS
-COMPILER_RT_PE_LIBS
-COMPILER_RT_PE_CFLAGS
 CAPSTONE_PE_LIBS
 CAPSTONE_PE_CFLAGS
 MINGW_PKG_CONFIG
@@ -1822,8 +1820,6 @@ OBJC
 OBJCFLAGS
 CAPSTONE_PE_CFLAGS
 CAPSTONE_PE_LIBS
-COMPILER_RT_PE_CFLAGS
-COMPILER_RT_PE_LIBS
 FAUDIO_PE_CFLAGS
 FAUDIO_PE_LIBS
 FLUIDSYNTH_PE_CFLAGS
@@ -2628,12 +2624,6 @@ Some influential environment variables:
               version
   CAPSTONE_PE_LIBS
               Linker flags for the PE capstone, overriding the bundled version
-  COMPILER_RT_PE_CFLAGS
-              C compiler flags for the PE compiler-rt, overriding the bundled
-              version
-  COMPILER_RT_PE_LIBS
-              Linker flags for the PE compiler-rt, overriding the bundled
-              version
   FAUDIO_PE_CFLAGS
               C compiler flags for the PE faudio, overriding the bundled
               version
@@ -7980,8 +7970,6 @@ else case e in #(
   e) as_fn_append PE_ARCHS " $wine_arch" ;;
 esac
 fi
-
-    wine_compiler_rt_libs="compiler-rt"
 
     { as_ac_var=`printf "%s\n" "ac_cv_${wine_arch}_cflags_-fno-strict-aliasing" | sed "$as_sed_sh"`
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether $CC supports -fno-strict-aliasing" >&5
@@ -14036,23 +14024,6 @@ esac
 fi
 printf "%s\n" "$as_me:${as_lineno-$LINENO}: capstone cflags: $CAPSTONE_PE_CFLAGS" >&5
 printf "%s\n" "$as_me:${as_lineno-$LINENO}: capstone libs: $CAPSTONE_PE_LIBS" >&5
-
-if ${COMPILER_RT_PE_LIBS:+false} :
-then :
-  COMPILER_RT_PE_LIBS="$wine_compiler_rt_libs"
-   if ${COMPILER_RT_PE_CFLAGS:+false} :
-then :
-  COMPILER_RT_PE_CFLAGS=
-else case e in #(
-  e) enable_compiler_rt=no ;;
-esac
-fi
-else case e in #(
-  e) enable_compiler_rt=no ;;
-esac
-fi
-printf "%s\n" "$as_me:${as_lineno-$LINENO}: compiler-rt cflags: $COMPILER_RT_PE_CFLAGS" >&5
-printf "%s\n" "$as_me:${as_lineno-$LINENO}: compiler-rt libs: $COMPILER_RT_PE_LIBS" >&5
 
 if ${FAUDIO_PE_LIBS:+false} :
 then :
@@ -23586,6 +23557,7 @@ test "x$enable_tools" = xno || wine_fn_config_makefile tools/wmc enable_wmc
 test "x$enable_tools" = xno || wine_fn_config_makefile tools/wrc enable_wrc
 
 
+
 as_fn_append CONFIGURE_TARGETS " TAGS"
 as_fn_append CONFIGURE_TARGETS " tags"
 as_fn_append CONFIGURE_TARGETS " config.log"
@@ -23654,7 +23626,7 @@ dlls/wineandroid.drv/wine-debug.apk: dlls/wineandroid.drv/build.gradle ${wine_sr
 	mv dlls/wineandroid.drv/build/outputs/apk/wine-debug.apk \$@"
 
 
-EXTERNAL_SUBDIRS="libs/capstone libs/compiler-rt libs/faudio libs/fluidsynth libs/gsm libs/jpeg libs/jxr libs/lcms2 libs/ldap libs/mpg123 libs/musl libs/png libs/tiff libs/tomcrypt libs/vkd3d libs/xml2 libs/xslt libs/zlib"
+EXTERNAL_SUBDIRS="libs/capstone libs/faudio libs/fluidsynth libs/gsm libs/jpeg libs/jxr libs/lcms2 libs/ldap libs/mpg123 libs/musl libs/png libs/tiff libs/tomcrypt libs/vkd3d libs/xml2 libs/xslt libs/zlib libs/compiler-rt"
 
 TAGSFLAGS="--langmap='c:+.idl.l.rh,make:(Make*.in)'"
 
@@ -24531,8 +24503,6 @@ WINELOADER_DEPENDS = $WINELOADER_DEPENDS
 MINGW_PKG_CONFIG = $MINGW_PKG_CONFIG
 CAPSTONE_PE_CFLAGS = $CAPSTONE_PE_CFLAGS
 CAPSTONE_PE_LIBS = $CAPSTONE_PE_LIBS
-COMPILER_RT_PE_CFLAGS = $COMPILER_RT_PE_CFLAGS
-COMPILER_RT_PE_LIBS = $COMPILER_RT_PE_LIBS
 FAUDIO_PE_CFLAGS = $FAUDIO_PE_CFLAGS
 FAUDIO_PE_LIBS = $FAUDIO_PE_LIBS
 FLUIDSYNTH_PE_CFLAGS = $FLUIDSYNTH_PE_CFLAGS
