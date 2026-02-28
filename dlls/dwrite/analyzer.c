@@ -2767,6 +2767,7 @@ static struct fallback_locale * fallback_builder_add_locale(struct dwrite_fontfa
     if ((locale = font_fallback_get_locale(&builder->data.locales, locale_name))) return locale;
     if (!(locale = calloc(1, sizeof(*locale)))) return NULL;
     lstrcpynW(locale->name, locale_name, ARRAY_SIZE(locale->name));
+MESSAGE("%s: '%ls'\n", __FUNCTION__, locale->name);
     list_add_tail(&builder->data.locales, &locale->entry);
     return locale;
 }
