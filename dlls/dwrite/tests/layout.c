@@ -7933,7 +7933,6 @@ struct issue1385_context
     wchar_t ch;
     wchar_t locale[LOCALE_NAME_MAX_LENGTH];
     wchar_t expect[256];
-    BOOL todo;
 };
 
 static HRESULT WINAPI issue1385renderer_DrawGlyphRun(IDWriteTextRenderer *iface,
@@ -7978,7 +7977,6 @@ static HRESULT WINAPI issue1385renderer_DrawGlyphRun(IDWriteTextRenderer *iface,
         hr = IDWriteLocalizedStrings_GetString(strings, i, name, ARRAY_SIZE(name));
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-        todo_wine_if(ctxt->todo)
         ok(!wcscmp(ctxt->expect, name), "Expected '%ls', got '%ls'\n", ctxt->expect, name);
     }
 
@@ -8038,27 +8036,22 @@ static void test_issue1385(void)
     ctxt.ch = 0x5c06;
     wcscpy(ctxt.locale, L"ja");
     wcscpy(ctxt.expect, L"Noto Sans CJK JP");
-    ctxt.todo = TRUE;
     test_issue1385_helper(&ctxt);
 
     wcscpy(ctxt.locale, L"zh-Hans");
     wcscpy(ctxt.expect, L"Noto Sans CJK SC");
-    ctxt.todo = FALSE;
     test_issue1385_helper(&ctxt);
 
     wcscpy(ctxt.locale, L"zh-Hant");
     wcscpy(ctxt.expect, L"Noto Sans CJK TC");
-    ctxt.todo = TRUE;
     test_issue1385_helper(&ctxt);
 
     wcscpy(ctxt.locale, L"ko");
     wcscpy(ctxt.expect, L"Noto Sans CJK KR");
-    ctxt.todo = TRUE;
     test_issue1385_helper(&ctxt);
 
     wcscpy(ctxt.locale, L"");
     wcscpy(ctxt.expect, L"Noto Sans CJK JP");
-    ctxt.todo = TRUE;
     test_issue1385_helper(&ctxt);
 
     IDWriteFontCollection_Release(ctxt.syscoll);
