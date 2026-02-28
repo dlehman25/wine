@@ -531,6 +531,19 @@ static HRESULT fallback_locale_add_mapping(struct fallback_locale *locale, size_
     return S_OK;
 }
 
+static struct fallback_locale * font_fallback_get_locale_exact(const struct list *locales,
+        const WCHAR *locale_name)
+{
+    struct fallback_locale *locale;
+
+    LIST_FOR_EACH_ENTRY(locale, locales, struct fallback_locale, entry)
+    {
+        if (!wcsicmp(locale->name, locale_name)) return locale;
+    }
+
+    return NULL;
+}
+
 /* TODO: potentially needs improvement to consider partially matching locale names. */
 static struct fallback_locale * font_fallback_get_locale(const struct list *locales,
         const WCHAR *locale_name)
@@ -2764,7 +2777,7 @@ static struct fallback_locale * fallback_builder_add_locale(struct dwrite_fontfa
     struct fallback_locale *locale;
 
     if (!locale_name) locale_name = L"";
-    if ((locale = font_fallback_get_locale(&builder->data.locales, locale_name))) return locale;
+    if ((locale = font_fallback_get_locale_exact(&builder->data.locales, locale_name))) return locale;
     if (!(locale = calloc(1, sizeof(*locale)))) return NULL;
     lstrcpynW(locale->name, locale_name, ARRAY_SIZE(locale->name));
 MESSAGE("%s: '%ls'\n", __FUNCTION__, locale->name);
