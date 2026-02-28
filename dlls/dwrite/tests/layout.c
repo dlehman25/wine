@@ -7926,9 +7926,151 @@ static void test_HitTestTextPosition(void)
     IDWriteFactory_Release(factory);
 }
 
+struct issue1385_context
+{
+    IDWriteFactory *factory;
+    IDWriteFontCollection *syscoll;
+    wchar_t ch;
+    wchar_t locale[LOCALE_NAME_MAX_LENGTH];
+    wchar_t expect[256];
+    BOOL todo;
+};
+
+static HRESULT WINAPI issue1385renderer_DrawGlyphRun(IDWriteTextRenderer *iface,
+    void *context,
+    FLOAT baselineOriginX,
+    FLOAT baselineOriginY,
+    DWRITE_MEASURING_MODE mode,
+    DWRITE_GLYPH_RUN const *run,
+    DWRITE_GLYPH_RUN_DESCRIPTION const *descr,
+    IUnknown *effect)
+{
+    struct issue1385_context *ctxt = context;
+    IDWriteLocalizedStrings *strings;
+    IDWriteFontFamily *family;
+    IDWriteFont *font;
+    UINT32 i, count;
+    BOOL exists;
+    HRESULT hr;
+    wchar_t name[256];
+
+    font = NULL;
+    hr = IDWriteFontCollection_GetFontFromFontFace(ctxt->syscoll, run->fontFace, &font);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    exists = VARIANT_FALSE;
+    hr = IDWriteFont_HasCharacter(font, descr->string[0], &exists);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(exists, "Should exist\n");
+
+    family = NULL;
+    hr = IDWriteFont_GetFontFamily(font, &family);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    strings = NULL;
+    hr = IDWriteFontFamily_GetFamilyNames(family, &strings);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    count = IDWriteLocalizedStrings_GetCount(strings);
+    for (i = 0; i < count; i++)
+    {
+        name[0] = 0;
+        hr = IDWriteLocalizedStrings_GetString(strings, i, name, ARRAY_SIZE(name));
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        todo_wine_if(ctxt->todo)
+        ok(!wcscmp(ctxt->expect, name), "Expected '%ls', got '%ls'\n", ctxt->expect, name);
+    }
+
+    IDWriteLocalizedStrings_Release(strings);
+    IDWriteFontFamily_Release(family);
+    IDWriteFont_Release(font);
+    return S_OK;
+}
+
+static const IDWriteTextRendererVtbl issue1385renderervtbl = {
+    testrenderer_QI,
+    testrenderer_AddRef,
+    testrenderer_Release,
+    testrenderer_IsPixelSnappingDisabled,
+    testrenderer_GetCurrentTransform,
+    testrenderer_GetPixelsPerDip,
+    issue1385renderer_DrawGlyphRun,
+    testrenderer_DrawUnderline,
+    testrenderer_DrawStrikethrough,
+    testrenderer_DrawInlineObject
+};
+static IDWriteTextRenderer issue1385renderer = { &issue1385renderervtbl };
+
+static void test_issue1385_helper(struct issue1385_context *ctxt)
+{
+    IDWriteTextFormat *format;
+    IDWriteTextLayout *layout;
+    HRESULT hr;
+
+    format = NULL;
+    hr = IDWriteFactory_CreateTextFormat(ctxt->factory, L"Arial", NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL, 10.0f, ctxt->locale, &format);
+    ok(hr == S_OK, "Failed to create format, hr %#lx.\n", hr);
+
+    layout = NULL;
+    hr = IDWriteFactory_CreateTextLayout(ctxt->factory, &ctxt->ch, 1, format, 0.0f, 0.0f, &layout);
+    ok(hr == S_OK, "Failed to create text layout, hr %#lx.\n", hr);
+
+    hr = IDWriteTextLayout_Draw(layout, ctxt, &issue1385renderer, 0.0, 0.0);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    IDWriteTextLayout_Release(layout);
+    IDWriteTextFormat_Release(format);
+}
+
+static void test_issue1385(void)
+{
+    struct issue1385_context ctxt;
+    HRESULT hr;
+
+    ctxt.factory = create_factory();
+
+    ctxt.syscoll = NULL;
+    hr = IDWriteFactory_GetSystemFontCollection(ctxt.factory, &ctxt.syscoll, FALSE);
+    ok(hr == S_OK, "Failed to create format, hr %#lx.\n", hr);
+
+    ctxt.ch = 0x5c06;
+    wcscpy(ctxt.locale, L"ja");
+    wcscpy(ctxt.expect, L"Noto Sans CJK JP");
+    ctxt.todo = TRUE;
+    test_issue1385_helper(&ctxt);
+
+    wcscpy(ctxt.locale, L"zh-Hans");
+    wcscpy(ctxt.expect, L"Noto Sans CJK SC");
+    ctxt.todo = FALSE;
+    test_issue1385_helper(&ctxt);
+
+    wcscpy(ctxt.locale, L"zh-Hant");
+    wcscpy(ctxt.expect, L"Noto Sans CJK TC");
+    ctxt.todo = TRUE;
+    test_issue1385_helper(&ctxt);
+
+    wcscpy(ctxt.locale, L"ko");
+    wcscpy(ctxt.expect, L"Noto Sans CJK KR");
+    ctxt.todo = TRUE;
+    test_issue1385_helper(&ctxt);
+
+    wcscpy(ctxt.locale, L"");
+    wcscpy(ctxt.expect, L"Noto Sans CJK JP");
+    ctxt.todo = TRUE;
+    test_issue1385_helper(&ctxt);
+
+    IDWriteFontCollection_Release(ctxt.syscoll);
+    IDWriteFactory_Release(ctxt.factory);
+}
+
 START_TEST(layout)
 {
     IDWriteFactory *factory;
+
+    test_issue1385();
+    return;
 
     if (!(factory = create_factory())) {
         win_skip("failed to create factory\n");
