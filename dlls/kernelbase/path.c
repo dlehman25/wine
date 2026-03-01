@@ -4295,10 +4295,12 @@ static HRESULT url_create_from_path(const WCHAR *path, WCHAR *url, DWORD *url_le
         }
     }
 
-    new_url = HeapAlloc(GetProcessHeap(), 0, (lstrlenW(path) + 9) * sizeof(WCHAR)); /* "file:///" + path length + 1 */
+    new_url = HeapAlloc(GetProcessHeap(), 0, (lstrlenW(path) + 10) * sizeof(WCHAR)); /* "file:///" + path length + ["/" +] 1 */
     lstrcpyW(new_url, L"file:");
     if (is_drive_spec( path )) lstrcatW(new_url, L"///");
     lstrcatW(new_url, path);
+    if (PathIsUNCW(path))
+        PathAddBackslashW(new_url);
     hr = UrlEscapeW(new_url, url, url_len, URL_ESCAPE_PERCENT);
     HeapFree(GetProcessHeap(), 0, new_url);
     return hr;
