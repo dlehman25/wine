@@ -43,7 +43,6 @@ typedef struct _TEST_URL_APPLY {
     DWORD flags;
     HRESULT res;
     const char * newurl;
-    BOOL todo;
 } TEST_URL_APPLY;
 
 static const TEST_URL_APPLY TEST_APPLY[] = {
@@ -74,9 +73,9 @@ static const TEST_URL_APPLY TEST_APPLY[] = {
     {"file://server/share", URL_APPLY_GUESSFILE, S_FALSE},
     {"file://server/share", URL_APPLY_GUESSSCHEME, S_FALSE},
     {"\\\\uncpath", URL_APPLY_DEFAULT, S_OK, "http://\\\\uncpath"},
-    {"\\\\uncpath", URL_APPLY_GUESSFILE, S_OK, "file://uncpath/", TRUE},
+    {"\\\\uncpath", URL_APPLY_GUESSFILE, S_OK, "file://uncpath/"},
     {"\\\\uncpath\\", URL_APPLY_DEFAULT, S_OK, "http://\\\\uncpath\\"},
-    {"\\\\uncpath\\", URL_APPLY_GUESSFILE, S_OK, "file://uncpath/", TRUE},
+    {"\\\\uncpath\\", URL_APPLY_GUESSFILE, S_OK, "file://uncpath/"},
     {"\\\\uncpath\\", URL_APPLY_GUESSSCHEME, S_FALSE, untouchedA},
     {"file://uncpath", URL_APPLY_GUESSFILE, S_FALSE, untouchedA},
     {"file://uncpath", URL_APPLY_GUESSSCHEME, S_FALSE, untouchedA},
@@ -406,7 +405,6 @@ static void test_UrlApplyScheme(void)
         len = ARRAY_SIZE(newurl);
         strcpy(newurl, "untouched");
         res = UrlApplySchemeA(TEST_APPLY[i].url, newurl, &len, TEST_APPLY[i].flags);
-        todo_wine_if(TEST_APPLY[i].todo) {
         ok( res == TEST_APPLY[i].res,
             "#%ldA: got HRESULT 0x%lx (expected 0x%lx)\n", i, res, TEST_APPLY[i].res);
         if (res == S_OK)
@@ -420,7 +418,6 @@ static void test_UrlApplyScheme(void)
             ok(len == ARRAY_SIZE(newurl), "Test %lu: Got length %lu.\n", i, len);
             ok(!strcmp(newurl, "untouched"), "Test %lu: Got %s.\n", i, debugstr_a(newurl));
         }
-        }
         /* returned length is in character */
         MultiByteToWideChar(CP_ACP, 0, TEST_APPLY[i].url, -1, urlW, ARRAY_SIZE(urlW));
         MultiByteToWideChar(CP_ACP, 0, TEST_APPLY[i].newurl, -1, expectW, ARRAY_SIZE(expectW));
@@ -428,7 +425,6 @@ static void test_UrlApplyScheme(void)
         len = ARRAY_SIZE(newurlW);
         wcscpy(newurlW, L"untouched");
         res = UrlApplySchemeW(urlW, newurlW, &len, TEST_APPLY[i].flags);
-        todo_wine_if(TEST_APPLY[i].todo) {
         ok( res == TEST_APPLY[i].res,
             "#%ldW: got HRESULT 0x%lx (expected 0x%lx)\n", i, res, TEST_APPLY[i].res);
         if (res == S_OK)
@@ -441,7 +437,6 @@ static void test_UrlApplyScheme(void)
         {
             ok(len == ARRAY_SIZE(newurlW), "Test %lu: Got length %lu.\n", i, len);
             ok(!wcscmp(newurlW, L"untouched"), "Test %lu: Got %s.\n", i, debugstr_w(newurlW));
-        }
         }
     }
 
