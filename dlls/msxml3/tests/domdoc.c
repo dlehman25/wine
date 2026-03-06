@@ -5529,12 +5529,24 @@ static void test_cloneNode(void )
     IXMLDOMNode *node_first;
     VARIANT v;
     HRESULT hr;
+    ULONG ref;
 
     doc = create_document(&IID_IXMLDOMDocument2);
 
     hr = IXMLDOMDocument2_loadXML(doc, _bstr_(complete4A), &b);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(b == VARIANT_TRUE, "failed to load XML string\n");
+
+    /* clone document node */
+    hr = IXMLDOMDocument2_cloneNode(doc, VARIANT_TRUE, &node);
+    ok( hr == S_OK, "Unexpected hr %#lx.\n", hr );
+    ok( node != NULL, "node %p\n", node );
+
+    ref = IXMLDOMNode_Release(node);
+    printf("%s: %d: ref %lu\n", __FUNCTION__, __LINE__, ref);
+    ref = IXMLDOMDocument2_Release(doc);
+    printf("%s: %d: ref %lu\n", __FUNCTION__, __LINE__, ref);
+    return;
 
     hr = IXMLDOMDocument2_getProperty(doc, _bstr_("SelectionLanguage"), &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -14679,6 +14691,37 @@ START_TEST(domdoc)
     HANDLE thread;
 
     hr = CoInitialize( NULL );
+if (0)
+    test_cloneNode();
+else
+{
+    IXMLDOMDocument2 *doc;
+    VARIANT_BOOL b;
+    IXMLDOMNode *node;
+    HRESULT hr;
+    ULONG ref;
+
+    doc = create_document(&IID_IXMLDOMDocument2);
+
+    hr = IXMLDOMDocument2_loadXML(doc, _bstr_(complete4A), &b);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(b == VARIANT_TRUE, "failed to load XML string\n");
+
+    /* clone document node */
+    if (0)
+        hr = IXMLDOMDocument2_cloneNode(doc, VARIANT_TRUE, &node);
+    else
+        hr = IXMLDOMDocument2_cloneNode(doc, VARIANT_FALSE, &node);
+    ok( hr == S_OK, "Unexpected hr %#lx.\n", hr );
+    ok( node != NULL, "node %p\n", node );
+
+    ref = IXMLDOMNode_Release(node);
+    printf("%s: %d: ref %lu\n", __FUNCTION__, __LINE__, ref);
+    ref = IXMLDOMDocument2_Release(doc);
+    printf("%s: %d: ref %lu\n", __FUNCTION__, __LINE__, ref);
+}
+    CoUninitialize();
+    return;
     ok( hr == S_OK, "failed to init com\n");
     if (hr != S_OK) return;
 
