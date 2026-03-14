@@ -1285,16 +1285,14 @@ static HRESULT WINAPI domdoc_cloneNode(
 
     clone->doc->_private = create_priv();
     xmldoc_add_orphan(clone->doc, clone);
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(clone->doc, 0));
-    xmldoc_add_ref(clone->doc); /* ref 0 -> 1 */
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(clone->doc, 0));
+    xmldoc_add_ref(clone->doc);
+
     priv_from_xmlDocPtr(clone->doc)->properties = copy_properties(This->properties);
-    if (!(*outNode = (IXMLDOMNode*)create_domdoc(clone))) /* ref 1 -> 3 */
+    if (!(*outNode = (IXMLDOMNode*)create_domdoc(clone)))
     {
         xmldoc_release(clone->doc);
         return E_FAIL;
     }
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(clone->doc, 0));
 
     return S_OK;
 }
@@ -3789,10 +3787,8 @@ HRESULT get_domdoc_from_xmldoc(xmlDocPtr xmldoc, IXMLDOMDocument3 **document)
     ConnectionPoint_Init(&doc->cp_propnotif, doc, &IID_IPropertyNotifySink);
     ConnectionPoint_Init(&doc->cp_domdocevents, doc, &DIID_XMLDOMDocumentEvents);
 
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(xmldoc, 0));
     init_xmlnode(&doc->node, (xmlNodePtr)xmldoc, (IXMLDOMNode*)&doc->IXMLDOMDocument3_iface,
-            &domdoc_dispex); /* ref 2 -> 3 */
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(xmldoc, 0));
+            &domdoc_dispex);
 
     *document = &doc->IXMLDOMDocument3_iface;
 
@@ -3835,12 +3831,9 @@ IUnknown* create_domdoc( xmlNodePtr node )
 
     if (!doc->_private)
         xmldoc_init(doc, MSXML6);
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(doc, 0));
-    xmldoc_add_ref(doc); /* ref 1 -> 2 */
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(doc, 0));
+    xmldoc_add_ref(doc);
 
     hr = get_domdoc_from_xmldoc(doc, (IXMLDOMDocument3**)&obj);
-MESSAGE("%s: %d: ref %ld\n", __FUNCTION__, __LINE__, xmldoc_add_refs(doc, 0));
     if (FAILED(hr))
         return NULL;
 
