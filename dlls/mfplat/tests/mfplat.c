@@ -1437,7 +1437,7 @@ static void test_source_resolver(void)
 
     hr = IMFSourceResolver_CreateObjectFromByteStream(resolver, stream, pathW, MF_RESOLUTION_MEDIASOURCE, NULL,
             &obj_type, (IUnknown **)&mediasource);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(hr == S_OK || broken(hr == MF_E_UNSUPPORTED_BYTESTREAM_TYPE) /* <= Win10 1809 */, "Unexpected hr %#lx.\n", hr);
     if (SUCCEEDED(hr))
     {
         IMFMediaSource_Shutdown(mediasource);
@@ -1457,7 +1457,7 @@ static void test_source_resolver(void)
 
     hr = IMFSourceResolver_CreateObjectFromByteStream(resolver, stream, pathW, MF_RESOLUTION_MEDIASOURCE, NULL,
             &obj_type, (IUnknown **)&mediasource);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(hr == S_OK || broken(hr == MF_E_UNSUPPORTED_BYTESTREAM_TYPE) /* <= Win10 1809 */, "Unexpected hr %#lx.\n", hr);
     if (SUCCEEDED(hr))
     {
         IMFMediaSource_Shutdown(mediasource);
@@ -14635,7 +14635,7 @@ static void test_undefined_queue_id(void)
     IMFAsyncResult_Release(result);
 
     hr = MFPutWorkItem(0x10000, &callback->IMFAsyncCallback_iface, NULL);
-    ok(hr == MF_E_INVALID_WORKQUEUE, "got %#lx\n", hr);
+    ok(hr == MF_E_INVALID_WORKQUEUE || broken(hr == S_OK) /* <= Win10 1507 */, "got %#lx\n", hr);
     IMFAsyncCallback_Release(&callback->IMFAsyncCallback_iface);
 
     hr = MFShutdown();
