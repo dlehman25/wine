@@ -322,6 +322,18 @@ static GLenum color_format_from_pfd( const struct wgl_pixel_format *desc )
     return 0;
 }
 
+static GLenum format_from_pfd( const struct wgl_pixel_format *desc )
+{
+    if (desc->pfd.cAlphaBits) return GL_RGBA;
+    if (desc->pfd.cBlueBits) return GL_RGB;
+    if (desc->pfd.cGreenBits) return GL_RG;
+    if (desc->pfd.cRedBits) return GL_RED;
+
+    FIXME( "Unsupported format type %u bits %u/%u/%u/%u\n", desc->pixel_type, desc->pfd.cRedBits,
+           desc->pfd.cGreenBits, desc->pfd.cBlueBits, desc->pfd.cAlphaBits );
+    return 0;
+}
+
 static GLenum depth_format_from_pfd( const struct wgl_pixel_format *desc )
 {
     TRACE( "format bits %u/%u\n", desc->pfd.cStencilBits, desc->pfd.cDepthBits );
@@ -352,8 +364,15 @@ static void init_framebuffer_attachment( struct opengl_drawable *drawable, GLenu
     switch (type)
     {
     case GL_RENDERBUFFER:
+        if (attachment != GL_DEPTH_ATTACHMENT && !desc->samples) ERR( "Unexpected samples %u\n", desc->samples );
         funcs->p_glBindRenderbuffer( GL_RENDERBUFFER, name );
         funcs->p_glRenderbufferStorageMultisample( GL_RENDERBUFFER, desc->samples, internal_format, size.cx, size.cy );
+        break;
+    case GL_TEXTURE:
+        if (desc->samples) ERR( "Unexpected samples %u\n", desc->samples );
+        funcs->p_glBindTexture( GL_TEXTURE_2D, name );
+        funcs->p_glTexImage2D( GL_TEXTURE_2D, 0, internal_format, size.cx, size.cy, 0, format_from_pfd( desc ), GL_BYTE, NULL );
+        funcs->p_glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0 );
         break;
     default:
         ERR( "Unexpected type %#x\n", type );
@@ -389,6 +408,7 @@ static void destroy_framebuffer_attachment( struct opengl_drawable *drawable, GL
     switch (type)
     {
     case GL_RENDERBUFFER: funcs->p_glDeleteRenderbuffers( 1, &name ); break;
+    case GL_TEXTURE: funcs->p_glDeleteTextures( 1, &name ); break;
     default: ERR( "Unexpected type %#x\n", type ); return;
     }
 
@@ -409,9 +429,18 @@ static GLuint create_framebuffer( struct opengl_drawable *drawable, const struct
 
     for (GLuint i = 0; i < count; i++)
     {
-        funcs->p_glGenRenderbuffers( 1, &name );
-        init_framebuffer_attachment( drawable, fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, name, desc, size );
-        funcs->p_glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, name );
+        if (desc->samples)
+        {
+            funcs->p_glGenRenderbuffers( 1, &name );
+            init_framebuffer_attachment( drawable, fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, name, desc, size );
+            funcs->p_glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, name );
+        }
+        else
+        {
+            funcs->p_glGenTextures( 1, &name );
+            init_framebuffer_attachment( drawable, fbo, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE, name, desc, size );
+            funcs->p_glFramebufferTexture( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, name, 0 );
+        }
         TRACE( "drawable %p/%u created color buffer %#x/%u, %s\n", drawable, fbo, GL_COLOR_ATTACHMENT0 + i, name, wine_dbgstr_point( (POINT *)&size ) );
     }
 
