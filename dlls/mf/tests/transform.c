@@ -3662,7 +3662,7 @@ static void test_wma_decoder(void)
 
     check_mft_set_input_type_required(transform, input_type_desc);
     check_mft_set_input_type(transform, input_type_desc, S_OK);
-    check_mft_get_input_current_type_(__LINE__, transform, expect_input_type_desc, TRUE, FALSE);
+    check_mft_get_input_current_type_(__LINE__, transform, expect_input_type_desc, FALSE, FALSE);
 
     check_mft_get_input_stream_info(transform, MF_E_TRANSFORM_TYPE_NOT_SET, NULL);
     check_mft_get_output_stream_info(transform, MF_E_TRANSFORM_TYPE_NOT_SET, NULL);
