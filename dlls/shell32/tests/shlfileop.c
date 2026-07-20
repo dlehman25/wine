@@ -27,6 +27,7 @@
 #include "shlwapi.h"
 #include "shlobj.h"
 #include "sherrors.h"
+#include "pathcch.h"
 #include "commoncontrols.h"
 
 #include "wine/test.h"
@@ -49,9 +50,35 @@
 static BOOL old_shell32 = FALSE;
 
 static CHAR CURR_DIR[MAX_PATH];
+static WCHAR LONG_DIR[PATHCCH_MAX_CCH];
+static const WCHAR SUBDIR[] = L"long_sub_dir";
 static const WCHAR UNICODE_PATH[] = L"c:\\\x00ae\0";
     /* "c:\®" can be used in all codepages */
     /* Double-null termination needed for pFrom field of SHFILEOPSTRUCT */
+
+HRESULT (WINAPI *pPathCchAppendEx)(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
+
+static BOOL createLongDir(void)
+{
+    WCHAR tmp[ARRAY_SIZE(LONG_DIR)];
+    HRESULT hr;
+    BOOL ret;
+
+    GetCurrentDirectoryW(ARRAY_SIZE(tmp), tmp);
+    while (wcslen(tmp) + ARRAY_SIZE(SUBDIR) < MAX_PATH * 2)
+    {
+        hr = pPathCchAppendEx(tmp, ARRAY_SIZE(LONG_DIR), SUBDIR, PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH);
+        ok(SUCCEEDED(hr), "Failed to append (error %lx)\n", hr);
+        if (FAILED(hr)) return FALSE;
+
+        ret = CreateDirectoryW(tmp, NULL);
+        ok(ret, "Failure to create %ls (error %lx)\n", tmp, GetLastError());
+        if (!ret) return FALSE;
+
+        wcscpy(LONG_DIR, tmp);
+    }
+    return TRUE;
+}
 
 /* creates a file with the specified name for tests */
 static void createTestFile(const CHAR *name)
@@ -3066,6 +3093,83 @@ static void test_file_operation(void)
     ok(!refcount, "got %ld.\n", refcount);
 }
 
+static BOOL supports_extended_length_option(void)
+{
+    WCHAR tmp[PATHCCH_MAX_CCH] = {L"C:\\"};
+    HRESULT hr = S_OK;
+
+    /* win1507 doesn't support PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH
+       returns ERROR_FILENAME_EXCED_RANGE here and fails SHFileOperationW later */
+    while (hr == S_OK && (wcslen(tmp) < MAX_PATH * 2))
+        hr = pPathCchAppendEx(tmp, ARRAY_SIZE(LONG_DIR), SUBDIR, PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH);
+    return hr == S_OK;
+}
+
+
+static void test_long_paths_helper(DWORD flags)
+{
+    WCHAR from[MAX_PATH];
+    SHFILEOPSTRUCTW op;
+    DWORD ret;
+
+    /* delete */
+    GetCurrentDirectoryW(MAX_PATH, from);
+    PathAppendW(from, SUBDIR);
+    from[wcslen(from) + 1] = 0;
+
+    memset(&op, 0, sizeof(op));
+    op.wFunc = FO_DELETE;
+    op.fFlags = flags;
+    op.pFrom = from;
+    op.fAnyOperationsAborted = 0xdeadbeef;
+    ret = SHFileOperationW(&op);
+    ok(ret == ERROR_SUCCESS,
+        "SHFileOperationW returned %ld, expected %d.\n", ret, ERROR_SUCCESS);
+    ok(op.fAnyOperationsAborted == FALSE,
+        "Unexpected fAnyOperationsAborted %d, expected %d.\n",
+         op.fAnyOperationsAborted, FALSE);
+    ok(!file_existsW(LONG_DIR), "This directory should have been removed\n");
+}
+
+static void test_long_paths(void)
+{
+    HMODULE hmod;
+
+    if (winetest_platform_is_wine)
+    {
+        skip("Skipping tests that silently delete everything in current directory\n");
+        return;
+    }
+
+    /* tests fail to run on win8 if linked against kernelbase.dll */
+    if (!(hmod = LoadLibraryA("kernelbase.dll")) ||
+        !(pPathCchAppendEx = (void *)GetProcAddress(hmod, "PathCchAppendEx")))
+    {
+        win_skip("Skipping tests where PathCch*Ex functions aren't available");
+        return;
+    }
+
+    /* some earlier windows (1507) can create the long path but not delete it with shell32 calls */
+    if (!supports_extended_length_option())
+    {
+        win_skip("Skipping tests where long path support is incomplete\n");
+        return;
+    }
+
+    if (!createLongDir())
+    {
+        win_skip("Failed to create long path directory - skipping long path tests\n");
+        return;
+    }
+
+    test_long_paths_helper(FOF_NO_UI);
+    if (winetest_interactive)
+    {
+        createLongDir();
+        test_long_paths_helper(0);
+    }
+}
+
 START_TEST(shlfileop)
 {
     clean_after_shfo_tests();
@@ -3108,6 +3212,8 @@ START_TEST(shlfileop)
     init_shfo_tests();
     test_sh_new_link_info();
     clean_after_shfo_tests();
+
+    test_long_paths();
 
     test_unicode();
 
