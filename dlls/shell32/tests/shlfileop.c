@@ -3188,7 +3188,7 @@ static void test_long_paths_helper(DWORD flags)
     op.pFrom = from;
     op.fAnyOperationsAborted = 0xdeadbeef;
     ret = SHFileOperationW(&op);
-    ok(ret == ERROR_SUCCESS || ret == DE_PATHTOODEEP, /* wine / win10 1507 and earlier */
+    ok(ret == ERROR_SUCCESS || broken(ret == DE_PATHTOODEEP), /* win10 1507 and earlier */
         "SHFileOperationW returned %ld, expected %d.\n", ret, ERROR_SUCCESS);
     ok(op.fAnyOperationsAborted == FALSE,
         "Unexpected fAnyOperationsAborted %d, expected %d.\n",
