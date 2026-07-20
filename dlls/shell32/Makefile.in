@@ -1,7 +1,7 @@
 EXTRADEFS = -D_SHELL32_
 MODULE    = shell32.dll
 IMPORTLIB = shell32
-IMPORTS   = uuid shlwapi user32 gdi32 advapi32
+IMPORTS   = uuid shlwapi user32 gdi32 advapi32 kernelbase
 DELAYIMPORTS = ole32 oleaut32 shdocvw version comctl32 comdlg32 gdiplus
 
 VER_PRODUCTVERSION  = 6,0,2900,6242
