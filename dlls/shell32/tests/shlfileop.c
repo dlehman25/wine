@@ -717,6 +717,32 @@ void check_file_operation_(unsigned int line, UINT func, FILEOP_FLAGS flags, con
             op.fAnyOperationsAborted, expect_aborted);
 }
 
+#define check_file_operationW(func, flags, from, to, expect_ret, expect_aborted, todo_ret, todo_aborted, broken_ret) \
+        check_file_operationW_(__LINE__, func, flags, from, to, expect_ret, expect_aborted, todo_ret, todo_aborted, broken_ret)
+DWORD check_file_operationW_(unsigned int line, UINT func, FILEOP_FLAGS flags, const WCHAR *from, const WCHAR *to,
+        DWORD expect_ret, BOOL expect_aborted, BOOL todo_ret, BOOL todo_aborted, DWORD broken_ret)
+{
+    SHFILEOPSTRUCTW op;
+    DWORD ret;
+
+    memset(&op, 0, sizeof(op));
+    op.wFunc = func;
+    op.fFlags = flags;
+    op.pFrom = from;
+    op.pTo = to;
+    op.fAnyOperationsAborted = 0xdeadbeef;
+
+    ret = SHFileOperationW(&op);
+    todo_wine_if(todo_ret)
+    ok_(__FILE__, line)(ret == expect_ret || (broken_ret != expect_ret && broken(ret == broken_ret)),
+            "SHFileOperationW returned %ld, expected %ld.\n", ret, expect_ret);
+    todo_wine_if(todo_aborted)
+    ok_(__FILE__, line)(op.fAnyOperationsAborted == expect_aborted,
+            "Unexpected fAnyOperationsAborted %d, expected %d.\n",
+            op.fAnyOperationsAborted, expect_aborted);
+    return ret;
+}
+
 /* tests the FO_DELETE action */
 static void test_delete(void)
 {
@@ -3175,24 +3201,14 @@ static void test_file_operation(void)
 static void test_long_paths_helper(DWORD flags)
 {
     WCHAR from[MAX_PATH];
-    SHFILEOPSTRUCTW op;
     DWORD ret;
 
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);
     from[wcslen(from) + 1] = 0;
 
-    memset(&op, 0, sizeof(op));
-    op.wFunc = FO_DELETE;
-    op.fFlags = flags;
-    op.pFrom = from;
-    op.fAnyOperationsAborted = 0xdeadbeef;
-    ret = SHFileOperationW(&op);
-    ok(ret == ERROR_SUCCESS || broken(ret == DE_PATHTOODEEP), /* win10 1507 and earlier */
-        "SHFileOperationW returned %ld, expected %d.\n", ret, ERROR_SUCCESS);
-    ok(op.fAnyOperationsAborted == FALSE,
-        "Unexpected fAnyOperationsAborted %d, expected %d.\n",
-         op.fAnyOperationsAborted, FALSE);
+    ret = check_file_operationW(FO_DELETE, flags, from, NULL,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, DE_PATHTOODEEP /* win10 1507 and earlier */);
     if (ret == S_OK)
     {
         ok(!file_existsW(LONG_DIR), "This directory should have been removed\n");
