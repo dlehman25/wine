@@ -26,3 +26,6 @@ STRINGTABLE
 {
   1 "Folder Name Resource"
 }
+
+/* @makedep: shell32_test.manifest */
+1 RT_MANIFEST shell32_test.manifest

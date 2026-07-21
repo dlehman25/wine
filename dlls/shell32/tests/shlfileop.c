@@ -61,6 +61,17 @@ static const WCHAR UNICODE_PATH[] = L"c:\\\x00ae\0";
 HRESULT (WINAPI *pPathCchAppendEx)(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
 HRESULT (WINAPI *pPathCchCombineEx)(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags);
 
+/* PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH not available at 1507 */
+static void ensure_extended_prefix(WCHAR *path, SIZE_T size)
+{
+    size_t len = wcslen(path);
+    if (wcsncmp(path, L"\\\\?\\", 4) && (len + 5 < size))
+    {
+        memmove(path + 4, path, (len + 1) * sizeof(WCHAR));
+        memcpy(path, L"\\\\?\\", 4 * sizeof(WCHAR));
+    }
+}
+
 static HRESULT path_append_long(WCHAR *path, SIZE_T size, const WCHAR *subdir)
 {
     HRESULT hr;
@@ -68,14 +79,17 @@ static HRESULT path_append_long(WCHAR *path, SIZE_T size, const WCHAR *subdir)
     /* PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH not available at 1507 */
     hr = pPathCchAppendEx(path, size, subdir, PATHCCH_ALLOW_LONG_PATHS);
     if (FAILED(hr)) return hr;
+    ensure_extended_prefix(path, size);
+    return S_OK;
+}
 
-    if (wcsncmp(path, L"\\\\?\\", 4))
-    {
-        if (wcslen(path) + 5 >= size)
-            return E_INVALIDARG;
-        memmove(path + 4, path, (wcslen(path) + 1) * sizeof(WCHAR));
-        memcpy(path, L"\\\\?\\", 4 * sizeof(WCHAR));
-    }
+static HRESULT path_combine_long(WCHAR *path, SIZE_T size, const WCHAR *path1, const WCHAR *path2)
+{
+    HRESULT hr;
+
+    hr = pPathCchCombineEx(path, size, path1, path2, PATHCCH_ALLOW_LONG_PATHS);
+    if (FAILED(hr)) return hr;
+    ensure_extended_prefix(path, size);
     return S_OK;
 }
 
@@ -200,6 +214,29 @@ static BOOL dir_exists(const CHAR *name)
 static BOOL file_existsW(LPCWSTR name)
 {
   return GetFileAttributesW(name) != INVALID_FILE_ATTRIBUTES;
+}
+
+/* LongPathsEnabled key must be 1 before program start for some functions to handle
+   long paths without \\?\.  forcing \\?\ always works unconditionally */
+static void path_createW(const WCHAR *dir, const WCHAR *name)
+{
+    WCHAR path[PATHCCH_MAX_CCH];
+    path_combine_long(path, ARRAY_SIZE(path), dir, name);
+    createTestFileW(path);
+}
+
+static BOOL path_existsW(const WCHAR *dir, const WCHAR *name)
+{
+    WCHAR path[PATHCCH_MAX_CCH];
+    path_combine_long(path, ARRAY_SIZE(path), dir, name);
+    return file_existsW(path);
+}
+
+static void path_deleteW(const WCHAR *dir, const WCHAR *name)
+{
+    WCHAR path[PATHCCH_MAX_CCH];
+    path_combine_long(path, ARRAY_SIZE(path), dir, name);
+    DeleteFileW(path);
 }
 
 static BOOL file_has_content(const CHAR *name, const CHAR *content)
@@ -691,6 +728,27 @@ static void set_curr_dir_path(CHAR *buf, const CHAR* files)
         files += strlen(files) + 1;
     }
     buf[0] = 0;
+}
+
+static void set_long_dir_path_skip_pfx(WCHAR *buf, const WCHAR* files, BOOL skip_pfx)
+{
+    buf[0] = 0;
+    while (files[0])
+    {
+        wcscpy(buf, LONG_DIR + (skip_pfx ? 4 : 0));
+        buf += wcslen(buf);
+        buf[0] = '\\';
+        buf++;
+        wcscpy(buf, files);
+        buf += wcslen(buf) + 1;
+        files += wcslen(files) + 1;
+    }
+    buf[0] = 0;
+}
+
+static void set_long_dir_path(WCHAR *buf, const WCHAR* files)
+{
+    return set_long_dir_path_skip_pfx(buf, files, TRUE);
 }
 
 #define check_file_operation(func, flags, from, to, expect_ret, expect_aborted, todo_ret, todo_aborted) \
@@ -3200,8 +3258,38 @@ static void test_file_operation(void)
 
 static void test_long_paths_helper(DWORD flags)
 {
-    WCHAR from[MAX_PATH];
+    WCHAR *from, *to;
     DWORD ret;
+
+    from = malloc(PATHCCH_MAX_CCH * sizeof(*from));
+    to = malloc(PATHCCH_MAX_CCH * sizeof(*to));
+
+    if (winetest_platform_is_wine)
+        skip("Skipping tests that crash on wine\n");
+    else
+    {
+        /* Note: other APIs need \\?\ for long path but SHFileOperation doesn't recognize it */
+        set_long_dir_path_skip_pfx(from, L"test1.txt\0", FALSE);
+        set_long_dir_path_skip_pfx(to, L"test6.txt\0", FALSE);
+        createTestFileW(from);
+        check_file_operationW(FO_COPY, flags, from, to,
+                DE_INVALIDFILES, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+        DeleteFileW(from);
+
+        /* simple copy - skip \\?\ */
+        set_long_dir_path(from, L"test1.txt\0");
+        set_long_dir_path(to, L"test6.txt\0");
+        path_createW(LONG_DIR, L"test1.txt");
+        ret = check_file_operationW(FO_COPY, flags, from, to,
+                ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+        if (ret == ERROR_SUCCESS)
+        {
+            ok(path_existsW(LONG_DIR, L"test1.txt"), "This file should not have been removed\n");
+            ok(path_existsW(LONG_DIR, L"test6.txt"), "This file should have been copied\n");
+        }
+        path_deleteW(LONG_DIR, L"test1.txt");
+        path_deleteW(LONG_DIR, L"test6.txt");
+    }
 
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);
@@ -3216,6 +3304,9 @@ static void test_long_paths_helper(DWORD flags)
     }
     if (file_existsW(LONG_DIR_ROOT))
         remove_directory_fallback(LONG_DIR_ROOT);
+
+    free(from);
+    free(to);
 }
 
 static void test_long_paths(void)
