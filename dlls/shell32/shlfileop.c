@@ -1067,7 +1067,7 @@ static void parse_wildcard_files(FILE_LIST *file_list, LPCWSTR szFile)
 }
 
 /* takes the null-separated file list and fills out the FILE_LIST */
-static void parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wildcard)
+static DWORD parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wildcard)
 {
     LPCWSTR ptr = szFiles;
     WCHAR szCurFile[MAX_PATH];
@@ -1078,7 +1078,8 @@ static void parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wildc
     flList->bAnyDontExist = FALSE;
     flList->num_alloc = 32;
     flList->dwNumFiles = 0;
-    flList->feFiles = calloc(flList->num_alloc, sizeof(FILE_ENTRY));
+    if (!(flList->feFiles = calloc(flList->num_alloc, sizeof(FILE_ENTRY))))
+        return ERROR_OUTOFMEMORY;
 
     while (*ptr)
     {
@@ -1087,7 +1088,8 @@ static void parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wildc
         /* change relative to absolute path */
         if (PathIsRelativeW(ptr))
         {
-            GetCurrentDirectoryW(MAX_PATH, szCurFile);
+            if (GetCurrentDirectoryW(MAX_PATH, szCurFile) >= MAX_PATH)
+                return DE_INVALIDFILES;
             PathCombineW(szCurFile, szCurFile, ptr);
         }
         else
@@ -1106,18 +1108,20 @@ static void parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wildc
         /* advance to the next string */
         ptr += lstrlenW(ptr) + 1;
     }
+    return ERROR_SUCCESS;
 }
 
 static DWORD parse_target_file_list(const SHFILEOPSTRUCTW *op, DWORD source_file_count, FILE_LIST *out)
 {
-    DWORD i, check_count = 1;
+    DWORD ret, i, check_count = 1;
 
     if (op->wFunc == FO_DELETE)
         return ERROR_SUCCESS;
     if (!op->pTo)
         return ERROR_ACCESS_DENIED;
 
-    parse_file_list(out, op->pTo, FALSE);
+    if ((ret = parse_file_list(out, op->pTo, FALSE)))
+        return ret;
 
     if (op->fFlags & FOF_MULTIDESTFILES)
         check_count = min(source_file_count, out->dwNumFiles);
@@ -1141,7 +1145,8 @@ static DWORD copy_move_wildcard(FILE_OPERATION *op, const FILE_ENTRY *from, cons
     FILE_LIST from_files;
 
     wcscpy(buffer, from->szFullPath);
-    parse_file_list(&from_files, buffer, TRUE);
+    if ((ret = parse_file_list(&from_files, buffer, TRUE)))
+        return ret;
 
     for (i = 0; i < from_files.dwNumFiles; ++i)
     {
@@ -1428,7 +1433,8 @@ int WINAPI SHFileOperationW(LPSHFILEOPSTRUCTW lpFileOp)
 
     /* Parse source file list. */
     memset(&flFrom, 0, sizeof(flFrom));
-    parse_file_list(&flFrom, lpFileOp->pFrom, lpFileOp->wFunc == FO_DELETE);
+    if ((ret = parse_file_list(&flFrom, lpFileOp->pFrom, lpFileOp->wFunc == FO_DELETE)))
+        return ret;
     op.bManyItems = (flFrom.dwNumFiles > 1);
 
     memset(&flTo, 0, sizeof(flTo));
