@@ -51,6 +51,7 @@
 static BOOL old_shell32 = FALSE;
 
 static CHAR CURR_DIR[MAX_PATH];
+static WCHAR CURR_DIRW[MAX_PATH];
 static WCHAR LONG_DIR[PATHCCH_MAX_CCH];
 static WCHAR LONG_DIR_ROOT[PATHCCH_MAX_CCH];
 static const WCHAR SUBDIR[] = L"long_sub_dir";
@@ -151,13 +152,14 @@ static BOOL createLongDir(void)
     HRESULT hr;
     BOOL ret;
 
-    GetCurrentDirectoryW(ARRAY_SIZE(tmp), tmp);
+    GetCurrentDirectoryW(ARRAY_SIZE(CURR_DIRW), CURR_DIRW);
 
-    wcscpy(LONG_DIR_ROOT, tmp);
+    wcscpy(LONG_DIR_ROOT, CURR_DIRW);
     PathAppendW(LONG_DIR_ROOT, SUBDIR);
     if (GetFileAttributesW(LONG_DIR_ROOT) != INVALID_FILE_ATTRIBUTES)
         remove_directory_fallback(LONG_DIR_ROOT);
 
+    wcscpy(tmp, CURR_DIRW);
     while (wcslen(tmp) + ARRAY_SIZE(SUBDIR) < MAX_PATH * 2)
     {
         hr = path_append_long(tmp, ARRAY_SIZE(tmp), SUBDIR);
@@ -3256,6 +3258,26 @@ static void test_file_operation(void)
     ok(!refcount, "got %ld.\n", refcount);
 }
 
+static BOOL is_long_path_enabled(void)
+{
+    HKEY hkey;
+    LONG res;
+    DWORD size, enabled;
+
+    /* doesn't exist win 10 1507 and earlier */
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\FileSystem", 0, KEY_READ, &hkey) != ERROR_SUCCESS)
+        return FALSE;
+
+    size = sizeof(enabled);
+    res = RegQueryValueExW(hkey, L"LongPathsEnabled", NULL, NULL, (BYTE*)&enabled, &size);
+    RegCloseKey(hkey);
+
+    if (res != ERROR_SUCCESS)
+        return FALSE;
+
+    return enabled ? TRUE : FALSE;
+}
+
 static void test_long_paths_helper(DWORD flags)
 {
     WCHAR *from, *to;
@@ -3326,6 +3348,36 @@ static void test_long_paths(void)
     {
         win_skip("Failed to create long path directory - skipping long path tests\n");
         return;
+    }
+
+    /* most other win32 functions support long paths with \\?\ prefix
+       but SetCurrentDirectory requires both:
+       - reg value LongPathsEnabled = 1
+       - app manifest longPathAware = true */
+    if (!is_long_path_enabled())
+        skip("Long paths not enabled - skipping relative path tests\n");
+    else
+    {
+        /* long paths are unsupported when using relative paths */
+        if (SetCurrentDirectoryW(LONG_DIR))
+        {
+            WCHAR from[MAX_PATH];
+            WCHAR to[MAX_PATH];
+
+            memcpy(from, L"test1.txt\0", sizeof(L"test1.txt\0"));
+            memcpy(to, L"test6.txt\0", sizeof(L"test6.txt\0"));
+            createTestFileW(from);
+            check_file_operationW(FO_COPY, FOF_NO_UI, from, to,
+                    DE_INVALIDFILES, FALSE, TRUE, FALSE, DE_INVALIDFILES);
+            ok(file_existsW(from), "This file should not have been removed\n");
+            ok(!file_existsW(to), "This file should not have been copied\n");
+            DeleteFileW(from);
+            DeleteFileW(to);
+
+            SetCurrentDirectoryW(CURR_DIRW);
+        }
+        else
+            win_skip("Failed to set current directory on long path for relative path test\n");
     }
 
     test_long_paths_helper(FOF_NO_UI);
