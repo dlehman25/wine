@@ -3409,6 +3409,20 @@ static void test_long_paths_helper(DWORD flags)
     path_deleteW(LONG_DIR, L"test1.txt");
     path_deleteW(LONG_DIR, L"test6.txt");
 
+    /* delete with wildcards */
+    path_createW(LONG_DIR, L"test1.txt");
+    path_createW(LONG_DIR, L"test2.txt");
+    set_long_dir_path(from, L"test?.txt\0");
+    ret = check_file_operationW(FO_DELETE, flags, from, NULL,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, DE_INVALIDFILES /* win10 1507 and earlier */);
+    if (ret == ERROR_SUCCESS)
+    {
+        ok(!path_existsW(LONG_DIR, L"test1.txt"), "This file should have been removed\n");
+        ok(!path_existsW(LONG_DIR, L"test2.txt"), "This file should have been removed\n");
+    }
+    path_deleteW(LONG_DIR, L"test1.txt");
+    path_deleteW(LONG_DIR, L"test2.txt");
+
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);
     from[wcslen(from) + 1] = 0;
