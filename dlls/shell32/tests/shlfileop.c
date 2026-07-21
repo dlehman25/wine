@@ -3341,6 +3341,60 @@ static void test_long_paths_helper(DWORD flags)
     path_removedirW(LONG_DIR, L"test1.dir");
     path_removedirW(LONG_DIR, L"test6.dir");
 
+    /* move */
+    set_long_dir_path(from, L"test1.txt\0");
+    set_long_dir_path(to, L"test6.txt\0");
+    path_createW(LONG_DIR, L"test1.txt");
+    ret = check_file_operationW(FO_MOVE, flags, from, to,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+    if (ret == ERROR_SUCCESS)
+    {
+        ok(!path_existsW(LONG_DIR, L"test1.txt"), "This file should have been moved\n");
+        ok(path_existsW(LONG_DIR, L"test6.txt"), "This file should exist\n");
+    }
+    path_deleteW(LONG_DIR, L"test1.txt");
+    path_deleteW(LONG_DIR, L"test6.txt");
+
+    /* move multiple */
+    set_long_dir_path(from, L"test1.txt\0test2.txt\0");
+    set_long_dir_path(to, L"test6.txt\0test7.txt\0");
+    path_createW(LONG_DIR, L"test1.txt");
+    path_createW(LONG_DIR, L"test2.txt");
+    ret = check_file_operationW(FO_MOVE, flags | FOF_MULTIDESTFILES, from, to,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+    if (ret == ERROR_SUCCESS)
+    {
+        ok(!path_existsW(LONG_DIR, L"test1.txt"), "This file should have been moved\n");
+        ok(!path_existsW(LONG_DIR, L"test2.txt"), "This file should have been moved\n");
+        ok(path_existsW(LONG_DIR, L"test6.txt"), "This file should exist\n");
+        ok(path_existsW(LONG_DIR, L"test7.txt"), "This file should exist\n");
+    }
+    path_deleteW(LONG_DIR, L"test1.txt");
+    path_deleteW(LONG_DIR, L"test2.txt");
+    path_deleteW(LONG_DIR, L"test6.txt");
+    path_deleteW(LONG_DIR, L"test7.txt");
+
+    /* move with wildcard */
+    set_long_dir_path(from, L"test?.txt\0");
+    set_long_dir_path(to, L"test6.dir\0");
+    path_createW(LONG_DIR, L"test1.txt");
+    path_createW(LONG_DIR, L"test2.txt");
+    path_createdirW(LONG_DIR, L"test6.dir");
+    ret = check_file_operationW(FO_MOVE, flags | FOF_MULTIDESTFILES, from, to,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+    if (ret == ERROR_SUCCESS)
+    {
+        ok(!path_existsW(LONG_DIR, L"test1.txt"), "This file should have been moved\n");
+        ok(!path_existsW(LONG_DIR, L"test2.txt"), "This file should have been moved\n");
+        ok(path_existsW(to, L"test1.txt"), "This file should exist\n");
+        ok(path_existsW(to, L"test2.txt"), "This file should exist\n");
+    }
+    path_deleteW(LONG_DIR, L"test1.txt");
+    path_deleteW(LONG_DIR, L"test2.txt");
+    path_deleteW(to, L"test1.txt");
+    path_deleteW(to, L"test2.txt");
+    path_removedirW(LONG_DIR, L"test6.dir");
+
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);
     from[wcslen(from) + 1] = 0;
