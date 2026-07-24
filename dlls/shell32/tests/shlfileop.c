@@ -241,6 +241,20 @@ static void path_deleteW(const WCHAR *dir, const WCHAR *name)
     DeleteFileW(path);
 }
 
+static void path_createdirW(const WCHAR *dir, const WCHAR *name)
+{
+    WCHAR path[PATHCCH_MAX_CCH];
+    path_combine_long(path, ARRAY_SIZE(path), dir, name);
+    CreateDirectoryW(path, NULL);
+}
+
+static void path_removedirW(const WCHAR *dir, const WCHAR *name)
+{
+    WCHAR path[PATHCCH_MAX_CCH];
+    path_combine_long(path, ARRAY_SIZE(path), dir, name);
+    RemoveDirectoryW(path);
+}
+
 static BOOL file_has_content(const CHAR *name, const CHAR *content)
 {
     CHAR buf[MAX_PATH];
@@ -3307,6 +3321,30 @@ static void test_long_paths_helper(DWORD flags)
     }
     path_deleteW(LONG_DIR, L"test1.txt");
     path_deleteW(LONG_DIR, L"test6.txt");
+
+    /* simple copy with dir */
+    if (winetest_platform_is_wine)
+        skip("Skipping tests that crash on wine\n");
+    else
+    {
+        set_long_dir_path(from, L"test1.dir\0");
+        set_long_dir_path(to, L"test6.dir\0");
+        path_createdirW(LONG_DIR, L"test1.dir");
+        path_createW(from, L"test2.txt");
+        ret = check_file_operationW(FO_COPY, flags, from, to,
+                is_long_path_enabled() ? ERROR_SUCCESS : DE_PATHTOODEEP,
+                FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+        if (ret == ERROR_SUCCESS)
+        {
+            ok(path_existsW(from, L"test2.txt"), "This file should not have been removed\n");
+            ok(path_existsW(LONG_DIR, L"test1.dir"), "This dir should not have been removed\n");
+            ok(path_existsW(LONG_DIR, L"test6.dir"), "This dir should have been copied\n");
+        }
+        path_deleteW(from, L"test2.txt");
+        path_deleteW(to, L"test2.txt");
+        path_removedirW(LONG_DIR, L"test1.dir");
+        path_removedirW(LONG_DIR, L"test6.dir");
+    }
 
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);
