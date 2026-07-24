@@ -3471,9 +3471,10 @@ static void test_long_paths(void)
         /* long paths are unsupported when using relative paths */
         if (SetCurrentDirectoryW(LONG_DIR))
         {
-            WCHAR from[MAX_PATH];
+            WCHAR from[PATHCCH_MAX_CCH];
             WCHAR to[MAX_PATH];
 
+            /* copy within current long directory */
             memcpy(from, L"test1.txt\0", sizeof(L"test1.txt\0"));
             memcpy(to, L"test6.txt\0", sizeof(L"test6.txt\0"));
             createTestFileW(from);
@@ -3484,7 +3485,30 @@ static void test_long_paths(void)
             DeleteFileW(from);
             DeleteFileW(to);
 
+            /* copy from absolute long path to current long directory */
+            set_long_dir_path(from, L"testdir2\\test1.txt\0");
+            path_createdirW(LONG_DIR, L"testdir2");
+            path_createW(LONG_DIR, L"testdir2\\test1.txt");
+            check_file_operationW(FO_COPY, FOF_NO_UI, from, L"\0",
+                    ERROR_ALREADY_EXISTS, FALSE, TRUE, FALSE, ERROR_ALREADY_EXISTS);
+            ok(path_existsW(LONG_DIR, L"testdir2\\test1.txt"), "This file should not have been removed\n");
+            ok(!file_existsW(L"test1.txt"), "This file should not have been copied\n");
+            path_deleteW(LONG_DIR, L"testdir2\\test1.txt");
+            path_removedirW(LONG_DIR, L"testdir2");
+
             SetCurrentDirectoryW(CURR_DIRW);
+
+            /* copy from absolute long path to current (short) directory */
+            set_long_dir_path(from, L"testdir2\\test1.txt\0");
+            path_createdirW(LONG_DIR, L"testdir2");
+            path_createW(LONG_DIR, L"testdir2\\test1.txt");
+            check_file_operationW(FO_COPY, FOF_NO_UI, from, L"\0",
+                    ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_SUCCESS);
+            ok(path_existsW(LONG_DIR, L"testdir2\\test1.txt"), "This file should not have been removed\n");
+            ok(file_existsW(L"test1.txt"), "This file should have been copied\n");
+            path_deleteW(LONG_DIR, L"testdir2\\test1.txt");
+            path_removedirW(LONG_DIR, L"testdir2");
+            DeleteFileW(L"test1.txt");
         }
         else
             win_skip("Failed to set current directory on long path for relative path test\n");
