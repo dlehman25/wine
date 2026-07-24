@@ -3286,32 +3286,27 @@ static void test_long_paths_helper(DWORD flags)
     from = malloc(PATHCCH_MAX_CCH * sizeof(*from));
     to = malloc(PATHCCH_MAX_CCH * sizeof(*to));
 
-    if (winetest_platform_is_wine)
-        skip("Skipping tests that crash on wine\n");
-    else
-    {
-        /* Note: other APIs need \\?\ for long path but SHFileOperation doesn't recognize it */
-        set_long_dir_path_skip_pfx(from, L"test1.txt\0", FALSE);
-        set_long_dir_path_skip_pfx(to, L"test6.txt\0", FALSE);
-        createTestFileW(from);
-        check_file_operationW(FO_COPY, flags, from, to,
-                DE_INVALIDFILES, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
-        DeleteFileW(from);
+    /* Note: other APIs need \\?\ for long path but SHFileOperation doesn't recognize it */
+    set_long_dir_path_skip_pfx(from, L"test1.txt\0", FALSE);
+    set_long_dir_path_skip_pfx(to, L"test6.txt\0", FALSE);
+    createTestFileW(from);
+    check_file_operationW(FO_COPY, flags, from, to,
+            DE_INVALIDFILES, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+    DeleteFileW(from);
 
-        /* simple copy - skip \\?\ */
-        set_long_dir_path(from, L"test1.txt\0");
-        set_long_dir_path(to, L"test6.txt\0");
-        path_createW(LONG_DIR, L"test1.txt");
-        ret = check_file_operationW(FO_COPY, flags, from, to,
-                ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
-        if (ret == ERROR_SUCCESS)
-        {
-            ok(path_existsW(LONG_DIR, L"test1.txt"), "This file should not have been removed\n");
-            ok(path_existsW(LONG_DIR, L"test6.txt"), "This file should have been copied\n");
-        }
-        path_deleteW(LONG_DIR, L"test1.txt");
-        path_deleteW(LONG_DIR, L"test6.txt");
+    /* simple copy - skip \\?\ */
+    set_long_dir_path(from, L"test1.txt\0");
+    set_long_dir_path(to, L"test6.txt\0");
+    path_createW(LONG_DIR, L"test1.txt");
+    ret = check_file_operationW(FO_COPY, flags, from, to,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+    if (ret == ERROR_SUCCESS)
+    {
+        ok(path_existsW(LONG_DIR, L"test1.txt"), "This file should not have been removed\n");
+        ok(path_existsW(LONG_DIR, L"test6.txt"), "This file should have been copied\n");
     }
+    path_deleteW(LONG_DIR, L"test1.txt");
+    path_deleteW(LONG_DIR, L"test6.txt");
 
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);

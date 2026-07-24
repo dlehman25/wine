@@ -1070,8 +1070,12 @@ static void parse_wildcard_files(FILE_LIST *file_list, LPCWSTR szFile)
 static DWORD parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wildcard)
 {
     LPCWSTR ptr = szFiles;
-    WCHAR szCurFile[MAX_PATH];
+    WCHAR *szCurFile;
     WCHAR *p;
+    DWORD res;
+
+    if (!(szCurFile = malloc(PATHCCH_MAX_CCH * sizeof(WCHAR))))
+        return ERROR_OUTOFMEMORY;
 
     flList->bAnyFromWildcard = FALSE;
     flList->bAnyDirectories = FALSE;
@@ -1079,17 +1083,24 @@ static DWORD parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wild
     flList->num_alloc = 32;
     flList->dwNumFiles = 0;
     if (!(flList->feFiles = calloc(flList->num_alloc, sizeof(FILE_ENTRY))))
-        return ERROR_OUTOFMEMORY;
+    {
+        res = ERROR_OUTOFMEMORY;
+        goto done;
+    }
 
+    res = DE_INVALIDFILES;
     while (*ptr)
     {
         BOOL from_wildcard = has_wildcard(ptr);
+
+        if (!wcsncmp(ptr, L"\\\\?\\", 4))
+            goto done;
 
         /* change relative to absolute path */
         if (PathIsRelativeW(ptr))
         {
             if (GetCurrentDirectoryW(MAX_PATH, szCurFile) >= MAX_PATH)
-                return DE_INVALIDFILES;
+                goto done;
             PathCombineW(szCurFile, szCurFile, ptr);
         }
         else
@@ -1108,7 +1119,13 @@ static DWORD parse_file_list(FILE_LIST *flList, LPCWSTR szFiles, BOOL parse_wild
         /* advance to the next string */
         ptr += lstrlenW(ptr) + 1;
     }
-    return ERROR_SUCCESS;
+    res = ERROR_SUCCESS;
+
+done:
+    if (res != ERROR_SUCCESS)
+        file_list_destroy(flList->feFiles);
+    free(szCurFile);
+    return res;
 }
 
 static DWORD parse_target_file_list(const SHFILEOPSTRUCTW *op, DWORD source_file_count, FILE_LIST *out)
@@ -1183,58 +1200,96 @@ static DWORD copy_move_dir(FILE_OPERATION *op, const WCHAR *dir, const WCHAR *ta
 
 static DWORD do_copy_move(FILE_OPERATION *op, const FILE_ENTRY *from, const FILE_ENTRY *to, BOOL append_file_name)
 {
-    WCHAR target[MAX_PATH], target_dir[MAX_PATH];
+    WCHAR *target, *target_dir;
+    HRESULT hr;
+    DWORD ret;
 
     TRACE("Copying %s to %s, flags %#x, append_file_name %d.\n",
             debugstr_w(from->szFullPath), debugstr_w(to->szFullPath), op->req->fFlags, append_file_name);
 
     /* Determine target path. */
-    wcscpy(target_dir, to->szDirectory);
-    wcscpy(target, to->szFullPath);
-    if (append_file_name)
-    {
-        PathAppendW(target_dir, to->szFilename);
-        PathAppendW(target, from->szFilename);
-    }
+    if (!append_file_name)
+        hr = PathAllocCanonicalize(to->szFullPath, PATHCCH_ALLOW_LONG_PATHS, &target);
+    else
+        hr = PathAllocCombine(to->szFullPath, from->szFilename, PATHCCH_ALLOW_LONG_PATHS, &target);
+    if (FAILED(hr))
+         return E_OUTOFMEMORY;
 
     /* Fail if target is illegal. */
     if (PathFileExistsW(target))
     {
         BOOL target_is_dir = !!PathIsDirectoryW(target);
         if (target_is_dir != IsAttribDir(from->attributes))
+        {
+            LocalFree(target);
             return target_is_dir ? DE_FILEDESTISFLD : DE_FLDDESTISFILE;
+        }
         if (wcscmp(target, from->szFullPath) == 0)
+        {
+            LocalFree(target);
             return target_is_dir ? DE_DESTSAMETREE : DE_SAMEFILE;
+        }
         if (!(op->req->fFlags & FOF_NOCONFIRMATION)
                 && !SHELL_ConfirmDialogW(op->req->hwnd, target_is_dir ? ASK_OVERWRITE_FOLDER : ASK_OVERWRITE_FILE,
                         PathFindFileNameW(target), op))
+        {
+            LocalFree(target);
             return DE_OPCANCELLED;
+        }
     }
     if (PathIsPrefixW(from->szFullPath, to->szFullPath))
+    {
+        LocalFree(target);
         return DE_DESTSUBTREE;
+    }
+
+    if (!append_file_name)
+        hr = PathAllocCanonicalize(to->szDirectory, PATHCCH_ALLOW_LONG_PATHS, &target_dir);
+    else
+        hr = PathAllocCombine(to->szDirectory, to->szFilename, PATHCCH_ALLOW_LONG_PATHS, &target_dir);
+    if (FAILED(hr))
+    {
+        LocalFree(target);
+        return E_OUTOFMEMORY;
+    }
 
     /* Create target dir. */
     if (!PathFileExistsW(target_dir))
         SHCreateDirectoryExW(NULL, target_dir, NULL);
+    LocalFree(target_dir);
 
     /* Source contains wildcard. */
     if (has_wildcard(from->szFullPath))
+    {
+        LocalFree(target);
         return copy_move_wildcard(op, from, to);
+    }
 
     /* Source is a dir. */
     if (IsAttribDir(from->attributes))
-        return copy_move_dir(op, from->szFullPath, target);
+    {
+        ret = copy_move_dir(op, from->szFullPath, target);
+        LocalFree(target);
+        return ret;
+    }
 
     /* Source is a single file. */
     switch (op->req->wFunc)
     {
         case FO_COPY:
-            return SHNotifyCopyFileW(from->szFullPath, target, FALSE);
+            ret = SHNotifyCopyFileW(from->szFullPath, target, FALSE);
+            break;
         case FO_MOVE:
-            return SHNotifyMoveFileW(from->szFullPath, target);
+            ret =  SHNotifyMoveFileW(from->szFullPath, target);
+            break;
         default:
             assert(0); /* Should never be here. */
+            ret = E_INVALIDARG;
+            break;
     }
+
+    LocalFree(target);
+    return ret;
 }
 
 /* The FO_COPY operation. */
