@@ -1335,7 +1335,8 @@ static DWORD copy_move_files(FILE_OPERATION *op, const FILE_LIST *from, FILE_LIS
             if (!current.szFullPath)
             {
                 WCHAR buffer[MAX_PATH];
-                GetCurrentDirectoryW(MAX_PATH, buffer);
+                if (GetCurrentDirectoryW(MAX_PATH, buffer) >= MAX_PATH)
+                    return ERROR_ALREADY_EXISTS;
                 file_entry_init(&current, buffer, GetFileAttributesW(buffer), FALSE);
             }
             target = &current;
