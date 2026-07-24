@@ -3490,7 +3490,7 @@ static void test_long_paths(void)
             path_createdirW(LONG_DIR, L"testdir2");
             path_createW(LONG_DIR, L"testdir2\\test1.txt");
             check_file_operationW(FO_COPY, FOF_NO_UI, from, L"\0",
-                    ERROR_ALREADY_EXISTS, FALSE, TRUE, FALSE, ERROR_ALREADY_EXISTS);
+                    ERROR_ALREADY_EXISTS, FALSE, FALSE, FALSE, ERROR_ALREADY_EXISTS);
             ok(path_existsW(LONG_DIR, L"testdir2\\test1.txt"), "This file should not have been removed\n");
             ok(!file_existsW(L"test1.txt"), "This file should not have been copied\n");
             path_deleteW(LONG_DIR, L"testdir2\\test1.txt");
