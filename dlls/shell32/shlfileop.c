@@ -1157,12 +1157,19 @@ static DWORD parse_target_file_list(const SHFILEOPSTRUCTW *op, DWORD source_file
 
 static DWORD copy_move_wildcard(FILE_OPERATION *op, const FILE_ENTRY *from, const FILE_ENTRY *to)
 {
-    WCHAR buffer[MAX_PATH + 1] = {};
+    WCHAR *buffer;
     DWORD i, ret = ERROR_SUCCESS;
     FILE_LIST from_files;
+    size_t len;
 
+    len = wcslen(from->szFullPath);
+    if (!(buffer = malloc((len + 1 + 1) * sizeof(WCHAR)))) /* double-null terminate */
+        return E_OUTOFMEMORY;
     wcscpy(buffer, from->szFullPath);
-    if ((ret = parse_file_list(&from_files, buffer, TRUE)))
+    buffer[len + 1] = 0;
+    ret = parse_file_list(&from_files, buffer, TRUE);
+    free(buffer);
+    if (ret)
         return ret;
 
     for (i = 0; i < from_files.dwNumFiles; ++i)
@@ -1177,16 +1184,24 @@ static DWORD copy_move_wildcard(FILE_OPERATION *op, const FILE_ENTRY *from, cons
 
 static DWORD copy_move_dir(FILE_OPERATION *op, const WCHAR *dir, const WCHAR *target)
 {
-    WCHAR buffer[MAX_PATH];
+    WCHAR *buffer;
     FILE_ENTRY from_dir, to_dir;
     DWORD ret;
+    HRESULT hr;
 
     if (op->req->fFlags & FOF_FILESONLY)
         return ERROR_SUCCESS;
 
-    PathCombineW(buffer, dir, L"*.*");
+    hr = PathAllocCombine(dir, L"*.*", PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH, &buffer);
+    if (FAILED(hr))
+        return E_OUTOFMEMORY;
+
+    /* PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH is needed to create a long path
+       but strip the prefix for parsing files to avoid treating it as a wildcard */
+    PathCchStripPrefix(buffer, wcslen(buffer));
     file_entry_init(&from_dir, buffer, INVALID_FILE_ATTRIBUTES, TRUE);
     file_entry_init(&to_dir, target, GetFileAttributesW(target), FALSE);
+    LocalFree(buffer);
 
     ret = do_copy_move(op, &from_dir, &to_dir, TRUE);
 
