@@ -3395,6 +3395,20 @@ static void test_long_paths_helper(DWORD flags)
     path_deleteW(to, L"test2.txt");
     path_removedirW(LONG_DIR, L"test6.dir");
 
+    /* rename */
+    set_long_dir_path(from, L"test1.txt\0");
+    set_long_dir_path(to, L"test6.txt\0");
+    path_createW(LONG_DIR, L"test1.txt");
+    ret = check_file_operationW(FO_RENAME, flags, from, to,
+            ERROR_SUCCESS, FALSE, FALSE, FALSE, ERROR_ACCESS_DENIED /* win10 1507 and earlier */);
+    if (ret == ERROR_SUCCESS)
+    {
+        ok(!path_existsW(LONG_DIR, from), "This file should have been renamed\n");
+        ok(path_existsW(LONG_DIR, to), "This file should exist\n");
+    }
+    path_deleteW(LONG_DIR, L"test1.txt");
+    path_deleteW(LONG_DIR, L"test6.txt");
+
     /* delete */
     wcscpy(from, LONG_DIR_ROOT);
     from[wcslen(from) + 1] = 0;
