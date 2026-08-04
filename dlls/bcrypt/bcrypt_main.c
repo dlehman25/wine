@@ -135,10 +135,9 @@ struct algorithm
 {
     struct object     hdr;
     enum alg_id       id;
-    enum chain_mode   mode;
+    enum chain_mode   chain_mode;
     ULONG             flags;
     enum ecc_curve_id curve_id;
-    enum chain_mode   chain_mode;
 };
 
 struct aes_key
@@ -940,14 +939,14 @@ static NTSTATUS get_alg_property( const struct algorithm *alg, const WCHAR *prop
     switch (alg->id)
     {
     case ALG_ID_3DES:
-        return get_3des_property( alg->mode, prop, buf, size, ret_size );
+        return get_3des_property( alg->chain_mode, prop, buf, size, ret_size );
 
     case ALG_ID_CHACHA20_POLY1305:
         return get_chacha20_poly1305_property( prop, buf, size, ret_size );
 
     case ALG_ID_AES:
     case ALG_ID_AES_GMAC:
-        return get_aes_property( alg->mode, prop, buf, size, ret_size );
+        return get_aes_property( alg->chain_mode, prop, buf, size, ret_size );
 
     case ALG_ID_RC4:
         return get_rc4_property( prop, buf, size, ret_size );
@@ -986,7 +985,7 @@ static NTSTATUS set_alg_property( struct algorithm *alg, const WCHAR *prop, UCHA
             TRACE( "mode %s\n", debugstr_w((WCHAR *)value) );
             if (!wcscmp( (WCHAR *)value, BCRYPT_CHAIN_MODE_CBC ))
             {
-                alg->mode = CHAIN_MODE_CBC;
+                alg->chain_mode = CHAIN_MODE_CBC;
                 return STATUS_SUCCESS;
             }
             else
@@ -1015,22 +1014,22 @@ static NTSTATUS set_alg_property( struct algorithm *alg, const WCHAR *prop, UCHA
             TRACE( "mode %s\n", debugstr_w((WCHAR *)value) );
             if (!wcscmp( (WCHAR *)value, BCRYPT_CHAIN_MODE_ECB ))
             {
-                alg->mode = CHAIN_MODE_ECB;
+                alg->chain_mode = CHAIN_MODE_ECB;
                 return STATUS_SUCCESS;
             }
             else if (!wcscmp( (WCHAR *)value, BCRYPT_CHAIN_MODE_CBC ))
             {
-                alg->mode = CHAIN_MODE_CBC;
+                alg->chain_mode = CHAIN_MODE_CBC;
                 return STATUS_SUCCESS;
             }
             else if (!wcscmp( (WCHAR *)value, BCRYPT_CHAIN_MODE_GCM ))
             {
-                alg->mode = CHAIN_MODE_GCM;
+                alg->chain_mode = CHAIN_MODE_GCM;
                 return STATUS_SUCCESS;
             }
             else if (!wcscmp( (WCHAR *)value, BCRYPT_CHAIN_MODE_CFB ))
             {
-                alg->mode = CHAIN_MODE_CFB;
+                alg->chain_mode = CHAIN_MODE_CFB;
                 return STATUS_SUCCESS;
             }
             else
@@ -1696,7 +1695,7 @@ static NTSTATUS generate_symmetric_key( const struct algorithm *alg, const UCHAR
     case ALG_ID_AES:
     case ALG_ID_AES_GMAC:
         if ((status = validate_len_aes( &key_lengths, secret_len, &secret_len )) ||
-            (status = alloc_aes_key( key, alg->mode, BLOCK_LENGTH_AES, secret, secret_len )))
+            (status = alloc_aes_key( key, alg->chain_mode, BLOCK_LENGTH_AES, secret, secret_len )))
         {
             destroy_key( key );
             return status;
