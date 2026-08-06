@@ -128,7 +128,6 @@ struct opengl_context
     HGLRC                       client_context;     /* client side context pointer */
     void                       *driver_private;     /* driver context / private data */
     int                         format;             /* pixel format of the context */
-    GLubyte                    *extensions;         /* extension string */
     struct opengl_drawable     *draw;               /* currently bound draw surface */
     struct opengl_drawable     *read;               /* currently bound read surface */
     GLboolean                   has_viewport;       /* whether viewport has been initialized */

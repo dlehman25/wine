@@ -386,36 +386,6 @@ static size_t parse_extensions( const char *name, enum opengl_extension extensio
     return count;
 }
 
-/* build the extension string by filtering out the disabled extensions */
-static GLubyte *filter_extensions( struct opengl_client_context *client, const char *str, const struct opengl_funcs *funcs )
-{
-    enum opengl_extension extensions[GL_EXTENSION_COUNT];
-    size_t count, i, size = 1;
-    char *ret, *p;
-
-    if (!(count = parse_extensions( str, extensions ))) return NULL;
-    extensions[count++] = WGL_EXT_extensions_string;
-    extensions[count++] = WGL_EXT_swap_control;
-
-    for (i = 0; i < count; i++)
-    {
-        if (!client->extensions[extensions[i]]) continue;
-        size += all_extensions[extensions[i]].len + 1;
-    }
-
-    if (!(p = ret = malloc( size ))) return NULL;
-
-    for (i = 0; i < count; i++)
-    {
-        if (!client->extensions[extensions[i]]) continue;
-        memcpy( p, all_extensions[extensions[i]].name, all_extensions[extensions[i]].len );
-        p += all_extensions[extensions[i]].len;
-        *p++ = ' ';
-    }
-
-    return (GLubyte *)ret;
-}
-
 static void set_gl_error( TEB *teb, GLenum error )
 {
     const struct opengl_funcs *funcs = teb->glTable;
@@ -528,25 +498,6 @@ void wrap_glGetUnsignedBytevEXT( TEB *teb, GLenum pname, GLubyte *data, PFN_glGe
     }
 
     return p_glGetUnsignedBytevEXT( pname, data );
-}
-
-const GLubyte *wrap_glGetString( TEB *teb, GLenum name, PFN_glGetString p_glGetString )
-{
-    const struct opengl_funcs *funcs = teb->glTable;
-    struct opengl_client_context *client;
-    struct opengl_context *ctx;
-    const GLubyte *ret;
-
-    if ((ret = p_glGetString( name )))
-    {
-        if (name == GL_EXTENSIONS && (ctx = get_current_context( teb, NULL, NULL, &client )))
-        {
-            GLubyte **extensions = &ctx->extensions;
-            if (*extensions || (*extensions = filter_extensions( client, (const char *)ret, funcs ))) return *extensions;
-        }
-    }
-
-    return ret;
 }
 
 static BOOL initialize_vk_device( TEB *teb, struct opengl_client_context *client )

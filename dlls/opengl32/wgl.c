@@ -57,9 +57,56 @@ static CRITICAL_SECTION_DEBUG wgl_cs_debug = {
 static CRITICAL_SECTION wgl_cs = { &wgl_cs_debug, -1, 0, 0, 0, 0 };
 static char *wgl_extensions;
 
-#define USE_GL_EXT(x) #x,
-static const char *extension_names[] = { ALL_GL_EXTS ALL_WGL_EXTS };
+struct extension_entry
+{
+    const char *name;
+    size_t len;
+};
+
+#define USE_GL_EXT(x) [x] = { .name = #x, .len = sizeof(#x) - 1 },
+static const struct extension_entry all_extensions[] = { ALL_GL_EXTS ALL_WGL_EXTS };
 #undef USE_GL_EXT
+
+static int extension_entry_cmp( const void *a, const void *b )
+{
+    const struct extension_entry *entry_a = a, *entry_b = b;
+    size_t len = max( entry_a->len, entry_b->len );
+    return strncmp( entry_a->name, entry_b->name, len );
+}
+
+static enum opengl_extension parse_extension( const char *ext, size_t len )
+{
+    const struct extension_entry entry = { .name = ext, .len = len }, *found;
+
+    if ((found = bsearch( &entry, all_extensions, ARRAY_SIZE(all_extensions), sizeof(entry), extension_entry_cmp )))
+        return found - all_extensions;
+
+    /* Map host extensions */
+    if (len == ARRAYSIZE("GL_EXT_memory_object_fd") - 1 && !memcmp( ext, "GL_EXT_memory_object_fd", len ))
+        return GL_EXT_memory_object_win32;
+    if (len == ARRAYSIZE("GL_EXT_semaphore_fd") - 1 && !memcmp( ext, "GL_EXT_semaphore_fd", len ))
+        return GL_EXT_semaphore_win32;
+
+    WARN( "Extension %s unknown\n", debugstr_an(ext, len) );
+    return GL_EXTENSION_COUNT;
+}
+
+static size_t parse_extensions( const char *name, enum opengl_extension extensions[GL_EXTENSION_COUNT] )
+{
+    size_t count = 0;
+
+    while (*name)
+    {
+        const char *end = name + 1;
+        while (*end && *end != ' ') end++;
+        extensions[count] = parse_extension( name, end - name );
+        if (extensions[count] != GL_EXTENSION_COUNT) count++;
+        while (*end == ' ') end++;
+        name = end;
+    }
+
+    return count;
+}
 
 #ifndef _WIN64
 
@@ -129,12 +176,12 @@ static void init_wgl_extensions( const BOOLEAN extensions[GL_EXTENSION_COUNT] )
     char *str;
 
     for (ext = WGL_FIRST_EXTENSION; ext < GL_EXTENSION_COUNT; ext++)
-        if (extensions[ext]) len += strlen( extension_names[ext] ) + 1;
+        if (extensions[ext]) len += all_extensions[ext].len + 1;
 
     if (!(str = malloc( len + 1 ))) return;
 
     for (ext = WGL_FIRST_EXTENSION; ext < GL_EXTENSION_COUNT; ext++)
-        if (extensions[ext]) pos += sprintf( str + pos, "%s ", extension_names[ext] );
+        if (extensions[ext]) pos += sprintf( str + pos, "%s ", all_extensions[ext].name );
     str[pos - 1] = 0;
 
     wgl_extensions = str;
@@ -584,6 +631,7 @@ struct context
 {
     struct opengl_client_context base;
     struct display_lists *lists;
+    GLubyte *extensions; /* compat extension string */
 
     /* semi-stub state tracker for wglCopyContext */
     GLbitfield used;                            /* context state used bits */
@@ -639,6 +687,7 @@ static void free_client_context( struct handle_entry *ptr )
     struct context *context = context_from_opengl_client_context( ptr->context );
 
     display_lists_release( context->lists, !context->base.broken_sharing );
+    free( context->extensions );
 
     free_handle( &contexts, ptr );
     free( context );
@@ -2954,7 +3003,10 @@ const GLubyte * WINAPI glGetStringi( GLenum name, GLuint index )
     {
     case GL_EXTENSIONS:
         if (index < ctx->base.extension_count)
-            return (const GLubyte *)extension_names[ctx->base.extension_array[index]];
+        {
+            const enum opengl_extension ext = ctx->base.extension_array[index];
+            return (const GLubyte *)all_extensions[ext].name;
+        }
         set_gl_error( GL_INVALID_VALUE );
         return NULL;
     }
@@ -2968,6 +3020,37 @@ const GLubyte * WINAPI glGetStringi( GLenum name, GLuint index )
     else if (args.ret) append_wow64_string( (char *)args.ret );
 #endif
     return args.ret;
+}
+
+/* build the extension string by filtering out the disabled extensions */
+static GLubyte *filter_extensions( struct opengl_client_context *client, const GLubyte *str )
+{
+    enum opengl_extension extensions[GL_EXTENSION_COUNT];
+    size_t count, i, size = 1;
+    char *ret, *ptr;
+
+    if (!(count = parse_extensions( (const char *)str, extensions ))) return NULL;
+    if (client->extensions[WGL_EXT_extensions_string]) extensions[count++] = WGL_EXT_extensions_string;
+    if (client->extensions[WGL_EXT_swap_control]) extensions[count++] = WGL_EXT_swap_control;
+
+    for (i = 0; i < count; i++)
+    {
+        if (!client->extensions[extensions[i]]) continue;
+        size += all_extensions[extensions[i]].len + 1;
+    }
+
+    if (!(ret = malloc( size ))) return NULL;
+
+    for (ptr = ret, i = 0; i < count; i++)
+    {
+        if (!client->extensions[extensions[i]]) continue;
+        memcpy( ptr, all_extensions[extensions[i]].name, all_extensions[extensions[i]].len );
+        ptr += all_extensions[extensions[i]].len;
+        *ptr++ = ' ';
+    }
+    *ptr = 0;
+
+    return (GLubyte *)ret;
 }
 
 /***********************************************************************
@@ -2991,16 +3074,19 @@ const GLubyte * WINAPI glGetString( GLenum name )
     case GL_VENDOR: return (const GLubyte *)ctx->base.vendor_name;
     case GL_RENDERER: return (const GLubyte *)ctx->base.device_name;
     case GL_VERSION: return (const GLubyte *)ctx->base.version_str;
+    case GL_EXTENSIONS: if (ctx->extensions) return ctx->extensions; break;
     }
 
 #ifndef _WIN64
     if (UNIX_CALL( glGetString, &args ) == STATUS_BUFFER_TOO_SMALL) args.ret = wow64_str = malloc( (size_t)args.ret );
 #endif
     if ((status = UNIX_CALL( glGetString, &args ))) WARN( "glGetString returned %#lx\n", status );
+    if (name == GL_EXTENSIONS && args.ret) args.ret = ctx->extensions = filter_extensions( &ctx->base, args.ret );
 #ifndef _WIN64
     if (args.ret != wow64_str) free( wow64_str );
     else if (args.ret) append_wow64_string( (char *)args.ret );
 #endif
+
     return args.ret;
 }
 

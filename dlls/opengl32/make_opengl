@@ -195,8 +195,6 @@ sub manual_unix_thunks($)
     return "glGetFloatv"                    if $name =~ /^glGetFloatv/;
     return "glGetInteger64v"                if $name =~ /^glGetInteger64v/;
     return "glGetIntegerv"                  if $name =~ /^glGetIntegerv/;
-    return 0                                if $name =~ /^glGetStringi/;
-    return "glGetString"                    if $name =~ /^glGetString/;
     return "glGetUnsignedBytevEXT"          if $name =~ /^glGetUnsignedBytev/;
 
     return "glCreateSyncFromCLeventARB"     if $name =~ /^glCreateSyncFromCLeventARB/;

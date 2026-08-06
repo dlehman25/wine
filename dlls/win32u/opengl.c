@@ -2695,7 +2695,6 @@ static BOOL win32u_context_destroy( struct opengl_context *context )
     }
     context->driver_private = NULL;
 
-    free( context->extensions );
     free( context );
     return TRUE;
 }
