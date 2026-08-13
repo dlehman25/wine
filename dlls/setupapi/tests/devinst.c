@@ -5475,7 +5475,7 @@ static void test_class_device_order(void)
      */
     set2 = SetupDiGetClassDevsA(&guid3, NULL, NULL, 0);
     ok(set2 != INVALID_HANDLE_VALUE, "Failed to create device list, error %#lx.\n", GetLastError());
-    todo_wine check_device_info(set2, 0, NULL, NULL);
+    check_device_info(set2, 0, NULL, NULL);
     check_device_iface(set2, NULL, &iface_guid, 0, 0, NULL);
     ret = SetupDiDestroyDeviceInfoList(set2);
     ok(ret, "Failed to destroy device list, error %#lx.\n", GetLastError());
