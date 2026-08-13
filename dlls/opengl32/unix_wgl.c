@@ -312,9 +312,9 @@ static BOOL initialize_vk_device( TEB *teb, const struct opengl_context *ctx )
     static PFN_vkGetPhysicalDeviceProperties2KHR p_vkGetPhysicalDeviceProperties2KHR;
 
     if (buffers.vk_device) return TRUE; /* already initialized */
-    if (!ctx->extensions[GL_EXT_memory_object_win32] )
+    if (!ctx->extensions[GL_EXT_memory_object_fd] )
     {
-        TRACE( "GL_EXT_memory_object_win32 is not supported\n" );
+        TRACE( "GL_EXT_memory_object_fd is not supported\n" );
         return FALSE;
     }
 
@@ -1428,23 +1428,19 @@ static struct buffer *create_buffer_storage( TEB *teb, GLenum target, GLuint nam
 
     if (!(flags & (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT))) return NULL;
     if (!(ctx = get_current_context( teb, NULL, NULL, &client ))) return FALSE;
-    if ((!(vk_device = buffers.vk_device) || !vk_device->vk_device) && !client->extensions[GL_AMD_pinned_memory]) return NULL;
+    if ((!(vk_device = buffers.vk_device) || !vk_device->vk_device) && !ctx->extensions[GL_AMD_pinned_memory]) return NULL;
 
     if (!(buffer = calloc( 1, sizeof(*buffer) ))) return NULL;
     buffer->name = buffer_name;
     buffer->size = size;
     buffer->vk_device = vk_device;
 
-    if (!vk_device && client->extensions[GL_AMD_pinned_memory])
+    if (!vk_device && ctx->extensions[GL_AMD_pinned_memory])
     {
         if (!buffer_vm_alloc( teb, buffer, size )) return NULL;
         if (data) memcpy( buffer->vm_ptr, data, size );
         buffer->pinned = TRUE;
 
-        /* FIXME: we may interfere with GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD if the
-         * application uses it as well. Unlike other targets, there’s no way to query
-         * the currently bound target, so we’d need to track it ourselves if we want
-         * to support it. */
         funcs->p_glBindBuffer( GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD, buffer_name );
         funcs->p_glBufferData( GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD, size, buffer->vm_ptr, GL_DYNAMIC_COPY );
         TRACE( "created buffer %p with pinned memory %p\n", buffer, buffer->vm_ptr );

@@ -79,13 +79,12 @@ static enum opengl_extension parse_extension( const char *ext, size_t len )
     const struct extension_entry entry = { .name = ext, .len = len }, *found;
 
     if ((found = bsearch( &entry, all_extensions, ARRAY_SIZE(all_extensions), sizeof(entry), extension_entry_cmp )))
-        return found - all_extensions;
-
-    /* Map host extensions */
-    if (len == ARRAYSIZE("GL_EXT_memory_object_fd") - 1 && !memcmp( ext, "GL_EXT_memory_object_fd", len ))
-        return GL_EXT_memory_object_win32;
-    if (len == ARRAYSIZE("GL_EXT_semaphore_fd") - 1 && !memcmp( ext, "GL_EXT_semaphore_fd", len ))
-        return GL_EXT_semaphore_win32;
+    {
+        enum opengl_extension ext = found - all_extensions;
+        if (ext == GL_EXT_memory_object_fd) return GL_EXT_memory_object_win32;
+        if (ext == GL_EXT_semaphore_fd) return GL_EXT_semaphore_win32;
+        return ext;
+    }
 
     WARN( "Extension %s unknown\n", debugstr_an(ext, len) );
     return GL_EXTENSION_COUNT;

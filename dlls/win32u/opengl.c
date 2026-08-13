@@ -208,12 +208,6 @@ static enum opengl_extension parse_extension( const char *ext, size_t len )
     if ((found = bsearch( &entry, all_extensions, ARRAY_SIZE(all_extensions), sizeof(entry), extension_entry_cmp )))
         return found - all_extensions;
 
-    /* Map host extensions */
-    if (len == ARRAYSIZE("GL_EXT_memory_object_fd") - 1 && !memcmp( ext, "GL_EXT_memory_object_fd", len ))
-        return GL_EXT_memory_object_win32;
-    if (len == ARRAYSIZE("GL_EXT_semaphore_fd") - 1 && !memcmp( ext, "GL_EXT_semaphore_fd", len ))
-        return GL_EXT_semaphore_win32;
-
     WARN( "Extension %s unknown\n", debugstr_an(ext, len) );
     return GL_EXTENSION_COUNT;
 }
@@ -289,23 +283,31 @@ static void parse_current_extensions( BOOLEAN extensions[GL_EXTENSION_COUNT] )
 
 static void opengl_context_init( struct opengl_context *context )
 {
+#define USE_GL_EXT(x) [x] = TRUE,
+    static const BOOLEAN exposed_extensions[GL_EXTENSION_COUNT] = { ALL_GL_CLIENT_EXTS ALL_WGL_EXTS };
+#undef USE_GL_EXT
     struct opengl_client_context *client;
 
     parse_current_extensions( context->extensions );
 
     if ((client = opengl_client_context_from_client( context->client_context )))
     {
+        client->extensions[GL_EXT_memory_object_win32] = context->extensions[GL_EXT_memory_object_fd];
+        client->extensions[GL_EXT_semaphore_win32] = context->extensions[GL_EXT_semaphore_fd];
+
         for (int i = 0; i < WGL_FIRST_EXTENSION; i++)
         {
             if (!context->extensions[i]) continue;
             if (!enabled_extensions[i]) TRACE( "-- %s (disabled)\n", all_extensions[i].name );
-            else client->extensions[i] = TRUE;
+            else if (!exposed_extensions[i]) TRACE( "-- %s (hidden)\n", all_extensions[i].name );
+            client->extensions[i] = enabled_extensions[i] && exposed_extensions[i];
         }
         for (int i = WGL_FIRST_EXTENSION; i < GL_EXTENSION_COUNT; i++)
         {
             if (!global_context->extensions[i]) continue;
             if (!enabled_extensions[i]) TRACE( "-- %s (disabled)\n", all_extensions[i].name );
-            else client->extensions[i] = TRUE;
+            else if (!exposed_extensions[i]) TRACE( "-- %s (hidden)\n", all_extensions[i].name );
+            client->extensions[i] = enabled_extensions[i] && exposed_extensions[i];
         }
     }
 

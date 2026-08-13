@@ -1103,6 +1103,7 @@ my %unexposed_extgroups =
    );
 my %unexposed_extensions =
    (
+    "GL_AMD_pinned_memory" => 1,
     "GL_APPLE_pixel_buffer" => 1,
     "GL_EXT_memory_object_fd" => 1,
     "GL_EXT_semaphore_fd" => 1,
@@ -1701,6 +1702,13 @@ foreach (sort keys %ext_functions)
 }
 print HEADER "\n\n";
 print HEADER "#define ALL_GL_EXTS";
+foreach (sort keys %gl_extensions)
+{
+    next unless is_supported_extension($_);
+    printf HEADER " \\\n    USE_GL_EXT(\%s)", $_;
+}
+print HEADER "\n\n";
+print HEADER "#define ALL_GL_CLIENT_EXTS";
 foreach (sort keys %gl_extensions)
 {
     next unless is_exposed_extension($_);
