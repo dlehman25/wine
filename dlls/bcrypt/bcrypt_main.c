@@ -122,6 +122,7 @@ enum chain_mode
 
 enum ecc_curve_id
 {
+    ECC_CURVE_INVALID = -1,
     ECC_CURVE_NONE,
     ECC_CURVE_25519,
     ECC_CURVE_BRAINPOOLP256R1,
@@ -2894,59 +2895,59 @@ static enum ecc_curve_id get_ecc_blob_curve( enum alg_id alg, const BCRYPT_ECCKE
     {
     case ALG_ID_ECDH:
         if (blob->dwMagic == BCRYPT_ECDH_PRIVATE_GENERIC_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_GENERIC_MAGIC) return FALSE;
+        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_GENERIC_MAGIC) return ECC_CURVE_NONE;
         break;
 
     case ALG_ID_ECDH_P256:
         if (blob->dwMagic == BCRYPT_ECDH_PRIVATE_P256_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_P256_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_P256_MAGIC) return ECC_CURVE_INVALID;
         curve_id = ECC_CURVE_P256R1;
         *size = 32;
         break;
 
     case ALG_ID_ECDH_P384:
         if (blob->dwMagic == BCRYPT_ECDH_PRIVATE_P384_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_P384_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_P384_MAGIC) return ECC_CURVE_INVALID;
         curve_id = ECC_CURVE_P384R1;
         *size = 48;
         break;
 
     case ALG_ID_ECDH_P521:
         if (blob->dwMagic == BCRYPT_ECDH_PRIVATE_P521_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_P521_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDH_PUBLIC_P521_MAGIC) return ECC_CURVE_INVALID;
         curve_id = ECC_CURVE_P521R1;
         *size = 66;
         break;
 
     case ALG_ID_ECDSA:
         if (blob->dwMagic == BCRYPT_ECDSA_PRIVATE_GENERIC_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC) return ECC_CURVE_NONE;
         break;
 
     case ALG_ID_ECDSA_P256:
         if (blob->dwMagic == BCRYPT_ECDSA_PRIVATE_P256_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_P256_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_P256_MAGIC) return ECC_CURVE_INVALID;
         curve_id = ECC_CURVE_P256R1;
         *size = 32;
         break;
 
     case ALG_ID_ECDSA_P384:
         if (blob->dwMagic == BCRYPT_ECDSA_PRIVATE_P384_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_P384_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_P384_MAGIC) return ECC_CURVE_INVALID;
         curve_id = ECC_CURVE_P384R1;
         *size = 48;
         break;
 
     case ALG_ID_ECDSA_P521:
         if (blob->dwMagic == BCRYPT_ECDSA_PRIVATE_P521_MAGIC) *flags = KEY_FLAG_PRIVATE;
-        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_P521_MAGIC) return STATUS_INVALID_PARAMETER;
+        else if (blob->dwMagic != BCRYPT_ECDSA_PUBLIC_P521_MAGIC) return ECC_CURVE_INVALID;
         curve_id = ECC_CURVE_P521R1;
         *size = 66;
         break;
 
     default:
         ERR( "unhandled algorithm %u\n", alg );
-        return 0;
+        return ECC_CURVE_INVALID;
     }
     return curve_id;
 }
@@ -3161,7 +3162,7 @@ static NTSTATUS import_ecc_key( enum alg_id alg, enum ecc_curve_id curve, const 
 
     if (input_len < sizeof(*blob)) return STATUS_INVALID_PARAMETER;
     if (!(blob_curve = get_ecc_blob_curve( alg, blob, &key_size, &key_flags ))) blob_curve = curve;
-    if (blob_curve != curve) return STATUS_INVALID_PARAMETER;
+    if (blob_curve == ECC_CURVE_INVALID) return STATUS_INVALID_PARAMETER;
 
     size = sizeof(*blob) + blob->cbKey * 2;
     if (key_flags & KEY_FLAG_PRIVATE)
