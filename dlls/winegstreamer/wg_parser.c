@@ -1889,7 +1889,7 @@ static NTSTATUS wg_parser_create(void *args)
     pthread_cond_init(&parser->init_cond, NULL);
     pthread_cond_init(&parser->read_cond, NULL);
     pthread_cond_init(&parser->read_done_cond, NULL);
-    parser->output_compressed = params->output_compressed;
+    parser->output_compressed = params->flags & WG_PARSER_CREATE_FLAG_OUTPUT_COMPRESSED;
     parser->err_on = params->err_on;
     parser->warn_on = params->warn_on;
     GST_DEBUG("Created winegstreamer parser %p.", parser);
