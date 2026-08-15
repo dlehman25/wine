@@ -114,7 +114,7 @@ struct wg_parser_stream
     GstBuffer *buffer;
     GstMapInfo map_info;
 
-    bool flushing, eos, enabled, has_tags, has_buffer, no_more_pads, get_buffer_called;
+    bool flushing, eos, enabled, has_tags, has_buffer, has_initial_gap, no_more_pads, get_buffer_called;
 
     uint64_t duration;
     gchar *tags[WG_PARSER_TAG_COUNT];
@@ -698,6 +698,15 @@ static gboolean sink_event_cb(GstPad *pad, GstObject *parent, GstEvent *event)
             pthread_cond_signal(&parser->init_cond);
             break;
         }
+
+        case GST_EVENT_GAP:
+            if (stream->has_buffer || stream->has_initial_gap)
+                break;
+            pthread_mutex_lock(&parser->mutex);
+            stream->has_initial_gap = true;
+            pthread_mutex_unlock(&parser->mutex);
+            pthread_cond_signal(&parser->init_cond);
+            break;
 
         case GST_EVENT_TAG:
             pthread_mutex_lock(&parser->mutex);
@@ -1681,8 +1690,8 @@ static NTSTATUS wg_parser_connect(void *args)
         struct wg_parser_stream *stream = parser->streams[i];
         gint64 duration;
 
-        /* If we received a buffer, waiting for tags or caps does not make sense anymore. */
-        while ((!stream->current_caps || !stream->has_tags) && !parser->error && !stream->has_buffer)
+        /* Make sure the stream has a buffer or an initial gap. */
+        while (!parser->error && !stream->has_buffer && !stream->has_initial_gap)
             pthread_cond_wait(&parser->init_cond, &parser->mutex);
 
         /* GStreamer doesn't actually provide any guarantees about when duration
