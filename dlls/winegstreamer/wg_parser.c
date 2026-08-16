@@ -68,6 +68,7 @@ struct wg_parser
     GstPad *my_src;
 
     guint64 file_size, start_offset, next_offset, stop_offset;
+    GstClockTime base_pts;
     guint64 next_pull_offset;
     gchar *uri;
 
@@ -76,7 +77,7 @@ struct wg_parser
     pthread_mutex_t mutex;
 
     pthread_cond_t init_cond;
-    bool output_compressed;
+    bool output_compressed, pts_rebased;
     bool no_more_pads, has_duration, error;
     bool err_on, warn_on;
 
@@ -366,8 +367,17 @@ static NTSTATUS wg_parser_stream_get_buffer(void *args)
      * that this will need modification to wg_parser_stream_notify_qos() as
      * well. */
 
+    /* Because mpegpsdemux reports a non-zero PTS for the earliest buffer among
+     * all streams, we rebase the PTS by subtracting base_pts so that our
+     * stream starts at zero for the MPEG-I Splitter in quartz. */
+
     if ((wg_buffer->has_pts = GST_BUFFER_PTS_IS_VALID(buffer)))
-        wg_buffer->pts = GST_BUFFER_PTS(buffer) / 100;
+    {
+        if (parser->pts_rebased && GST_CLOCK_TIME_IS_VALID(parser->base_pts))
+            wg_buffer->pts = (GST_BUFFER_PTS(buffer) - parser->base_pts) / 100;
+        else
+            wg_buffer->pts = GST_BUFFER_PTS(buffer) / 100;
+    }
     if ((wg_buffer->has_duration = GST_BUFFER_DURATION_IS_VALID(buffer)))
         wg_buffer->duration = GST_BUFFER_DURATION(buffer) / 100;
     wg_buffer->discontinuity = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DISCONT);
@@ -734,6 +744,17 @@ static GstFlowReturn sink_chain_cb(GstPad *pad, GstObject *parent, GstBuffer *bu
     if (!stream->has_buffer)
     {
         stream->has_buffer = true;
+
+        /* Keep the earliest PTS for adjusting. */
+        if (!stream->has_initial_gap &&
+            GST_BUFFER_PTS_IS_VALID(buffer) &&
+            (GST_BUFFER_PTS(buffer) < parser->base_pts))
+        {
+            parser->base_pts = GST_BUFFER_PTS(buffer);
+            GST_LOG("Updated base PTS to %" GST_TIME_FORMAT ".",
+                    GST_TIME_ARGS(parser->base_pts));
+        }
+
         pthread_cond_signal(&parser->init_cond);
     }
 
@@ -1890,8 +1911,10 @@ static NTSTATUS wg_parser_create(void *args)
     pthread_cond_init(&parser->read_cond, NULL);
     pthread_cond_init(&parser->read_done_cond, NULL);
     parser->output_compressed = params->flags & WG_PARSER_CREATE_FLAG_OUTPUT_COMPRESSED;
+    parser->pts_rebased = params->flags & WG_PARSER_CREATE_FLAG_PTS_REBASED;
     parser->err_on = params->err_on;
     parser->warn_on = params->warn_on;
+    parser->base_pts = GST_CLOCK_TIME_NONE;
     GST_DEBUG("Created winegstreamer parser %p.", parser);
     params->parser = (wg_parser_t)(ULONG_PTR)parser;
     return S_OK;

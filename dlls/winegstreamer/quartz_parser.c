@@ -2752,7 +2752,8 @@ HRESULT mpeg_splitter_create(IUnknown *outer, IUnknown **out)
     struct parser *object;
     HRESULT hr;
 
-    if (FAILED(hr = parser_create(WG_PARSER_CREATE_FLAG_OUTPUT_COMPRESSED, &object)))
+    if (FAILED(hr = parser_create(WG_PARSER_CREATE_FLAG_OUTPUT_COMPRESSED |
+                                  WG_PARSER_CREATE_FLAG_PTS_REBASED, &object)))
         return hr;
 
     strmbase_filter_init(&object->filter, outer, &CLSID_MPEG1Splitter, &mpeg_splitter_ops);
