@@ -661,8 +661,10 @@ static void delete_device_iface(struct device_iface *iface)
  * enumerated in the set */
 static void remove_all_device_ifaces(struct device *device)
 {
+    DEVINSTID_W instance = (DEVINSTID_W)device->instanceId;
+    WCHAR *tmp, iface_instance[MAX_PATH];
     HKEY classes_key;
-    DWORD i, len;
+    GUID class_guid;
     LONG ret;
 
     if ((ret = RegOpenKeyExW(HKEY_LOCAL_MACHINE, DeviceClasses, 0, KEY_READ, &classes_key)))
@@ -671,62 +673,23 @@ static void remove_all_device_ifaces(struct device *device)
         return;
     }
 
-    for (i = 0; ; ++i)
+    swprintf(iface_instance, ARRAY_SIZE(iface_instance), L"##?#%s#", device->instanceId);
+    for (tmp = wcschr(iface_instance, '\\'); tmp; tmp = wcschr(tmp + 1, '\\')) *tmp = '#';
+    for (UINT i = 0; !CM_Enumerate_Classes(i, &class_guid, CM_ENUMERATE_CLASSES_INTERFACE); i++)
     {
-        WCHAR class_name[40];
-        HKEY class_key;
-        DWORD j;
+        UINT flags = CM_GET_DEVICE_INTERFACE_LIST_ALL_DEVICES;
+        WCHAR buf[MAX_PATH], guid_str[MAX_GUID_STRING_LEN];
+        ULONG size;
 
-        len = ARRAY_SIZE(class_name);
-        if ((ret = RegEnumKeyExW(classes_key, i, class_name, &len, NULL, NULL, NULL, NULL)))
-        {
-            if (ret != ERROR_NO_MORE_ITEMS) ERR("Failed to enumerate classes, error %lu.\n", ret);
-            break;
-        }
+        /* No interfaces for this device instance, continue. */
+        if (CM_Get_Device_Interface_List_SizeW(&size, &class_guid, instance, flags) || size <= 1) continue;
 
-        if ((ret = RegOpenKeyExW(classes_key, class_name, 0, KEY_READ, &class_key)))
-        {
-            ERR("Failed to open class %s, error %lu.\n", debugstr_w(class_name), ret);
-            continue;
-        }
-
-        for (j = 0; ; ++j)
-        {
-            WCHAR iface_name[MAX_DEVICE_ID_LEN + 39], device_name[MAX_DEVICE_ID_LEN];
-            HKEY iface_key;
-
-            len = ARRAY_SIZE(iface_name);
-            if ((ret = RegEnumKeyExW(class_key, j, iface_name, &len, NULL, NULL, NULL, NULL)))
-            {
-                if (ret != ERROR_NO_MORE_ITEMS) ERR("Failed to enumerate interfaces, error %lu.\n", ret);
-                break;
-            }
-
-            if ((ret = RegOpenKeyExW(class_key, iface_name, 0, KEY_ALL_ACCESS, &iface_key)))
-            {
-                ERR("Failed to open interface %s, error %lu.\n", debugstr_w(iface_name), ret);
-                continue;
-            }
-
-            len = sizeof(device_name);
-            if ((ret = RegQueryValueExW(iface_key, L"DeviceInstance", NULL, NULL, (BYTE *)device_name, &len)))
-            {
-                ERR("Failed to query device instance, error %lu.\n", ret);
-                RegCloseKey(iface_key);
-                continue;
-            }
-
-            if (!wcsicmp(device_name, device->instanceId))
-            {
-                if ((ret = RegDeleteTreeW(iface_key, NULL)))
-                    ERR("Failed to delete interface %s subkeys, error %lu.\n", debugstr_w(iface_name), ret);
-                if ((ret = RegDeleteKeyW(iface_key, L"")))
-                    ERR("Failed to delete interface %s, error %lu.\n", debugstr_w(iface_name), ret);
-            }
-
-            RegCloseKey(iface_key);
-        }
-        RegCloseKey(class_key);
+        SETUPDI_GuidToString(&class_guid, guid_str);
+        swprintf(buf, ARRAY_SIZE(buf), L"%s\\%s%s", guid_str, iface_instance, guid_str);
+        if ((ret = RegDeleteTreeW(classes_key, buf)))
+            ERR("Failed to delete interface %s subkeys, error %lu.\n", debugstr_w(buf), ret);
+        if ((ret = RegDeleteKeyW(classes_key, buf)))
+            ERR("Failed to delete interface %s, error %lu.\n", debugstr_w(buf), ret);
     }
 
     RegCloseKey(classes_key);
