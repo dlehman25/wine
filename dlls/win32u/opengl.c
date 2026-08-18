@@ -275,6 +275,104 @@ static void make_client_context_current(void)
     driver_funcs->p_make_current( context->draw, context->read, context->driver_private );
 }
 
+static GLuint framebuffer_program;
+
+static const char *framebuffer_vertex_shader =
+"#version 330\n"
+"\n"
+"const vec4 pos[4] = vec4[4](\n"
+"    vec4(-1.0, -1.0, 0.0, 1.0),\n"
+"    vec4(-1.0, 1.0, 0.0, 1.0),\n"
+"    vec4(1.0, -1.0, 0.0, 1.0),\n"
+"    vec4(1.0, 1.0, 0.0, 1.0)\n"
+");\n"
+"const vec2 tex[4] = vec2[4](\n"
+"    vec2(0.0, 0.0),\n"
+"    vec2(0.0, 1.0),\n"
+"    vec2(1.0, 0.0),\n"
+"    vec2(1.0, 1.0)\n"
+");\n"
+"out vec2 uv;\n"
+"\n"
+"void main(void)\n"
+"{\n"
+"    gl_Position = pos[gl_VertexID];\n"
+"    uv = tex[gl_VertexID];\n"
+"}\n"
+;
+
+static const char *framebuffer_fragment_shader =
+"#version 330\n"
+"\n"
+"uniform sampler2D tex;\n"
+"in vec2 uv;\n"
+"layout(location = 0) out vec4 color;\n"
+"\n"
+"void main(void)\n"
+"{\n"
+"    color.xyz = texture(tex, uv).xyz;\n"
+"    color.a = 1.0;\n"
+"}\n"
+;
+
+static void init_framebuffer_program(void)
+{
+    const struct opengl_funcs *funcs = &display_funcs;
+    GLuint vs = 0, fs = 0, program = 0, tex;
+    char error[512];
+    GLint success;
+
+    if (!(vs = funcs->p_glCreateShader( GL_VERTEX_SHADER ))) goto failed;
+    funcs->p_glShaderSource( vs, 1, &framebuffer_vertex_shader, NULL );
+    funcs->p_glCompileShader( vs );
+    funcs->p_glGetShaderiv( vs, GL_COMPILE_STATUS, &success );
+    if (!success) goto failed;
+
+    if (!(fs = funcs->p_glCreateShader( GL_FRAGMENT_SHADER ))) goto failed;
+    funcs->p_glShaderSource( fs, 1, &framebuffer_fragment_shader, NULL );
+    funcs->p_glCompileShader( fs );
+    funcs->p_glGetShaderiv( fs, GL_COMPILE_STATUS, &success );
+    if (!success) goto failed;
+
+    if (!(program = funcs->p_glCreateProgram())) goto failed;
+    funcs->p_glAttachShader( program, vs );
+    funcs->p_glAttachShader( program, fs );
+    funcs->p_glLinkProgram( program );
+    funcs->p_glGetProgramiv( program, GL_LINK_STATUS, &success );
+    if (!success) goto failed;
+
+    funcs->p_glDeleteShader( fs );
+    funcs->p_glDeleteShader( vs );
+    funcs->p_glUseProgram( program );
+
+    tex = funcs->p_glGetUniformLocation( program, "tex" );
+    funcs->p_glUniform1i( tex, 0 );
+
+    framebuffer_program = program;
+    return;
+
+failed:
+    if (vs)
+    {
+        funcs->p_glGetShaderInfoLog( vs, sizeof(error), NULL, error );
+        ERR( "Vertex shader info log: %s\n", error );
+        funcs->p_glDeleteShader( vs );
+    }
+    if (fs)
+    {
+        funcs->p_glGetShaderInfoLog( fs, sizeof(error), NULL, error );
+        ERR( "Fragment shader info log: %s\n", error );
+        funcs->p_glDeleteShader( fs );
+    }
+    if (program)
+    {
+        funcs->p_glGetProgramInfoLog( program, sizeof(error), NULL, error );
+        ERR( "Program info log: %s\n", error );
+        funcs->p_glDeleteProgram( program );
+    }
+    return;
+}
+
 struct framebuffer_surface
 {
     struct opengl_drawable  base;
@@ -525,8 +623,37 @@ static void framebuffer_surface_destroy( struct opengl_drawable *drawable )
 
 static void blit_framebuffer_surface( struct opengl_drawable *drawable )
 {
-    static LONG once;
-    if (!InterlockedCompareExchange(&once, 1, 0)) FIXME( "Not implemented\n" );
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+
+    const struct opengl_funcs *funcs = &display_funcs;
+    SIZE src = drawable->virtual_size, dst = drawable->monitor_size;
+
+    TRACE( "%s src %s dst %s fbo %u\n", debugstr_opengl_drawable( drawable ), wine_dbgstr_point( (POINT *)&src ),
+           wine_dbgstr_point( (POINT *)&dst ), drawable->read_fbo );
+
+    funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, drawable->read_fbo );
+    funcs->p_glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
+    funcs->p_glDrawBuffer( GL_BACK );
+
+    if (drawable->read_fbo == drawable->draw_fbo)
+    {
+        funcs->p_glReadBuffer( GL_COLOR_ATTACHMENT0 );
+        funcs->p_glBlitFramebuffer( 0, 0, src.cx, src.cy, 0, 0, dst.cx, dst.cy, GL_COLOR_BUFFER_BIT, GL_LINEAR );
+    }
+    else
+    {
+        GLint front;
+
+        pthread_once( &once, init_framebuffer_program );
+        funcs->p_glUseProgram( framebuffer_program );
+
+        funcs->p_glActiveTexture( GL_TEXTURE0 );
+        funcs->p_glGetFramebufferAttachmentParameteriv( GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &front );
+        funcs->p_glBindTexture( GL_TEXTURE_2D, front );
+
+        funcs->p_glViewport( 0, 0, dst.cx, dst.cy );
+        funcs->p_glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
+    }
 }
 
 static void framebuffer_surface_flush( struct opengl_drawable *drawable, UINT flags )
@@ -2369,6 +2496,7 @@ static BOOL win32u_wglBindTexImageARB( HPBUFFERARB client_pbuffer, int buffer )
     /* Make sure that the prev_texture is set as the current texture state isn't shared
      * between contexts. After that copy the pbuffer texture data. */
     funcs->p_glBindTexture( pbuffer->texture_target, prev_texture );
+    funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );
     funcs->p_glReadBuffer( source );
     funcs->p_glCopyTexImage2D( pbuffer->texture_target, 0, pbuffer->texture_format, 0, 0,
                                         pbuffer->width, pbuffer->height, 0 );
