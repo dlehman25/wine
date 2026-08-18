@@ -27,14 +27,17 @@
 #include "windef.h"
 #include "winbase.h"
 #include "winreg.h"
+#include "winsvc.h"
 #include "sspi.h"
 #include "ntsecapi.h"
 #include "ntsecpkg.h"
 #include "winternl.h"
 #include "ddk/ntddk.h"
 #include "rpc.h"
+#include "lsass.h"
 
 #include "wine/debug.h"
+#include "wine/exception.h"
 #include "secur32_priv.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(secur32);
@@ -47,10 +50,9 @@ static const WCHAR *default_authentication_package = L"Negotiate";
 
 struct lsa_package
 {
-    ULONG package_id;
     HMODULE mod;
     LSA_STRING *name;
-    ULONG lsa_api_version, lsa_table_count, user_api_version, user_table_count;
+    SecPkgInfoW info;
     SECPKG_FUNCTION_TABLE *lsa_api;
     SECPKG_USER_FUNCTION_TABLE *user_api;
 };
@@ -84,6 +86,118 @@ static const char *debugstr_as(const LSA_STRING *str)
     return debugstr_an(str->Buffer, str->Length);
 }
 
+void* __RPC_USER MIDL_user_allocate( SIZE_T size )
+{
+    return malloc( size );
+}
+
+void __RPC_USER MIDL_user_free( void *p )
+{
+    free( p );
+}
+
+static LONG WINAPI rpc_filter(EXCEPTION_POINTERS *eptr)
+{
+    return I_RpcExceptionFilter(eptr->ExceptionRecord->ExceptionCode);
+}
+
+static BOOL start_samss(void)
+{
+    SERVICE_STATUS_PROCESS status;
+    SC_HANDLE scm, service;
+    BOOL ret = FALSE;
+
+    TRACE("\n");
+
+    if (!(scm = OpenSCManagerW(NULL, NULL, 0)))
+    {
+        ERR("Failed to open service manager\n");
+        return FALSE;
+    }
+
+    if (!(service = OpenServiceW(scm, L"SamSs", SERVICE_START | SERVICE_QUERY_STATUS)))
+    {
+        ERR("Failed to open SamSs service\n");
+        CloseServiceHandle( scm );
+        return FALSE;
+    }
+
+    if (StartServiceW(service, 0, NULL) || GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
+    {
+        ULONGLONG start_time = GetTickCount64();
+        do
+        {
+            DWORD dummy;
+
+            if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (BYTE *)&status, sizeof(status), &dummy))
+                break;
+            if (status.dwCurrentState == SERVICE_RUNNING)
+            {
+                ret = TRUE;
+                break;
+            }
+            if (GetTickCount64() - start_time > 30000) break;
+            Sleep( 100 );
+
+        } while (status.dwCurrentState == SERVICE_START_PENDING);
+
+        if (status.dwCurrentState != SERVICE_RUNNING)
+            WARN("SamSs failed to start %lu\n", status.dwCurrentState);
+    }
+    else
+        ERR("Failed to start SamSs service\n");
+
+    CloseServiceHandle(service);
+    CloseServiceHandle(scm);
+    return ret;
+}
+
+#define LSASS_CALL_START \
+    for (;;) { \
+        DWORD err = 0; \
+        __TRY {
+
+#define LSASS_CALL_END \
+        } __EXCEPT(rpc_filter) { \
+            err = GetExceptionCode(); \
+            status = SEC_E_INTERNAL_ERROR; \
+        } \
+        __ENDTRY \
+        if (err == RPC_S_SERVER_UNAVAILABLE) { \
+            if (start_samss()) \
+                continue; \
+        } \
+        break; \
+    }
+
+static RPC_BINDING_HANDLE get_lsass_handle(void)
+{
+    static RPC_BINDING_HANDLE irpcss_handle;
+
+    if (!irpcss_handle)
+    {
+        unsigned short protseq[] = LSASS_PROTSEQ;
+        unsigned short endpoint[] = LSASS_ENDPOINT;
+        RPC_BINDING_HANDLE handle;
+        RPC_STATUS status;
+        RPC_WSTR binding;
+
+        status = RpcStringBindingComposeW(NULL, protseq, NULL, endpoint, NULL, &binding);
+        if (status != RPC_S_OK)
+            return NULL;
+
+        status = RpcBindingFromStringBindingW(binding, &handle);
+        RpcStringFreeW(&binding);
+        if (status != RPC_S_OK)
+            return NULL;
+
+        if (InterlockedCompareExchangePointer(&irpcss_handle, handle, NULL))
+            /* another thread beat us to it */
+            RpcBindingFree(&handle);
+    }
+    return irpcss_handle;
+}
+
 SECPKG_FUNCTION_TABLE *lsa_find_package(const char *name, SECPKG_USER_FUNCTION_TABLE **user_api)
 {
     LSA_STRING package_name;
@@ -106,8 +220,6 @@ NTSTATUS WINAPI LsaCallAuthenticationPackage(HANDLE lsa_handle, ULONG package_id
         PVOID in_buffer, ULONG in_buffer_length,
         PVOID *out_buffer, PULONG out_buffer_length, PNTSTATUS status)
 {
-    ULONG i;
-
     TRACE("%p,%lu,%p,%lu,%p,%p,%p\n", lsa_handle, package_id, in_buffer,
         in_buffer_length, out_buffer, out_buffer_length, status);
 
@@ -115,19 +227,13 @@ NTSTATUS WINAPI LsaCallAuthenticationPackage(HANDLE lsa_handle, ULONG package_id
     if (out_buffer_length) *out_buffer_length = 0;
     if (status) *status = STATUS_SUCCESS;
 
-    for (i = 0; i < loaded_packages_count; i++)
-    {
-        if (loaded_packages[i].package_id == package_id)
-        {
-            if (loaded_packages[i].lsa_api->CallPackageUntrusted)
-                return loaded_packages[i].lsa_api->CallPackageUntrusted(NULL /* FIXME*/,
-                    in_buffer, NULL, in_buffer_length, out_buffer, out_buffer_length, status);
+    if (package_id >= loaded_packages_count || !loaded_packages[package_id].lsa_api)
+        return STATUS_NO_SUCH_PACKAGE;
+    if (!loaded_packages[package_id].lsa_api->CallPackageUntrusted)
+        return SEC_E_UNSUPPORTED_FUNCTION;
 
-            return SEC_E_UNSUPPORTED_FUNCTION;
-        }
-    }
-
-    return STATUS_NO_SUCH_PACKAGE;
+    return loaded_packages[package_id].lsa_api->CallPackageUntrusted(NULL /* FIXME*/,
+            in_buffer, NULL, in_buffer_length, out_buffer, out_buffer_length, status);
 }
 
 static struct lsa_handle *alloc_lsa_handle(ULONG magic)
@@ -1013,120 +1119,111 @@ static const LSA_SECPKG_FUNCTION_TABLE lsa_secpkg_table =
     NULL, /* CallPackagePassthrough */
 };
 
-static void add_package(struct lsa_package *package)
+static BOOL initialize_package(ULONG package_id, HMODULE hmod, ULONG table_no,
+                               SecPkgInfoW *info, SpLsaModeInitializeFn pSpLsaModeInitialize,
+                               SpUserModeInitializeFn pSpUserModeInitialize)
 {
-    struct lsa_package *new_loaded_packages;
-
-    if (!loaded_packages)
-        new_loaded_packages = malloc(sizeof(*new_loaded_packages));
-    else
-        new_loaded_packages = realloc(loaded_packages, sizeof(*new_loaded_packages) * (loaded_packages_count + 1));
-
-    if (new_loaded_packages)
-    {
-        loaded_packages = new_loaded_packages;
-        loaded_packages[loaded_packages_count] = *package;
-        loaded_packages_count++;
-    }
-}
-
-static BOOL initialize_package(struct lsa_package *package,
-                               NTSTATUS (NTAPI *pSpLsaModeInitialize)(ULONG, PULONG, PSECPKG_FUNCTION_TABLE *, PULONG),
-                               NTSTATUS (NTAPI *pSpUserModeInitialize)(ULONG, PULONG, PSECPKG_USER_FUNCTION_TABLE *, PULONG))
-{
+    ULONG api_version, table_count;
+    SECPKG_FUNCTION_TABLE *lsa_api;
+    SECPKG_USER_FUNCTION_TABLE *user_api;
+    struct lsa_package *package;
+    LSA_STRING *name;
     NTSTATUS status;
 
     if (!pSpLsaModeInitialize || !pSpUserModeInitialize)
         return FALSE;
 
-    status = pSpLsaModeInitialize(SECPKG_INTERFACE_VERSION, &package->lsa_api_version, &package->lsa_api, &package->lsa_table_count);
-    if (status == STATUS_SUCCESS)
+    status = pSpLsaModeInitialize(SECPKG_INTERFACE_VERSION, &api_version, &lsa_api, &table_count);
+    if (status || table_no >= table_count)
+        return FALSE;
+    lsa_api += table_no;
+
+    status = lsa_api->InitializePackage(package_id, &lsa_dispatch, NULL, NULL, &name);
+    if (status)
+        return FALSE;
+    TRACE("name %s, version %#lx, api table %p, table count %lu\n",
+            debugstr_as(name), api_version, lsa_api, table_count);
+    status = lsa_api->Initialize(package_id, NULL /* FIXME: params */,
+            (LSA_SECPKG_FUNCTION_TABLE *)&lsa_secpkg_table);
+
+    if (!status)
+        status = pSpUserModeInitialize(SECPKG_INTERFACE_VERSION, &api_version, &user_api, &table_count);
+    if (status || table_no >= table_count)
     {
-        status = package->lsa_api->InitializePackage(package->package_id, &lsa_dispatch, NULL, NULL, &package->name);
-        if (status == STATUS_SUCCESS)
-        {
-            TRACE("name %s, version %#lx, api table %p, table count %lu\n",
-                  debugstr_an(package->name->Buffer, package->name->Length),
-                  package->lsa_api_version, package->lsa_api, package->lsa_table_count);
-
-            status = package->lsa_api->Initialize(package->package_id, NULL /* FIXME: params */,
-                    (LSA_SECPKG_FUNCTION_TABLE *)&lsa_secpkg_table);
-            if (status == STATUS_SUCCESS)
-            {
-                status = pSpUserModeInitialize(SECPKG_INTERFACE_VERSION, &package->user_api_version, &package->user_api, &package->user_table_count);
-                if (status == STATUS_SUCCESS)
-                {
-                    package->user_api->InstanceInit(SECPKG_INTERFACE_VERSION, &lsa_dll_dispatch, NULL);
-                    return TRUE;
-                }
-            }
-        }
+        lsa_FreeLsaHeap(name);
+        return FALSE;
     }
+    user_api += table_no;
+    user_api->InstanceInit(SECPKG_INTERFACE_VERSION, &lsa_dll_dispatch, NULL);
 
-    return FALSE;
+    package = loaded_packages + package_id;
+    package->mod = hmod;
+    package->name = name;
+    package->info = *info;
+    package->lsa_api = lsa_api;
+    package->user_api = user_api;
+    return TRUE;
 }
-
-static BOOL load_package(const WCHAR *name, struct lsa_package *package, ULONG package_id)
-{
-    NTSTATUS (NTAPI *pSpLsaModeInitialize)(ULONG, PULONG, PSECPKG_FUNCTION_TABLE *, PULONG);
-    NTSTATUS (NTAPI *pSpUserModeInitialize)(ULONG, PULONG, PSECPKG_USER_FUNCTION_TABLE *, PULONG);
-
-    memset(package, 0, sizeof(*package));
-
-    package->package_id = package_id;
-    package->mod = LoadLibraryW(name);
-    if (!package->mod) return FALSE;
-
-    pSpLsaModeInitialize = (void *)GetProcAddress(package->mod, "SpLsaModeInitialize");
-    pSpUserModeInitialize = (void *)GetProcAddress(package->mod, "SpUserModeInitialize");
-
-    if (initialize_package(package, pSpLsaModeInitialize, pSpUserModeInitialize))
-        return TRUE;
-
-    FreeLibrary(package->mod);
-    return FALSE;
-}
-
-#define MAX_SERVICE_NAME 260
 
 void load_auth_packages(void)
 {
-    DWORD err, i;
-    HKEY root;
     SecureProvider *provider;
-    struct lsa_package package;
+    package_info *packages;
+    ULONG i, count;
+    NTSTATUS status = SEC_E_INTERNAL_ERROR;
 
-    memset(&package, 0, sizeof(package));
-
-    /* "Negotiate" has package id 0, .Net depends on this. */
-    package.package_id = 0;
-    if (initialize_package(&package, nego_SpLsaModeInitialize, nego_SpUserModeInitialize))
-        add_package(&package);
-
-    err = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"System\\CurrentControlSet\\Control\\Lsa", 0, KEY_READ, &root);
-    if (err != ERROR_SUCCESS) return;
-
-    i = 0;
-    for (;;)
+    LSASS_CALL_START
+    packages = NULL;
+    status = get_packages(get_lsass_handle(), &count, &packages);
+    LSASS_CALL_END
+    if (status)
     {
-        WCHAR name[MAX_SERVICE_NAME];
-
-        err = RegEnumKeyW(root, i, name, MAX_SERVICE_NAME);
-        if (err == ERROR_NO_MORE_ITEMS)
-            break;
-
-        if (err != ERROR_SUCCESS)
-            continue;
-
-        if (load_package(name, &package, i + 1))
-            add_package(&package);
-
-        i++;
+        ERR("Failed to get security packages list: %lx\n", status);
+        return;
     }
 
-    RegCloseKey(root);
+    loaded_packages = malloc(sizeof(*loaded_packages) * count);
+    if (!loaded_packages)
+    {
+        for (i = 0; i < count; i++)
+        {
+            MIDL_user_free(packages[i].module_name);
+            MIDL_user_free(packages[i].info.Name);
+            MIDL_user_free(packages[i].info.Comment);
+        }
+        MIDL_user_free(packages);
+        return;
+    }
+    for (i = 0; i < count; i++)
+    {
+        SpLsaModeInitializeFn lsa_init;
+        SpUserModeInitializeFn user_init;
+        HMODULE hmod;
 
-    if (!loaded_packages_count) return;
+        if (!packages[i].module_name)
+        {
+            hmod = NULL;
+            lsa_init = nego_SpLsaModeInitialize;
+            user_init = nego_SpUserModeInitialize;
+        }
+        else
+        {
+            hmod = LoadLibraryW(packages[i].module_name);
+            lsa_init = (void *)GetProcAddress(hmod, "SpLsaModeInitialize");
+            user_init = (void *)GetProcAddress(hmod, "SpUserModeInitialize");
+        }
+
+        MIDL_user_free(packages[i].module_name);
+
+        if (!initialize_package(i, hmod, packages[i].table_no, &packages[i].info, lsa_init, user_init))
+        {
+            MIDL_user_free(packages[i].info.Name);
+            MIDL_user_free(packages[i].info.Comment);
+            FreeLibrary(hmod);
+        }
+    }
+    MIDL_user_free(packages);
+    loaded_packages_count = count;
 
     provider = SECUR32_addProvider(&lsa_sspi_tableA, &lsa_sspi_tableW, NULL);
     if (!provider)
@@ -1137,19 +1234,8 @@ void load_auth_packages(void)
 
     for (i = 0; i < loaded_packages_count; i++)
     {
-        SecPkgInfoW *info;
-
-        info = malloc(loaded_packages[i].lsa_table_count * sizeof(*info));
-        if (info)
-        {
-            NTSTATUS status;
-
-            status = loaded_packages[i].lsa_api->GetInfo(info);
-            if (status == STATUS_SUCCESS)
-                SECUR32_addPackages(provider, loaded_packages[i].lsa_table_count, NULL, info);
-
-            free(info);
-        }
+        if (!loaded_packages[i].name) continue;
+        SECUR32_addPackages(provider, 1, NULL, &loaded_packages[i].info);
     }
 }
 
@@ -1162,9 +1248,10 @@ NTSTATUS WINAPI LsaLookupAuthenticationPackage(HANDLE lsa_handle,
 
     for (i = 0; i < loaded_packages_count; i++)
     {
+        if (!loaded_packages[i].name) continue;
         if (!RtlCompareString(loaded_packages[i].name, package_name, FALSE))
         {
-            *package_id = loaded_packages[i].package_id;
+            *package_id = i;
             return STATUS_SUCCESS;
         }
     }

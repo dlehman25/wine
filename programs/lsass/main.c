@@ -16,11 +16,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <stdio.h>
 #include <stdarg.h>
 
+#include "rpc.h"
 #include "windows.h"
 #include "winsvc.h"
+#include "lsass.h"
+#include "lsass_private.h"
 
 #include "wine/debug.h"
 
@@ -29,6 +31,33 @@ WINE_DEFAULT_DEBUG_CHANNEL(secur32);
 static WCHAR samssW[] = L"SamSs";
 static HANDLE exit_event;
 static SERVICE_STATUS_HANDLE service_handle;
+
+void* __RPC_USER MIDL_user_allocate( SIZE_T size )
+{
+    return malloc( size );
+}
+
+void __RPC_USER MIDL_user_free( void *p )
+{
+    free( p );
+}
+
+static RPC_STATUS rpc_initialize( void )
+{
+    unsigned short protseq[] = LSASS_PROTSEQ;
+    unsigned short endpoint[] = LSASS_ENDPOINT;
+    RPC_STATUS status;
+
+    status = RpcServerRegisterIf( lsass_v1_0_s_ifspec, NULL, NULL );
+    if (status != RPC_S_OK) return status;
+
+    status = RpcServerUseProtseqEpW( protseq, RPC_C_PROTSEQ_MAX_REQS_DEFAULT, endpoint, NULL );
+    if (status == RPC_S_OK) status = RpcServerListen( 1, RPC_C_LISTEN_MAX_CALLS_DEFAULT, TRUE );
+    if (status == RPC_S_OK) return RPC_S_OK;
+
+    RpcServerUnregisterIf( lsass_v1_0_s_ifspec, NULL, FALSE );
+    return status;
+}
 
 static DWORD WINAPI service_handler( DWORD ctrl, DWORD event_type, LPVOID event_data, LPVOID context )
 {
@@ -62,8 +91,16 @@ static DWORD WINAPI service_handler( DWORD ctrl, DWORD event_type, LPVOID event_
 static void WINAPI ServiceMain( DWORD argc, LPWSTR *argv )
 {
     SERVICE_STATUS status;
+    RPC_STATUS ret;
 
     TRACE( "starting service\n" );
+
+    if ((ret = rpc_initialize()))
+    {
+        WARN( "Failed to initialize rpc interfaces, status %ld.\n", ret );
+        return;
+    }
+    load_auth_packages();
 
     exit_event = CreateEventW( NULL, TRUE, FALSE, NULL );
 

@@ -1,7 +1,10 @@
 MODULE    = lsass.exe
-IMPORTS   = advapi32
+IMPORTS   = advapi32 rpcrt4
 
 EXTRADLLFLAGS = -mconsole -municode
 
 SOURCES = \
-	main.c
+	lsass.c \
+	lsass.idl \
+	main.c \
+	negotiate.c
