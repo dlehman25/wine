@@ -160,6 +160,7 @@ extern void track_scroll_bar( HWND hwnd, int scrollbar, POINT pt );
 
 /* sysparams.c */
 extern UINT system_dpi;
+extern BOOL emulate_modeset;
 extern BOOL decorated_mode;
 extern UINT64 thunk_lock_callback;
 extern HBRUSH get_55aa_brush(void);

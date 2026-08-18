@@ -275,12 +275,16 @@ static void make_client_context_current(void)
     driver_funcs->p_make_current( context->draw, context->read, context->driver_private );
 }
 
-#ifdef SONAME_LIBEGL
-
 struct framebuffer_surface
 {
-    struct opengl_drawable base;
+    struct opengl_drawable  base;
+    struct opengl_drawable *target;         /* driver drawable to present to */
 };
+
+static struct framebuffer_surface *framebuffer_from_opengl_drawable( struct opengl_drawable *base )
+{
+    return CONTAINING_RECORD( base, struct framebuffer_surface, base );
+}
 
 static GLenum color_format_from_pfd( const struct wgl_pixel_format *desc )
 {
@@ -502,25 +506,36 @@ static void destroy_framebuffer( struct opengl_drawable *drawable, const struct 
 
 static void framebuffer_surface_destroy( struct opengl_drawable *drawable )
 {
+    struct framebuffer_surface *surface = framebuffer_from_opengl_drawable( drawable );
     struct wgl_pixel_format draw_desc = pixel_formats[drawable->format - 1], read_desc = draw_desc;
     read_desc.samples = read_desc.sample_buffers = 0;
 
     TRACE( "%s\n", debugstr_opengl_drawable( drawable ) );
 
-    make_null_context_current( NULL );
+    make_null_context_current( surface->target );
 
     if (drawable->draw_fbo != drawable->read_fbo)
         destroy_framebuffer( drawable, &draw_desc, drawable->draw_fbo );
     destroy_framebuffer( drawable, &read_desc, drawable->read_fbo );
 
     make_client_context_current();
+
+    if (surface->target) opengl_drawable_release( surface->target );
+}
+
+static void blit_framebuffer_surface( struct opengl_drawable *drawable )
+{
+    static LONG once;
+    if (!InterlockedCompareExchange(&once, 1, 0)) FIXME( "Not implemented\n" );
 }
 
 static void framebuffer_surface_flush( struct opengl_drawable *drawable, UINT flags )
 {
+    struct framebuffer_surface *surface = framebuffer_from_opengl_drawable( drawable );
+
     TRACE( "%s, flags %#x\n", debugstr_opengl_drawable( drawable ), flags );
 
-    if (flags & (GL_FLUSH_UPDATED | GL_FLUSH_PRESENT)) make_null_context_current( NULL );
+    if (flags & (GL_FLUSH_UPDATED | GL_FLUSH_PRESENT)) make_null_context_current( surface->target );
 
     if (flags & GL_FLUSH_UPDATED)
     {
@@ -539,20 +554,33 @@ static void framebuffer_surface_flush( struct opengl_drawable *drawable, UINT fl
         }
     }
 
+    if (surface->target)
+    {
+        if (flags & GL_FLUSH_PRESENT) drawable->interval = 0;
+        opengl_drawable_flush( surface->target, drawable->interval, flags & ~GL_FLUSH_PRESENT );
+
+        if (flags & GL_FLUSH_PRESENT)
+        {
+            blit_framebuffer_surface( drawable );
+            opengl_drawable_swap( surface->target );
+        }
+    }
+
     make_client_context_current();
 }
 
 static BOOL framebuffer_surface_swap( struct opengl_drawable *drawable )
 {
+    struct framebuffer_surface *surface = framebuffer_from_opengl_drawable( drawable );
     const struct opengl_funcs *funcs = &display_funcs;
 
     TRACE( "%s\n", debugstr_opengl_drawable( drawable ) );
 
+    if (drawable->doublebuffer || surface->target) make_null_context_current( surface->target );
+
     if (drawable->doublebuffer)
     {
         GLint front, back;
-
-        make_null_context_current( NULL );
 
         if (drawable->draw_fbo != drawable->read_fbo)
         {
@@ -576,9 +604,15 @@ static BOOL framebuffer_surface_swap( struct opengl_drawable *drawable )
             funcs->p_glFramebufferTexture( GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, back, 0 );
             funcs->p_glFramebufferTexture( GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, front, 0 );
         }
-
-        make_client_context_current();
     }
+
+    if (surface->target)
+    {
+        blit_framebuffer_surface( drawable );
+        opengl_drawable_swap( surface->target );
+    }
+
+    make_client_context_current();
 
     return TRUE;
 }
@@ -590,12 +624,13 @@ static const struct opengl_drawable_funcs framebuffer_surface_funcs =
     .swap = framebuffer_surface_swap,
 };
 
-static struct opengl_drawable *framebuffer_surface_create( int format, struct client_surface *client )
+static struct opengl_drawable *framebuffer_surface_create( int format, struct client_surface *client, struct opengl_drawable *target )
 {
     struct wgl_pixel_format draw_desc = pixel_formats[format - 1], read_desc = draw_desc;
     struct framebuffer_surface *surface;
 
     if (!(surface = opengl_drawable_create( sizeof(*surface), &framebuffer_surface_funcs, format, client ))) return NULL;
+    if ((surface->target = target)) opengl_drawable_add_ref( surface->target );
 
     opengl_drawable_map_buffer( &surface->base, GL_FRONT_LEFT, GL_COLOR_ATTACHMENT0 );
     opengl_drawable_map_buffer( &surface->base, GL_FRONT, GL_COLOR_ATTACHMENT0 ); /* only front left */
@@ -615,7 +650,7 @@ static struct opengl_drawable *framebuffer_surface_create( int format, struct cl
         if (surface->base.doublebuffer) opengl_drawable_map_buffer( &surface->base, GL_BACK_RIGHT, GL_COLOR_ATTACHMENT3 );
     }
 
-    make_null_context_current( NULL );
+    make_null_context_current( surface->target );
 
     read_desc.samples = read_desc.sample_buffers = 0;
     surface->base.read_fbo = create_framebuffer( &surface->base, &read_desc, surface->base.virtual_size );
@@ -629,6 +664,8 @@ static struct opengl_drawable *framebuffer_surface_create( int format, struct cl
 
     return &surface->base;
 }
+
+#ifdef SONAME_LIBEGL
 
 static const struct opengl_drawable_funcs egldrv_pbuffer_funcs;
 
@@ -851,7 +888,7 @@ static void egldrv_init_extensions( struct opengl_funcs *funcs, BOOLEAN extensio
 
 static BOOL egldrv_surface_create( struct client_surface *client, int format, struct opengl_drawable **drawable )
 {
-    *drawable = framebuffer_surface_create( format, client );
+    *drawable = framebuffer_surface_create( format, client, NULL );
     return !!*drawable;
 }
 
@@ -1600,6 +1637,14 @@ static struct opengl_drawable *get_window_unused_drawable( HWND hwnd, int format
         {
             if (!(driver_funcs->p_surface_create( client, format, &drawable )))
                 WARN( "Failed to create a drawable for window %p, format %d\n", hwnd, format );
+            else if (emulate_modeset && drawable->funcs != &framebuffer_surface_funcs)
+            {
+                struct opengl_drawable *framebuffer = framebuffer_surface_create( format, client, drawable );
+                opengl_drawable_release( drawable );
+                drawable = framebuffer;
+                ERR( "Using experimental framebuffer OpenGL surface\n" );
+            }
+
             use_window_client_surface( client, !!drawable );
             client_surface_release( client );
         }
@@ -1990,6 +2035,12 @@ static struct opengl_drawable *get_updated_drawable( HDC hdc, int format, struct
     return get_window_unused_drawable( hwnd, format );
 }
 
+static struct opengl_drawable *get_target( struct opengl_drawable *drawable )
+{
+    if (drawable->funcs == &framebuffer_surface_funcs) return framebuffer_from_opengl_drawable( drawable )->target;
+    return drawable;
+}
+
 static BOOL context_sync_drawables( struct opengl_context *context, HDC draw_hdc, HDC read_hdc )
 {
     struct opengl_drawable *new_draw, *new_read, *old_draw = NULL, *old_read = NULL;
@@ -2012,7 +2063,7 @@ static BOOL context_sync_drawables( struct opengl_context *context, HDC draw_hdc
     if (previous == context && new_draw == context->draw && new_read == context->read) ret = TRUE;
     else if (previous) context_exchange_drawables( previous, &old_draw, &old_read ); /* take ownership of the previous context drawables */
 
-    if (!ret && (ret = driver_funcs->p_make_current( new_draw, new_read, context->driver_private )))
+    if (!ret && (ret = driver_funcs->p_make_current( get_target( new_draw ), get_target( new_read ), context->driver_private )))
     {
         NtCurrentTeb()->glContext = context;
 
