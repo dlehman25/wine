@@ -198,7 +198,6 @@ LPITEMIDLIST  GetParentPidl(LPITEMIDLIST pidl);
 static LPITEMIDLIST GetPidlFromName(IShellFolder *psf,LPWSTR lpcstrFileName);
 static BOOL IsPidlFolder (LPSHELLFOLDER psf, LPCITEMIDLIST pidl);
 static UINT GetNumSelected( IDataObject *doSelected );
-static void COMCTL32_ReleaseStgMedium(STGMEDIUM medium);
 
 static INT_PTR CALLBACK FileOpenDlgProc95(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 static INT_PTR FILEDLG95_HandleCustomDialogMessages(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -3879,7 +3878,7 @@ void FILEDLG95_FILENAME_FillFromSelection (HWND hwnd)
 
 ret:
     free(lpstrAllFiles);
-    COMCTL32_ReleaseStgMedium(medium);
+    ReleaseStgMedium(&medium);
 }
 
 /***********************************************************************
@@ -3913,24 +3912,6 @@ static int FILEDLG95_FILENAME_GetFileNames (HWND hwnd, LPWSTR * lpstrFileList, U
  */
 
 /***********************************************************************
- * COMCTL32_ReleaseStgMedium
- *
- * like ReleaseStgMedium from ole32
- */
-static void COMCTL32_ReleaseStgMedium (STGMEDIUM medium)
-{
-      if(medium.pUnkForRelease)
-      {
-        IUnknown_Release(medium.pUnkForRelease);
-      }
-      else
-      {
-        GlobalUnlock(medium.hGlobal);
-        GlobalFree(medium.hGlobal);
-      }
-}
-
-/***********************************************************************
  *          GetPidlFromDataObject
  *
  * Return pidl(s) by number from the cached DataObject
@@ -3957,7 +3938,7 @@ LPITEMIDLIST GetPidlFromDataObject ( IDataObject *doSelected, UINT nPidlIndex)
       {
         pidl = ILClone((LPITEMIDLIST)(&((LPBYTE)cida)[cida->aoffset[nPidlIndex]]));
       }
-      COMCTL32_ReleaseStgMedium(medium);
+      ReleaseStgMedium(&medium);
     }
     return pidl;
 }
@@ -3983,7 +3964,7 @@ static UINT GetNumSelected( IDataObject *doSelected )
     {
       LPIDA cida = GlobalLock(medium.hGlobal);
       retVal = cida->cidl;
-      COMCTL32_ReleaseStgMedium(medium);
+      ReleaseStgMedium(&medium);
       return retVal;
     }
     return 0;
