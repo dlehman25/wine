@@ -999,10 +999,16 @@ static INT_PTR FILEDLG95_Handle_GetFilePath(HWND hwnd, DWORD size, LPVOID result
         len = SendMessageW( fodInfos->DlgInfos.hwndFileName, WM_GETTEXTLENGTH, 0, 0 );
         if (len)
         {
-            filename = malloc( (len + 1) * sizeof(WCHAR) );
+            if (!(filename = malloc((len + 1) * sizeof(WCHAR))))
+                return -1;
+
             SendMessageW( fodInfos->DlgInfos.hwndFileName, WM_GETTEXT, len + 1, (LPARAM)filename );
         }
-        buffer = malloc( (len + 2 + MAX_PATH) * sizeof(WCHAR) );
+        if (!(buffer = malloc((len + 2 + MAX_PATH) * sizeof(WCHAR))))
+        {
+            free(filename);
+            return -1;
+        }
 
         if (len)
         {
