@@ -43,6 +43,7 @@ struct opengl_thread_data
 {
     struct opengl_context  *null_context;  /* dummy context when no client context is active */
     struct opengl_drawable *null_surface;  /* dummy surface when no client context is active */
+    BOOL                    client_current; /* whether the client context is current */
 };
 
 static struct opengl_thread_data *get_opengl_thread_data(void)
@@ -263,13 +264,14 @@ static BOOL make_null_context_current( struct opengl_drawable *drawable )
     if (!drawable) drawable = get_null_surface( context );
 
     if (!driver_funcs->p_make_current( drawable, drawable, context->driver_private )) return FALSE;
+    get_opengl_thread_data()->client_current = FALSE;
     return TRUE;
 }
 
 static void make_client_context_current(void)
 {
     struct opengl_context *context;
-    if (!(context = NtCurrentTeb()->glContext)) return;
+    if (!(context = NtCurrentTeb()->glContext) || get_opengl_thread_data()->client_current) return;
     driver_funcs->p_make_current( context->draw, context->read, context->driver_private );
 }
 
@@ -518,7 +520,7 @@ static void framebuffer_surface_flush( struct opengl_drawable *drawable, UINT fl
 {
     TRACE( "%s, flags %#x\n", debugstr_opengl_drawable( drawable ), flags );
 
-    make_null_context_current( NULL );
+    if (flags & (GL_FLUSH_UPDATED | GL_FLUSH_PRESENT)) make_null_context_current( NULL );
 
     if (flags & GL_FLUSH_UPDATED)
     {
@@ -2041,6 +2043,7 @@ static BOOL context_sync_drawables( struct opengl_context *context, HDC draw_hdc
 
     if (new_draw) opengl_drawable_release( new_draw );
     if (new_read) opengl_drawable_release( new_read );
+    if (ret) get_opengl_thread_data()->client_current = TRUE;
     return ret;
 }
 
