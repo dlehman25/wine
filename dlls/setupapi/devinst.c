@@ -2282,6 +2282,24 @@ HDEVINFO WINAPI SetupDiGetClassDevsW(const GUID *class, LPCWSTR enumstr, HWND pa
             NULL);
 }
 
+static BOOL is_valid_enumerator(const WCHAR *enumerator)
+{
+    WCHAR *tmp;
+
+    if (!enumerator[0])
+        return FALSE;
+    if (!(tmp = wcschr(enumerator, '\\')))
+        return TRUE;
+    /* Cannot have more than one '\'. */
+    if (!!wcschr(tmp + 1, '\\'))
+        return FALSE;
+    /* Enumerator can't end with '\'. */
+    if (tmp[1] == '\0')
+        return FALSE;
+
+    return TRUE;
+}
+
 /***********************************************************************
  *              SetupDiGetClassDevsExW (SETUPAPI.@)
  */
@@ -2298,6 +2316,11 @@ HDEVINFO WINAPI SetupDiGetClassDevsExW(const GUID *class, PCWSTR enumstr, HWND p
     if (!(flags & DIGCF_ALLCLASSES) && !class)
     {
         SetLastError(ERROR_INVALID_PARAMETER);
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!(flags & DIGCF_DEVICEINTERFACE) && enumstr && !is_valid_enumerator(enumstr))
+    {
+        SetLastError(ERROR_INVALID_DATA);
         return INVALID_HANDLE_VALUE;
     }
     if (flags & DIGCF_ALLCLASSES)
