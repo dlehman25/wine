@@ -359,13 +359,19 @@ static RECT get_client_surface_rects( HWND toplevel, HWND hwnd, RECT *monitor_re
 
 static void client_surface_update_locked( struct client_surface *surface )
 {
+    RECT virtual_rect = surface->virtual_rect, monitor_rect = surface->monitor_rect;
+    HWND toplevel = surface->toplevel;
+
     surface->toplevel = NtUserGetAncestor( surface->hwnd, GA_ROOT );
     surface->virtual_rect = get_client_surface_rects( surface->toplevel, surface->hwnd, &surface->monitor_rect );
 
     TRACE( "updating %s, toplevel %p, virtual_rect %s, monitor_rect %s\n", debugstr_client_surface( surface ), surface->toplevel,
            wine_dbgstr_rect( &surface->virtual_rect ), wine_dbgstr_rect( &surface->monitor_rect ) );
     surface->funcs->update( surface );
-    InterlockedExchange( &surface->updated, 1 );
+
+    surface->updated = surface->updated || surface->toplevel != toplevel ||
+                       !EqualRect( &surface->virtual_rect, &virtual_rect ) ||
+                       !EqualRect( &surface->monitor_rect, &monitor_rect );
 }
 
 void update_client_surfaces( HWND hwnd )
