@@ -251,7 +251,7 @@ extern LRESULT X11DRV_WindowMessage( HWND hwnd, UINT msg, WPARAM wp, LPARAM lp )
 extern BOOL X11DRV_WindowPosChanging( HWND hwnd, UINT swp_flags, BOOL shaped, const struct window_rects *rects );
 extern BOOL X11DRV_GetWindowStyleMasks( HWND hwnd, UINT style, UINT ex_style, UINT *style_mask, UINT *ex_style_mask );
 extern BOOL X11DRV_GetWindowStateUpdates( HWND hwnd, UINT *state_cmd, UINT *swp_flags, RECT *rect, HWND *foreground );
-extern struct client_surface *X11DRV_CreateClientSurface( HWND hwnd, int format );
+extern struct client_surface *X11DRV_CreateClientSurface( HWND hwnd, int format, BOOL raw );
 extern BOOL X11DRV_CreateWindowSurface( HWND hwnd, BOOL layered, const RECT *surface_rect, struct window_surface **surface );
 extern void X11DRV_MoveWindowBits( HWND hwnd, const struct window_rects *old_rects,
                                    const struct window_rects *new_rects, const RECT *valid_rects );
@@ -378,7 +378,6 @@ struct x11drv_client_surface
 
 extern struct x11drv_client_surface *impl_from_client_surface( struct client_surface *client );
 
-extern BOOL needs_offscreen_rendering( HWND hwnd );
 extern void set_dc_drawable( HDC hdc, Drawable drawable, const RECT *rect, int mode );
 extern Drawable get_dc_drawable( HDC hdc, RECT *rect );
 extern HRGN get_dc_monitor_region( HWND hwnd, HDC hdc );

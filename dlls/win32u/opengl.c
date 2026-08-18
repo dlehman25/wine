@@ -1631,7 +1631,7 @@ static struct opengl_drawable *get_window_unused_drawable( HWND hwnd, int format
     {
         struct client_surface *client;
 
-        if (!(client = get_unused_client_surface( hwnd, format )))
+        if (!(client = get_unused_client_surface( hwnd, format, emulate_modeset )))
             WARN( "Failed to create a surface for window %p, format %d\n", hwnd, format );
         else
         {
