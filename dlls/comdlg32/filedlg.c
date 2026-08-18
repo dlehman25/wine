@@ -975,38 +975,53 @@ static INT_PTR FILEDLG95_Handle_GetFilePath(HWND hwnd, DWORD size, LPVOID result
     UINT len, total;
     WCHAR *p, *buffer, *filename = NULL;
     FileOpenDlgInfos *fodInfos = get_filedlg_infoptr(hwnd);
+    LPITEMIDLIST pidlSelection, pidlAbsolute;
 
     TRACE("CDM_GETFILEPATH:\n");
 
     if ( ! (fodInfos->ofnInfos->Flags & OFN_EXPLORER ) )
         return -1;
 
-    /* get path and filenames */
-    len = SendMessageW( fodInfos->DlgInfos.hwndFileName, WM_GETTEXTLENGTH, 0, 0 );
-    if (len)
+    if (GetNumSelected(fodInfos->Shell.FOIDataObject) == 1)
     {
-        filename = malloc( (len + 1) * sizeof(WCHAR) );
-        SendMessageW( fodInfos->DlgInfos.hwndFileName, WM_GETTEXT, len + 1, (LPARAM)filename );
-    }
-    buffer = malloc( (len + 2 + MAX_PATH) * sizeof(WCHAR) );
+        if (!(buffer = malloc(MAX_PATH * 2 * sizeof(WCHAR))))
+            return -1;
 
-    if (len)
-    {
-        if (PathIsRelativeW( filename ))
-        {
-            COMDLG32_GetDisplayNameOf( fodInfos->ShellInfos.pidlAbsCurrent, buffer );
-            p = buffer + lstrlenW(buffer);
-            *p++ = '\\';
-            lstrcpyW( p, filename );
-        }
-        else
-        {
-            lstrcpyW( buffer, filename );
-        }
+        pidlSelection = GetPidlFromDataObject(fodInfos->Shell.FOIDataObject, 1);
+        pidlAbsolute = ILCombine(fodInfos->ShellInfos.pidlAbsCurrent, pidlSelection);
+        COMDLG32_GetDisplayNameOf(pidlAbsolute, buffer);
+        ILFree(pidlSelection);
+        ILFree(pidlAbsolute);
     }
     else
     {
-        COMDLG32_GetDisplayNameOf( fodInfos->ShellInfos.pidlAbsCurrent, buffer );
+        /* get path and filenames */
+        len = SendMessageW( fodInfos->DlgInfos.hwndFileName, WM_GETTEXTLENGTH, 0, 0 );
+        if (len)
+        {
+            filename = malloc( (len + 1) * sizeof(WCHAR) );
+            SendMessageW( fodInfos->DlgInfos.hwndFileName, WM_GETTEXT, len + 1, (LPARAM)filename );
+        }
+        buffer = malloc( (len + 2 + MAX_PATH) * sizeof(WCHAR) );
+
+        if (len)
+        {
+            if (PathIsRelativeW( filename ))
+            {
+                COMDLG32_GetDisplayNameOf( fodInfos->ShellInfos.pidlAbsCurrent, buffer );
+                p = buffer + lstrlenW(buffer);
+                *p++ = '\\';
+                lstrcpyW( p, filename );
+            }
+            else
+            {
+                lstrcpyW( buffer, filename );
+            }
+        }
+        else
+        {
+            COMDLG32_GetDisplayNameOf( fodInfos->ShellInfos.pidlAbsCurrent, buffer );
+        }
     }
 
     if (fodInfos->unicode)
