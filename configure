@@ -1752,6 +1752,7 @@ enable_iexplore
 enable_ipconfig
 enable_klist
 enable_lodctr
+enable_lsass
 enable_makecab
 enable_mofcomp
 enable_mshta
@@ -22335,6 +22336,7 @@ enable_icucommon=${enable_icucommon:-$enable_cplusplus}
 enable_icui18n=${enable_icui18n:-$enable_cplusplus}
 
 enable_conhost=${enable_conhost:-$HOST_ARCH}
+enable_lsass=${enable_lsass:-$HOST_ARCH}
 enable_plugplay=${enable_plugplay:-$HOST_ARCH}
 enable_rpcss=${enable_rpcss:-$HOST_ARCH}
 enable_services=${enable_services:-$HOST_ARCH}
@@ -23527,6 +23529,7 @@ wine_fn_config_makefile programs/iexplore enable_iexplore
 wine_fn_config_makefile programs/ipconfig enable_ipconfig
 wine_fn_config_makefile programs/klist enable_klist
 wine_fn_config_makefile programs/lodctr enable_lodctr
+wine_fn_config_makefile programs/lsass enable_lsass
 wine_fn_config_makefile programs/makecab enable_makecab
 wine_fn_config_makefile programs/mofcomp enable_mofcomp
 wine_fn_config_makefile programs/mshta enable_mshta
