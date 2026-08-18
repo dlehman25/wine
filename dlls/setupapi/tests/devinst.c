@@ -4367,6 +4367,18 @@ static void test_get_class_devs(void)
     ret = SetupDiDestroyDeviceInfoList(set);
     ok(ret, "Failed to destroy device list, error %#lx.\n", GetLastError());
 
+    set = SetupDiGetClassDevsA(NULL, "ROOT\\", NULL, DIGCF_ALLCLASSES);
+todo_wine {
+    ok(set == INVALID_HANDLE_VALUE, "Expected failure.\n");
+    ok(GetLastError() == ERROR_INVALID_DATA, "Got unexpected error %#lx.\n", GetLastError());
+}
+
+    set = SetupDiGetClassDevsA(NULL, "", NULL, DIGCF_ALLCLASSES);
+todo_wine {
+    ok(set == INVALID_HANDLE_VALUE, "Expected failure.\n");
+    ok(GetLastError() == ERROR_INVALID_DATA, "Got unexpected error %#lx.\n", GetLastError());
+}
+
     set = SetupDiGetClassDevsA(NULL, "ROOT\\LEGACY_BOGUS", NULL, DIGCF_ALLCLASSES);
     ok(set != INVALID_HANDLE_VALUE, "Failed to create device list, error %#lx.\n", GetLastError());
     check_device_list(set, &GUID_NULL);
@@ -4377,6 +4389,21 @@ static void test_get_class_devs(void)
     check_device_iface(set, NULL, &iface_guid, 0, 0, NULL);
     ret = SetupDiDestroyDeviceInfoList(set);
     ok(ret, "Failed to destroy device list, error %#lx.\n", GetLastError());
+
+    /* When getting devices, the enumerator can't be an exact device instance ID. */
+    SetLastError(0xdeadbeef);
+    set = SetupDiGetClassDevsA(NULL, "ROOT\\LEGACY_BOGUS\\BAR", NULL, DIGCF_ALLCLASSES);
+todo_wine {
+    ok(set == INVALID_HANDLE_VALUE, "Expected failure.\n");
+    ok(GetLastError() == ERROR_INVALID_DATA, "Got unexpected error %#lx.\n", GetLastError());
+}
+
+    SetLastError(0xdeadbeef);
+    set = SetupDiGetClassDevsA(NULL, "ROOT\\LEGACY_BOGUS\\", NULL, DIGCF_ALLCLASSES);
+todo_wine {
+    ok(set == INVALID_HANDLE_VALUE, "Expected failure.\n");
+    ok(GetLastError() == ERROR_INVALID_DATA, "Got unexpected error %#lx.\n", GetLastError());
+}
 
     set = SetupDiGetClassDevsA(&guid, "ROOT\\LEGACY_BOGUS", NULL, 0);
     ok(set != INVALID_HANDLE_VALUE, "Failed to create device list, error %#lx.\n", GetLastError());
