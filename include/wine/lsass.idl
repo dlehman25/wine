@@ -30,6 +30,8 @@ cpp_quote("#define LSASS_ENDPOINT {'l','s','a','s','s','p','i','r','p','c',0}")
 ]
 interface lsass
 {
+    typedef [wire_marshal(ULONG64)] void* CLIENT_PTR;
+
     cpp_quote("#if 0")
     typedef LONG NTSTATUS;
 
@@ -42,8 +44,29 @@ interface lsass
         [string] WCHAR *Name;
         [string] WCHAR *Comment;
     } SecPkgInfoW;
+
+    typedef struct
+    {
+        DWORD LowPart;
+        LONG HighPart;
+    } LUID, TimeStamp;
+
+    typedef struct
+    {
+        ULONG cbBuffer;
+        ULONG BufferType;
+        CLIENT_PTR pvBuffer;
+    } SecBuffer;
+
+    typedef struct
+    {
+        ULONG ulVersion;
+        ULONG cBuffers;
+        SecBuffer *pBuffers;
+    } SecBufferDesc;
     cpp_quote("#endif")
 
+    cpp_quote("#define MAX_SEC_BUFFERS 20")
     typedef struct
     {
         [string] WCHAR *module_name;
@@ -55,4 +78,91 @@ interface lsass
         [in] handle_t binding,
         [out] ULONG *count,
         [out, size_is(, *count)] package_info **packages);
+
+    NTSTATUS call_package_untrusted(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG64 handle,
+        [in] ULONG package_id,
+        [in, unique, size_is(in_buf_len)] BYTE *in_buf,
+        [in] CLIENT_PTR client_buf_base,
+        [in] ULONG in_buf_len,
+        [out, unique] CLIENT_PTR *out_buf,
+        [out, unique] ULONG *out_buf_len,
+        [out, unique] NTSTATUS *status);
+
+    NTSTATUS acquire_credentials_handle(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in, unique, string] WCHAR *principal,
+        [in, string] WCHAR *package,
+        [in] ULONG cred_use,
+        [in, unique] LUID *logon_id,
+        [in] CLIENT_PTR auth_data,
+        [in] CLIENT_PTR get_key_fn,
+        [in] CLIENT_PTR get_key_arg,
+        [out] ULONG *package_id,
+        [out] ULONG64 *cred_handle,
+        [out, unique] TimeStamp *expiry);
+
+    NTSTATUS free_credentials_handle(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG package_id,
+        [in] ULONG64 handle);
+
+    NTSTATUS query_credentials_attr(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG package_id,
+        [in] ULONG64 handle,
+        [in] ULONG attr,
+        [in] CLIENT_PTR buf);
+
+    NTSTATUS initialize_security_context(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG package_id,
+        [in] ULONG64 cred_handle,
+        [in] ULONG64 ctx_handle,
+        [in, unique, string] WCHAR *target,
+        [in] ULONG context_req,
+        [in] ULONG data_rep,
+        [in, unique] SecBufferDesc *input,
+        [out] ULONG64 *new_ctx_handle,
+        [in, out, unique] SecBufferDesc *output,
+        [out] ULONG *context_attr,
+        [out] TimeStamp *expiry,
+        [out] BOOLEAN *mapped_ctx,
+        [in, out] SecBuffer *ctx_data);
+
+    NTSTATUS accept_security_context(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG package_id,
+        [in] ULONG64 cred_handle,
+        [in] ULONG64 ctx_handle,
+        [in, unique] SecBufferDesc *input,
+        [in] ULONG context_req,
+        [in] ULONG data_rep,
+        [out] ULONG64 *new_ctx_handle,
+        [in, out, unique] SecBufferDesc *output,
+        [out] ULONG *context_attr,
+        [out] TimeStamp *expiry,
+        [out] BOOLEAN *mapped_ctx,
+        [in, out] SecBuffer *ctx_data);
+
+    NTSTATUS delete_security_context(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG package_id,
+        [in] UINT64 handle);
+
+    NTSTATUS query_context_attr(
+        [in] handle_t binding,
+        [in] DWORD thread_id,
+        [in] ULONG package_id,
+        [in] ULONG64 handle,
+        [in] ULONG attr,
+        [in] CLIENT_PTR buf);
 }

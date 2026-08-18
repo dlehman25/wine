@@ -42,6 +42,32 @@ void __RPC_USER MIDL_user_free( void *p )
     free( p );
 }
 
+ULONG __RPC_USER CLIENT_PTR_UserSize( ULONG *flags, ULONG pos, CLIENT_PTR *client_ptr )
+{
+    return sizeof(ULONG64);
+}
+
+unsigned char* __RPC_USER CLIENT_PTR_UserMarshal( ULONG *flags, unsigned char *buf, CLIENT_PTR *client_ptr )
+{
+    ULONG64 data = (ULONG_PTR)*client_ptr;
+
+    memcpy( buf, &data, sizeof(data) );
+    return buf + sizeof(data);
+}
+
+unsigned char* __RPC_USER CLIENT_PTR_UserUnmarshal( ULONG *flags, unsigned char *buf, CLIENT_PTR *client_ptr )
+{
+    ULONG64 data;
+
+    memcpy( &data, buf, sizeof(data) );
+    *(ULONG_PTR*)client_ptr = data;
+    return buf + sizeof(data);
+}
+
+void __RPC_USER CLIENT_PTR_UserFree( ULONG *flags, CLIENT_PTR *client_ptr )
+{
+}
+
 static RPC_STATUS rpc_initialize( void )
 {
     unsigned short protseq[] = LSASS_PROTSEQ;

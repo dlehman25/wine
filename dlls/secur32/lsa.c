@@ -51,9 +51,7 @@ static const WCHAR *default_authentication_package = L"Negotiate";
 struct lsa_package
 {
     HMODULE mod;
-    LSA_STRING *name;
     SecPkgInfoW info;
-    SECPKG_FUNCTION_TABLE *lsa_api;
     SECPKG_USER_FUNCTION_TABLE *user_api;
 };
 
@@ -65,7 +63,7 @@ struct lsa_handle
 {
     DWORD magic;
     struct lsa_package *package;
-    LSA_SEC_HANDLE handle;
+    ULONG64 handle;
 };
 
 static char *strdupWA( const WCHAR *str )
@@ -94,6 +92,32 @@ void* __RPC_USER MIDL_user_allocate( SIZE_T size )
 void __RPC_USER MIDL_user_free( void *p )
 {
     free( p );
+}
+
+ULONG __RPC_USER CLIENT_PTR_UserSize( ULONG *flags, ULONG pos, CLIENT_PTR *client_ptr )
+{
+    return sizeof(ULONG64);
+}
+
+unsigned char* __RPC_USER CLIENT_PTR_UserMarshal( ULONG *flags, unsigned char *buf, CLIENT_PTR *client_ptr )
+{
+    ULONG64 data = (ULONG_PTR)*client_ptr;
+
+    memcpy( buf, &data, sizeof(data) );
+    return buf + sizeof(data);
+}
+
+unsigned char* __RPC_USER CLIENT_PTR_UserUnmarshal( ULONG *flags, unsigned char *buf, CLIENT_PTR *client_ptr )
+{
+    ULONG64 data;
+
+    memcpy( &data, buf, sizeof(data) );
+    *(ULONG_PTR*)client_ptr = data;
+    return buf + sizeof(data);
+}
+
+void __RPC_USER CLIENT_PTR_UserFree( ULONG *flags, CLIENT_PTR *client_ptr )
+{
 }
 
 static LONG WINAPI rpc_filter(EXCEPTION_POINTERS *eptr)
@@ -198,42 +222,40 @@ static RPC_BINDING_HANDLE get_lsass_handle(void)
     return irpcss_handle;
 }
 
-SECPKG_FUNCTION_TABLE *lsa_find_package(const char *name, SECPKG_USER_FUNCTION_TABLE **user_api)
+SECPKG_USER_FUNCTION_TABLE *lsa_find_func_table( const WCHAR *name )
 {
-    LSA_STRING package_name;
     ULONG i;
-
-    RtlInitString(&package_name, name);
 
     for (i = 0; i < loaded_packages_count; i++)
     {
-        if (!RtlCompareString(loaded_packages[i].name, &package_name, FALSE))
-        {
-            *user_api = loaded_packages[i].user_api;
-            return loaded_packages[i].lsa_api;
-        }
+        if (!wcscmp( loaded_packages[i].info.Name, name ))
+            return loaded_packages[i].user_api;
     }
     return NULL;
 }
 
 NTSTATUS WINAPI LsaCallAuthenticationPackage(HANDLE lsa_handle, ULONG package_id,
         PVOID in_buffer, ULONG in_buffer_length,
-        PVOID *out_buffer, PULONG out_buffer_length, PNTSTATUS status)
+        PVOID *out_buffer, PULONG out_buffer_length, PNTSTATUS prot_status)
 {
+    NTSTATUS status;
+
     TRACE("%p,%lu,%p,%lu,%p,%p,%p\n", lsa_handle, package_id, in_buffer,
-        in_buffer_length, out_buffer, out_buffer_length, status);
+        in_buffer_length, out_buffer, out_buffer_length, prot_status);
 
     if (out_buffer) *out_buffer = NULL;
     if (out_buffer_length) *out_buffer_length = 0;
-    if (status) *status = STATUS_SUCCESS;
+    if (prot_status) *prot_status = STATUS_SUCCESS;
 
-    if (package_id >= loaded_packages_count || !loaded_packages[package_id].lsa_api)
+    if (package_id >= loaded_packages_count)
         return STATUS_NO_SUCH_PACKAGE;
-    if (!loaded_packages[package_id].lsa_api->CallPackageUntrusted)
-        return SEC_E_UNSUPPORTED_FUNCTION;
 
-    return loaded_packages[package_id].lsa_api->CallPackageUntrusted(NULL /* FIXME*/,
-            in_buffer, NULL, in_buffer_length, out_buffer, out_buffer_length, status);
+    LSASS_CALL_START
+    status = call_package_untrusted(get_lsass_handle(), GetCurrentThreadId(),
+            0, package_id, in_buffer, in_buffer, in_buffer_length,
+            out_buffer, out_buffer_length, prot_status);
+    LSASS_CALL_END
+    return status;
 }
 
 static struct lsa_handle *alloc_lsa_handle(ULONG magic)
@@ -294,8 +316,7 @@ NTSTATUS WINAPI LsaEnumerateLogonSessions(PULONG LogonSessionCount,
 NTSTATUS WINAPI LsaFreeReturnBuffer(PVOID buffer)
 {
     TRACE("%p\n", buffer);
-    free(buffer);
-    return STATUS_SUCCESS;
+    return VirtualFree(buffer, 0, MEM_RELEASE);
 }
 
 NTSTATUS WINAPI LsaGetLogonSessionData(PLUID LogonId,
@@ -342,40 +363,6 @@ NTSTATUS WINAPI LsaLogonUser(HANDLE LsaHandle, PLSA_STRING OriginName,
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS NTAPI lsa_CreateLogonSession(LUID *logon_id)
-{
-    FIXME("%p: stub\n", logon_id);
-    return STATUS_NOT_IMPLEMENTED;
-}
-
-static NTSTATUS NTAPI lsa_DeleteLogonSession(LUID *logon_id)
-{
-    FIXME("%p: stub\n", logon_id);
-    return STATUS_NOT_IMPLEMENTED;
-}
-
-static NTSTATUS NTAPI lsa_AddCredential(LUID *logon_id, ULONG package_id,
-    LSA_STRING *primary_key, LSA_STRING *credentials)
-{
-    FIXME("%p,%lu,%s,%s: stub\n", logon_id, package_id,
-        debugstr_as(primary_key), debugstr_as(credentials));
-    return STATUS_NOT_IMPLEMENTED;
-}
-
-static NTSTATUS NTAPI lsa_GetCredentials(LUID *logon_id, ULONG package_id, ULONG *context,
-    BOOLEAN retrieve_all, LSA_STRING *primary_key, ULONG *primary_key_len, LSA_STRING *credentials)
-{
-    FIXME("%p,%#lx,%p,%d,%p,%p,%p: stub\n", logon_id, package_id, context,
-        retrieve_all, primary_key, primary_key_len, credentials);
-    return STATUS_NOT_IMPLEMENTED;
-}
-
-static NTSTATUS NTAPI lsa_DeleteCredential(LUID *logon_id, ULONG package_id, LSA_STRING *primary_key)
-{
-    FIXME("%p,%#lx,%s: stub\n", logon_id, package_id, debugstr_as(primary_key));
-    return STATUS_NOT_IMPLEMENTED;
-}
-
 static void * NTAPI lsa_AllocateLsaHeap(ULONG size)
 {
     TRACE("%lu\n", size);
@@ -387,49 +374,6 @@ static void NTAPI lsa_FreeLsaHeap(void *p)
     TRACE("%p\n", p);
     free(p);
 }
-
-static NTSTATUS NTAPI lsa_AllocateClientBuffer(PLSA_CLIENT_REQUEST req, ULONG size, void **p)
-{
-    TRACE("%p,%lu,%p\n", req, size, p);
-    *p = malloc(size);
-    return *p ? STATUS_SUCCESS : STATUS_NO_MEMORY;
-}
-
-static NTSTATUS NTAPI lsa_FreeClientBuffer(PLSA_CLIENT_REQUEST req, void *p)
-{
-    TRACE("%p,%p\n", req, p);
-    free(p);
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS NTAPI lsa_CopyToClientBuffer(PLSA_CLIENT_REQUEST req, ULONG size, void *client, void *buf)
-{
-    TRACE("%p,%lu,%p,%p\n", req, size, client, buf);
-    memcpy(client, buf, size);
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS NTAPI lsa_CopyFromClientBuffer(PLSA_CLIENT_REQUEST req, ULONG size, void *buf, void *client)
-{
-    TRACE("%p,%lu,%p,%p\n", req, size, buf, client);
-    memcpy(buf, client, size);
-    return STATUS_SUCCESS;
-}
-
-static LSA_DISPATCH_TABLE lsa_dispatch =
-{
-    lsa_CreateLogonSession,
-    lsa_DeleteLogonSession,
-    lsa_AddCredential,
-    lsa_GetCredentials,
-    lsa_DeleteCredential,
-    lsa_AllocateLsaHeap,
-    lsa_FreeLsaHeap,
-    lsa_AllocateClientBuffer,
-    lsa_FreeClientBuffer,
-    lsa_CopyToClientBuffer,
-    lsa_CopyFromClientBuffer
-};
 
 static NTSTATUS NTAPI lsa_RegisterCallback(ULONG callback_id, PLSA_CALLBACK_FUNCTION callback)
 {
@@ -444,35 +388,11 @@ static SECPKG_DLL_FUNCTIONS lsa_dll_dispatch =
     lsa_RegisterCallback
 };
 
-static SECURITY_STATUS lsa_lookup_package(SEC_WCHAR *nameW, struct lsa_package **lsa_package)
-{
-    ULONG i;
-    UNICODE_STRING package_name, name;
-
-    for (i = 0; i < loaded_packages_count; i++)
-    {
-        if (RtlAnsiStringToUnicodeString(&package_name, loaded_packages[i].name, TRUE))
-            return SEC_E_INSUFFICIENT_MEMORY;
-
-        RtlInitUnicodeString(&name, nameW);
-
-        if (RtlEqualUnicodeString(&package_name, &name, TRUE))
-        {
-            RtlFreeUnicodeString(&package_name);
-            *lsa_package = &loaded_packages[i];
-            return SEC_E_OK;
-        }
-
-        RtlFreeUnicodeString(&package_name);
-    }
-
-    return SEC_E_SECPKG_NOT_FOUND;
-}
-
 static SECURITY_STATUS WINAPI lsa_QueryCredentialsAttributesW(
         CredHandle *credential, ULONG attr, void *buf)
 {
     struct lsa_handle *lsa_cred;
+    SECURITY_STATUS status;
 
     TRACE("%p %lu %p\n", credential, attr, buf);
     if (!credential) return SEC_E_INVALID_HANDLE;
@@ -480,10 +400,11 @@ static SECURITY_STATUS WINAPI lsa_QueryCredentialsAttributesW(
     lsa_cred = (struct lsa_handle *)credential->dwLower;
     if (!lsa_cred || lsa_cred->magic != LSA_MAGIC_CREDENTIALS) return SEC_E_INVALID_HANDLE;
 
-    if (!lsa_cred->package->lsa_api || !lsa_cred->package->lsa_api->SpQueryCredentialsAttributes)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
-    return lsa_cred->package->lsa_api->SpQueryCredentialsAttributes(lsa_cred->handle, attr, buf);
+    LSASS_CALL_START
+    status = query_credentials_attr(get_lsass_handle(), GetCurrentThreadId(),
+            lsa_cred->package - loaded_packages, lsa_cred->handle, attr, buf);
+    LSASS_CALL_END
+    return status;
 }
 
 static SECURITY_STATUS WINAPI lsa_QueryCredentialsAttributesA(
@@ -519,37 +440,33 @@ static SECURITY_STATUS WINAPI lsa_AcquireCredentialsHandleW(
     LUID *logon_id, void *auth_data, SEC_GET_KEY_FN get_key_fn,
     void *get_key_arg, CredHandle *credential, TimeStamp *ts_expiry)
 {
-    SECURITY_STATUS status;
-    struct lsa_package *lsa_package;
     struct lsa_handle *lsa_handle;
-    UNICODE_STRING principal_us;
-    LSA_SEC_HANDLE lsa_credential;
+    SECURITY_STATUS status;
+    ULONG package_id;
 
     TRACE("%s %s %#lx %p %p %p %p %p\n", debugstr_w(principal), debugstr_w(package),
         credentials_use, auth_data, get_key_fn, get_key_arg, credential, ts_expiry);
 
     if (!credential) return SEC_E_INVALID_HANDLE;
     if (!package) return SEC_E_SECPKG_NOT_FOUND;
+    if (!(lsa_handle = alloc_lsa_handle(LSA_MAGIC_CREDENTIALS))) return STATUS_NO_MEMORY;
 
-    status = lsa_lookup_package(package, &lsa_package);
-    if (status != SEC_E_OK) return status;
+    LSASS_CALL_START
+    status = acquire_credentials_handle(get_lsass_handle(), GetCurrentThreadId(),
+            principal, package, credentials_use, logon_id, auth_data, get_key_fn,
+            get_key_arg, &package_id, &lsa_handle->handle, ts_expiry);
+    LSASS_CALL_END
 
-    if (!lsa_package->lsa_api || !lsa_package->lsa_api->SpAcquireCredentialsHandle)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
-    if (principal)
-        RtlInitUnicodeString(&principal_us, principal);
-
-    status = lsa_package->lsa_api->SpAcquireCredentialsHandle(principal ? &principal_us : NULL,
-        credentials_use, logon_id, auth_data, get_key_fn, get_key_arg, &lsa_credential, ts_expiry);
-    if (status == SEC_E_OK)
+    if (status != SEC_E_OK)
     {
-        if (!(lsa_handle = alloc_lsa_handle(LSA_MAGIC_CREDENTIALS))) return STATUS_NO_MEMORY;
-        lsa_handle->package = lsa_package;
-        lsa_handle->handle = lsa_credential;
-        credential->dwLower = (ULONG_PTR)lsa_handle;
-        credential->dwUpper = 0;
+        SecureZeroMemory(&lsa_handle->magic, sizeof(lsa_handle->magic));
+        free(lsa_handle);
+        return status;
     }
+
+    lsa_handle->package = loaded_packages + package_id;
+    credential->dwLower = (ULONG_PTR)lsa_handle;
+    credential->dwUpper = 0;
     return status;
 }
 
@@ -596,10 +513,10 @@ static SECURITY_STATUS WINAPI lsa_FreeCredentialsHandle(CredHandle *credential)
     lsa_cred = (struct lsa_handle *)credential->dwLower;
     if (!lsa_cred || lsa_cred->magic != LSA_MAGIC_CREDENTIALS) return SEC_E_INVALID_HANDLE;
 
-    if (!lsa_cred->package->lsa_api || !lsa_cred->package->lsa_api->FreeCredentialsHandle)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
-    status = lsa_cred->package->lsa_api->FreeCredentialsHandle(lsa_cred->handle);
+    LSASS_CALL_START
+    status = free_credentials_handle(get_lsass_handle(), GetCurrentThreadId(),
+            lsa_cred->package - loaded_packages, lsa_cred->handle);
+    LSASS_CALL_END
 
     /* Ensure compiler doesn't optimize out the assignment with 0. */
     SecureZeroMemory(&lsa_cred->magic, sizeof(lsa_cred->magic));
@@ -618,12 +535,10 @@ static SECURITY_STATUS WINAPI lsa_DeleteSecurityContext(CtxtHandle *context)
     lsa_ctx = (struct lsa_handle *)context->dwLower;
     if (!lsa_ctx || lsa_ctx->magic != LSA_MAGIC_CONTEXT) return SEC_E_INVALID_HANDLE;
 
-    if (!lsa_ctx->package->lsa_api || !lsa_ctx->package->lsa_api->DeleteContext)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
-    if (lsa_ctx->package->user_api && lsa_ctx->package->user_api->DeleteUserModeContext)
-        lsa_ctx->package->user_api->DeleteUserModeContext(lsa_ctx->handle);
-    status = lsa_ctx->package->lsa_api->DeleteContext(lsa_ctx->handle);
+    LSASS_CALL_START
+    status = delete_security_context(get_lsass_handle(), GetCurrentThreadId(),
+            lsa_ctx->package - loaded_packages, lsa_ctx->handle);
+    LSASS_CALL_END
     free(lsa_ctx);
     return status;
 }
@@ -636,14 +551,15 @@ static SECURITY_STATUS WINAPI lsa_InitializeSecurityContextW(
     SECURITY_STATUS status;
     struct lsa_handle *lsa_cred = NULL, *lsa_ctx = NULL, *new_lsa_ctx;
     struct lsa_package *package = NULL;
-    UNICODE_STRING target_name_us;
     BOOLEAN mapped_context = FALSE;
-    LSA_SEC_HANDLE new_handle;
     SecBuffer ctx_data = { 0 };
 
     TRACE("%p %p %s %#lx %ld %ld %p %ld %p %p %p %p\n", credential, context,
         debugstr_w(target_name), context_req, reserved1, target_data_rep, input,
         reserved2, new_context, output, context_attr, ts_expiry);
+
+    if (input && input->cBuffers > MAX_SEC_BUFFERS) return SEC_E_INVALID_TOKEN;
+    if (output && output->cBuffers > MAX_SEC_BUFFERS) return SEC_E_INVALID_TOKEN;
 
     if (context)
     {
@@ -659,21 +575,18 @@ static SECURITY_STATUS WINAPI lsa_InitializeSecurityContextW(
     }
     if (!package || !new_context) return SEC_E_INVALID_HANDLE;
 
-    if (!package->lsa_api || !package->lsa_api->InitLsaModeContext)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
-    if (target_name)
-        RtlInitUnicodeString(&target_name_us, target_name);
-
     if (!(new_lsa_ctx = alloc_lsa_handle(LSA_MAGIC_CONTEXT))) return STATUS_NO_MEMORY;
 
-    status = package->lsa_api->InitLsaModeContext(lsa_cred ? lsa_cred->handle : 0,
-        lsa_ctx ? lsa_ctx->handle : 0, target_name ? &target_name_us : NULL, context_req, target_data_rep,
-        input, &new_handle, output, context_attr, ts_expiry, &mapped_context, &ctx_data);
+    LSASS_CALL_START
+    status = initialize_security_context(get_lsass_handle(), GetCurrentThreadId(),
+            package - loaded_packages, lsa_cred ? lsa_cred->handle : 0,
+            lsa_ctx ? lsa_ctx->handle : 0, target_name, context_req,
+            target_data_rep, input, &new_lsa_ctx->handle, output,
+            context_attr, ts_expiry, &mapped_context, &ctx_data);
+    LSASS_CALL_END
     if (status == SEC_E_OK || status == SEC_I_CONTINUE_NEEDED)
     {
         new_lsa_ctx->package = package;
-        new_lsa_ctx->handle = new_handle;
         new_context->dwLower = (ULONG_PTR)new_lsa_ctx;
         new_context->dwUpper = 0;
 
@@ -730,11 +643,13 @@ static SECURITY_STATUS WINAPI lsa_AcceptSecurityContext(
     struct lsa_package *package = NULL;
     struct lsa_handle *lsa_cred = NULL, *lsa_ctx = NULL, *new_lsa_ctx;
     BOOLEAN mapped_context = FALSE;
-    LSA_SEC_HANDLE new_handle;
     SecBuffer ctx_data = { 0 };
 
     TRACE("%p %p %p %#lx %#lx %p %p %p %p\n", credential, context, input,
         context_req, target_data_rep, new_context, output, context_attr, ts_expiry);
+
+    if (input && input->cBuffers > MAX_SEC_BUFFERS) return SEC_E_INVALID_TOKEN;
+    if (output && output->cBuffers > MAX_SEC_BUFFERS) return SEC_E_INVALID_TOKEN;
 
     if (context)
     {
@@ -750,18 +665,18 @@ static SECURITY_STATUS WINAPI lsa_AcceptSecurityContext(
     }
     if (!package || !new_context) return SEC_E_INVALID_HANDLE;
 
-    if (!package->lsa_api || !package->lsa_api->AcceptLsaModeContext)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
     if (!(new_lsa_ctx = alloc_lsa_handle(LSA_MAGIC_CONTEXT))) return STATUS_NO_MEMORY;
 
-    status = package->lsa_api->AcceptLsaModeContext(lsa_cred ? lsa_cred->handle : 0,
-        lsa_ctx ? lsa_ctx->handle : 0, input, context_req, target_data_rep, &new_handle, output,
-        context_attr, ts_expiry, &mapped_context, &ctx_data);
+    LSASS_CALL_START
+    status = accept_security_context(get_lsass_handle(), GetCurrentThreadId(),
+            package - loaded_packages, lsa_cred ? lsa_cred->handle : 0,
+            lsa_ctx ? lsa_ctx->handle : 0, input, context_req,
+            target_data_rep, &new_lsa_ctx->handle, output, context_attr,
+            ts_expiry, &mapped_context, &ctx_data);
+    LSASS_CALL_END
     if (status == SEC_E_OK || status == SEC_I_CONTINUE_NEEDED)
     {
         new_lsa_ctx->package = package;
-        new_lsa_ctx->handle = new_handle;
         new_context->dwLower = (ULONG_PTR)new_lsa_ctx;
         new_context->dwUpper = 0;
 
@@ -788,6 +703,7 @@ static SECURITY_STATUS WINAPI lsa_AcceptSecurityContext(
 static SECURITY_STATUS WINAPI lsa_QueryContextAttributesW(CtxtHandle *context, ULONG attribute, void *buffer)
 {
     struct lsa_handle *lsa_ctx;
+    NTSTATUS status;
 
     TRACE("%p %ld %p\n", context, attribute, buffer);
 
@@ -795,10 +711,11 @@ static SECURITY_STATUS WINAPI lsa_QueryContextAttributesW(CtxtHandle *context, U
     lsa_ctx = (struct lsa_handle *)context->dwLower;
     if (!lsa_ctx || lsa_ctx->magic != LSA_MAGIC_CONTEXT) return SEC_E_INVALID_HANDLE;
 
-    if (!lsa_ctx->package->lsa_api || !lsa_ctx->package->lsa_api->SpQueryContextAttributes)
-        return SEC_E_UNSUPPORTED_FUNCTION;
-
-    return lsa_ctx->package->lsa_api->SpQueryContextAttributes(lsa_ctx->handle, attribute, buffer);
+    LSASS_CALL_START
+    status = query_context_attr(get_lsass_handle(), GetCurrentThreadId(),
+            lsa_ctx->package - loaded_packages, lsa_ctx->handle, attribute, buffer);
+    LSASS_CALL_END
+    return status;
 }
 
 static SecPkgInfoA *package_infoWtoA( const SecPkgInfoW *info )
@@ -1060,107 +977,26 @@ static const SecurityFunctionTableA lsa_sspi_tableA =
     NULL, /* SetContextAttributesA */
 };
 
-static NTSTATUS NTAPI lsa_MapBuffer( SecBuffer *in, SecBuffer *out )
-{
-    return SEC_E_OK;
-}
-
-static BOOLEAN NTAPI lsa_GetCallInfo( SECPKG_CALL_INFO *info )
-{
-    memset( info, 0, sizeof(*info) );
-    info->ProcessId = GetCurrentProcessId();
-    info->ThreadId = GetCurrentThreadId();
-    info->Attributes = SECPKG_CALL_IN_PROC;
-    return TRUE;
-}
-
-static const LSA_SECPKG_FUNCTION_TABLE lsa_secpkg_table =
-{
-    lsa_CreateLogonSession,
-    lsa_DeleteLogonSession,
-    lsa_AddCredential,
-    lsa_GetCredentials,
-    lsa_DeleteCredential,
-    lsa_AllocateLsaHeap,
-    lsa_FreeLsaHeap,
-    lsa_AllocateClientBuffer,
-    lsa_FreeClientBuffer,
-    lsa_CopyToClientBuffer,
-    lsa_CopyFromClientBuffer,
-    NULL, /* ImpersonateClient */
-    NULL, /* UnloadPackage */
-    NULL, /* DuplicateHandle */
-    NULL, /* SaveSupplementalCredentials */
-    NULL, /* CreateThread */
-    NULL, /* GetClientInfo */
-    NULL, /* RegisterNotification */
-    NULL, /* CancelNotification */
-    lsa_MapBuffer,
-    NULL, /* CreateToken */
-    NULL, /* AuditLogon */
-    NULL, /* CallPackage */
-    NULL, /* FreeReturnBuffer */
-    lsa_GetCallInfo,
-    NULL, /* CallPackageEx */
-    NULL, /* CreateSharedMemory */
-    NULL, /* AllocateSharedMemory */
-    NULL, /* FreeSharedMemory */
-    NULL, /* DeleteSharedMemory */
-    NULL, /* OpenSamUser */
-    NULL, /* GetUserCredentials */
-    NULL, /* GetUserAuthData */
-    NULL, /* CloseSamUser */
-    NULL, /* ConvertAuthDataToToken */
-    NULL, /* ClientCallback */
-    NULL, /* UpdateCredentials */
-    NULL, /* GetAuthDataForUser */
-    NULL, /* CrackSingleName */
-    NULL, /* AuditAccountLogon */
-    NULL, /* CallPackagePassthrough */
-};
-
 static BOOL initialize_package(ULONG package_id, HMODULE hmod, ULONG table_no,
-                               SecPkgInfoW *info, SpLsaModeInitializeFn pSpLsaModeInitialize,
-                               SpUserModeInitializeFn pSpUserModeInitialize)
+                               SecPkgInfoW *info, SpUserModeInitializeFn pSpUserModeInitialize)
 {
     ULONG api_version, table_count;
-    SECPKG_FUNCTION_TABLE *lsa_api;
     SECPKG_USER_FUNCTION_TABLE *user_api;
     struct lsa_package *package;
-    LSA_STRING *name;
     NTSTATUS status;
 
-    if (!pSpLsaModeInitialize || !pSpUserModeInitialize)
+    if (!pSpUserModeInitialize)
         return FALSE;
 
-    status = pSpLsaModeInitialize(SECPKG_INTERFACE_VERSION, &api_version, &lsa_api, &table_count);
+    status = pSpUserModeInitialize(SECPKG_INTERFACE_VERSION, &api_version, &user_api, &table_count);
     if (status || table_no >= table_count)
         return FALSE;
-    lsa_api += table_no;
-
-    status = lsa_api->InitializePackage(package_id, &lsa_dispatch, NULL, NULL, &name);
-    if (status)
-        return FALSE;
-    TRACE("name %s, version %#lx, api table %p, table count %lu\n",
-            debugstr_as(name), api_version, lsa_api, table_count);
-    status = lsa_api->Initialize(package_id, NULL /* FIXME: params */,
-            (LSA_SECPKG_FUNCTION_TABLE *)&lsa_secpkg_table);
-
-    if (!status)
-        status = pSpUserModeInitialize(SECPKG_INTERFACE_VERSION, &api_version, &user_api, &table_count);
-    if (status || table_no >= table_count)
-    {
-        lsa_FreeLsaHeap(name);
-        return FALSE;
-    }
     user_api += table_no;
     user_api->InstanceInit(SECPKG_INTERFACE_VERSION, &lsa_dll_dispatch, NULL);
 
     package = loaded_packages + package_id;
     package->mod = hmod;
-    package->name = name;
     package->info = *info;
-    package->lsa_api = lsa_api;
     package->user_api = user_api;
     return TRUE;
 }
@@ -1182,6 +1018,13 @@ void load_auth_packages(void)
         return;
     }
 
+    provider = SECUR32_addProvider(&lsa_sspi_tableA, &lsa_sspi_tableW, NULL);
+    if (!provider)
+    {
+        ERR("Failed to add SSP/AP provider\n");
+        return;
+    }
+
     loaded_packages = malloc(sizeof(*loaded_packages) * count);
     if (!loaded_packages)
     {
@@ -1196,65 +1039,60 @@ void load_auth_packages(void)
     }
     for (i = 0; i < count; i++)
     {
-        SpLsaModeInitializeFn lsa_init;
         SpUserModeInitializeFn user_init;
         HMODULE hmod;
 
         if (!packages[i].module_name)
         {
             hmod = NULL;
-            lsa_init = nego_SpLsaModeInitialize;
             user_init = nego_SpUserModeInitialize;
         }
         else
         {
             hmod = LoadLibraryW(packages[i].module_name);
-            lsa_init = (void *)GetProcAddress(hmod, "SpLsaModeInitialize");
             user_init = (void *)GetProcAddress(hmod, "SpUserModeInitialize");
         }
 
         MIDL_user_free(packages[i].module_name);
 
-        if (!initialize_package(i, hmod, packages[i].table_no, &packages[i].info, lsa_init, user_init))
+        if (!initialize_package(i, hmod, packages[i].table_no, &packages[i].info, user_init))
         {
             MIDL_user_free(packages[i].info.Name);
             MIDL_user_free(packages[i].info.Comment);
             FreeLibrary(hmod);
         }
+        else
+        {
+            SECUR32_addPackages(provider, 1, NULL, &loaded_packages[i].info);
+        }
     }
     MIDL_user_free(packages);
     loaded_packages_count = count;
-
-    provider = SECUR32_addProvider(&lsa_sspi_tableA, &lsa_sspi_tableW, NULL);
-    if (!provider)
-    {
-        ERR("Failed to add SSP/AP provider\n");
-        return;
-    }
-
-    for (i = 0; i < loaded_packages_count; i++)
-    {
-        if (!loaded_packages[i].name) continue;
-        SECUR32_addPackages(provider, 1, NULL, &loaded_packages[i].info);
-    }
 }
 
 NTSTATUS WINAPI LsaLookupAuthenticationPackage(HANDLE lsa_handle,
         PLSA_STRING package_name, PULONG package_id)
 {
+    UNICODE_STRING package_name_us, str;
     ULONG i;
 
     TRACE("%p %s %p\n", lsa_handle, debugstr_as(package_name), package_id);
 
+    if (RtlAnsiStringToUnicodeString(&package_name_us, package_name, TRUE))
+        return STATUS_NO_MEMORY;
+
     for (i = 0; i < loaded_packages_count; i++)
     {
-        if (!loaded_packages[i].name) continue;
-        if (!RtlCompareString(loaded_packages[i].name, package_name, FALSE))
+        RtlInitUnicodeString(&str, loaded_packages[i].info.Name);
+
+        if (RtlEqualUnicodeString(&package_name_us, &str, TRUE))
         {
+            RtlFreeUnicodeString(&package_name_us);
             *package_id = i;
             return STATUS_SUCCESS;
         }
     }
+    RtlFreeUnicodeString(&package_name_us);
 
     return STATUS_UNSUCCESSFUL; /* FIXME */
 }

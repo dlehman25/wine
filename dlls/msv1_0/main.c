@@ -1630,7 +1630,8 @@ static NTSTATUS NTAPI ntlm_SpAcceptLsaModeContext( LSA_SEC_HANDLE cred_handle, L
             goto done;
         }
         output->pBuffers[0].cbBuffer = bin_len;
-        output->pBuffers[0].BufferType = SECBUFFER_TOKEN;
+        output->pBuffers[0].BufferType &= SECBUFFER_ATTRMASK;
+        output->pBuffers[0].BufferType |= SECBUFFER_TOKEN;
         status = lsa_secpkg_table->MapBuffer( output->pBuffers, output->pBuffers );
         if (status) goto done;
         memcpy( output->pBuffers[0].pvBuffer, bin, bin_len );
