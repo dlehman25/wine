@@ -93,7 +93,6 @@ static ULONG_PTR zero_bits;
 static const struct vulkan_funcs *vk_funcs;
 static VkInstance vk_instance;
 static PFN_vkDestroyInstance p_vkDestroyInstance;
-static BOOLEAN enabled_extensions[GL_EXTENSION_COUNT];
 
 static int vk_device_cmp( const void *key, const struct rb_entry *entry )
 {
@@ -166,40 +165,6 @@ static struct opengl_context *context_from_client_context( HGLRC client_context 
     return opengl_context_from_handle( client_context );
 }
 
-struct extension_entry
-{
-    const char *name;
-    size_t len;
-};
-
-#define USE_GL_EXT(x) [x] = { .name = #x, .len = sizeof(#x) - 1 },
-static const struct extension_entry all_extensions[] = { ALL_GL_EXTS ALL_WGL_EXTS };
-#undef USE_GL_EXT
-
-static int extension_entry_cmp( const void *a, const void *b )
-{
-    const struct extension_entry *entry_a = a, *entry_b = b;
-    size_t len = max( entry_a->len, entry_b->len );
-    return strncmp( entry_a->name, entry_b->name, len );
-};
-
-static enum opengl_extension parse_extension( const char *ext, size_t len )
-{
-    const struct extension_entry entry = { .name = ext, .len = len }, *found;
-
-    if ((found = bsearch( &entry, all_extensions, ARRAY_SIZE(all_extensions), sizeof(entry), extension_entry_cmp )))
-        return found - all_extensions;
-
-    /* Map host extensions */
-    if (len == ARRAYSIZE("GL_EXT_memory_object_fd") - 1 && !memcmp( ext, "GL_EXT_memory_object_fd", len ))
-        return GL_EXT_memory_object_win32;
-    if (len == ARRAYSIZE("GL_EXT_semaphore_fd") - 1 && !memcmp( ext, "GL_EXT_semaphore_fd", len ))
-        return GL_EXT_semaphore_win32;
-
-    WARN( "Extension %s unknown\n", debugstr_an(ext, len) );
-    return GL_EXTENSION_COUNT;
-}
-
 static const char *parse_gl_version( const char *gl_version, int *major, int *minor )
 {
     const char *ptr = gl_version;
@@ -216,174 +181,6 @@ static const char *parse_gl_version( const char *gl_version, int *major, int *mi
 
     while (isdigit( *ptr )) ++ptr;
     return ptr;
-}
-
-static inline void ascii_to_unicode( WCHAR *dst, const char *src, size_t len )
-{
-    while (len--) *dst++ = (unsigned char)*src++;
-}
-
-static inline UINT asciiz_to_unicode( WCHAR *dst, const char *src )
-{
-    WCHAR *p = dst;
-    while ((*p++ = *src++));
-    return (p - dst) * sizeof(WCHAR);
-}
-
-static inline void unicode_to_ascii( char *dst, const WCHAR *src, size_t len )
-{
-    while (len--) *dst++ = *src++;
-}
-
-static HKEY reg_open_key( HKEY root, const WCHAR *name, ULONG name_len )
-{
-    UNICODE_STRING nameW = { name_len, name_len, (WCHAR *)name };
-    OBJECT_ATTRIBUTES attr;
-    HANDLE ret;
-
-    attr.Length = sizeof(attr);
-    attr.RootDirectory = root;
-    attr.ObjectName = &nameW;
-    attr.Attributes = 0;
-    attr.SecurityDescriptor = NULL;
-    attr.SecurityQualityOfService = NULL;
-
-    return NtOpenKeyEx( &ret, MAXIMUM_ALLOWED, &attr, 0 ) ? 0 : ret;
-}
-
-static HKEY open_hkcu_key( const char *name )
-{
-    WCHAR bufferW[256];
-    static HKEY hkcu;
-
-    if (!hkcu)
-    {
-        char buffer[256];
-        DWORD_PTR sid_data[(sizeof(TOKEN_USER) + SECURITY_MAX_SID_SIZE) / sizeof(DWORD_PTR)];
-        DWORD i, len = sizeof(sid_data);
-        SID *sid;
-
-        if (NtQueryInformationToken( GetCurrentThreadEffectiveToken(), TokenUser, sid_data, len, &len ))
-            return 0;
-
-        sid = ((TOKEN_USER *)sid_data)->User.Sid;
-        len = snprintf( buffer, sizeof(buffer), "\\Registry\\User\\S-%u-%u", sid->Revision,
-                        MAKELONG( MAKEWORD( sid->IdentifierAuthority.Value[5],
-                                            sid->IdentifierAuthority.Value[4] ),
-                                  MAKEWORD( sid->IdentifierAuthority.Value[3],
-                                            sid->IdentifierAuthority.Value[2] )));
-        for (i = 0; i < sid->SubAuthorityCount; i++)
-            len += snprintf( buffer + len, sizeof(buffer) - len, "-%u", sid->SubAuthority[i] );
-
-        ascii_to_unicode( bufferW, buffer, len );
-        hkcu = reg_open_key( NULL, bufferW, len * sizeof(WCHAR) );
-    }
-
-    return reg_open_key( hkcu, bufferW, asciiz_to_unicode( bufferW, name ) - sizeof(WCHAR) );
-}
-
-static ULONG query_reg_value( HKEY hkey, const WCHAR *name, KEY_VALUE_PARTIAL_INFORMATION *info, ULONG size )
-{
-    unsigned int name_size = name ? lstrlenW( name ) * sizeof(WCHAR) : 0;
-    UNICODE_STRING nameW = { name_size, name_size, (WCHAR *)name };
-
-    if (NtQueryValueKey( hkey, &nameW, KeyValuePartialInformation,
-                         info, size, &size ))
-        return 0;
-
-    return size - FIELD_OFFSET(KEY_VALUE_PARTIAL_INFORMATION, Data);
-}
-
-static ULONG query_reg_ascii_value( HKEY hkey, const char *name, KEY_VALUE_PARTIAL_INFORMATION *info, ULONG size )
-{
-    WCHAR nameW[64];
-    asciiz_to_unicode( nameW, name );
-    return query_reg_value( hkey, nameW, info, size );
-}
-
-static DWORD get_ascii_config_key( HKEY defkey, HKEY appkey, const char *name,
-                                   char *buffer, DWORD size )
-{
-    char buf[offsetof(KEY_VALUE_PARTIAL_INFORMATION, Data[4096])];
-    KEY_VALUE_PARTIAL_INFORMATION *info = (void *)buf;
-
-    if (appkey && query_reg_ascii_value( appkey, name, info, sizeof(buf) ))
-    {
-        size = min( info->DataLength, size - sizeof(WCHAR) ) / sizeof(WCHAR);
-        unicode_to_ascii( buffer, (WCHAR *)info->Data, size );
-        buffer[size] = 0;
-        return 0;
-    }
-
-    if (defkey && query_reg_ascii_value( defkey, name, info, sizeof(buf) ))
-    {
-        size = min( info->DataLength, size - sizeof(WCHAR) ) / sizeof(WCHAR);
-        unicode_to_ascii( buffer, (WCHAR *)info->Data, size );
-        buffer[size] = 0;
-        return 0;
-    }
-
-    return ERROR_FILE_NOT_FOUND;
-}
-
-static char *query_opengl_option( const char *name )
-{
-    WCHAR bufferW[MAX_PATH + 16], *p, *appname;
-    HKEY defkey, appkey = 0;
-    char buffer[4096];
-    char *str = NULL;
-    DWORD len;
-
-    /* @@ Wine registry key: HKCU\Software\Wine\OpenGL */
-    defkey = open_hkcu_key( "Software\\Wine\\OpenGL" );
-
-    /* open the app-specific key */
-    appname = NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer;
-    if ((p = wcsrchr( appname, '/' ))) appname = p + 1;
-    if ((p = wcsrchr( appname, '\\' ))) appname = p + 1;
-    len = lstrlenW( appname );
-
-    if (len && len < MAX_PATH)
-    {
-        HKEY tmpkey;
-        int i;
-
-        for (i = 0; appname[i]; i++) bufferW[i] = RtlDowncaseUnicodeChar( appname[i] );
-        bufferW[i] = 0;
-        appname = bufferW;
-
-        /* @@ Wine registry key: HKCU\Software\Wine\AppDefaults\app.exe\OpenGL */
-        if ((tmpkey = open_hkcu_key( "Software\\Wine\\AppDefaults" )))
-        {
-            static const WCHAR openglW[] = {'\\','O','p','e','n','G','L',0};
-            memcpy( appname + i, openglW, sizeof(openglW) );
-            appkey = reg_open_key( tmpkey, appname, lstrlenW( appname ) * sizeof(WCHAR) );
-            NtClose( tmpkey );
-        }
-    }
-
-    if (!get_ascii_config_key( defkey, appkey, name, buffer, sizeof(buffer) ))
-        str = strdup( buffer );
-
-    if (appkey) NtClose( appkey );
-    if (defkey) NtClose( defkey );
-    return str;
-}
-
-static size_t parse_extensions( const char *name, enum opengl_extension extensions[GL_EXTENSION_COUNT] )
-{
-    size_t count = 0;
-
-    while (*name)
-    {
-        const char *end = name + 1;
-        while (*end && *end != ' ') end++;
-        if ((extensions[count] = parse_extension( name, end - name )) != GL_EXTENSION_COUNT) count++;
-        name = end;
-        if (*name == ' ') name++;
-    }
-
-    return count;
 }
 
 static void set_gl_error( TEB *teb, GLenum error )
@@ -500,7 +297,7 @@ void wrap_glGetUnsignedBytevEXT( TEB *teb, GLenum pname, GLubyte *data, PFN_glGe
     return p_glGetUnsignedBytevEXT( pname, data );
 }
 
-static BOOL initialize_vk_device( TEB *teb, struct opengl_client_context *client )
+static BOOL initialize_vk_device( TEB *teb, const struct opengl_context *ctx )
 {
     const struct opengl_funcs *funcs = teb->glTable;
     VkPhysicalDevice *vk_physical_devices = NULL;
@@ -515,7 +312,7 @@ static BOOL initialize_vk_device( TEB *teb, struct opengl_client_context *client
     static PFN_vkGetPhysicalDeviceProperties2KHR p_vkGetPhysicalDeviceProperties2KHR;
 
     if (buffers.vk_device) return TRUE; /* already initialized */
-    if (!client->extensions[GL_EXT_memory_object_win32] )
+    if (!ctx->extensions[GL_EXT_memory_object_win32] )
     {
         TRACE( "GL_EXT_memory_object_win32 is not supported\n" );
         return FALSE;
@@ -680,39 +477,14 @@ static BOOL initialize_vk_device( TEB *teb, struct opengl_client_context *client
     return FALSE;
 }
 
-static void init_enabled_extensions(void)
+static void init_client_context( TEB *teb, struct opengl_client_context *client, const struct opengl_context *ctx )
 {
-    enum opengl_extension parsed_extensions[GL_EXTENSION_COUNT];
-    char *enabled, *disabled;
-    size_t count, i;
-
-    if ((enabled = query_opengl_option( "EnabledExtensions" )))
-    {
-        count = parse_extensions( enabled, parsed_extensions );
-        for (i = 0; i < count; i++) enabled_extensions[parsed_extensions[i]] = TRUE;
-    }
-    else
-    {
-        memset( enabled_extensions, TRUE, sizeof(enabled_extensions) );
-    }
-
-    if ((disabled = query_opengl_option( "DisabledExtensions" )))
-    {
-        count = parse_extensions( disabled, parsed_extensions );
-        for (i = 0; i < count; i++) enabled_extensions[parsed_extensions[i]] = FALSE;
-    }
-
-    free( enabled );
-    free( disabled );
-}
-
-static void init_client_context( TEB *teb, struct opengl_client_context *client )
-{
+#define USE_GL_EXT(x) #x,
+    static const char *extension_names[] = { ALL_GL_EXTS ALL_WGL_EXTS };
+#undef USE_GL_EXT
     const char *vendor, *device, *version, *rest = "";
     const struct opengl_funcs *funcs = teb->glTable;
     size_t count = 0, i, len;
-
-    static pthread_once_t once = PTHREAD_ONCE_INIT;
 
     if (!(version = (const char *)funcs->p_glGetString( GL_VERSION ))) version = "1.0";
     rest = parse_gl_version( version, &client->major_version, &client->minor_version );
@@ -732,40 +504,14 @@ static void init_client_context( TEB *teb, struct opengl_client_context *client 
     if ((len = strlen( version )) >= ARRAY_SIZE(client->version_str)) FIXME( "version_str buffer too small, need %zu\n", len );
     lstrcpynA( client->version_str, version, ARRAY_SIZE(client->version_str) );
 
-    funcs->p_init_extensions( client->extensions );
-
     if (client->major_version >= 3)
     {
-        GLint extensions_count;
-        funcs->p_glGetIntegerv( GL_NUM_EXTENSIONS, &extensions_count );
-        for (i = 0; i < extensions_count; i++)
-        {
-            const char *name = (const char *)funcs->p_glGetStringi( GL_EXTENSIONS, i );
-            enum opengl_extension ext = parse_extension( name, strlen( name ) );
-            if (ext != GL_EXTENSION_COUNT) client->extensions[ext] = TRUE;
-        }
-
         if (client->major_version > 3 || client->minor_version > 1)
             funcs->p_glGetIntegerv( GL_CONTEXT_PROFILE_MASK, &client->profile_mask );
         funcs->p_glGetIntegerv( GL_CONTEXT_FLAGS, &client->context_flags );
     }
-    else
-    {
-        enum opengl_extension extensions[GL_EXTENSION_COUNT];
-        size_t extension_count = parse_extensions( (const char *)funcs->p_glGetString( GL_EXTENSIONS ), extensions);
-        for (i = 0; i < extension_count; i++) client->extensions[i] = TRUE;
-    }
 
-    pthread_once( &once, init_enabled_extensions );
-
-    for (i = 0; i < WGL_FIRST_EXTENSION; i++)
-    {
-        if (enabled_extensions[i] || !client->extensions[i]) continue;
-        client->extensions[i] = FALSE;
-        TRACE( "-- %s (disabled by config)\n", all_extensions[i].name );
-    }
-
-    if (is_win64 && is_wow64() && !initialize_vk_device( teb, client ) && !client->extensions[GL_AMD_pinned_memory])
+    if (is_win64 && is_wow64() && !initialize_vk_device( teb, ctx ) && !ctx->extensions[GL_AMD_pinned_memory])
     {
         if (client->major_version > 4 || (client->major_version == 4 && client->minor_version > 3))
         {
@@ -786,7 +532,7 @@ static void init_client_context( TEB *teb, struct opengl_client_context *client 
     if (client->extensions[WGL_EXT_swap_control])      client->extension_array[count++] = WGL_EXT_swap_control;
     client->extension_count = count;
 
-    if (TRACE_ON(opengl)) for (i = 0; i < count; i++) TRACE( "++ %s\n", all_extensions[client->extension_array[i]].name );
+    if (TRACE_ON(opengl)) for (i = 0; i < count; i++) TRACE( "++ %s\n", extension_names[client->extension_array[i]] );
 }
 
 BOOL wrap_wglDeleteContext( TEB *teb, HGLRC client_context )
@@ -983,7 +729,7 @@ BOOL wrap_wglMakeContextCurrentARB( TEB *teb, HDC draw_hdc, HDC read_hdc, HGLRC 
         teb->glReserved1[0] = draw_hdc;
         teb->glReserved1[1] = read_hdc;
         teb->glTable = (void *)funcs;
-        if (!client->major_version) init_client_context( teb, client );
+        if (!client->major_version) init_client_context( teb, client, ctx );
         pop_default_fbo( teb );
         set_default_fbo_buffers( teb, ctx );
     }

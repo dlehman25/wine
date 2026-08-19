@@ -434,6 +434,11 @@ static inline UINT unicodez_to_ascii( char *dst, const WCHAR *src )
     return p - dst;
 }
 
+static inline void unicode_to_ascii( char *dst, const WCHAR *src, size_t len )
+{
+    while (len--) *dst++ = *src++;
+}
+
 static inline BOOL is_win9x(void)
 {
     return RtlGetCurrentPeb()->OSPlatformId == VER_PLATFORM_WIN32s;

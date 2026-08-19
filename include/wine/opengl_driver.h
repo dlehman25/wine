@@ -93,7 +93,7 @@ struct opengl_client_context
 
 static inline struct opengl_client_context *opengl_client_context_from_client( HGLRC client_context )
 {
-    return CONTAINING_RECORD( client_context, struct opengl_client_context, obj );
+    return client_context ? CONTAINING_RECORD( client_context, struct opengl_client_context, obj ) : NULL;
 }
 
 struct opengl_client_pbuffer
@@ -119,7 +119,7 @@ struct __GLsync
 #include "wine/gdi_driver.h"
 
 /* Wine internal opengl driver version, needs to be bumped upon opengl_funcs changes. */
-#define WINE_OPENGL_DRIVER_VERSION 39
+#define WINE_OPENGL_DRIVER_VERSION 41
 
 struct opengl_drawable;
 
@@ -136,6 +136,8 @@ struct opengl_context
     GLenum                      read_buffer;        /* currently bound default FBO read buffers */
     GLenum                      draw_buffers[16];   /* currently bound default FBO draw buffers */
     GLuint                      draw_buffer_count;  /* number of draw buffers set */
+    BOOLEAN                     extensions[GL_EXTENSION_COUNT]; /* available extensions */
+    BOOL                        initialized;        /* extensions have been initialized */
 };
 
 static inline struct opengl_context *opengl_context_from_handle( HGLRC client_context )
@@ -175,7 +177,6 @@ struct opengl_funcs
     PFN_wglAllocateMemoryNV p_wglAllocateMemoryNV;
     PFN_wglFreeMemoryNV p_wglFreeMemoryNV;
 
-    void (*p_init_extensions)( BOOLEAN extensions[GL_EXTENSION_COUNT] );
     void (*p_get_pixel_formats)( struct wgl_pixel_format *formats, UINT max_formats, UINT *num_formats, UINT *num_onscreen_formats );
     BOOL (*p_query_renderer)( UINT attribute, void *value );
     struct opengl_context *(*p_context_create)( HDC hdc, const int *attribs, BOOL *broken_sharing );
