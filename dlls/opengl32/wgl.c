@@ -473,6 +473,9 @@ static void init_object_table( struct object_table *table, enum object_type type
 {
     InitializeSRWLock( &table->lock );
     table->type = type;
+    /* always handle name allocations for objects used on the unix side */
+    table->implicit = type == OBJ_TYPE_FRAMEBUFFER || type == OBJ_TYPE_RENDERBUFFER ||
+                      type == OBJ_TYPE_TEXTURE || type == OBJ_TYPE_BUFFER;
 }
 
 struct display_lists
