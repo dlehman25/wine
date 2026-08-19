@@ -1026,6 +1026,7 @@ my %gl_extensions =
     (
      # exposed by native drivers, but not included in registry xml:
      "GL_APPLE_packed_pixels" => 1, # no specification
+     "GL_APPLE_pixel_buffer" => 1, # no specification
      "GL_ATI_texture_compression_3dc" => 1, # no specification
      "GL_EXT_texture_edge_clamp" => 1, # https://developer.download.nvidia.com/opengl/specs/GL_EXT_texture_edge_clamp.txt
      "GL_EXT_texture_rectangle" => 1, # https://people.freedesktop.org/~marcheu/extensions/static/GL_EXT_texture_rectangle.txt
@@ -1102,6 +1103,7 @@ my %unexposed_extgroups =
    );
 my %unexposed_extensions =
    (
+    "GL_APPLE_pixel_buffer" => 1,
     "GL_EXT_memory_object_fd" => 1,
     "GL_EXT_semaphore_fd" => 1,
     # GLES-only extensions:

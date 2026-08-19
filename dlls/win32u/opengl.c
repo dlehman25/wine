@@ -3294,10 +3294,18 @@ static void display_funcs_init(void)
     global_context->extensions[WGL_ARB_multisample] = 1;
     global_context->extensions[WGL_ARB_pixel_format] = 1;
 
-    if (display_egl.has_EGL_EXT_pixel_format_float)
+    if (display_egl.has_EGL_EXT_pixel_format_float || global_context->extensions[GL_ARB_color_buffer_float])
     {
         global_context->extensions[WGL_ARB_pixel_format_float] = 1;
         global_context->extensions[WGL_ATI_pixel_format_float] = 1;
+    }
+
+    if (global_context->extensions[GL_ARB_framebuffer_sRGB]) global_context->extensions[WGL_ARB_framebuffer_sRGB] = 1;
+    if (global_context->extensions[GL_EXT_framebuffer_sRGB]) global_context->extensions[WGL_EXT_framebuffer_sRGB] = 1;
+    if (global_context->extensions[GL_EXT_packed_float]) global_context->extensions[WGL_EXT_pixel_format_packed_float] = 1;
+    if (global_context->extensions[GL_ARB_texture_rectangle] || global_context->extensions[GL_EXT_texture_rectangle])
+    {
+        if (global_context->extensions[GL_APPLE_pixel_buffer]) global_context->extensions[WGL_NV_render_texture_rectangle] = 1;
     }
 
     global_context->extensions[WGL_ARB_extensions_string] = 1;
