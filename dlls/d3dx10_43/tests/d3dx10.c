@@ -5047,21 +5047,19 @@ static void test_dxt10_dds_header_image_info(void)
                 D3D10_RESOURCE_DIMENSION_TEXTURE2D
             }
         },
-        /* Resource dimension is validated for cube textures. */
-        {
-            0, 4, 4, 1, (4 * 4), 1, 0, 0,
-            { DXGI_FORMAT_R8G8B8A8_UNORM, D3D10_RESOURCE_DIMENSION_TEXTURE3D, DDS_RESOURCE_MISC_TEXTURECUBE, 2, 0, },
-            (4 * 4 * 4 * 12), { E_FAIL }
-        },
-        /*
-         * 10.
-         * 1D Texture cube, invalid.
-         */
-        {
-            0, 4, 4, 1, (4 * 4), 1, 0, 0,
-            { DXGI_FORMAT_R8G8B8A8_UNORM, D3D10_RESOURCE_DIMENSION_TEXTURE1D, DDS_RESOURCE_MISC_TEXTURECUBE, 2, 0, },
-            (4 * 4 * 4 * 12), { E_FAIL }
-        },
+        /* Resource dimension is not necessarily validated for cube textures,
+         * it sporadically crashes on Windows. */
+        /* { */
+        /*     0, 4, 4, 1, (4 * 4), 1, 0, 0, */
+        /*     { DXGI_FORMAT_R8G8B8A8_UNORM, D3D10_RESOURCE_DIMENSION_TEXTURE3D, DDS_RESOURCE_MISC_TEXTURECUBE, 2, 0, }, */
+        /*     (4 * 4 * 4 * 12), { E_FAIL } */
+        /* }, */
+        /* 1D Texture cube, invalid. */
+        /* { */
+        /*     0, 4, 4, 1, (4 * 4), 1, 0, 0, */
+        /*     { DXGI_FORMAT_R8G8B8A8_UNORM, D3D10_RESOURCE_DIMENSION_TEXTURE1D, DDS_RESOURCE_MISC_TEXTURECUBE, 2, 0, }, */
+        /*     (4 * 4 * 4 * 12), { E_FAIL } */
+        /* }, */
     };
     D3DX10_IMAGE_INFO info;
     unsigned int i;
