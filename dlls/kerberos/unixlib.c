@@ -1416,6 +1416,7 @@ static NTSTATUS wow64_seal_message( void *args )
 
 static NTSTATUS wow64_unseal_message( void *args )
 {
+    BYTE *data;
     struct
     {
         UINT64 context;
@@ -1432,13 +1433,18 @@ static NTSTATUS wow64_unseal_message( void *args )
         params32->context,
         ULongToPtr(params32->stream),
         params32->stream_length,
-        ULongToPtr(params32->data),
+        &data,
         ULongToPtr(params32->data_length),
         ULongToPtr(params32->token),
         params32->token_length,
         ULongToPtr(params32->qop),
     };
-    return unseal_message( &params );
+    NTSTATUS ret;
+
+    data = ULongToPtr(*(PTR32*)ULongToPtr(params32->data));
+    ret = unseal_message( &params );
+    *(PTR32*)ULongToPtr(params32->data) = PtrToUlong( data );
+    return ret;
 }
 
 static NTSTATUS wow64_verify_signature( void *args )
