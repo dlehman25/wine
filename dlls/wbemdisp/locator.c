@@ -293,10 +293,51 @@ static HRESULT WINAPI property_get_Origin( ISWbemProperty *iface, BSTR *strOrigi
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI property_get_CIMType( ISWbemProperty *iface, WbemCimtypeEnum *iCimType )
+static HRESULT map_cim_type( CIMTYPE type, WbemCimtypeEnum *ret_type )
 {
-    FIXME( "\n" );
-    return E_NOTIMPL;
+    switch (type)
+    {
+    case CIM_SINT16:    *ret_type = wbemCimtypeSint16;    break;
+    case CIM_SINT32:    *ret_type = wbemCimtypeSint32;    break;
+    case CIM_REAL32:    *ret_type = wbemCimtypeReal32;    break;
+    case CIM_REAL64:    *ret_type = wbemCimtypeReal64;    break;
+    case CIM_STRING:    *ret_type = wbemCimtypeString;    break;
+    case CIM_BOOLEAN:   *ret_type = wbemCimtypeBoolean;   break;
+    case CIM_OBJECT:    *ret_type = wbemCimtypeObject;    break;
+    case CIM_SINT8:     *ret_type = wbemCimtypeSint8;     break;
+    case CIM_UINT8:     *ret_type = wbemCimtypeUint8;     break;
+    case CIM_UINT16:    *ret_type = wbemCimtypeUint16;    break;
+    case CIM_UINT32:    *ret_type = wbemCimtypeUint32;    break;
+    case CIM_SINT64:    *ret_type = wbemCimtypeSint64;    break;
+    case CIM_UINT64:    *ret_type = wbemCimtypeUint64;    break;
+    case CIM_DATETIME:  *ret_type = wbemCimtypeDatetime;  break;
+    case CIM_REFERENCE: *ret_type = wbemCimtypeReference; break;
+    case CIM_CHAR16:    *ret_type = wbemCimtypeChar16;    break;
+    default:
+        FIXME( "unhandled type %lu\n", type );
+        return E_NOTIMPL;
+    }
+    return S_OK;
+}
+
+static HRESULT WINAPI property_get_CIMType( ISWbemProperty *iface, WbemCimtypeEnum *ret_type )
+{
+    struct property *property = impl_from_ISWbemProperty( iface );
+    VARIANT dummy;
+    WbemCimtypeEnum cim_type;
+    CIMTYPE type;
+    HRESULT hr;
+
+    TRACE( "%p, %p\n", iface, ret_type );
+
+    hr = IWbemClassObject_Get( property->object, property->name, 0, &dummy, &type, NULL );
+    if (SUCCEEDED( hr ))
+    {
+        hr = map_cim_type( type, &cim_type );
+        if (SUCCEEDED( hr )) *ret_type = cim_type;
+        VariantClear( &dummy );
+    }
+    return hr;
 }
 
 static HRESULT WINAPI property_get_Qualifiers_( ISWbemProperty *iface, ISWbemQualifierSet **objWbemQualifierSet )
