@@ -4657,37 +4657,33 @@ static void test_dxt_formats(void)
 
 static void test_srgb_filter_flags(void)
 {
+    /*
+     * An input value > 1.0f being converted from SRGB to linear produces
+     * quite a few different values depending on the SDK version, and
+     * sometimes changes run to run. Presumably it's reading beyond the end of
+     * a LUT, values above ~106.0f will cause a crash on all versions and
+     * bitnesses.
+     */
     static const float test_float4_srgb_in[] =
     {
         0.09f, 0.1f,  0.2f, 1.0f,
         0.30f, 0.4f,  0.5f, 2.0f,
         0.60f, 0.7f,  0.8f, 3.0f,
-        0.90f, 1.5f, -1.0f, 4.0f,
+        0.90f, 1.0f, -1.0f, 4.0f,
     };
     static const float test_float4_srgb_in_expected[] =
     {
         5.00732847e-003,  6.27983455e-003, 2.89932229e-002, 1.00000000e+000,
         7.07391128e-002,  1.33206353e-001, 2.17635408e-001, 2.00000000e+000,
         3.25037479e-001,  4.56263810e-001, 6.12064898e-001, 3.00000000e+000,
-        7.93109715e-001,  0.00000000e-000, 1.00000000e+000, 4.00000000e+000,
+        7.93109715e-001,  1.00000000e+000, 1.00000000e+000, 4.00000000e+000,
     };
     static const float test_float4_srgb_in_expected_32[] =
     {
         5.00732893e-003, 6.27983361e-003, 2.89932191e-002, 1.00000000e+000,
         7.07391202e-002, 1.33206338e-001, 2.17635408e-001, 2.00000000e+000,
         3.25037509e-001, 4.56263840e-001, 6.12064838e-001, 3.00000000e+000,
-        /*
-         * On 32-bit d3dx10+, an input value of 1.5f being converted from SRGB
-         * to linear produces quite a few different values depending on the
-         * SDK version. Presumably it's reading beyond the end of a LUT,
-         * values above ~106.0f will cause a crash on all versions and
-         * bitnesses.
-         */
-#if D3DX11_SDK_VERSION == 42
-        7.93109715e-001, 6.54184470e+027, 1.00000000e+000, 4.00000000e+000
-#else
-        7.93109715e-001, 1.12405043e+032, 1.00000000e+000, 4.00000000e+000
-#endif
+        7.93109715e-001, 1.00000000e+000, 1.00000000e+000, 4.00000000e+000
     };
     static const float test_float4_srgb_out[] =
     {
