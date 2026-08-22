@@ -1515,7 +1515,7 @@ UINT ACTION_CustomAction(MSIPACKAGE *package, const WCHAR *action)
         break;
     case 7: /* Concurrent install from substorage */
         deformat_string( package, target, &deformated );
-        rc = HANDLE_CustomType7( package, source, target, type, action );
+        rc = HANDLE_CustomType7( package, source, deformated, type, action );
         free( deformated );
         break;
     case 17:
