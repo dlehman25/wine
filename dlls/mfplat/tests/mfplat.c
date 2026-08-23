@@ -12639,7 +12639,6 @@ static void test_sample_allocator_d3d11(void)
         hr = IMFVideoSampleAllocatorEx_InitializeSampleAllocatorEx(allocatorex, 0, 0, attributes, video_type);
         if (sharing[i] == (D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED))
         {
-            todo_wine
             ok(hr == E_INVALIDARG, "%u: Unexpected hr %#lx.\n", i, hr);
             IMFVideoSampleAllocatorEx_Release(allocatorex);
             continue;
