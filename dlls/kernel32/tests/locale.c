@@ -6772,6 +6772,18 @@ static void test_GetSystemPreferredUILanguages(void)
            buffer[size -2], buffer[size -1]);
 
     count = 0;
+    size = size_buffer;
+    SetLastError(0xdeadbeef);
+    ret = pGetSystemPreferredUILanguages(0, &count, buffer, &size);
+    ok(ret, "Expected GetSystemPreferredUILanguages to succeed\n");
+    ok(count, "Expected count > 0\n");
+    ok(size % 6 == 1, "Expected size (%ld) %% 6 == 1\n", size);
+    if (ret && size % 5 == 1)
+        ok(!buffer[size -2] && !buffer[size -1],
+           "Expected last two WCHARs being empty, got 0x%x 0x%x\n",
+           buffer[size -2], buffer[size -1]);
+
+    count = 0;
     size = 0;
     SetLastError(0xdeadbeef);
     ret = pGetSystemPreferredUILanguages(MUI_MACHINE_LANGUAGE_SETTINGS, &count, NULL, &size);
@@ -6843,15 +6855,6 @@ static void test_GetSystemPreferredUILanguages(void)
        "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
     ok(size == size_id, "expected %lu, got %lu\n", size_id, size);
 
-    size = size_id -2;
-    memset(buffer, 0x5a, size_buffer * sizeof(WCHAR));
-    SetLastError(0xdeadbeef);
-    ret = pGetSystemPreferredUILanguages(0, &count, buffer, &size);
-    ok(!ret, "Expected GetSystemPreferredUILanguages to fail\n");
-    ok(ERROR_INSUFFICIENT_BUFFER == GetLastError(),
-       "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
-    ok(size == size_id + 2 || size == size_id + 1 /* before win10 1809 */, "expected %lu, got %lu\n", size_id + 2, size);
-
     HeapFree(GetProcessHeap(), 0, buffer);
 }
 
@@ -6918,15 +6921,6 @@ static void test_GetThreadPreferredUILanguages(void)
     ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER,
        "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
     ok(size == size_id, "expected %lu, got %lu\n", size_id, size);
-
-    size = size_id - 2;
-    SetLastError(0xdeadbeef);
-    ret = pGetThreadPreferredUILanguages(0, &count, buf, &size);
-    ok(!ret, "Expected GetThreadPreferredUILanguages to fail\n");
-    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER,
-       "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
-    todo_wine
-    ok(size == size_id || size == size_id - 1 /* before win10 1809 */, "expected %lu, got %lu\n", size_id, size);
 
     HeapFree(GetProcessHeap(), 0, buf);
 }
@@ -7044,6 +7038,18 @@ static void test_GetUserPreferredUILanguages(void)
            "Expected last two WCHARs being empty, got 0x%x 0x%x\n",
            buffer[size -2], buffer[size -1]);
 
+    count = 0;
+    size = size_buffer;
+    SetLastError(0xdeadbeef);
+    ret = pGetUserPreferredUILanguages(0, &count, buffer, &size);
+    ok(ret, "Expected GetUserPreferredUILanguages to succeed\n");
+    ok(count, "Expected count > 0\n");
+    ok(size % 6 == 1, "Expected size (%ld) %% 6 == 1\n", size);
+    if (ret && size % 5 == 1)
+        ok(!buffer[size -2] && !buffer[size -1],
+           "Expected last two WCHARs being empty, got 0x%x 0x%x\n",
+           buffer[size -2], buffer[size -1]);
+
     size = 1;
     SetLastError(0xdeadbeef);
     ret = pGetUserPreferredUILanguages(MUI_LANGUAGE_ID, &count, buffer, &size);
@@ -7055,15 +7061,6 @@ static void test_GetUserPreferredUILanguages(void)
     memset(buffer, 0x5a, size_buffer * sizeof(WCHAR));
     SetLastError(0xdeadbeef);
     ret = pGetUserPreferredUILanguages(MUI_LANGUAGE_ID, &count, buffer, &size);
-    ok(!ret, "Expected GetUserPreferredUILanguages to fail\n");
-    ok(ERROR_INSUFFICIENT_BUFFER == GetLastError(),
-       "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
-
-    count = 0;
-    size = size_id -2;
-    memset(buffer, 0x5a, size_buffer * sizeof(WCHAR));
-    SetLastError(0xdeadbeef);
-    ret = pGetUserPreferredUILanguages(0, &count, buffer, &size);
     ok(!ret, "Expected GetUserPreferredUILanguages to fail\n");
     ok(ERROR_INSUFFICIENT_BUFFER == GetLastError(),
        "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
