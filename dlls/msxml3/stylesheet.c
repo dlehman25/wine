@@ -220,13 +220,20 @@ static HRESULT WINAPI xsltemplate_putref_stylesheet( IXSLTemplate *iface,
     return S_OK;
 }
 
-static HRESULT WINAPI xsltemplate_get_stylesheet( IXSLTemplate *iface,
-    IXMLDOMNode **node)
+static HRESULT WINAPI xsltemplate_get_stylesheet(IXSLTemplate *iface, IXMLDOMNode **node)
 {
-    xsltemplate *This = impl_from_IXSLTemplate( iface );
+    xsltemplate *template = impl_from_IXSLTemplate(iface);
 
-    FIXME("(%p)->(%p): stub\n", This, node);
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, node);
+
+    if (!node)
+        return E_INVALIDARG;
+
+    *node = template->node;
+    if (*node)
+        IXMLDOMNode_AddRef(*node);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI xsltemplate_createProcessor( IXSLTemplate *iface,

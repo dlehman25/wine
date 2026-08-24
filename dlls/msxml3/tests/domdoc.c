@@ -9632,14 +9632,11 @@ static void test_xsltemplate(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     hr = IXSLTemplate_get_stylesheet(template, NULL);
-    todo_wine
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
 
     node = (void *)1;
     hr = IXSLTemplate_get_stylesheet(template, &node);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(!node, "Unexpected node %p.\n", node);
 
     doc = create_document(&IID_IXMLDOMDocument);
@@ -9687,13 +9684,9 @@ static void test_xsltemplate(void)
     IXMLDOMDocument_Release(doc);
     ok(ref2 > ref1, "got %ld\n", ref2);
     hr = IXSLTemplate_get_stylesheet(template, &node);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-if (hr == S_OK)
-{
     ok(node == (IXMLDOMNode *)doc, "Unexpected node %p.\n", node);
     IXMLDOMNode_Release(node);
-}
 
     /* processor */
     hr = IXSLTemplate_createProcessor(template, NULL);
