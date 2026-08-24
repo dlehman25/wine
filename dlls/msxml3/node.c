@@ -3287,10 +3287,8 @@ HRESULT node_transform_node_to_object(struct domnode *node, IXMLDOMNode *stylesh
         case VT_UNKNOWN:
         case VT_DISPATCH:
         {
-            IXMLDOMDocument *output_doc;
             ISequentialStream *stream;
             HRESULT hr;
-            BSTR str;
 
             if (!V_UNKNOWN(output))
                 return E_INVALIDARG;
@@ -3300,20 +3298,6 @@ HRESULT node_transform_node_to_object(struct domnode *node, IXMLDOMNode *stylesh
                 FIXME("Output to IHTMLObjectElement is not supported.\n");
                 IUnknown_Release(unk);
                 return E_NOTIMPL;
-            }
-
-            /* FIXME: we're not supposed to query for document interface, should use IStream
-               which we don't support currently. */
-            if (IUnknown_QueryInterface(V_UNKNOWN(output), &IID_IXMLDOMDocument, (void **)&output_doc) == S_OK)
-            {
-                VARIANT_BOOL b;
-
-                if (FAILED(hr = node_transform_node(node, stylesheet, &str)))
-                    return hr;
-
-                hr = IXMLDOMDocument_loadXML(output_doc, str, &b);
-                SysFreeString(str);
-                return hr;
             }
 
             if (IUnknown_QueryInterface(V_UNKNOWN(output), &IID_IStream, (void **)&stream) == S_OK

@@ -14235,7 +14235,6 @@ static HRESULT WINAPI transformdest_QueryInterface(IUnknown *iface, REFIID riid,
         IsEqualIID(riid, &IID_ISequentialStream) ||
         IsEqualIID(riid, &IID_IResponse);
 
-    todo_wine_if(IsEqualIID(riid, &IID_IXMLDOMDocument))
     ok(known_iid, "Unexpected riid %s\n", wine_dbgstr_guid(riid));
 
     return E_NOINTERFACE;
