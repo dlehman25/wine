@@ -46,6 +46,8 @@
 #include "msxml6.h"
 #include <activscp.h>
 #include "objsafe.h"
+#include "mshtml.h"
+#include "asptlb.h"
 
 #include "msxml_private.h"
 #include "saxreader_extensions.h"
@@ -3278,6 +3280,8 @@ HRESULT node_transform_node(struct domnode *node, IXMLDOMNode *stylesheet, BSTR 
 
 HRESULT node_transform_node_to_object(struct domnode *node, IXMLDOMNode *stylesheet, const VARIANT *output)
 {
+    IUnknown *unk;
+
     switch (V_VT(output))
     {
         case VT_UNKNOWN:
@@ -3290,6 +3294,13 @@ HRESULT node_transform_node_to_object(struct domnode *node, IXMLDOMNode *stylesh
 
             if (!V_UNKNOWN(output))
                 return E_INVALIDARG;
+
+            if (IUnknown_QueryInterface(V_UNKNOWN(output), &IID_IHTMLObjectElement, (void **)&unk) == S_OK)
+            {
+                FIXME("Output to IHTMLObjectElement is not supported.\n");
+                IUnknown_Release(unk);
+                return E_NOTIMPL;
+            }
 
             /* FIXME: we're not supposed to query for document interface, should use IStream
                which we don't support currently. */
@@ -3304,17 +3315,23 @@ HRESULT node_transform_node_to_object(struct domnode *node, IXMLDOMNode *stylesh
                 SysFreeString(str);
                 return hr;
             }
-            else if (IUnknown_QueryInterface(V_UNKNOWN(output), &IID_ISequentialStream, (void**)&stream) == S_OK)
+
+            if (IUnknown_QueryInterface(V_UNKNOWN(output), &IID_IStream, (void **)&stream) == S_OK
+                    || IUnknown_QueryInterface(V_UNKNOWN(output), &IID_ISequentialStream, (void **)&stream) == S_OK)
             {
                 hr = node_transform_node_params(node, stylesheet, NULL, stream, NULL);
                 ISequentialStream_Release(stream);
                 return hr;
             }
-            else
+
+            if (IUnknown_QueryInterface(V_UNKNOWN(output), &IID_IResponse, (void **)&unk) == S_OK)
             {
-                FIXME("Unsupported destination type.\n");
-                return E_INVALIDARG;
+                FIXME("Output to IResponse is not supported.\n");
+                return E_NOTIMPL;
             }
+
+            WARN("Unsupported destination type.\n");
+            return E_INVALIDARG;
         }
         default:
             FIXME("Output %s not handled.\n", debugstr_variant(output));
