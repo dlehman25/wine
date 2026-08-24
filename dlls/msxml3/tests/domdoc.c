@@ -9610,8 +9610,9 @@ static void test_get_xml(void)
 static void test_xsltemplate(void)
 {
     IXMLDOMDocument *doc, *doc2, *doc3;
-    IXSLTemplate *template;
+    IXSLTemplate *template, *template2;
     IXSLProcessor *processor;
+    IXMLDOMNode *node;
     IStream *stream;
     VARIANT_BOOL b;
     HRESULT hr;
@@ -9629,6 +9630,17 @@ static void test_xsltemplate(void)
     /* works as reset */
     hr = IXSLTemplate_putref_stylesheet(template, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXSLTemplate_get_stylesheet(template, NULL);
+    todo_wine
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    node = (void *)1;
+    hr = IXSLTemplate_get_stylesheet(template, &node);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(!node, "Unexpected node %p.\n", node);
 
     doc = create_document(&IID_IXMLDOMDocument);
 
@@ -9674,6 +9686,14 @@ static void test_xsltemplate(void)
     ref2 = IXMLDOMDocument_AddRef(doc);
     IXMLDOMDocument_Release(doc);
     ok(ref2 > ref1, "got %ld\n", ref2);
+    hr = IXSLTemplate_get_stylesheet(template, &node);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+if (hr == S_OK)
+{
+    ok(node == (IXMLDOMNode *)doc, "Unexpected node %p.\n", node);
+    IXMLDOMNode_Release(node);
+}
 
     /* processor */
     hr = IXSLTemplate_createProcessor(template, NULL);
@@ -9683,6 +9703,18 @@ static void test_xsltemplate(void)
     hr = IXSLTemplate_createProcessor(template, &processor);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     EXPECT_REF(template, 2);
+
+    hr = IXSLProcessor_get_ownerTemplate(processor, NULL);
+    todo_wine
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+    hr = IXSLProcessor_get_ownerTemplate(processor, &template2);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+if (hr == S_OK)
+{
+    ok(template == template2, "Unexpected template %p.\n", template2);
+    IXSLTemplate_Release(template2);
+}
 
     /* input no set yet */
     V_VT(&v) = VT_BSTR;
