@@ -785,50 +785,7 @@ static HRESULT WINAPI domdoc_transformNodeToObject(IXMLDOMDocument3 *iface,
 
     TRACE("%p, %p, %s.\n", iface, stylesheet, debugstr_variant(&output));
 
-    switch (V_VT(&output))
-    {
-    case VT_UNKNOWN:
-    case VT_DISPATCH:
-    {
-        IXMLDOMDocument *output_doc;
-        ISequentialStream *stream;
-        HRESULT hr;
-        BSTR str;
-
-        if (!V_UNKNOWN(&output))
-            return E_INVALIDARG;
-
-        /* FIXME: we're not supposed to query for document interface, should use IStream
-           which we don't support currently. */
-        if (IUnknown_QueryInterface(V_UNKNOWN(&output), &IID_IXMLDOMDocument, (void **)&output_doc) == S_OK)
-        {
-            VARIANT_BOOL b;
-
-            if (FAILED(hr = node_transform_node(doc->node, stylesheet, &str)))
-                return hr;
-
-            hr = IXMLDOMDocument_loadXML(output_doc, str, &b);
-            SysFreeString(str);
-            return hr;
-        }
-        else if (IUnknown_QueryInterface(V_UNKNOWN(&output), &IID_ISequentialStream, (void**)&stream) == S_OK)
-        {
-            hr = node_transform_node_params(doc->node, stylesheet, NULL, stream, NULL);
-            ISequentialStream_Release(stream);
-            return hr;
-        }
-        else
-        {
-            FIXME("Unsupported destination type.\n");
-            return E_INVALIDARG;
-        }
-    }
-    default:
-        FIXME("Output type %d not handled.\n", V_VT(&output));
-        return E_NOTIMPL;
-    }
-
-    return E_NOTIMPL;
+    return node_transform_node_to_object(doc->node, stylesheet, &output);
 }
 
 static HRESULT WINAPI domdoc_get_doctype(IXMLDOMDocument3 *iface, IXMLDOMDocumentType **doctype)
