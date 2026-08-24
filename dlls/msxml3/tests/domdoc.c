@@ -9698,16 +9698,11 @@ static void test_xsltemplate(void)
     EXPECT_REF(template, 2);
 
     hr = IXSLProcessor_get_ownerTemplate(processor, NULL);
-    todo_wine
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
     hr = IXSLProcessor_get_ownerTemplate(processor, &template2);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-if (hr == S_OK)
-{
     ok(template == template2, "Unexpected template %p.\n", template2);
     IXSLTemplate_Release(template2);
-}
 
     /* input no set yet */
     V_VT(&v) = VT_BSTR;
