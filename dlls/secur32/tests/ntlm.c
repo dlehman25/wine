@@ -641,9 +641,8 @@ static void testInitializeSecurityContextFlags(void)
         sec_status = InitializeSecurityContextA(NULL, &client.ctxt, NULL, 0, 0, SECURITY_NETWORK_DREP,
                 server.out_buf, 0, &client.ctxt, client.out_buf, &ctxt_attr, &ttl);
         ok(sec_status == SEC_E_OK, "InitializeSecurityContext returned %s\n", getSecError(sec_status));
-        todo_wine_if(test_data[i].req_attr & ISC_REQ_MUTUAL_AUTH)
-            ok(ctxt_attr == test_data[i].ctxt_attr_auth, "ctxt_attr = %lx (negotiated flags: %x)\n",
-                    ctxt_attr, challenge->negotiate_flags);
+        ok(ctxt_attr == test_data[i].ctxt_attr_auth, "ctxt_attr = %lx (negotiated flags: %x)\n",
+                ctxt_attr, challenge->negotiate_flags);
 
         ctxt_attr = 0xffffffff;
         sec_status = AcceptSecurityContext(&server.cred, &server.ctxt, client.out_buf, 0,

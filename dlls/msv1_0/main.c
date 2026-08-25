@@ -1346,7 +1346,6 @@ static NTSTATUS NTAPI ntlm_SpInitLsaModeContext( LSA_SEC_HANDLE cred_handle, LSA
         challenge = input->pBuffers[idx].pvBuffer;
         ctx->req_attrs |= ctx_req;
         *ctx_attr = 0;
-        if (ctx->req_attrs & ISC_REQ_MUTUAL_AUTH) FIXME( "ASC_REQ_MUTUAL_AUTH\n" );
         if (ctx->req_attrs & (ISC_REQ_INTEGRITY | ISC_REQ_SEQUENCE_DETECT | ISC_REQ_REPLAY_DETECT) &&
                 challenge->negotiate_flags & NTLMSSP_NEGOTIATE_SIGN)
             *ctx_attr |= ISC_RET_INTEGRITY | ISC_RET_SEQUENCE_DETECT | ISC_RET_REPLAY_DETECT;
@@ -1376,6 +1375,8 @@ static NTSTATUS NTAPI ntlm_SpInitLsaModeContext( LSA_SEC_HANDLE cred_handle, LSA
             hmac_md5_update( &ctx->mic, (char *)authenticate, sizeof(*authenticate) );
             hmac_md5_final( &ctx->mic, (char *)authenticate->mic );
 
+            if (ctx->req_attrs & ISC_REQ_MUTUAL_AUTH)
+                *ctx_attr |= ISC_RET_MUTUAL_AUTH;
             ctx->flags = challenge->negotiate_flags;
             bin_len = sizeof(*authenticate);
         }
