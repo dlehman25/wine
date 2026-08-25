@@ -109,8 +109,11 @@ static NTSTATUS ntlm_chat( void *args )
     SECURITY_STATUS status = SEC_E_OK;
     unsigned int offset;
 
-    write( ctx->pipe_out, params->buf, strlen(params->buf) );
-    write( ctx->pipe_out, "\n", 1 );
+    if (params->buf[0])
+    {
+        write( ctx->pipe_out, params->buf, strlen(params->buf) );
+        write( ctx->pipe_out, "\n", 1 );
+    }
 
     if ((status = read_line( ctx, &offset )) != SEC_E_OK) return status;
     com_buf = (struct com_buf *)(ULONG_PTR)ctx->com_buf;

@@ -1265,29 +1265,14 @@ static NTSTATUS NTAPI ntlm_SpInitLsaModeContext( LSA_SEC_HANDLE cred_handle, LSA
         if (ctx_req & ISC_REQ_INTEGRITY) *ctx_attr |= ISC_RET_INTEGRITY;
         if (ctx_req & ISC_REQ_STREAM) FIXME( "ISC_REQ_STREAM\n" );
 
-        /* use cached credentials if no password was given, fall back to an empty password on failure */
-        if (!password && !cred->password)
-        {
-            strcpy( buf, "OK" );
-            if ((status = ntlm_chat( ctx, buf, NTLM_MAX_BUF, &len )) != SEC_E_OK) goto done;
-
-            /* if the helper replied with "PW" using cached credentials failed */
-            if (!strncmp( buf, "PW", 2 ))
-            {
-                TRACE( "using cached credentials failed\n" );
-                strcpy( buf, "PW AA==" );
-            }
-            else strcpy( buf, "OK" ); /* just do a noop on the next run */
-        }
-        else
+        if (password || cred->password)
         {
             strcpy( buf, "PW " );
             encode_base64( password ? password : cred->password, password ? password_len : cred->password_len, buf + 3 );
+            TRACE( "sending to ntlm_auth: PW <password>\n" );
+            if ((status = ntlm_chat( ctx, buf, NTLM_MAX_BUF, &len )) != SEC_E_OK) goto done;
+            TRACE( "ntlm_auth returned %s\n", debugstr_a(buf) );
         }
-
-        TRACE( "sending to ntlm_auth: %s\n", strncmp(buf, "PW ", 3) ? debugstr_a(buf) : "PW <password>" );
-        if ((status = ntlm_chat( ctx, buf, NTLM_MAX_BUF, &len )) != SEC_E_OK) goto done;
-        TRACE( "ntlm_auth returned %s\n", debugstr_a(buf) );
 
         if (strlen( want_flags ) > 2)
         {
@@ -1391,6 +1376,19 @@ static NTSTATUS NTAPI ntlm_SpInitLsaModeContext( LSA_SEC_HANDLE cred_handle, LSA
 
             if ((status = ntlm_chat( ctx, buf, NTLM_MAX_BUF, &len ))) goto done;
             TRACE( "ntlm_auth returned: %s\n", debugstr_a(buf) );
+
+            if (!strcmp( buf, "PW" ))
+            {
+                TRACE( "using cached credentials failed\n" );
+
+                strcpy( buf, "PW AA==" );
+                if ((status = ntlm_chat( ctx, buf, NTLM_MAX_BUF, &len ))) goto done;
+                if (!strcmp( buf, "OK" ))
+                {
+                    strcpy( buf, "" );
+                    if ((status = ntlm_chat( ctx, buf, NTLM_MAX_BUF, &len ))) goto done;
+                }
+            }
 
             if (strncmp( buf, "KK ", 3 ) && strncmp( buf, "AF ", 3 ))
             {
