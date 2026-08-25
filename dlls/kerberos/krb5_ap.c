@@ -177,6 +177,7 @@ static NTSTATUS copy_to_client( PLSA_CLIENT_REQUEST lsa_req, KERB_QUERY_TKT_CACH
     ULONG i;
     char *client_str;
     KERB_QUERY_TKT_CACHE_RESPONSE *client_resp;
+    SECPKG_CALL_INFO info;
 
     status = lsa_funcs->AllocateClientBuffer( lsa_req, size, out );
     if (status != STATUS_SUCCESS) return status;
@@ -188,6 +189,7 @@ static NTSTATUS copy_to_client( PLSA_CLIENT_REQUEST lsa_req, KERB_QUERY_TKT_CACH
 
     client_str = (char *)&client_resp->Tickets[resp->CountOfTickets];
 
+    lsa_funcs->GetCallInfo( &info );
     for (i = 0; i < resp->CountOfTickets; i++)
     {
         KERB_TICKET_CACHE_INFO ticket = {
@@ -216,7 +218,51 @@ static NTSTATUS copy_to_client( PLSA_CLIENT_REQUEST lsa_req, KERB_QUERY_TKT_CACH
         ticket.ServerName.Buffer = (WCHAR *)client_str;
         client_str += ticket.ServerName.MaximumLength;
 
-        status = lsa_funcs->CopyToClientBuffer(lsa_req, sizeof(ticket), &client_resp->Tickets[i], &ticket);
+        if (info.Attributes & SECPKG_CALL_WOWCLIENT)
+        {
+            struct UNICODE_STRING32
+            {
+                USHORT Length;
+                USHORT MaximumLength;
+                ULONG  Buffer;
+            };
+
+            struct
+            {
+                struct UNICODE_STRING32 ServerName;
+                struct UNICODE_STRING32 RealmName;
+                LARGE_INTEGER StartTime;
+                LARGE_INTEGER EndTime;
+                LARGE_INTEGER RenewTime;
+                LONG EncryptionType;
+                ULONG TicketFlags;
+            } ticket32 =
+            {
+                {
+                    ticket.ServerName.Length,
+                    ticket.ServerName.MaximumLength,
+                    (ULONG_PTR)ticket.ServerName.Buffer
+                },
+                {
+                    ticket.RealmName.Length,
+                    ticket.RealmName.MaximumLength,
+                    (ULONG_PTR)ticket.RealmName.Buffer
+                },
+                ticket.StartTime,
+                ticket.EndTime,
+                ticket.RenewTime,
+                ticket.EncryptionType,
+                ticket.TicketFlags
+            };
+
+            status = lsa_funcs->CopyToClientBuffer(lsa_req, sizeof(ticket32),
+                    ((BYTE *)client_resp->Tickets) + i * sizeof(ticket32), &ticket32);
+        }
+        else
+        {
+            status = lsa_funcs->CopyToClientBuffer(lsa_req, sizeof(ticket),
+                    &client_resp->Tickets[i], &ticket);
+        }
         if (status != STATUS_SUCCESS) goto fail;
     }
     return STATUS_SUCCESS;
@@ -233,6 +279,7 @@ static NTSTATUS copy_to_client_ex( PLSA_CLIENT_REQUEST lsa_req, KERB_QUERY_TKT_C
     ULONG i;
     char *client_str;
     KERB_QUERY_TKT_CACHE_EX_RESPONSE *client_resp;
+    SECPKG_CALL_INFO info;
 
     status = lsa_funcs->AllocateClientBuffer( lsa_req, size, out );
     if (status != STATUS_SUCCESS) return status;
@@ -244,6 +291,7 @@ static NTSTATUS copy_to_client_ex( PLSA_CLIENT_REQUEST lsa_req, KERB_QUERY_TKT_C
 
     client_str = (char *)&client_resp->Tickets[resp->CountOfTickets];
 
+    lsa_funcs->GetCallInfo( &info );
     for (i = 0; i < resp->CountOfTickets; i++)
     {
         KERB_TICKET_CACHE_INFO_EX ticket = resp->Tickets[i];
@@ -276,7 +324,63 @@ static NTSTATUS copy_to_client_ex( PLSA_CLIENT_REQUEST lsa_req, KERB_QUERY_TKT_C
         ticket.ServerName.Buffer = (WCHAR *)client_str;
         client_str += ticket.ServerName.MaximumLength;
 
-        status = lsa_funcs->CopyToClientBuffer(lsa_req, sizeof(ticket), &client_resp->Tickets[i], &ticket);
+        if (info.Attributes & SECPKG_CALL_WOWCLIENT)
+        {
+            struct UNICODE_STRING32
+            {
+                USHORT Length;
+                USHORT MaximumLength;
+                ULONG  Buffer;
+            };
+
+            struct
+            {
+                struct UNICODE_STRING32 ClientName;
+                struct UNICODE_STRING32 ClientRealm;
+                struct UNICODE_STRING32 ServerName;
+                struct UNICODE_STRING32 ServerRealm;
+                LARGE_INTEGER StartTime;
+                LARGE_INTEGER EndTime;
+                LARGE_INTEGER RenewTime;
+                LONG EncryptionType;
+                ULONG TicketFlags;
+            } ticket32 =
+            {
+                {
+                    ticket.ClientName.Length,
+                    ticket.ClientName.MaximumLength,
+                    (ULONG_PTR)ticket.ClientName.Buffer
+                },
+                {
+                    ticket.ClientRealm.Length,
+                    ticket.ClientRealm.MaximumLength,
+                    (ULONG_PTR)ticket.ClientRealm.Buffer
+                },
+                {
+                    ticket.ServerName.Length,
+                    ticket.ServerName.MaximumLength,
+                    (ULONG_PTR)ticket.ServerName.Buffer
+                },
+                {
+                    ticket.ServerRealm.Length,
+                    ticket.ServerRealm.MaximumLength,
+                    (ULONG_PTR)ticket.ServerRealm.Buffer
+                },
+                ticket.StartTime,
+                ticket.EndTime,
+                ticket.RenewTime,
+                ticket.EncryptionType,
+                ticket.TicketFlags
+            };
+
+            status = lsa_funcs->CopyToClientBuffer(lsa_req, sizeof(ticket32),
+                    ((BYTE *)client_resp->Tickets) + i * sizeof(ticket32), &ticket32);
+        }
+        else
+        {
+            status = lsa_funcs->CopyToClientBuffer(lsa_req, sizeof(ticket),
+                    &client_resp->Tickets[i], &ticket);
+        }
         if (status != STATUS_SUCCESS) goto fail;
     }
     return STATUS_SUCCESS;
