@@ -331,9 +331,8 @@ static UINT custom_get_thread_return( MSIPACKAGE *package, HANDLE thread )
     case ERROR_SUCCESS:
     case ERROR_INSTALL_USEREXIT:
     case ERROR_INSTALL_FAILURE:
-        return rc;
     case ERROR_NO_MORE_ITEMS:
-        return ERROR_SUCCESS;
+        return rc;
     case ERROR_INSTALL_SUSPEND:
         ACTION_ForceReboot( package );
         return ERROR_SUCCESS;
