@@ -58,6 +58,7 @@ struct lsa_package
 static struct lsa_package *loaded_packages;
 static ULONG loaded_packages_count;
 
+#define LSA_USER_HANDLE(x) (LSA_SEC_HANDLE)(&(x))
 struct lsa_handle
 {
     DWORD magic;
@@ -572,7 +573,8 @@ static SECURITY_STATUS WINAPI lsa_InitializeSecurityContextW(
 
         if (mapped_context)
         {
-            NTSTATUS ret = package->user_api->InitUserModeContext( new_handle, &ctx_data );
+            NTSTATUS ret = package->user_api->InitUserModeContext(
+                    LSA_USER_HANDLE(new_lsa_ctx->handle), &ctx_data );
             FreeContextBuffer( ctx_data.pvBuffer );
             if (ret)
             {
@@ -659,7 +661,8 @@ static SECURITY_STATUS WINAPI lsa_AcceptSecurityContext(
 
         if (mapped_context)
         {
-            NTSTATUS ret = package->user_api->InitUserModeContext( new_handle, &ctx_data );
+            NTSTATUS ret = package->user_api->InitUserModeContext(
+                    LSA_USER_HANDLE(new_lsa_ctx->handle), &ctx_data );
             FreeContextBuffer( ctx_data.pvBuffer );
             if (ret)
             {
@@ -815,7 +818,8 @@ static SECURITY_STATUS WINAPI lsa_MakeSignature(CtxtHandle *context, ULONG quali
     if (!lsa_ctx->package->user_api || !lsa_ctx->package->user_api->MakeSignature)
         return SEC_E_UNSUPPORTED_FUNCTION;
 
-    return lsa_ctx->package->user_api->MakeSignature(lsa_ctx->handle, quality_of_protection, message, message_seq_no);
+    return lsa_ctx->package->user_api->MakeSignature(LSA_USER_HANDLE(lsa_ctx->handle),
+            quality_of_protection, message, message_seq_no);
 }
 
 static SECURITY_STATUS WINAPI lsa_VerifySignature(CtxtHandle *context, SecBufferDesc *message,
@@ -832,7 +836,8 @@ static SECURITY_STATUS WINAPI lsa_VerifySignature(CtxtHandle *context, SecBuffer
     if (!lsa_ctx->package->user_api || !lsa_ctx->package->user_api->VerifySignature)
         return SEC_E_UNSUPPORTED_FUNCTION;
 
-    return lsa_ctx->package->user_api->VerifySignature(lsa_ctx->handle, message, message_seq_no, quality_of_protection);
+    return lsa_ctx->package->user_api->VerifySignature(LSA_USER_HANDLE(lsa_ctx->handle),
+            message, message_seq_no, quality_of_protection);
 }
 
 static SECURITY_STATUS WINAPI lsa_QuerySecurityContextToken(CtxtHandle *context, HANDLE *token)
@@ -863,7 +868,8 @@ static SECURITY_STATUS WINAPI lsa_EncryptMessage(CtxtHandle *context, ULONG qual
     if (!lsa_ctx->package->user_api || !lsa_ctx->package->user_api->SealMessage)
         return SEC_E_UNSUPPORTED_FUNCTION;
 
-    return lsa_ctx->package->user_api->SealMessage(lsa_ctx->handle, quality_of_protection, message, message_seq_no);
+    return lsa_ctx->package->user_api->SealMessage(LSA_USER_HANDLE(lsa_ctx->handle),
+            quality_of_protection, message, message_seq_no);
 }
 
 static SECURITY_STATUS WINAPI lsa_DecryptMessage(CtxtHandle *context, SecBufferDesc *message,
@@ -880,7 +886,8 @@ static SECURITY_STATUS WINAPI lsa_DecryptMessage(CtxtHandle *context, SecBufferD
     if (!lsa_ctx->package->user_api || !lsa_ctx->package->user_api->UnsealMessage)
         return SEC_E_UNSUPPORTED_FUNCTION;
 
-    return lsa_ctx->package->user_api->UnsealMessage(lsa_ctx->handle, message, message_seq_no, quality_of_protection);
+    return lsa_ctx->package->user_api->UnsealMessage(LSA_USER_HANDLE(lsa_ctx->handle),
+            message, message_seq_no, quality_of_protection);
 }
 
 static const SecurityFunctionTableW lsa_sspi_tableW =
