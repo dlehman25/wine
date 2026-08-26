@@ -132,7 +132,7 @@ interface lsass
         [out] ULONG64 *new_ctx_handle,
         [in, out, unique] SecBufferDesc *output,
         [out] ULONG *context_attr,
-        [out] TimeStamp *expiry,
+        [out, unique] TimeStamp *expiry,
         [out] BOOLEAN *mapped_ctx,
         [in, out] SecBuffer *ctx_data);
 
@@ -148,7 +148,7 @@ interface lsass
         [out] ULONG64 *new_ctx_handle,
         [in, out, unique] SecBufferDesc *output,
         [out] ULONG *context_attr,
-        [out] TimeStamp *expiry,
+        [out, unique] TimeStamp *expiry,
         [out] BOOLEAN *mapped_ctx,
         [in, out] SecBuffer *ctx_data);
 
