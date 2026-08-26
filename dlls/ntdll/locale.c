@@ -45,6 +45,7 @@ static const NLS_LOCALE_HEADER *locale_table;
 static const WCHAR *locale_strings;
 
 #define MAX_UI_LANGS 5  /* maximum UI languages in a single MULTI_SZ string */
+#define MAX_UI_LANGS_MERGED (MAX_UI_LANGS * 16)  /* enough room for thread/process/user/system + neutrals */
 #define UI_LANG_END  0xffff  /* end marker in UI language array */
 
 static USHORT *process_ui_languages;
@@ -122,6 +123,32 @@ static void append_ui_lang_lcname( USHORT *langs, ULONG *len, const WCHAR *name 
 {
     const NLS_LOCALE_LCNAME_INDEX *entry = find_lcname_entry( locale_table, name );
     if (entry) append_ui_language( langs, len, entry->idx );
+}
+
+static void append_ui_languages( USHORT *dst, ULONG *len, const USHORT *src )
+{
+    if (!src) return;
+    while (*src != UI_LANG_END) append_ui_language( dst, len, *src++ );
+}
+
+static void append_ui_languages_with_neutral( USHORT *dst, ULONG *len, const USHORT *src )
+{
+    const WCHAR *parent;
+    const NLS_LOCALE_LCNAME_INDEX *entry;
+
+    if (!src) return;
+    while (*src != UI_LANG_END)
+    {
+        append_ui_language( dst, len, *src );
+        parent = locale_strings + get_locale_data( locale_table, *src )->sparent;
+        while (*parent)
+        {
+            if (!(entry = find_lcname_entry( locale_table, parent + 1 ))) break;
+            append_ui_language( dst, len, entry->idx );
+            parent = locale_strings + get_locale_data( locale_table, entry->idx )->sparent;
+        }
+        src++;
+    }
 }
 
 static USHORT *dup_ui_languages( const USHORT *langs, ULONG len )
@@ -387,47 +414,6 @@ void get_resource_lcids( LANGID *user, LANGID *user_neutral, LANGID *system )
 }
 
 
-static NTSTATUS get_dummy_preferred_ui_language( DWORD flags, LANGID lang, ULONG *count,
-                                                 WCHAR *buffer, ULONG *size )
-{
-    WCHAR name[LOCALE_NAME_MAX_LENGTH + 2];
-    NTSTATUS status;
-    ULONG len;
-
-    FIXME("(0x%lx %#x %p %p %p) returning a dummy value (current locale)\n", flags, lang, count, buffer, size);
-
-    if (flags & MUI_LANGUAGE_ID) swprintf( name, ARRAY_SIZE(name), L"%04lX", lang );
-    else
-    {
-        UNICODE_STRING str;
-
-        if (lang == LOCALE_CUSTOM_UNSPECIFIED)
-            NtQueryInstallUILanguage( &lang );
-
-        str.Buffer = name;
-        str.MaximumLength = sizeof(name);
-        status = RtlLcidToLocaleName( lang, &str, 0, FALSE );
-        if (status) return status;
-    }
-
-    len = wcslen( name ) + 2;
-    name[len - 1] = 0;
-    if (buffer)
-    {
-        if (len > *size)
-        {
-            *size = len;
-            return STATUS_BUFFER_TOO_SMALL;
-        }
-        memcpy( buffer, name, len * sizeof(WCHAR) );
-    }
-    *size = len;
-    *count = 1;
-    TRACE("returned variable content: %ld, \"%s\", %ld\n", *count, debugstr_w(buffer), *size);
-    return STATUS_SUCCESS;
-
-}
-
 /**************************************************************************
  *      RtlGetProcessPreferredUILanguages   (NTDLL.@)
  */
@@ -460,12 +446,50 @@ NTSTATUS WINAPI RtlGetSystemPreferredUILanguages( DWORD flags, ULONG unknown, UL
  */
 NTSTATUS WINAPI RtlGetThreadPreferredUILanguages( DWORD flags, ULONG *count, WCHAR *buffer, ULONG *size )
 {
-    LANGID ui_language;
+    USHORT *thread_ui_languages = NtCurrentTeb()->PreferredLanguages;
+    USHORT merged[MAX_UI_LANGS_MERGED];
+    const UINT merge_flags = MUI_MERGE_SYSTEM_FALLBACK | MUI_MERGE_USER_FALLBACK | MUI_THREAD_LANGUAGES;
+    ULONG len = 0;
 
-    FIXME( "%08lx, %p, %p %p\n", flags, count, buffer, size );
+    if ((flags & MUI_LANGUAGE_NAME) && (flags & MUI_LANGUAGE_ID)) return STATUS_INVALID_PARAMETER;
 
-    NtQueryDefaultUILanguage( &ui_language );
-    return get_dummy_preferred_ui_language( flags, ui_language, count, buffer, size );
+    if (flags & (MUI_CONSOLE_FILTER | MUI_COMPLEX_SCRIPT_FILTER))
+        FIXME( "console flags %lx not implemented\n", flags );
+
+    switch (flags & merge_flags)
+    {
+    case 0:
+    case MUI_MERGE_USER_FALLBACK:
+        RtlAcquireSRWLockShared( &locale_srwlock );
+        append_ui_languages( merged, &len, thread_ui_languages );
+        append_ui_languages( merged, &len, process_ui_languages );
+        append_ui_languages( merged, &len, user_ui_languages );
+        append_ui_languages_with_neutral( merged, &len, system_ui_languages_default );
+        RtlReleaseSRWLockShared( &locale_srwlock );
+        break;
+    case MUI_MERGE_SYSTEM_FALLBACK:
+        RtlAcquireSRWLockShared( &locale_srwlock );
+        append_ui_languages_with_neutral( merged, &len, thread_ui_languages );
+        append_ui_languages_with_neutral( merged, &len, process_ui_languages );
+        append_ui_languages_with_neutral( merged, &len, system_ui_languages );
+        RtlReleaseSRWLockShared( &locale_srwlock );
+        break;
+    case MUI_UI_FALLBACK:
+        RtlAcquireSRWLockShared( &locale_srwlock );
+        append_ui_languages_with_neutral( merged, &len, thread_ui_languages );
+        append_ui_languages_with_neutral( merged, &len, process_ui_languages );
+        append_ui_languages_with_neutral( merged, &len, user_ui_languages_default );
+        append_ui_languages_with_neutral( merged, &len, system_ui_languages );
+        RtlReleaseSRWLockShared( &locale_srwlock );
+        break;
+    case MUI_THREAD_LANGUAGES:
+        append_ui_languages( merged, &len, thread_ui_languages );
+        break;
+    default:
+        return STATUS_INVALID_PARAMETER;
+    }
+    merged[len] = UI_LANG_END;
+    return get_ui_languages( merged, flags, count, buffer, size );
 }
 
 
@@ -507,8 +531,17 @@ NTSTATUS WINAPI RtlSetProcessPreferredUILanguages( DWORD flags, PCZZWSTR buffer,
  */
 NTSTATUS WINAPI RtlSetThreadPreferredUILanguages( DWORD flags, PCZZWSTR buffer, ULONG *count )
 {
-    FIXME( "%lu, %p, %p\n", flags, buffer, count );
-    return STATUS_SUCCESS;
+    USHORT langs[MAX_UI_LANGS + 1];
+    NTSTATUS status;
+    ULONG len;
+
+    if (!(status = parse_ui_languages( langs, flags, buffer, &len )))
+    {
+        RtlFreeHeap( GetProcessHeap(), 0, NtCurrentTeb()->PreferredLanguages );
+        NtCurrentTeb()->PreferredLanguages = dup_ui_languages( langs, len );
+        if (len && count) *count = len;
+    }
+    return status;
 }
 
 

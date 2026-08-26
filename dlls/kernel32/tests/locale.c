@@ -85,6 +85,7 @@ static BOOL (WINAPI *pSetUserGeoName)(PWSTR);
 static BOOL (WINAPI *pEnumSystemGeoID)(GEOCLASS, GEOID, GEO_ENUMPROC);
 static BOOL (WINAPI *pGetSystemPreferredUILanguages)(DWORD, ULONG*, WCHAR*, ULONG*);
 static BOOL (WINAPI *pGetThreadPreferredUILanguages)(DWORD, ULONG*, WCHAR*, ULONG*);
+static BOOL (WINAPI *pSetThreadPreferredUILanguages)(DWORD, const WCHAR*, ULONG*);
 static BOOL (WINAPI *pGetUserPreferredUILanguages)(DWORD, ULONG*, WCHAR*, ULONG*);
 static WCHAR (WINAPI *pRtlUpcaseUnicodeChar)(WCHAR);
 static INT (WINAPI *pGetNumberFormatEx)(LPCWSTR, DWORD, LPCWSTR, const NUMBERFMTW *, LPWSTR, int);
@@ -144,6 +145,7 @@ static void InitFunctionPointers(void)
   X(GetUserPreferredUILanguages);
   X(GetNumberFormatEx);
   X(FindNLSStringEx);
+  X(SetThreadPreferredUILanguages);
   X(SetThreadUILanguage);
   X(GetThreadUILanguage);
   X(NormalizeString);
@@ -6863,7 +6865,8 @@ static void test_GetThreadPreferredUILanguages(void)
     BOOL ret;
     NTSTATUS status;
     ULONG count, size, size_id;
-    WCHAR *buf;
+    LANGID lang;
+    WCHAR buf[1024];
 
     if (!pGetThreadPreferredUILanguages)
     {
@@ -6878,7 +6881,6 @@ static void test_GetThreadPreferredUILanguages(void)
     ok(size, "expected size > 0\n");
 
     count = 0;
-    buf = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size * sizeof(WCHAR));
     ret = pGetThreadPreferredUILanguages(MUI_LANGUAGE_ID|MUI_UI_FALLBACK, &count, buf, &size);
     ok(ret, "got %lu\n", GetLastError());
     ok(count, "expected count > 0\n");
@@ -6922,7 +6924,62 @@ static void test_GetThreadPreferredUILanguages(void)
        "Expected error ERROR_INSUFFICIENT_BUFFER, got %ld\n", GetLastError());
     ok(size == size_id, "expected %lu, got %lu\n", size_id, size);
 
-    HeapFree(GetProcessHeap(), 0, buf);
+    lang = pGetThreadUILanguage();
+    count = 0xdeadbeef;
+    ret = pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"fr-BE\0en-US\0fr-BE\0en-GB\0", &count );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( count == 3, "wrong count %lu\n", count );
+
+    size = ARRAYSIZE(buf);
+    count = 0xdeadbeef;
+    ret = pGetThreadPreferredUILanguages( MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &count, buf, &size );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( !memcmp( buf, L"fr-BE\0en-US\0en-GB\0", size ), "wrong result %s\n", debugstr_wn(buf,size) );
+    todo_wine
+    ok( pGetThreadUILanguage() == MAKELANGID( LANG_FRENCH, SUBLANG_FRENCH_BELGIAN ),
+        "wrong ui language %x\n", pGetThreadUILanguage() );
+
+    count = 0xdeadbeef;
+    ret = pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"aa-BB\0cc-DD\0en-GB\0", &count );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( count == 1, "wrong count %lu\n", count );
+    size = ARRAYSIZE(buf);
+    ret = pGetThreadPreferredUILanguages( MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &count, buf, &size );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( !memcmp( buf, L"en-GB\0", size ), "wrong result %s\n", debugstr_wn(buf,size) );
+
+    count = 0xdeadbeef;
+    ret = pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"en-GB\0en-US\0fr-FR\0fr-BE\0de-DE\0de-AT\0it-IT\0", &count );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( count == 5, "wrong count %lu\n", count );
+    size = ARRAYSIZE(buf);
+    ret = pGetThreadPreferredUILanguages( MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &count, buf, &size );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( !memcmp( buf, L"en-GB\0en-US\0fr-FR\0fr-BE\0de-DE\0", size ),
+        "wrong result %s\n", debugstr_wn(buf,size) );
+
+    SetLastError(0xdeadbeef);
+    count = 0xdeadbeef;
+    ret = pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"aa-BB\0cc-DD\0", &count );
+    ok( !ret, "succeded\n" );
+    ok( GetLastError() == ERROR_GEN_FAILURE, "wrong error %lu\n", GetLastError() );
+    ok( count == 0xdeadbeef, "wrong count %lu\n", count );
+
+    ret = pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, NULL, &count );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( count == 0xdeadbeef, "wrong count %lu\n", count );
+
+    ret = pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"\0", &count );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( count == 0xdeadbeef, "wrong count %lu\n", count );
+
+    size = ARRAYSIZE(buf);
+    SetLastError(0xdeadbeef);
+    ret = pGetThreadPreferredUILanguages( MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &count, buf, &size );
+    ok( ret, "failed %lu\n", GetLastError() );
+    ok( size == 2, "wrong size %lu\n", size );
+    ok( !memcmp( buf, L"\0\0", size ), "wrong result %s\n", debugstr_wn(buf,size) );
+    ok( pGetThreadUILanguage() == lang, "wrong ui language %x / %x\n", pGetThreadUILanguage(), lang );
 }
 
 static void test_GetUserPreferredUILanguages(void)
