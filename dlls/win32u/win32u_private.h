@@ -205,6 +205,8 @@ extern void user_unlock(void);
 extern void user_check_not_lock(void);
 extern BOOL get_gpu_uuid_from_luid( const LUID *luid, GUID *uuid );
 extern BOOL get_gpu_info_from_uuid( const GUID *uuid, LUID *luid, UINT32 *node_mask, char *name );
+extern BOOL use_default_gamma_ramp(void);
+extern BOOL get_float_gamma_ramp( float *ramp, LONG *serial );
 extern BOOL get_global_gamma_ramp( void *data );
 extern BOOL set_global_gamma_ramp( void *data );
 

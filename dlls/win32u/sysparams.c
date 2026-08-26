@@ -2940,6 +2940,28 @@ static WORD gamma_ramp_i[GAMMA_RAMP_SIZE * 3];
 static float gamma_ramp[GAMMA_RAMP_SIZE * 4];
 static LONG gamma_serial;
 
+BOOL use_default_gamma_ramp(void)
+{
+    BOOL ret;
+    pthread_mutex_lock( &display_lock );
+    ret = !gamma_serial;
+    pthread_mutex_unlock( &display_lock );
+    return ret;
+}
+
+BOOL get_float_gamma_ramp( float *data, LONG *serial )
+{
+    BOOL ret;
+
+    pthread_mutex_lock( &display_lock );
+    memcpy( data, gamma_ramp, sizeof(gamma_ramp) );
+    ret = *serial != gamma_serial;
+    *serial = gamma_serial;
+    pthread_mutex_unlock( &display_lock );
+
+    return ret;
+}
+
 BOOL get_global_gamma_ramp( void *data )
 {
     pthread_mutex_lock( &display_lock );

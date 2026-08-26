@@ -268,7 +268,10 @@ static BOOL make_null_context_current( struct opengl_drawable *drawable )
     return TRUE;
 }
 
-static GLuint framebuffer_program;
+static pthread_mutex_t gamma_lock = PTHREAD_MUTEX_INITIALIZER;
+static GLuint framebuffer_program, gamma_ramp;
+static GLsync gamma_sync;
+static LONG gamma_serial;
 
 static const char *framebuffer_vertex_shader =
 "#version 330\n"
@@ -298,20 +301,35 @@ static const char *framebuffer_fragment_shader =
 "#version 330\n"
 "\n"
 "uniform sampler2D tex;\n"
+"layout (std140) uniform ramp {\n"
+"    vec3 values[256];\n"
+"};\n"
 "in vec2 uv;\n"
 "layout(location = 0) out vec4 color;\n"
 "\n"
+"vec3 color_from_index(vec3 index)\n"
+"{\n"
+"    ivec3 i = ivec3(index);\n"
+"    return vec3(values[i.r].r, values[i.g].g, values[i.b].b);\n"
+"}\n"
+"\n"
 "void main(void)\n"
 "{\n"
-"    color.xyz = texture(tex, uv).xyz;\n"
+"    vec3 sample = texture(tex, uv).xyz * 255.0;\n"
+"    vec3 prev = floor(sample);\n"
+"    vec3 next = ceil(sample);\n"
+"    color.xyz = mix(color_from_index(prev), color_from_index(next), sample - prev);\n"
 "    color.a = 1.0;\n"
 "}\n"
 ;
 
+#define GAMMA_RAMP_SIZE 256
+
 static void init_framebuffer_program(void)
 {
+    GLuint vs = 0, fs = 0, program = 0, ramp_index, tex;
     const struct opengl_funcs *funcs = &display_funcs;
-    GLuint vs = 0, fs = 0, program = 0, tex;
+    float ramp_data[GAMMA_RAMP_SIZE * 4];
     char error[512];
     GLint success;
 
@@ -336,7 +354,18 @@ static void init_framebuffer_program(void)
 
     funcs->p_glDeleteShader( fs );
     funcs->p_glDeleteShader( vs );
+
+    get_float_gamma_ramp( ramp_data, &gamma_serial );
+    funcs->p_glGenBuffers( 1, &gamma_ramp );
+    funcs->p_glBindBuffer( GL_UNIFORM_BUFFER, gamma_ramp );
+    funcs->p_glBufferData( GL_UNIFORM_BUFFER, sizeof(float) * 4 * GAMMA_RAMP_SIZE, ramp_data, GL_DYNAMIC_DRAW );
+    gamma_sync = funcs->p_glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+
+    ramp_index = funcs->p_glGetUniformBlockIndex( program, "ramp" );
+    funcs->p_glUniformBlockBinding( program, ramp_index, 0 );
+
     funcs->p_glUseProgram( program );
+    funcs->p_glBindBufferBase( GL_UNIFORM_BUFFER, 0, gamma_ramp );
 
     tex = funcs->p_glGetUniformLocation( program, "tex" );
     funcs->p_glUniform1i( tex, 0 );
@@ -635,6 +664,7 @@ static void blit_framebuffer_surface( struct opengl_drawable *drawable )
 
     const struct opengl_funcs *funcs = &display_funcs;
     SIZE src = drawable->virtual_size, dst = drawable->monitor_size;
+    float ramp_data[GAMMA_RAMP_SIZE * 4];
 
     TRACE( "%s src %s dst %s fbo %u\n", debugstr_opengl_drawable( drawable ), wine_dbgstr_point( (POINT *)&src ),
            wine_dbgstr_point( (POINT *)&dst ), drawable->read_fbo );
@@ -643,7 +673,7 @@ static void blit_framebuffer_surface( struct opengl_drawable *drawable )
     funcs->p_glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
     funcs->p_glDrawBuffer( GL_BACK );
 
-    if (drawable->read_fbo == drawable->draw_fbo)
+    if (drawable->read_fbo == drawable->draw_fbo && use_default_gamma_ramp())
     {
         funcs->p_glReadBuffer( GL_COLOR_ATTACHMENT0 );
         funcs->p_glBlitFramebuffer( 0, 0, src.cx, src.cy, 0, 0, dst.cx, dst.cy, GL_COLOR_BUFFER_BIT, GL_LINEAR );
@@ -658,6 +688,16 @@ static void blit_framebuffer_surface( struct opengl_drawable *drawable )
         funcs->p_glActiveTexture( GL_TEXTURE0 );
         funcs->p_glGetFramebufferAttachmentParameteriv( GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &front );
         funcs->p_glBindTexture( GL_TEXTURE_2D, front );
+
+        pthread_mutex_lock( &gamma_lock );
+        if (get_float_gamma_ramp( ramp_data, &gamma_serial ))
+        {
+            funcs->p_glDeleteSync( gamma_sync );
+            funcs->p_glBufferSubData( GL_UNIFORM_BUFFER, 0, sizeof(float) * 4 * GAMMA_RAMP_SIZE, ramp_data );
+            gamma_sync = funcs->p_glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+        }
+        funcs->p_glWaitSync( gamma_sync, 0, GL_TIMEOUT_IGNORED );
+        pthread_mutex_unlock( &gamma_lock );
 
         funcs->p_glViewport( 0, 0, dst.cx, dst.cy );
         funcs->p_glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
