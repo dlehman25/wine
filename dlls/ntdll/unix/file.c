@@ -4891,8 +4891,17 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
     unsigned int status;
     UNICODE_STRING nt_name;
     OBJECT_ATTRIBUTES new_attr = *attr;
+    HANDLE file;
 
-    if (!(status = get_nt_and_unix_names( &new_attr, &nt_name, &unix_name, FILE_OPEN, TRUE )))
+    status = get_nt_and_unix_names( &new_attr, &nt_name, &unix_name, FILE_OPEN, TRUE );
+    if (status == STATUS_BAD_DEVICE_TYPE &&
+        !(status = server_open_file_object( &file, 0, &new_attr, 0, 0 )))
+    {
+        NtClose( file );
+        status = STATUS_INVALID_INFO_CLASS;
+    }
+
+    if (!status)
     {
         ULONG attributes;
         struct stat st;

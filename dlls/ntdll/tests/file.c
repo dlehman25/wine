@@ -293,7 +293,7 @@ static void create_file_test(void)
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
 
     status = pNtQueryFullAttributesFile( &attr, &info );
-    todo_wine ok( status == STATUS_OBJECT_NAME_INVALID,
+    ok( status == STATUS_OBJECT_NAME_INVALID,
                   "query %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
 
     pRtlInitUnicodeString( &nameW, pathInvalidNt2W );
