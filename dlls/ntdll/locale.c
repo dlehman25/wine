@@ -157,6 +157,74 @@ static NTSTATUS parse_ui_languages( USHORT *langs, DWORD flags, PCZZWSTR buffer,
     return *len ? STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
 }
 
+static NTSTATUS get_ui_languages( const USHORT *langs, DWORD flags,
+                                  ULONG *count, WCHAR *buffer, ULONG *size )
+{
+    UINT i, len = 1;
+
+    if (!size) return STATUS_INVALID_PARAMETER;
+    if (*size && !buffer) return STATUS_INVALID_PARAMETER;
+
+    if (!langs || langs[0] == UI_LANG_END)
+    {
+        if (buffer)
+        {
+            if (*size < 2)
+            {
+                *size = 2;
+                return STATUS_BUFFER_TOO_SMALL;
+            }
+            buffer[0] = buffer[1] = 0;
+        }
+        if (count) *count = 0;
+        *size = 2;
+        return STATUS_SUCCESS;
+    }
+
+    for (i = 0; langs[i] != UI_LANG_END; i++)
+    {
+        if (flags & MUI_LANGUAGE_ID) len += 5;
+        else
+        {
+            const WCHAR *name = locale_strings + get_locale_data( locale_table, langs[i] )->sname;
+            len += *name + 1;
+        }
+    }
+
+    if (buffer)
+    {
+        if (len > *size)
+        {
+            *size = len;
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+        if (flags & MUI_LANGUAGE_ID)
+        {
+            for (i = 0; langs[i] != UI_LANG_END; i++)
+            {
+                LCID id = get_locale_data( locale_table, langs[i] )->ilanguage;
+                if (id == LOCALE_CUSTOM_UNSPECIFIED && langs[i] == user_ui_languages_default[0])
+                    id = LOCALE_CUSTOM_UI_DEFAULT;
+                buffer += swprintf( buffer, 5, L"%04X", id ) + 1;
+            }
+        }
+        else
+        {
+            for (i = 0; langs[i] != UI_LANG_END; i++)
+            {
+                const WCHAR *name = locale_strings + get_locale_data( locale_table, langs[i] )->sname;
+                wcscpy( buffer, name + 1 );
+                buffer += *name + 1;
+            }
+        }
+        *buffer = 0;
+    }
+
+    if (count) *count = i;
+    *size = len;
+    return STATUS_SUCCESS;
+}
+
 static void load_ui_languages( USHORT *dst, ULONG *len, HKEY parent, const WCHAR *name, const WCHAR *value )
 {
     char initial_buf[4096];
@@ -377,14 +445,10 @@ NTSTATUS WINAPI RtlGetProcessPreferredUILanguages( DWORD flags, ULONG *count, WC
 NTSTATUS WINAPI RtlGetSystemPreferredUILanguages( DWORD flags, ULONG unknown, ULONG *count,
                                                   WCHAR *buffer, ULONG *size )
 {
-    LANGID ui_language;
-
     if (flags & ~(MUI_LANGUAGE_NAME | MUI_LANGUAGE_ID | MUI_MACHINE_LANGUAGE_SETTINGS)) return STATUS_INVALID_PARAMETER;
     if ((flags & MUI_LANGUAGE_NAME) && (flags & MUI_LANGUAGE_ID)) return STATUS_INVALID_PARAMETER;
-    if (*size && !buffer) return STATUS_INVALID_PARAMETER;
 
-    NtQueryInstallUILanguage( &ui_language );
-    return get_dummy_preferred_ui_language( flags, ui_language, count, buffer, size );
+    return get_ui_languages( system_ui_languages_default, flags, count, buffer, size );
 }
 
 
@@ -408,14 +472,10 @@ NTSTATUS WINAPI RtlGetThreadPreferredUILanguages( DWORD flags, ULONG *count, WCH
 NTSTATUS WINAPI RtlGetUserPreferredUILanguages( DWORD flags, ULONG unknown, ULONG *count,
                                                 WCHAR *buffer, ULONG *size )
 {
-    LANGID ui_language;
-
     if (flags & ~(MUI_LANGUAGE_NAME | MUI_LANGUAGE_ID)) return STATUS_INVALID_PARAMETER;
     if ((flags & MUI_LANGUAGE_NAME) && (flags & MUI_LANGUAGE_ID)) return STATUS_INVALID_PARAMETER;
-    if (*size && !buffer) return STATUS_INVALID_PARAMETER;
 
-    NtQueryDefaultUILanguage( &ui_language );
-    return get_dummy_preferred_ui_language( flags, ui_language, count, buffer, size );
+    return get_ui_languages( user_ui_languages_default, flags, count, buffer, size );
 }
 
 
