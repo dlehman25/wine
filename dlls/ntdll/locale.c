@@ -47,10 +47,13 @@ static const WCHAR *locale_strings;
 #define MAX_UI_LANGS 5  /* maximum UI languages in a single MULTI_SZ string */
 #define UI_LANG_END  0xffff  /* end marker in UI language array */
 
+static USHORT *process_ui_languages;
 static USHORT *system_ui_languages;
 static USHORT *user_ui_languages;
 static USHORT *system_ui_languages_default;
 static USHORT *user_ui_languages_default;
+
+static RTL_SRWLOCK locale_srwlock = RTL_SRWLOCK_INIT;
 
 static WCHAR casemap( USHORT *table, WCHAR ch )
 {
@@ -430,12 +433,12 @@ static NTSTATUS get_dummy_preferred_ui_language( DWORD flags, LANGID lang, ULONG
  */
 NTSTATUS WINAPI RtlGetProcessPreferredUILanguages( DWORD flags, ULONG *count, WCHAR *buffer, ULONG *size )
 {
-    LANGID ui_language;
+    NTSTATUS status;
 
-    FIXME( "%08lx, %p, %p %p\n", flags, count, buffer, size );
-
-    NtQueryDefaultUILanguage( &ui_language );
-    return get_dummy_preferred_ui_language( flags, ui_language, count, buffer, size );
+    RtlAcquireSRWLockShared( &locale_srwlock );
+    status = get_ui_languages( process_ui_languages, flags, count, buffer, size );
+    RtlReleaseSRWLockShared( &locale_srwlock );
+    return status;
 }
 
 
@@ -484,10 +487,20 @@ NTSTATUS WINAPI RtlGetUserPreferredUILanguages( DWORD flags, ULONG unknown, ULON
  */
 NTSTATUS WINAPI RtlSetProcessPreferredUILanguages( DWORD flags, PCZZWSTR buffer, ULONG *count )
 {
-    FIXME( "%lu, %p, %p\n", flags, buffer, count );
-    return STATUS_SUCCESS;
-}
+    USHORT langs[MAX_UI_LANGS + 1];
+    NTSTATUS status;
+    ULONG len;
 
+    if (!(status = parse_ui_languages( langs, flags, buffer, &len )))
+    {
+        RtlAcquireSRWLockExclusive( &locale_srwlock );
+        RtlFreeHeap( GetProcessHeap(), 0, process_ui_languages );
+        process_ui_languages = dup_ui_languages( langs, len );
+        RtlReleaseSRWLockExclusive( &locale_srwlock );
+        if (len && count) *count = len;
+    }
+    return status;
+}
 
 /**************************************************************************
  *      RtlSetThreadPreferredUILanguages   (NTDLL.@)
