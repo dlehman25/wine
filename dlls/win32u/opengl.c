@@ -268,13 +268,6 @@ static BOOL make_null_context_current( struct opengl_drawable *drawable )
     return TRUE;
 }
 
-static void make_client_context_current(void)
-{
-    struct opengl_context *context;
-    if (!(context = NtCurrentTeb()->glContext) || get_opengl_thread_data()->client_current) return;
-    driver_funcs->p_make_current( context->draw, context->read, context->driver_private );
-}
-
 static GLuint framebuffer_program;
 
 static const char *framebuffer_vertex_shader =
@@ -379,9 +372,24 @@ struct framebuffer_surface
     struct opengl_drawable *target;         /* driver drawable to present to */
 };
 
+static const struct opengl_drawable_funcs framebuffer_surface_funcs;
+
 static struct framebuffer_surface *framebuffer_from_opengl_drawable( struct opengl_drawable *base )
 {
     return CONTAINING_RECORD( base, struct framebuffer_surface, base );
+}
+
+static struct opengl_drawable *get_target( struct opengl_drawable *drawable )
+{
+    if (drawable->funcs == &framebuffer_surface_funcs) return framebuffer_from_opengl_drawable( drawable )->target;
+    return drawable;
+}
+
+static void make_client_context_current(void)
+{
+    struct opengl_context *context;
+    if (!(context = NtCurrentTeb()->glContext) || get_opengl_thread_data()->client_current) return;
+    driver_funcs->p_make_current( get_target( context->draw ), get_target( context->read ), context->driver_private );
 }
 
 static GLenum color_format_from_pfd( const struct wgl_pixel_format *desc )
@@ -2160,12 +2168,6 @@ static struct opengl_drawable *get_updated_drawable( HDC hdc, int format, struct
 
     /* get an updated drawable with the desired format */
     return get_window_unused_drawable( hwnd, format );
-}
-
-static struct opengl_drawable *get_target( struct opengl_drawable *drawable )
-{
-    if (drawable->funcs == &framebuffer_surface_funcs) return framebuffer_from_opengl_drawable( drawable )->target;
-    return drawable;
 }
 
 static BOOL context_sync_drawables( struct opengl_context *context, HDC draw_hdc, HDC read_hdc )
