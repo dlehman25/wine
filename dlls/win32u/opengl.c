@@ -764,6 +764,14 @@ static BOOL framebuffer_surface_swap( struct opengl_drawable *drawable )
             funcs->p_glGetFramebufferAttachmentParameteriv( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, (GLint *)&back );
             funcs->p_glFramebufferRenderbuffer( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, back );
             funcs->p_glFramebufferRenderbuffer( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, front );
+
+            if (drawable->stereo)
+            {
+                funcs->p_glGetFramebufferAttachmentParameteriv( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &front );
+                funcs->p_glGetFramebufferAttachmentParameteriv( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &back );
+                funcs->p_glFramebufferTexture( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, back, 0 );
+                funcs->p_glFramebufferTexture( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, front, 0 );
+            }
         }
 
         funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, drawable->read_fbo );

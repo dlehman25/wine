@@ -1173,7 +1173,7 @@ void resolve_default_fbo( TEB *teb, BOOL read )
         {
             funcs->p_glReadBuffer( GL_COLOR_ATTACHMENT0 );
             funcs->p_glDrawBuffer( GL_COLOR_ATTACHMENT0 );
-            funcs->p_glBlitFramebuffer( 0, 0, 0, 0, size.cx, size.cy, size.cx, size.cy, mask, GL_NEAREST );
+            funcs->p_glBlitFramebuffer( 0, 0, size.cx, size.cy, 0, 0, size.cx, size.cy, mask, GL_NEAREST );
             mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         }
 
@@ -1181,7 +1181,7 @@ void resolve_default_fbo( TEB *teb, BOOL read )
         {
             funcs->p_glReadBuffer( GL_COLOR_ATTACHMENT1 );
             funcs->p_glDrawBuffer( GL_COLOR_ATTACHMENT1 );
-            funcs->p_glBlitFramebuffer( 0, 0, 0, 0, size.cx, size.cy, size.cx, size.cy, mask, GL_NEAREST );
+            funcs->p_glBlitFramebuffer( 0, 0, size.cx, size.cy, 0, 0, size.cx, size.cy, mask, GL_NEAREST );
             mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         }
 
@@ -1189,7 +1189,7 @@ void resolve_default_fbo( TEB *teb, BOOL read )
         {
             funcs->p_glReadBuffer( GL_COLOR_ATTACHMENT2 );
             funcs->p_glDrawBuffer( GL_COLOR_ATTACHMENT2 );
-            funcs->p_glBlitFramebuffer( 0, 0, 0, 0, size.cx, size.cy, size.cx, size.cy, mask, GL_NEAREST );
+            funcs->p_glBlitFramebuffer( 0, 0, size.cx, size.cy, 0, 0, size.cx, size.cy, mask, GL_NEAREST );
             mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         }
 
@@ -1197,12 +1197,12 @@ void resolve_default_fbo( TEB *teb, BOOL read )
         {
             funcs->p_glReadBuffer( GL_COLOR_ATTACHMENT3 );
             funcs->p_glDrawBuffer( GL_COLOR_ATTACHMENT3 );
-            funcs->p_glBlitFramebuffer( 0, 0, 0, 0, size.cx, size.cy, size.cx, size.cy, mask, GL_NEAREST );
+            funcs->p_glBlitFramebuffer( 0, 0, size.cx, size.cy, 0, 0, size.cx, size.cy, mask, GL_NEAREST );
             mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         }
 
-        funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, ctx->read_fbo );
-        funcs->p_glBindFramebuffer( GL_DRAW_FRAMEBUFFER, ctx->draw_fbo );
+        pop_default_fbo( teb );
+        set_default_fbo_buffers( teb, ctx );
     }
 }
 
