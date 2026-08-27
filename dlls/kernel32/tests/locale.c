@@ -6935,7 +6935,6 @@ static void test_GetThreadPreferredUILanguages(void)
     ret = pGetThreadPreferredUILanguages( MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &count, buf, &size );
     ok( ret, "failed %lu\n", GetLastError() );
     ok( !memcmp( buf, L"fr-BE\0en-US\0en-GB\0", size ), "wrong result %s\n", debugstr_wn(buf,size) );
-    todo_wine
     ok( pGetThreadUILanguage() == MAKELANGID( LANG_FRENCH, SUBLANG_FRENCH_BELGIAN ),
         "wrong ui language %x\n", pGetThreadUILanguage() );
 

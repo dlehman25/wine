@@ -6327,6 +6327,26 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetThreadPreferredUILanguages( DWORD flags, ULONG 
 
 
 /***********************************************************************
+ *      GetThreadUILanguage   (kernelbase.@)
+ */
+LANGID WINAPI DECLSPEC_HOTPATCH GetThreadUILanguage(void)
+{
+    WCHAR *buffer;
+    ULONG size = 0;
+    LANGID ret = 0;
+
+    if (GetThreadPreferredUILanguages( MUI_LANGUAGE_ID | MUI_UI_FALLBACK, NULL, NULL, &size ))
+    {
+        if (!(buffer = HeapAlloc( GetProcessHeap(), 0, size * sizeof(WCHAR) ))) return 0;
+        if (GetThreadPreferredUILanguages( MUI_LANGUAGE_ID | MUI_UI_FALLBACK, NULL, buffer, &size ))
+            ret = wcstoul( buffer, NULL, 16 );
+        HeapFree( GetProcessHeap(), 0, buffer );
+    }
+    return ret;
+}
+
+
+/***********************************************************************
  *	GetTimeZoneInformation   (kernelbase.@)
  */
 DWORD WINAPI DECLSPEC_HOTPATCH GetTimeZoneInformation( TIME_ZONE_INFORMATION *info )

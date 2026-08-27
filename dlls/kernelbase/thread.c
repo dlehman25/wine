@@ -382,19 +382,6 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetThreadTimes( HANDLE thread, LPFILETIME creation
 
 
 /***********************************************************************
- *	     GetThreadUILanguage   (kernelbase.@)
- */
-LANGID WINAPI DECLSPEC_HOTPATCH GetThreadUILanguage(void)
-{
-    LANGID lang;
-
-    FIXME(": stub, returning default language.\n");
-    NtQueryDefaultUILanguage( &lang );
-    return lang;
-}
-
-
-/***********************************************************************
  *	     OpenThread   (kernelbase.@)
  */
 HANDLE WINAPI DECLSPEC_HOTPATCH OpenThread( DWORD access, BOOL inherit, DWORD id )
