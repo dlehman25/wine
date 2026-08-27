@@ -4864,9 +4864,6 @@ static HRESULT WINAPI bytestream_wrapper_GetLength(IMFByteStream *iface, QWORD *
 
     TRACE("%p, %p.\n", iface, length);
 
-    if (wrapper->is_closed)
-        return MF_E_INVALIDREQUEST;
-
     return wrapper->is_closed ? MF_E_INVALIDREQUEST :
             IMFByteStream_GetLength(wrapper->stream, length);
 }
@@ -4877,9 +4874,6 @@ static HRESULT WINAPI bytestream_wrapper_SetLength(IMFByteStream *iface, QWORD l
 
     TRACE("%p, %s.\n", iface, wine_dbgstr_longlong(length));
 
-    if (wrapper->is_closed)
-        return MF_E_INVALIDREQUEST;
-
     return wrapper->is_closed ? MF_E_INVALIDREQUEST :
             IMFByteStream_SetLength(wrapper->stream, length);
 }
@@ -4889,9 +4883,6 @@ static HRESULT WINAPI bytestream_wrapper_GetCurrentPosition(IMFByteStream *iface
     struct bytestream_wrapper *wrapper = impl_wrapper_from_IMFByteStream(iface);
 
     TRACE("%p, %p.\n", iface, position);
-
-    if (wrapper->is_closed)
-        return MF_E_INVALIDREQUEST;
 
     return wrapper->is_closed ? MF_E_INVALIDREQUEST :
             IMFByteStream_GetCurrentPosition(wrapper->stream, position);
