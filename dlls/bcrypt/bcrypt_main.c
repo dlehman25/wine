@@ -4004,8 +4004,8 @@ NTSTATUS WINAPI BCryptDeriveKeyCapi( BCRYPT_HASH_HANDLE handle, BCRYPT_ALG_HANDL
 
     TRACE( "%p, %p, %p, %lu, %#lx\n", handle, halg, key, keylen, flags );
 
-    if (!key || !keylen || keylen > hash->len * 2) return STATUS_INVALID_PARAMETER;
     if (!hash) return STATUS_INVALID_HANDLE;
+    if (!key || !keylen || keylen > hash->len * 2) return STATUS_INVALID_PARAMETER;
     if (halg)
     {
         FIXME( "algorithm handle not supported\n" );
