@@ -791,7 +791,7 @@ static HRESULT create_signature_columns_and_data( IEnumWbemClassObject *iter, UI
     int i = 0;
 
     count = count_instances( iter );
-    if (!(columns = malloc( count * sizeof(struct column) ))) return E_OUTOFMEMORY;
+    if (!(columns = calloc( count, sizeof(struct column) ))) return E_OUTOFMEMORY;
     if (!(row = calloc( count, sizeof(LONGLONG) ))) goto error;
 
     for (;;)
