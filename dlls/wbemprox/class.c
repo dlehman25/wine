@@ -946,7 +946,7 @@ static HRESULT WINAPI class_object_GetMethod(
         if (ppOutSignature) *ppOutSignature = out;
         else if (out) IWbemClassObject_Release( out );
     }
-    else IWbemClassObject_Release( in );
+    else if (in) IWbemClassObject_Release( in );
     return hr;
 }
 
