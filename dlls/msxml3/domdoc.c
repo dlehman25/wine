@@ -1072,7 +1072,7 @@ static bool get_node_type_from_typestring(const WCHAR *name, DOMNodeType *type)
     else if (!wcsicmp(name, L"comment")) *type = NODE_COMMENT;
     else if (!wcsicmp(name, L"document")) *type = NODE_DOCUMENT;
     else if (!wcsicmp(name, L"documentfragment")) *type = NODE_DOCUMENT_FRAGMENT;
-    else if (!wcsicmp(name, L"documentype")) *type = NODE_DOCUMENT_TYPE;
+    else if (!wcsicmp(name, L"documenttype")) *type = NODE_DOCUMENT_TYPE;
     else if (!wcsicmp(name, L"element")) *type = NODE_ELEMENT;
     else if (!wcsicmp(name, L"entity")) *type = NODE_ENTITY;
     else if (!wcsicmp(name, L"entityreference")) *type = NODE_ENTITY_REFERENCE;
