@@ -247,6 +247,7 @@ struct opengl_drawable
     SIZE                                monitor_size;   /* size in raw physical coordinate space */
     BOOL                                doublebuffer;   /* pixel format is double buffered */
     BOOL                                stereo;         /* pixel format is stereo buffered */
+    BOOL                                srgb;           /* default framebuffer is SRGB */
     EGLSurface                          surface;        /* surface for EGL based drivers */
     GLuint                              read_fbo;       /* default read FBO name when emulating framebuffer */
     GLuint                              draw_fbo;       /* default draw FBO name when emulating framebuffer */

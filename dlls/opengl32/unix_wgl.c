@@ -1160,10 +1160,14 @@ void resolve_default_fbo( TEB *teb, BOOL read )
     if (drawable->draw_fbo && drawable->read_fbo && drawable->draw_fbo != drawable->read_fbo)
     {
         GLenum mask = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
+        GLint enabled = funcs->p_glIsEnabled( GL_FRAMEBUFFER_SRGB );
         SIZE size = drawable->virtual_size;
 
         funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, drawable->draw_fbo );
         funcs->p_glBindFramebuffer( GL_DRAW_FRAMEBUFFER, drawable->read_fbo );
+
+        if (drawable->srgb && !enabled) funcs->p_glEnable( GL_FRAMEBUFFER_SRGB );
+        else if (!drawable->srgb && enabled) funcs->p_glDisable( GL_FRAMEBUFFER_SRGB );
 
         if (context_draws_front( ctx ))
         {
@@ -1196,6 +1200,9 @@ void resolve_default_fbo( TEB *teb, BOOL read )
             funcs->p_glBlitFramebuffer( 0, 0, size.cx, size.cy, 0, 0, size.cx, size.cy, mask, GL_NEAREST );
             mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         }
+
+        if (drawable->srgb && enabled) funcs->p_glEnable( GL_FRAMEBUFFER_SRGB );
+        else if (!drawable->srgb && !enabled) funcs->p_glDisable( GL_FRAMEBUFFER_SRGB );
 
         pop_default_fbo( teb );
         set_default_fbo_buffers( teb, ctx );

@@ -127,6 +127,7 @@ void *opengl_drawable_create( UINT size, const struct opengl_drawable_funcs *fun
     drawable->interval = INT_MIN;
     drawable->doublebuffer = !!(pixel_formats[format - 1].pfd.dwFlags & PFD_DOUBLEBUFFER);
     drawable->stereo = !!(pixel_formats[format - 1].pfd.dwFlags & PFD_STEREO);
+    drawable->srgb = !!(pixel_formats[format - 1].framebuffer_srgb_capable);
 
     if ((drawable->client = client))
     {
@@ -421,7 +422,7 @@ static void make_client_context_current(void)
     driver_funcs->p_make_current( get_target( context->draw ), get_target( context->read ), context->driver_private );
 }
 
-static GLenum color_format_from_pfd( const struct wgl_pixel_format *desc )
+static GLenum color_format_from_pfd( const struct wgl_pixel_format *desc, BOOL srgb )
 {
     TRACE( "format type %u bits %u/%u/%u/%u\n", desc->pixel_type, desc->pfd.cRedBits,
            desc->pfd.cGreenBits, desc->pfd.cBlueBits, desc->pfd.cAlphaBits );
@@ -444,11 +445,11 @@ static GLenum color_format_from_pfd( const struct wgl_pixel_format *desc )
             return GL_RGB10_A2;
         if (desc->pfd.cAlphaBits == 32) return GL_RGBA32UI;
         if (desc->pfd.cAlphaBits == 16) return GL_RGBA16;
-        if (desc->pfd.cAlphaBits == 8) return GL_RGBA8;
+        if (desc->pfd.cAlphaBits == 8) return srgb ? GL_SRGB8_ALPHA8 : GL_RGBA8;
         if (desc->pfd.cAlphaBits == 4) return GL_RGBA4;
         if (desc->pfd.cBlueBits == 32) return GL_RGB32UI;
         if (desc->pfd.cBlueBits == 16) return GL_RGB16;
-        if (desc->pfd.cBlueBits == 8) return GL_RGB8;
+        if (desc->pfd.cBlueBits == 8) return srgb ? GL_SRGB8 : GL_RGB8;
         if (desc->pfd.cBlueBits == 4) return GL_RGB4;
         if (desc->pfd.cGreenBits == 32) return GL_RG32UI;
         if (desc->pfd.cGreenBits == 16) return GL_RG16;
@@ -498,7 +499,7 @@ static GLenum depth_format_from_pfd( const struct wgl_pixel_format *desc )
 static void init_framebuffer_attachment( struct opengl_drawable *drawable, GLenum fbo, GLenum attachment, GLenum type,
                                          GLuint name, const struct wgl_pixel_format *desc, SIZE size )
 {
-    GLenum internal_format = attachment == GL_DEPTH_ATTACHMENT ? depth_format_from_pfd( desc ) : color_format_from_pfd( desc );
+    GLenum internal_format = attachment == GL_DEPTH_ATTACHMENT ? depth_format_from_pfd( desc ) : color_format_from_pfd( desc, drawable->srgb );
     const char *kind = attachment == GL_DEPTH_ATTACHMENT ? "depth" : "color";
     const struct opengl_funcs *funcs = &display_funcs;
 
@@ -672,6 +673,7 @@ static void blit_framebuffer_surface( struct opengl_drawable *drawable )
     funcs->p_glBindFramebuffer( GL_READ_FRAMEBUFFER, drawable->read_fbo );
     funcs->p_glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
     funcs->p_glDrawBuffer( GL_BACK );
+    if (drawable->srgb) funcs->p_glEnable( GL_FRAMEBUFFER_SRGB );
 
     if (drawable->read_fbo == drawable->draw_fbo && use_default_gamma_ramp())
     {
@@ -702,6 +704,8 @@ static void blit_framebuffer_surface( struct opengl_drawable *drawable )
         funcs->p_glViewport( 0, 0, dst.cx, dst.cy );
         funcs->p_glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
     }
+
+    if (drawable->srgb) funcs->p_glDisable( GL_FRAMEBUFFER_SRGB );
 }
 
 static void framebuffer_surface_flush( struct opengl_drawable *drawable, UINT flags )
