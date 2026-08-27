@@ -1085,7 +1085,7 @@ static HRESULT WINAPI wbem_context_Clone(
 {
     struct wbem_context *context = impl_from_IWbemContext( iface );
     struct wbem_context_value *value;
-    IWbemContext *cloned_context;
+    IWbemContext *cloned_context = NULL;
     HRESULT hr;
 
     TRACE("%p, %p\n", iface, newcopy);
@@ -1105,7 +1105,7 @@ static HRESULT WINAPI wbem_context_Clone(
     else
     {
         *newcopy = NULL;
-        IWbemContext_Release( cloned_context );
+        if (cloned_context) IWbemContext_Release( cloned_context );
     }
 
     return hr;
