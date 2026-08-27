@@ -6346,6 +6346,29 @@ LANGID WINAPI DECLSPEC_HOTPATCH GetThreadUILanguage(void)
 }
 
 
+/**********************************************************************
+ *	SetThreadUILanguage   (kernelbase.@)
+ */
+LANGID WINAPI DECLSPEC_HOTPATCH SetThreadUILanguage( LANGID langid )
+{
+    LCID lcid = langid;
+    WCHAR buffer[LOCALE_NAME_MAX_LENGTH + 1];
+    const NLS_LOCALE_DATA *locale;
+
+    if (!langid) return GetThreadUILanguage(); /* FIXME: set MUI_CONSOLE_FILTER */
+
+    if (!(locale = NlsValidateLocale( &lcid, 0 )))
+    {
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return 0;
+    }
+    wcscpy( buffer, locale_strings + locale->sname + 1 );
+    buffer[wcslen(buffer) + 1] = 0;
+    if (!SetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, buffer, NULL )) return 0;
+    return LANGIDFROMLCID( lcid );
+}
+
+
 /***********************************************************************
  *	GetTimeZoneInformation   (kernelbase.@)
  */

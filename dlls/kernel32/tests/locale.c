@@ -7288,12 +7288,6 @@ static void test_SetThreadUILanguage(void)
 {
     LANGID res;
 
-    if (!pGetThreadUILanguage)
-    {
-        win_skip("GetThreadUILanguage isn't implemented, skipping SetThreadUILanguage tests for version < Vista\n");
-        return;   /* BTW SetThreadUILanguage is present on winxp/2003 but doesn`t set the LANGID anyway when tested */
-    }
-
     res = pSetThreadUILanguage(0);
     ok(res == pGetThreadUILanguage(), "expected %d got %d\n", pGetThreadUILanguage(), res);
 
@@ -7302,7 +7296,7 @@ static void test_SetThreadUILanguage(void)
     "expected %d got %d\n", MAKELANGID(LANG_DUTCH, SUBLANG_DUTCH_BELGIAN), res);
 
     res = pSetThreadUILanguage(0);
-    todo_wine ok(res == MAKELANGID(LANG_DUTCH, SUBLANG_DUTCH_BELGIAN),
+    ok(res == MAKELANGID(LANG_DUTCH, SUBLANG_DUTCH_BELGIAN),
     "expected %d got %d\n", MAKELANGID(LANG_DUTCH, SUBLANG_DUTCH_BELGIAN), res);
 }
 

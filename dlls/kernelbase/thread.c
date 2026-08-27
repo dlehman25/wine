@@ -640,18 +640,6 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetThreadStackGuarantee( ULONG *size )
 
 
 /**********************************************************************
- *	SetThreadUILanguage   (kernelbase.@)
- */
-LANGID WINAPI DECLSPEC_HOTPATCH SetThreadUILanguage( LANGID langid )
-{
-    TRACE( "(0x%04x) stub - returning success\n", langid );
-
-    if (!langid) langid = GetThreadUILanguage();
-    return langid;
-}
-
-
-/**********************************************************************
  *            SetThreadInformation   (kernelbase.@)
  */
 BOOL WINAPI DECLSPEC_HOTPATCH SetThreadInformation( HANDLE thread, THREAD_INFORMATION_CLASS info_class,
