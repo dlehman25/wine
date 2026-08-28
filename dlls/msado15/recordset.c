@@ -267,7 +267,7 @@ static HRESULT get_bookmark_data( VARIANT *bookmark, const BYTE **data, DBBKMARK
         *data = NULL;
         *len = 0;
     }
-    else if (V_VT(bookmark) & (VT_ARRAY | VT_UI1))
+    else if (V_VT(bookmark) == (VT_ARRAY | VT_UI1))
     {
         HRESULT hr = SafeArrayLock(V_ARRAY(bookmark));
         if (FAILED(hr)) return hr;
