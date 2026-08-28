@@ -830,8 +830,7 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
 	CHARSETINFO csi;
 	MIMECSETINFO mcsi;
         HRESULT convertible = S_OK;
-	static const WCHAR autoW[] = {'_','a','u','t','o',0};
-	static const WCHAR feffW[] = {'u','n','i','c','o','d','e','F','E','F','F',0};
+	static const WCHAR autoW[] = L"_auto";
 
         if (winetest_debug > 1)
 	    trace("MIMECPINFO #%lu:\n"
@@ -888,10 +887,6 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
             if (winetest_debug > 1)
                 trace("IsValidCodePage failed for cp %u\n", cpinfo[i].uiCodePage);
 
-    if (memcmp(cpinfo[i].wszWebCharset,feffW,sizeof(WCHAR)*11)==0)
-        skip("Legacy windows bug returning invalid charset of unicodeFEFF\n");
-    else
-    {
         ret = IMultiLanguage2_GetCharsetInfo(iML2, cpinfo[i].wszWebCharset, &mcsi);
         /* _autoxxx charsets are a fake and GetCharsetInfo fails for them */
         if (memcmp(cpinfo[i].wszWebCharset, autoW, 5 * sizeof(WCHAR)))
@@ -912,12 +907,7 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
             "%u != %u || %u\n", mcsi.uiCodePage, cpinfo[i].uiCodePage, cpinfo[i].uiFamilyCodePage);
             }
         }
-    }
 
-    if (memcmp(cpinfo[i].wszHeaderCharset,feffW,sizeof(WCHAR)*11)==0)
-        skip("Legacy windows bug returning invalid charset of unicodeFEFF\n");
-    else
-    {
         ret = IMultiLanguage2_GetCharsetInfo(iML2, cpinfo[i].wszHeaderCharset, &mcsi);
         /* _autoxxx charsets are a fake and GetCharsetInfo fails for them */
         if (memcmp(cpinfo[i].wszHeaderCharset, autoW, 5 * sizeof(WCHAR)))
@@ -938,12 +928,7 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
             "%u != %u || %u\n", mcsi.uiCodePage, cpinfo[i].uiCodePage, cpinfo[i].uiFamilyCodePage);
         }
         }
-    }
 
-    if (memcmp(cpinfo[i].wszBodyCharset,feffW,sizeof(WCHAR)*11)==0)
-        skip("Legacy windows bug returning invalid charset of unicodeFEFF\n");
-    else
-    {
         ret = IMultiLanguage2_GetCharsetInfo(iML2, cpinfo[i].wszBodyCharset, &mcsi);
         /* _autoxxx charsets are a fake and GetCharsetInfo fails for them */
         if (memcmp(cpinfo[i].wszBodyCharset, autoW, 5 * sizeof(WCHAR)))
@@ -964,7 +949,6 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
             "%u != %u || %u\n", mcsi.uiCodePage, cpinfo[i].uiCodePage, cpinfo[i].uiFamilyCodePage);
         }
         }
-    }
     }
 
     /* now IEnumCodePage_Next should fail, since pointer is at the end */
