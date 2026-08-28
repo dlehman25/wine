@@ -297,29 +297,6 @@ static const WCHAR wszTimesNewRoman[] =
 static const WCHAR wszArial[] =
     {'A','r','i','a','l',0};
 
-/* Returns true if the user interface is in English. Note that this does not
- * presume of the formatting of dates, numbers, etc.
- */
-static BOOL is_lang_english(void)
-{
-    static HMODULE hkernel32 = NULL;
-    static LANGID (WINAPI *pGetThreadUILanguage)(void) = NULL;
-    static LANGID (WINAPI *pGetUserDefaultUILanguage)(void) = NULL;
-
-    if (!hkernel32)
-    {
-        hkernel32 = GetModuleHandleA("kernel32.dll");
-        pGetThreadUILanguage = (void*)GetProcAddress(hkernel32, "GetThreadUILanguage");
-        pGetUserDefaultUILanguage = (void*)GetProcAddress(hkernel32, "GetUserDefaultUILanguage");
-    }
-    if (pGetThreadUILanguage)
-        return PRIMARYLANGID(pGetThreadUILanguage()) == LANG_ENGLISH;
-    if (pGetUserDefaultUILanguage)
-        return PRIMARYLANGID(pGetUserDefaultUILanguage()) == LANG_ENGLISH;
-
-    return PRIMARYLANGID(GetUserDefaultLangID()) == LANG_ENGLISH;
-}
-
 static BOOL iface_cmp(IUnknown *iface1, IUnknown *iface2)
 {
     IUnknown *unk1, *unk2;
@@ -2036,7 +2013,7 @@ static HRESULT WINAPI InPlaceUIWindow_SetActiveObject(IOleInPlaceFrame *iface,
 
     if(expect_InPlaceUIWindow_SetActiveObject_active) {
         ok(pActiveObject != NULL, "pActiveObject = NULL\n");
-        if(pActiveObject && is_lang_english())
+        if(pActiveObject)
             ok(!lstrcmpW(wszHTML_Document, pszObjName), "%s != \"HTML Document\"\n", wine_dbgstr_w(pszObjName));
     }
     else {
@@ -2056,7 +2033,7 @@ static HRESULT WINAPI InPlaceFrame_SetActiveObject(IOleInPlaceFrame *iface,
     if(pActiveObject) {
         CHECK_EXPECT2(SetActiveObject);
 
-        if(pActiveObject && is_lang_english())
+        if(pActiveObject)
             ok(!lstrcmpW(wszHTML_Document, pszObjName), "%s != \"HTML Document\"\n", wine_dbgstr_w(pszObjName));
     }else {
         CHECK_EXPECT(SetActiveObject_null);
@@ -9802,6 +9779,9 @@ static void test_com_aggregation(const CLSID *clsid)
 
 START_TEST(htmldoc)
 {
+    /* some tests need an English locale */
+    SetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"en-US\0", NULL );
+
     CoInitialize(NULL);
 
     if(!check_ie()) {
