@@ -4123,11 +4123,13 @@ static void init_bookmark( struct recordset *recordset )
             binding.bScale = colinfo[i].bScale;
             hr = IAccessor_CreateAccessor( recordset->accessor, DBACCESSOR_ROWDATA,
                     1, &binding, 0, &recordset->bookmark_hacc, NULL );
-            if (FAILED(hr)) return;
+            if (SUCCEEDED(hr))
+            {
+                V_VT(&recordset->bookmark) = VT_R8;
+                V_R8(&recordset->bookmark) = -INFINITY;
+            }
 
-            V_VT(&recordset->bookmark) = VT_R8;
-            V_R8(&recordset->bookmark) = -INFINITY;
-            return;
+            break;
         }
     }
 
