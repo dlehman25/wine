@@ -4247,7 +4247,7 @@ HRESULT WINAPI WsWriteArray( WS_XML_WRITER *handle, const WS_XML_STRING *localna
         goto done;
     }
 
-    for (i = offset; i < count; i++)
+    for (i = 0; i < count; i++)
     {
         const char *ptr = (const char *)array + (offset + i) * type_size;
         if ((hr = write_element_node( writer, NULL, localname, ns )) != S_OK) goto done;
