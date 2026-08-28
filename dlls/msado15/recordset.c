@@ -1201,6 +1201,7 @@ static HRESULT WINAPI field_props_get_Item(Properties *iface, VARIANT index, Pro
         {
             prop = malloc (sizeof(struct field_property));
             prop->Property_iface.lpVtbl = &field_property_vtbl;
+            prop->refs = 1;
             prop->value = &field->optimize;
 
             *object = &prop->Property_iface;
