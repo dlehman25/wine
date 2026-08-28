@@ -2361,9 +2361,9 @@ static BOOL run_script( char *script, DWORD size, const WCHAR *url, WINHTTP_PROX
     uc.dwSchemeLength = -1;
     uc.dwHostNameLength = -1;
 
-    if (!WinHttpCrackUrl( url, 0, 0, &uc ))
-        return FALSE;
+    if (!WinHttpCrackUrl( url, 0, 0, &uc )) return FALSE;
 
+    if (uc.dwSchemeLength > MAX_SCHEME_LENGTH) return FALSE;
     memcpy( scheme, uc.lpszScheme, uc.dwSchemeLength * sizeof(WCHAR) );
     scheme[uc.dwSchemeLength] = 0;
     wcslwr( scheme );
@@ -2371,6 +2371,7 @@ static BOOL run_script( char *script, DWORD size, const WCHAR *url, WINHTTP_PROX
 
     if (flags & WINHTTP_AUTOPROXY_HOST_LOWERCASE && !(flags & WINHTTP_AUTOPROXY_HOST_KEEPCASE))
     {
+        if (uc.dwHostNameLength > MAX_HOST_NAME_LENGTH) return FALSE;
         memcpy( buf, uc.lpszHostName, uc.dwHostNameLength * sizeof(WCHAR) );
         buf[uc.dwHostNameLength] = 0;
         wcslwr( buf );
@@ -2390,8 +2391,8 @@ static BOOL run_script( char *script, DWORD size, const WCHAR *url, WINHTTP_PROX
     urlA[len_scheme++] = '/';
     WideCharToMultiByte( CP_ACP, 0, hostname, uc.dwHostNameLength, urlA + len_scheme, len_hostname, NULL, NULL );
     hostnameA = urlA + len_scheme;
-    WideCharToMultiByte( CP_ACP, 0, uc.lpszHostName + uc.dwHostNameLength, -1,
-            urlA + len_scheme + len_hostname, len, NULL, NULL );
+    WideCharToMultiByte( CP_ACP, 0, uc.lpszHostName + uc.dwHostNameLength, -1, urlA + len_scheme + len_hostname,
+                         len, NULL, NULL );
 
     buffer.dwStructSize = sizeof(buffer);
     buffer.lpszScriptBuffer = script;
