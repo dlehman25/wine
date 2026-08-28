@@ -758,7 +758,7 @@ done:
         if (count && !*hrows)
         {
             *hrows = CoTaskMemAlloc(sizeof(**hrows));
-            if (*hrows) hr = E_OUTOFMEMORY;
+            if (!*hrows) hr = E_OUTOFMEMORY;
         }
         if (count && *hrows)
         {
