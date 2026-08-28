@@ -3532,7 +3532,7 @@ static HRESULT write_type_bytes( struct writer *writer, WS_TYPE_MAPPING mapping,
 
     if (!option) return E_INVALIDARG;
     if ((hr = get_value_ptr( option, value, size, sizeof(WS_BYTES), (const void **)&ptr )) != S_OK) return hr;
-    if ((option == WS_WRITE_NILLABLE_VALUE && is_nil_value( value, size )) ||
+    if ((option == WS_WRITE_NILLABLE_VALUE && !ptr->bytes) ||
         (option == WS_WRITE_NILLABLE_POINTER && !ptr)) return write_add_nil_attribute( writer );
     if (!ptr->length) return S_OK;
 
@@ -3559,7 +3559,7 @@ static HRESULT write_type_xml_string( struct writer *writer, WS_TYPE_MAPPING map
     if (!option) return E_INVALIDARG;
     if ((hr = get_value_ptr( option, value, size, sizeof(WS_XML_STRING), (const void **)&ptr )) != S_OK) return hr;
     if (option == WS_WRITE_NILLABLE_POINTER && !ptr) return write_add_nil_attribute( writer );
-    if (option == WS_WRITE_NILLABLE_VALUE && is_nil_value( value, size )) return write_add_nil_attribute( writer );
+    if (option == WS_WRITE_NILLABLE_VALUE && !ptr->bytes) return write_add_nil_attribute( writer );
     if (!ptr->length) return S_OK;
 
     utf8.text.textType = WS_XML_TEXT_TYPE_UTF8;
@@ -3604,7 +3604,7 @@ static HRESULT write_type_qname( struct writer *writer, WS_TYPE_MAPPING mapping,
     if (!option) return E_INVALIDARG;
     if ((hr = get_value_ptr( option, value, size, sizeof(*ptr), (const void **)&ptr )) != S_OK) return hr;
     if (option == WS_WRITE_NILLABLE_POINTER && !ptr) return write_add_nil_attribute( writer );
-    if (option == WS_WRITE_NILLABLE_VALUE && is_nil_value( value, size )) return write_add_nil_attribute( writer );
+    if (option == WS_WRITE_NILLABLE_VALUE && !ptr->localName.bytes) return write_add_nil_attribute( writer );
 
     if (((hr = find_prefix( writer, &ptr->ns, &prefix )) != S_OK)) return hr;
 
