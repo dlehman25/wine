@@ -177,22 +177,22 @@ static WS_FAULT *dup_fault( WS_HEAP *heap, const WS_FAULT *src )
     ULONG i;
     BOOL success = FALSE;
 
-    if (!(new_fault = ws_alloc_zero( heap, sizeof(*new_fault) )))
-        return NULL;
+    if (!(new_fault = ws_alloc_zero( heap, sizeof(*new_fault) ))) return NULL;
 
     prev_code = NULL;
     code = src->code;
-    while ( code )
+    while (code)
     {
-        if (!(new_code = ws_alloc_zero( heap, sizeof(*new_code) )) ||
-            !copy_xml_string( heap, &code->value.localName, &new_code->value.localName ) ||
-            !copy_xml_string( heap, &code->value.ns, &new_code->value.ns ))
-            goto done;
+        if (!(new_code = ws_alloc_zero( heap, sizeof(*new_code) ))) goto done;
 
         if (prev_code)
             prev_code->subCode = new_code;
         else
             new_fault->code = new_code;
+
+        if (!copy_xml_string( heap, &code->value.localName, &new_code->value.localName ) ||
+            !copy_xml_string( heap, &code->value.ns, &new_code->value.ns )) goto done;
+
         prev_code = new_code;
         code = code->subCode;
     }
