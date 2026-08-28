@@ -36,9 +36,6 @@
 #define CP_UNICODE 1200
 #endif
 
-/* #define DUMP_CP_INFO */
-/* #define DUMP_SCRIPT_INFO */
-
 static BOOL (WINAPI *pGetCPInfoExA)(UINT, DWORD, LPCPINFOEXA);
 static HRESULT (WINAPI *pConvertINetMultiByteToUnicode)(LPDWORD, DWORD, LPCSTR,
                                                         LPINT, LPWSTR, LPINT);
@@ -710,7 +707,6 @@ static void cpinfo_cmp(MIMECPINFO *cpinfo1, MIMECPINFO *cpinfo2)
     ok(cpinfo1->bGDICharset == cpinfo2->bGDICharset, "bGDICharset mismatch: %d != %d\n", cpinfo1->bGDICharset, cpinfo2->bGDICharset);
 }
 
-#ifdef DUMP_CP_INFO
 static const char *dump_mime_flags(DWORD flags)
 {
     static char buf[1024];
@@ -733,7 +729,6 @@ static const char *dump_mime_flags(DWORD flags)
 
     return buf;
 }
-#endif
 
 static HRESULT check_convertible(IMultiLanguage2 *iML2, UINT from, UINT to)
 {
@@ -838,30 +833,30 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
 	static const WCHAR autoW[] = {'_','a','u','t','o',0};
 	static const WCHAR feffW[] = {'u','n','i','c','o','d','e','F','E','F','F',0};
 
-#ifdef DUMP_CP_INFO
-	trace("MIMECPINFO #%u:\n"
-	      "dwFlags %08x %s\n"
-	      "uiCodePage %u\n"
-	      "uiFamilyCodePage %u\n"
-	      "wszDescription %s\n"
-	      "wszWebCharset %s\n"
-	      "wszHeaderCharset %s\n"
-	      "wszBodyCharset %s\n"
-	      "wszFixedWidthFont %s\n"
-	      "wszProportionalFont %s\n"
-	      "bGDICharset %d\n\n",
-	      i,
-	      cpinfo[i].dwFlags, dump_mime_flags(cpinfo[i].dwFlags),
-	      cpinfo[i].uiCodePage,
-	      cpinfo[i].uiFamilyCodePage,
-	      wine_dbgstr_w(cpinfo[i].wszDescription),
-	      wine_dbgstr_w(cpinfo[i].wszWebCharset),
-	      wine_dbgstr_w(cpinfo[i].wszHeaderCharset),
-	      wine_dbgstr_w(cpinfo[i].wszBodyCharset),
-	      wine_dbgstr_w(cpinfo[i].wszFixedWidthFont),
-	      wine_dbgstr_w(cpinfo[i].wszProportionalFont),
-	      cpinfo[i].bGDICharset);
-#endif
+        if (winetest_debug > 1)
+	    trace("MIMECPINFO #%lu:\n"
+	          "dwFlags %08lx %s\n"
+	          "uiCodePage %u\n"
+	          "uiFamilyCodePage %u\n"
+	          "wszDescription %s\n"
+	          "wszWebCharset %s\n"
+	          "wszHeaderCharset %s\n"
+	          "wszBodyCharset %s\n"
+	          "wszFixedWidthFont %s\n"
+	          "wszProportionalFont %s\n"
+	          "bGDICharset %d\n\n",
+	           i,
+	           cpinfo[i].dwFlags, dump_mime_flags(cpinfo[i].dwFlags),
+	           cpinfo[i].uiCodePage,
+	           cpinfo[i].uiFamilyCodePage,
+	           wine_dbgstr_w(cpinfo[i].wszDescription),
+	           wine_dbgstr_w(cpinfo[i].wszWebCharset),
+	           wine_dbgstr_w(cpinfo[i].wszHeaderCharset),
+	           wine_dbgstr_w(cpinfo[i].wszBodyCharset),
+	           wine_dbgstr_w(cpinfo[i].wszFixedWidthFont),
+	           wine_dbgstr_w(cpinfo[i].wszProportionalFont),
+	           cpinfo[i].bGDICharset);
+
 	ok(cpinfo[i].dwFlags & flags, "enumerated flags %08lx do not include requested %08lx\n", cpinfo[i].dwFlags, flags);
 
 	if (TranslateCharsetInfo((DWORD *)(INT_PTR)cpinfo[i].uiFamilyCodePage, &csi, TCI_SRCCODEPAGE))
@@ -869,10 +864,6 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
 	else
             if (winetest_debug > 1)
                 trace("TranslateCharsetInfo failed for cp %u\n", cpinfo[i].uiFamilyCodePage);
-
-#ifdef DUMP_CP_INFO
-        trace("%u: codepage %u family %u\n", i, cpinfo[i].uiCodePage, cpinfo[i].uiFamilyCodePage);
-#endif
 
 	/* support files for some codepages might be not installed, or
 	 * the codepage is just an alias.
@@ -906,9 +897,9 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
         if (memcmp(cpinfo[i].wszWebCharset, autoW, 5 * sizeof(WCHAR)))
         {
             ok (ret == S_OK, "IMultiLanguage2_GetCharsetInfo failed: %08lx\n", ret);
-#ifdef DUMP_CP_INFO
-            trace("%s: %u %u %s\n", wine_dbgstr_w(cpinfo[i].wszWebCharset), mcsi.uiCodePage, mcsi.uiInternetEncoding, wine_dbgstr_w(mcsi.wszCharset));
-#endif
+            if (winetest_debug > 1)
+                trace("%s: %u %u %s\n", wine_dbgstr_w(cpinfo[i].wszWebCharset),
+                       mcsi.uiCodePage, mcsi.uiInternetEncoding, wine_dbgstr_w(mcsi.wszCharset));
             ok(!lstrcmpiW(cpinfo[i].wszWebCharset, mcsi.wszCharset), "%s != %s\n",
                wine_dbgstr_w(cpinfo[i].wszWebCharset), wine_dbgstr_w(mcsi.wszCharset));
 
@@ -932,9 +923,9 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
         if (memcmp(cpinfo[i].wszHeaderCharset, autoW, 5 * sizeof(WCHAR)))
         {
             ok (ret == S_OK, "IMultiLanguage2_GetCharsetInfo failed: %08lx\n", ret);
-#ifdef DUMP_CP_INFO
-            trace("%s: %u %u %s\n", wine_dbgstr_w(cpinfo[i].wszHeaderCharset), mcsi.uiCodePage, mcsi.uiInternetEncoding, wine_dbgstr_w(mcsi.wszCharset));
-#endif
+            if (winetest_debug > 1)
+                trace("%s: %u %u %s\n", wine_dbgstr_w(cpinfo[i].wszHeaderCharset),
+                       mcsi.uiCodePage, mcsi.uiInternetEncoding, wine_dbgstr_w(mcsi.wszCharset));
             ok(!lstrcmpiW(cpinfo[i].wszHeaderCharset, mcsi.wszCharset), "%s != %s\n",
                wine_dbgstr_w(cpinfo[i].wszHeaderCharset), wine_dbgstr_w(mcsi.wszCharset));
 
@@ -958,9 +949,9 @@ static void test_EnumCodePages(IMultiLanguage2 *iML2, DWORD flags)
         if (memcmp(cpinfo[i].wszBodyCharset, autoW, 5 * sizeof(WCHAR)))
         {
             ok (ret == S_OK, "IMultiLanguage2_GetCharsetInfo failed: %08lx\n", ret);
-#ifdef DUMP_CP_INFO
-            trace("%s: %u %u %s\n", wine_dbgstr_w(cpinfo[i].wszBodyCharset), mcsi.uiCodePage, mcsi.uiInternetEncoding, wine_dbgstr_w(mcsi.wszCharset));
-#endif
+            if (winetest_debug > 1)
+                trace("%s: %u %u %s\n", wine_dbgstr_w(cpinfo[i].wszBodyCharset),
+                       mcsi.uiCodePage, mcsi.uiInternetEncoding, wine_dbgstr_w(mcsi.wszCharset));
             ok(!lstrcmpiW(cpinfo[i].wszBodyCharset, mcsi.wszCharset), "%s != %s\n",
                wine_dbgstr_w(cpinfo[i].wszBodyCharset), wine_dbgstr_w(mcsi.wszCharset));
 
@@ -1106,21 +1097,19 @@ static void test_EnumScripts(IMultiLanguage2 *iML2, DWORD flags)
 
     for (i = 0; pGetCPInfoExA && i < n; i++)
     {
-#ifdef DUMP_SCRIPT_INFO
-	trace("SCRIPTINFO #%u:\n"
-	      "ScriptId %08x\n"
-	      "uiCodePage %u\n"
-	      "wszDescription %s\n"
-	      "wszFixedWidthFont %s\n"
-	      "wszProportionalFont %s\n\n",
-	      i,
-	      sinfo[i].ScriptId,
-	      sinfo[i].uiCodePage,
-	      wine_dbgstr_w(sinfo[i].wszDescription),
-	      wine_dbgstr_w(sinfo[i].wszFixedWidthFont),
-	      wine_dbgstr_w(sinfo[i].wszProportionalFont));
-        trace("%u codepage %u\n", i, sinfo[i].uiCodePage);
-#endif
+        if (winetest_debug > 1)
+	    trace("SCRIPTINFO #%lu:\n"
+	          "ScriptId %08x\n"
+	          "uiCodePage %u\n"
+	          "wszDescription %s\n"
+	          "wszFixedWidthFont %s\n"
+	          "wszProportionalFont %s\n\n",
+	           i,
+	           sinfo[i].ScriptId,
+	           sinfo[i].uiCodePage,
+	           wine_dbgstr_w(sinfo[i].wszDescription),
+	           wine_dbgstr_w(sinfo[i].wszFixedWidthFont),
+	           wine_dbgstr_w(sinfo[i].wszProportionalFont));
     }
 
     /* now IEnumScript_Next should fail, since pointer is at the end */
@@ -1380,10 +1369,9 @@ static void test_rfc1766(IMultiLanguage2 *iML2)
         ret = IEnumRfc1766_Next(pEnumRfc1766, 1, &info, &n);
         if (ret != S_OK) break;
 
-#ifdef DUMP_CP_INFO
-        trace("lcid %04x rfc_name %s locale_name %s\n",
-              info.lcid, wine_dbgstr_w(info.wszRfc1766), wine_dbgstr_w(info.wszLocaleName));
-#endif
+        if (winetest_debug > 1)
+            trace("lcid %04lx rfc_name %s locale_name %s\n",
+                   info.lcid, wine_dbgstr_w(info.wszRfc1766), wine_dbgstr_w(info.wszLocaleName));
 
         ok(n == 1, "couldn't fetch 1 RFC1766INFO structure\n");
 
