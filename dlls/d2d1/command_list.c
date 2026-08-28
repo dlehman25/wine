@@ -580,7 +580,7 @@ static void d2d_command_list_reference_object(struct d2d_command_list *command_l
     IUnknown_AddRef(obj);
 }
 
-static HRESULT d2d_command_list_create_brush(struct d2d_command_list *command_list,
+static bool d2d_command_list_create_brush(struct d2d_command_list *command_list,
         const struct d2d_device_context *ctx, ID2D1Brush *orig_brush, ID2D1Brush **ret)
 {
     ID2D1DeviceContext *context = (ID2D1DeviceContext *)&ctx->ID2D1DeviceContext6_iface;
@@ -634,16 +634,21 @@ static HRESULT d2d_command_list_create_brush(struct d2d_command_list *command_li
             break;
         default:
             FIXME("Unsupported brush type %u.\n", brush->type);
-            return E_UNEXPECTED;
+            return false;
     }
 
-    if (SUCCEEDED(hr))
+    if (hr == S_OK)
     {
         d2d_command_list_reference_object(command_list, *ret);
         ID2D1Brush_Release(*ret);
     }
+    else
+    {
+        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+        WARN("Failed to create a brush, hr %#lx.\n", hr);
+    }
 
-    return hr;
+    return hr == S_OK;
 }
 
 void d2d_command_list_set_antialias_mode(struct d2d_command_list *command_list,
@@ -764,10 +769,9 @@ void d2d_command_list_push_layer(struct d2d_command_list *command_list, const st
     struct d2d_command_push_layer *command;
     ID2D1Brush *opacity_brush = NULL;
 
-    if (params->opacityBrush && FAILED(d2d_command_list_create_brush(command_list, context,
-            params->opacityBrush, &opacity_brush)))
+    if (params->opacityBrush && !d2d_command_list_create_brush(command_list, context,
+            params->opacityBrush, &opacity_brush))
     {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
         return;
     }
 
@@ -808,11 +812,8 @@ void d2d_command_list_draw_line(struct d2d_command_list *command_list,
     struct d2d_command_draw_line *command;
     ID2D1Brush *brush;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     d2d_command_list_reference_object(command_list, stroke_style);
 
@@ -834,11 +835,8 @@ void d2d_command_list_draw_geometry(struct d2d_command_list *command_list,
     struct d2d_command_draw_geometry *command;
     ID2D1Brush *brush;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     d2d_command_list_reference_object(command_list, geometry);
     d2d_command_list_reference_object(command_list, stroke_style);
@@ -859,11 +857,8 @@ void d2d_command_list_draw_rectangle(struct d2d_command_list *command_list, cons
     struct d2d_command_draw_rectangle *command;
     ID2D1Brush *brush;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     d2d_command_list_reference_object(command_list, stroke_style);
 
@@ -884,16 +879,12 @@ void d2d_command_list_fill_geometry(struct d2d_command_list *command_list,
     ID2D1Brush *brush, *opacity_brush = NULL;
     struct d2d_command_fill_geometry *command;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
-    if (orig_opacity_brush && FAILED(d2d_command_list_create_brush(command_list, context,
-            orig_opacity_brush, &opacity_brush)))
+    if (orig_opacity_brush && !d2d_command_list_create_brush(command_list, context,
+            orig_opacity_brush, &opacity_brush))
     {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
         return;
     }
 
@@ -914,11 +905,8 @@ void d2d_command_list_fill_rectangle(struct d2d_command_list *command_list,
     struct d2d_command_fill_rectangle *command;
     ID2D1Brush *brush;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     if ((command = d2d_command_list_require_space(command_list, sizeof(*command))))
     {
@@ -989,11 +977,8 @@ void d2d_command_list_draw_glyph_run(struct d2d_command_list *command_list,
     size_t size;
     BYTE *data;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     /* Set rendering parameters automatically. Explicitly set null parameters are not recorded,
        either separately or as a part of a restored state block. Forcing parameters update on
@@ -1146,11 +1131,8 @@ void d2d_command_list_fill_mesh(struct d2d_command_list *command_list, const str
     struct d2d_command_fill_mesh *command;
     ID2D1Brush *brush;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     d2d_command_list_reference_object(command_list, mesh);
 
@@ -1170,11 +1152,8 @@ void d2d_command_list_fill_opacity_mask(struct d2d_command_list *command_list, c
     size_t size;
     BYTE *data;
 
-    if (FAILED(d2d_command_list_create_brush(command_list, context, orig_brush, &brush)))
-    {
-        command_list->state = D2D_COMMAND_LIST_STATE_ERROR;
+    if (!d2d_command_list_create_brush(command_list, context, orig_brush, &brush))
         return;
-    }
 
     size = sizeof(*command);
     if (dst_rect) size += sizeof(*dst_rect);
