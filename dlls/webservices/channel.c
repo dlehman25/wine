@@ -2203,7 +2203,7 @@ static HRESULT build_dict( const BYTE *buf, ULONG buflen, struct dictionary *dic
 
     buflen -= strings_offset;
     ptr = buf + strings_offset;
-    while (ptr < buf + strings_size)
+    while (ptr < buf + strings_offset + strings_size)
     {
         if ((hr = read_size( &ptr, buflen, &size )) != S_OK)
         {
