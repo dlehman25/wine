@@ -2082,7 +2082,8 @@ static NTSTATUS import_key( const struct algorithm *alg, const struct key *decry
         if (!decrypt_key || input_len < 8) return STATUS_INVALID_PARAMETER;
 
         len = input_len - 8;
-        if (len < BLOCK_LENGTH_AES || len & (BLOCK_LENGTH_AES - 1)) return STATUS_INVALID_PARAMETER;
+        if (len < BLOCK_LENGTH_AES || len > sizeof(output) || len & (BLOCK_LENGTH_AES - 1))
+            return STATUS_INVALID_PARAMETER;
 
         if ((status = unwrap_aes( decrypt_key->s.secret, decrypt_key->s.secret_len, input, len, output )))
             return status;
