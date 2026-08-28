@@ -2883,7 +2883,7 @@ static void write_message_end_proc( struct task *task )
 
 static HRESULT queue_write_message_end( struct channel *channel, WS_MESSAGE *msg, const WS_ASYNC_CONTEXT *ctx )
 {
-    struct write_message_start *w;
+    struct write_message_end *w;
 
     if (!(w = malloc( sizeof(*w) ))) return E_OUTOFMEMORY;
     w->task.proc = write_message_end_proc;
