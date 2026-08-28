@@ -4010,12 +4010,12 @@ static HRESULT str_to_qname( struct reader *reader, const unsigned char *str, UL
     if (prefix_ret && (hr = copy_xml_string( heap, &prefix, prefix_ret )) != S_OK) return hr;
     if ((hr = copy_xml_string( heap, &localname, localname_ret )) != S_OK)
     {
-        ws_free( heap, prefix_ret->bytes, prefix_ret->length );
+        if (prefix_ret) ws_free( heap, prefix_ret->bytes, prefix_ret->length );
         return hr;
     }
     if ((hr = copy_xml_string( heap, ns, ns_ret )) != S_OK)
     {
-        ws_free( heap, prefix_ret->bytes, prefix_ret->length );
+        if (prefix_ret) ws_free( heap, prefix_ret->bytes, prefix_ret->length );
         ws_free( heap, localname_ret->bytes, localname_ret->length );
         return hr;
     }
