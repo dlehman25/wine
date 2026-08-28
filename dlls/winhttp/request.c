@@ -2203,7 +2203,7 @@ static DWORD add_host_header( struct request *request, DWORD modifier )
     {
         return process_header( request, L"Host", connect->hostname, modifier, TRUE );
     }
-    len = lstrlenW( connect->hostname ) + 7; /* sizeof(":65335") */
+    len = lstrlenW( connect->hostname ) + 7; /* sizeof(":65535") */
     if (!(host = malloc( len * sizeof(WCHAR) ))) return ERROR_OUTOFMEMORY;
     swprintf( host, len, L"%s:%u", connect->hostname, port );
     ret = process_header( request, L"Host", host, modifier, TRUE );
@@ -2494,7 +2494,7 @@ static DWORD send_request( struct request *request, const WCHAR *headers, DWORD 
                                || !wcscmp( request->verb, L"PUT" )))))
     {
         WCHAR length[21]; /* decimal long int + null */
-        swprintf( length, ARRAY_SIZE(length), L"%ld", total_len );
+        swprintf( length, ARRAY_SIZE(length), L"%lu", total_len );
         process_header( request, L"Content-Length", length, WINHTTP_ADDREQ_FLAG_ADD_IF_NEW, TRUE );
     }
     if (request->flags & REQUEST_FLAG_WEBSOCKET_UPGRADE)
