@@ -420,23 +420,11 @@ static void test_GetLocaleInfoW(void)
 
       ret = GetLocaleInfoW(lcid_en_neut, LOCALE_SCOUNTRY, bufferW, ARRAY_SIZE(bufferW));
       ok(ret, "got %ld\n", ret);
-      if ((PRIMARYLANGID(LANGIDFROMLCID(GetSystemDefaultLCID())) != LANG_ENGLISH) ||
-          (PRIMARYLANGID(LANGIDFROMLCID(GetThreadLocale())) != LANG_ENGLISH))
-      {
-          skip("Non-English locale\n");
-      }
-      else
-          ok(!lstrcmpW(statesW, bufferW), "got wrong name %s\n", wine_dbgstr_w(bufferW));
+      ok(!lstrcmpW(statesW, bufferW), "got wrong name %s\n", wine_dbgstr_w(bufferW));
 
       ret = GetLocaleInfoW(lcid_en_neut, LOCALE_SLANGUAGE, bufferW, ARRAY_SIZE(bufferW));
       ok(ret, "got %ld\n", ret);
-      if ((PRIMARYLANGID(LANGIDFROMLCID(GetSystemDefaultLCID())) != LANG_ENGLISH) ||
-          (PRIMARYLANGID(LANGIDFROMLCID(GetThreadLocale())) != LANG_ENGLISH))
-      {
-          skip("Non-English locale\n");
-      }
-      else
-          ok(!lstrcmpW(slangW, bufferW), "got wrong name %s\n", wine_dbgstr_w(bufferW));
+      ok(!lstrcmpW(slangW, bufferW), "got wrong name %s\n", wine_dbgstr_w(bufferW));
 
       while (*ptr->name)
       {
@@ -5859,13 +5847,7 @@ static void test_GetLocaleInfoEx(void)
 
         ret = pGetLocaleInfoEx(enW, LOCALE_SCOUNTRY, bufferW, ARRAY_SIZE(bufferW));
         ok(ret == lstrlenW(bufferW)+1, "got %d\n", ret);
-        if ((PRIMARYLANGID(LANGIDFROMLCID(GetSystemDefaultLCID())) != LANG_ENGLISH) ||
-            (PRIMARYLANGID(LANGIDFROMLCID(GetThreadLocale())) != LANG_ENGLISH))
-        {
-            skip("Non-English locale\n");
-        }
-        else
-            ok(!lstrcmpW(bufferW, statesW), "got %s\n", wine_dbgstr_w(bufferW));
+        ok(!lstrcmpW(bufferW, statesW), "got %s\n", wine_dbgstr_w(bufferW));
 
         bufferW[0] = 0;
         SetLastError(0xdeadbeef);
@@ -6285,20 +6267,16 @@ static void test_GetGeoInfo(void)
     ok(!ret, "GetGeoInfoA succeeded %d.\n", ret);
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "wrong error %ld\n", GetLastError() );
 
-    if (GetUserDefaultLangID() == MAKELANGID( LANG_ENGLISH, SUBLANG_ENGLISH_US ))
-    {
-        GetLocaleInfoA( 0x419, LOCALE_SENGCOUNTRY, expect, sizeof(expect) );
-        buffA[0] = 0;
-        ret = pGetGeoInfoA(203, GEO_FRIENDLYNAME, buffA, 20, 0);
-        ok(ret == strlen(expect) + 1, "GetGeoInfoA succeeded %d.\n", ret);
-        ok(!strcmp(buffA, expect), "got %s / %s\n", buffA, expect);
-        GetLocaleInfoA( 0x411, LOCALE_SENGCOUNTRY, expect, sizeof(expect) );
-        buffA[0] = 0;
-        ret = pGetGeoInfoA(122, GEO_FRIENDLYNAME, buffA, 20, 0);
-        ok(ret == strlen(expect) + 1, "GetGeoInfoA succeeded %d.\n", ret);
-        ok(!strcmp(buffA, expect), "got %s / %s\n", buffA, expect);
-    }
-    else skip( "localized geo names not tested\n" );
+    GetLocaleInfoA( 0x419, LOCALE_SENGCOUNTRY, expect, sizeof(expect) );
+    buffA[0] = 0;
+    ret = pGetGeoInfoA(203, GEO_FRIENDLYNAME, buffA, 20, 0);
+    ok(ret == strlen(expect) + 1, "GetGeoInfoA succeeded %d.\n", ret);
+    ok(!strcmp(buffA, expect), "got %s / %s\n", buffA, expect);
+    GetLocaleInfoA( 0x411, LOCALE_SENGCOUNTRY, expect, sizeof(expect) );
+    buffA[0] = 0;
+    ret = pGetGeoInfoA(122, GEO_FRIENDLYNAME, buffA, 20, 0);
+    ok(ret == strlen(expect) + 1, "GetGeoInfoA succeeded %d.\n", ret);
+    ok(!strcmp(buffA, expect), "got %s / %s\n", buffA, expect);
 
     SetLastError(0xdeadbeef);
     ret = pGetGeoInfoA(203, GEO_TIMEZONES, buffA, 20, 0);
@@ -6564,6 +6542,13 @@ static const struct invariant_entry invariant_list[] = {
 
 static void test_invariant(void)
 {
+    /* some locales translate these */
+    static const char lang[]  = "Invariant Language (Invariant Country)";
+    static const char cntry[] = "Invariant Country";
+    static const char sortm[] = "Math Alphanumerics";
+    static const char sortms[] = "Maths Alphanumerics";
+    static const char sortd[] = "Default"; /* win2k3 */
+
   int ret;
   int len;
   char buffer[BUFFER_SIZE];
@@ -6594,20 +6579,6 @@ static void test_invariant(void)
     ptr++;
   }
 
- if ((LANGIDFROMLCID(GetSystemDefaultLCID()) != MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)) ||
-     (LANGIDFROMLCID(GetThreadLocale()) != MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)))
-  {
-      skip("Non US-English locale\n");
-  }
-  else
-  {
-    /* some locales translate these */
-    static const char lang[]  = "Invariant Language (Invariant Country)";
-    static const char cntry[] = "Invariant Country";
-    static const char sortm[] = "Math Alphanumerics";
-    static const char sortms[] = "Maths Alphanumerics";
-    static const char sortd[] = "Default"; /* win2k3 */
-
     ret = GetLocaleInfoA(LOCALE_INVARIANT, NUO|LOCALE_SLANGUAGE, buffer, sizeof(buffer));
     len = lstrlenA(lang) + 1;
     ok(ret == len, "Expected ret == %d, got %d, error %ld\n", len, ret, GetLastError());
@@ -6621,7 +6592,6 @@ static void test_invariant(void)
     ret = GetLocaleInfoA(LOCALE_INVARIANT, NUO|LOCALE_SSORTNAME, buffer, sizeof(buffer));
     ok(ret, "Failed err %ld\n", GetLastError());
     ok(!strcmp(buffer, sortm) || !strcmp(buffer, sortd) || !strcmp(buffer, sortms), "Got '%s'\n", buffer);
-  }
 }
 
 static void test_GetSystemPreferredUILanguages(void)
@@ -8807,9 +8777,16 @@ START_TEST(locale)
   test_EnumTimeFormatsA();
   test_EnumTimeFormatsW();
   test_EnumDateFormatsA();
+
+  /* some tests need an English locale */
+  pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"en-US\0", NULL );
   test_GetLocaleInfoA();
   test_GetLocaleInfoW();
   test_GetLocaleInfoEx();
+  test_GetGeoInfo();
+  test_invariant();
+  pSetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, NULL, NULL );
+
   test_GetTimeFormatA();
   test_GetTimeFormatEx();
   test_GetDateFormatA();
@@ -8841,9 +8818,7 @@ START_TEST(locale)
   test_IsValidLocaleName();
   test_ResolveLocaleName();
   test_CompareStringOrdinal();
-  test_GetGeoInfo();
   test_EnumSystemGeoID();
-  test_invariant();
   test_GetSystemPreferredUILanguages();
   test_GetThreadPreferredUILanguages();
   test_GetUserPreferredUILanguages();
