@@ -150,12 +150,10 @@ static HRESULT grow_strs_array( struct error *error )
     if (error->strs_count < error->strs_size)
         return S_OK;
 
-    new_size = error->strs_size > 0 ? 2 * error->strs_size : 1;
     if (error->strs_size > 0)
     {
         new_size = 2 * error->strs_size;
-        new_ptr = ws_realloc_zero( error->heap, error->strs,
-                                   error->strs_size * sizeof(WS_STRING),
+        new_ptr = ws_realloc_zero( error->heap, error->strs, error->strs_size * sizeof(WS_STRING),
                                    new_size * sizeof(WS_STRING) );
     }
     else
