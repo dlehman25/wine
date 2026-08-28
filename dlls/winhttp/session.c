@@ -1393,7 +1393,7 @@ static BOOL request_set_option( struct object_header *hdr, DWORD option, void *b
         }
         WARN( "currently has no effect\n" );
         request->websocket_receive_buffer_size = *(DWORD *)buffer;
-        TRACE( "websocket_receive_buffer_size %u\n", request->websocket_set_send_buffer_size);
+        TRACE( "websocket_receive_buffer_size %u\n", request->websocket_receive_buffer_size);
         return TRUE;
     }
     case WINHTTP_OPTION_WEB_SOCKET_SEND_BUFFER_SIZE:
