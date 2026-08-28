@@ -2584,29 +2584,6 @@ static void test_DetectOutboundCodePageInIStream(IMultiLanguage3 *ml)
     todo_wine ok(detected[2] == 1200, "got %u\n", detected[2]);
 }
 
-/* Returns true if the user interface is in English. Note that this does not
- * presume of the formatting of dates, numbers, etc.
- */
-static BOOL is_lang_english(void)
-{
-    static HMODULE hkernel32 = NULL;
-    static LANGID (WINAPI *pGetThreadUILanguage)(void) = NULL;
-    static LANGID (WINAPI *pGetUserDefaultUILanguage)(void) = NULL;
-
-    if (!hkernel32)
-    {
-        hkernel32 = GetModuleHandleA("kernel32.dll");
-        pGetThreadUILanguage = (void*)GetProcAddress(hkernel32, "GetThreadUILanguage");
-        pGetUserDefaultUILanguage = (void*)GetProcAddress(hkernel32, "GetUserDefaultUILanguage");
-    }
-    if (pGetThreadUILanguage)
-        return PRIMARYLANGID(pGetThreadUILanguage()) == LANG_ENGLISH;
-    if (pGetUserDefaultUILanguage)
-        return PRIMARYLANGID(pGetUserDefaultUILanguage()) == LANG_ENGLISH;
-
-    return PRIMARYLANGID(GetUserDefaultLangID()) == LANG_ENGLISH;
-}
-
 static void test_GetCodePageInfo(IMultiLanguage2 *iML2)
 {
     static const DWORD VALID_MASK = (DWORD)(~(MIMECONTF_VALID_NLS | MIMECONTF_VALID));
@@ -2617,6 +2594,8 @@ static void test_GetCodePageInfo(IMultiLanguage2 *iML2)
     MIMECPINFO cpinfo;
     UINT i;
     HRESULT ret;
+
+    SetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, L"en-US\0", NULL );
 
     test_data = iml2_cpinfo_data;
     test_data_num = ARRAY_SIZE(iml2_cpinfo_data);
@@ -2656,28 +2635,22 @@ static void test_GetCodePageInfo(IMultiLanguage2 *iML2)
                    "%d: got wrong wszBodyCharset expected %s return %s.\n",
                i, wine_dbgstr_w(cpinfo_cmp.wszBodyCharset), wine_dbgstr_w(cpinfo.wszBodyCharset));
 
-            if (!is_lang_english())
-            {
-                /* FIXME: Cannot test non-English descriptions and font names */
-                skip("Non-English locale\n");
-            }
-            else
-            {
-                todo_wine_if(test_data[i].todo_wszDescription)
-                ok(!lstrcmpW(cpinfo.wszDescription, cpinfo_cmp.wszDescription),
-                   "%d: got wrong wszDescription expected %s return %s.\n",
-                   i, wine_dbgstr_w(cpinfo_cmp.wszDescription), wine_dbgstr_w(cpinfo.wszDescription));
-                todo_wine_if(test_data[i].todo_wszFixedWidthFont)
-                ok(!lstrcmpW(cpinfo.wszFixedWidthFont, cpinfo_cmp.wszFixedWidthFont),
-                    "%d: got wrong wszFixedWidthFont expected %s return %s.\n",
-                    i, wine_dbgstr_w(cpinfo_cmp.wszFixedWidthFont), wine_dbgstr_w(cpinfo.wszFixedWidthFont));
-                todo_wine_if(test_data[i].todo_wszProportionalFont)
-                ok(!lstrcmpW(cpinfo.wszProportionalFont, cpinfo_cmp.wszProportionalFont),
-                    "%d: got wrong wszProportionalFont expected %s return %s.\n",
-                    i, wine_dbgstr_w(cpinfo_cmp.wszProportionalFont), wine_dbgstr_w(cpinfo.wszProportionalFont));
-            }
+            todo_wine_if(test_data[i].todo_wszDescription)
+            ok(!lstrcmpW(cpinfo.wszDescription, cpinfo_cmp.wszDescription),
+                "%d: got wrong wszDescription expected %s return %s.\n",
+                i, wine_dbgstr_w(cpinfo_cmp.wszDescription), wine_dbgstr_w(cpinfo.wszDescription));
+            todo_wine_if(test_data[i].todo_wszFixedWidthFont)
+            ok(!lstrcmpW(cpinfo.wszFixedWidthFont, cpinfo_cmp.wszFixedWidthFont),
+                "%d: got wrong wszFixedWidthFont expected %s return %s.\n",
+                i, wine_dbgstr_w(cpinfo_cmp.wszFixedWidthFont), wine_dbgstr_w(cpinfo.wszFixedWidthFont));
+            todo_wine_if(test_data[i].todo_wszProportionalFont)
+            ok(!lstrcmpW(cpinfo.wszProportionalFont, cpinfo_cmp.wszProportionalFont),
+                "%d: got wrong wszProportionalFont expected %s return %s.\n",
+                i, wine_dbgstr_w(cpinfo_cmp.wszProportionalFont), wine_dbgstr_w(cpinfo.wszProportionalFont));
         }
     }
+
+    SetThreadPreferredUILanguages( MUI_LANGUAGE_NAME, NULL, NULL );
 }
 
 static void test_MapFont(IMLangFontLink *font_link, IMLangFontLink2 *font_link2)
