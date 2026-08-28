@@ -2795,7 +2795,7 @@ BOOL WINAPI WinHttpTimeFromSystemTime( const SYSTEMTIME *time, LPWSTR string )
 {
     TRACE("%p, %p\n", time, string);
 
-    if (!time || !string)
+    if (!time || !string || time->wDayOfWeek > 6 || time->wMonth < 1 || time->wMonth > 12)
     {
         SetLastError( ERROR_INVALID_PARAMETER );
         return FALSE;
