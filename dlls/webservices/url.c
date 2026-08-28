@@ -205,6 +205,7 @@ HRESULT WINAPI WsDecodeUrl( const WS_STRING *str, ULONG flags, WS_HEAP *heap, WS
     {
         while (len && *q != ']') { q++; len--; };
         if (*q++ != ']') goto done;
+        len--;
     }
     else
     {
