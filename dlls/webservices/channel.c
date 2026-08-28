@@ -434,7 +434,7 @@ static HRESULT dup_message_mapping( const WS_HTTP_MESSAGE_MAPPING *src, WS_HTTP_
     size = src->responseHeaderMappingCount * sizeof(*dst->responseHeaderMappings);
     if (!(dst->responseHeaderMappings = malloc( size )))
     {
-        free( dst->responseHeaderMappings );
+        free_header_mappings( dst->requestHeaderMappings, src->requestHeaderMappingCount );
         return E_OUTOFMEMORY;
     }
 
