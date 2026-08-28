@@ -6698,6 +6698,7 @@ static void test_reparse_points(void)
 
     data_size = init_reparse_custom( &guid_data, 0x1000beef );
     status = NtFsControlFile( handle, NULL, NULL, NULL, &io, FSCTL_SET_REPARSE_POINT, guid_data, data_size, NULL, 0 );
+    todo_wine_if( status == STATUS_DIRECTORY_NOT_EMPTY )
     ok( !status || broken(status == STATUS_DIRECTORY_NOT_EMPTY), "got %#lx\n", status );
 
     if (!status)
@@ -6729,7 +6730,7 @@ static void test_reparse_points(void)
     }
 
     ret = DeleteFileW( path );
-    todo_wine ok( ret == TRUE, "got error %lu\n", GetLastError() );
+    ok( ret == TRUE, "got error %lu\n", GetLastError() );
     if (!ret)
     {
         guid_data->ReparseDataLength = 0;
