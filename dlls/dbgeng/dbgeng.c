@@ -1181,7 +1181,7 @@ static HRESULT STDMETHODCALLTYPE debugdataspaces_ReadVirtual(IDebugDataSpaces *i
         ULONG buffer_size, ULONG *read_len)
 {
     struct debug_client *debug_client = impl_from_IDebugDataSpaces(iface);
-    static struct target_process *target;
+    struct target_process *target;
     HRESULT hr = S_OK;
     SIZE_T length;
 
@@ -1477,7 +1477,7 @@ static HRESULT STDMETHODCALLTYPE debugsymbols_GetOffsetByLine(IDebugSymbols3 *if
 static HRESULT STDMETHODCALLTYPE debugsymbols_GetNumberModules(IDebugSymbols3 *iface, ULONG *loaded, ULONG *unloaded)
 {
     struct debug_client *debug_client = impl_from_IDebugSymbols3(iface);
-    static struct target_process *target;
+    struct target_process *target;
     HRESULT hr;
 
     TRACE("%p, %p, %p.\n", iface, loaded, unloaded);
@@ -1525,8 +1525,8 @@ static HRESULT STDMETHODCALLTYPE debugsymbols_GetModuleByOffset(IDebugSymbols3 *
         ULONG start_index, ULONG *index, ULONG64 *base)
 {
     struct debug_client *debug_client = impl_from_IDebugSymbols3(iface);
-    static struct target_process *target;
     const struct module_info *info;
+    struct target_process *target;
 
     TRACE("%p, %s, %lu, %p, %p.\n", iface, wine_dbgstr_longlong(offset), start_index, index, base);
 
@@ -2938,7 +2938,7 @@ static HRESULT STDMETHODCALLTYPE debugcontrol_GetDebuggeeType(IDebugControl4 *if
         ULONG *qualifier)
 {
     struct debug_client *debug_client = impl_from_IDebugControl4(iface);
-    static struct target_process *target;
+    struct target_process *target;
 
     FIXME("%p, %p, %p stub.\n", iface, debug_class, qualifier);
 
@@ -2964,7 +2964,7 @@ static HRESULT STDMETHODCALLTYPE debugcontrol_GetActualProcessorType(IDebugContr
 static HRESULT STDMETHODCALLTYPE debugcontrol_GetExecutingProcessorType(IDebugControl4 *iface, ULONG *type)
 {
     struct debug_client *debug_client = impl_from_IDebugControl4(iface);
-    static struct target_process *target;
+    struct target_process *target;
     HRESULT hr;
 
     TRACE("%p, %p.\n", iface, type);
@@ -3023,7 +3023,7 @@ static HRESULT STDMETHODCALLTYPE debugcontrol_GetPageSize(IDebugControl4 *iface,
 static HRESULT STDMETHODCALLTYPE debugcontrol_IsPointer64Bit(IDebugControl4 *iface)
 {
     struct debug_client *debug_client = impl_from_IDebugControl4(iface);
-    static struct target_process *target;
+    struct target_process *target;
     HRESULT hr;
 
     TRACE("%p.\n", iface);
