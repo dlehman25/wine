@@ -3992,7 +3992,7 @@ HRESULT WINAPI VarSub(LPVARIANT left, LPVARIANT right, LPVARIANT result)
     V_I2(result) = V_I2(&lv) - V_I2(&rv);
     break;
     case VT_UI1:
-    V_UI1(result) = V_UI2(&lv) - V_UI1(&rv);
+    V_UI1(result) = V_UI1(&lv) - V_UI1(&rv);
     break;
     case VT_R8:
     V_R8(result) = V_R8(&lv) - V_R8(&rv);
