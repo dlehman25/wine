@@ -3179,7 +3179,7 @@ static void add_composable_attr_step2( const type_t *type )
     if (type->attrs) LIST_FOR_EACH_ENTRY( attr, type->attrs, const attr_t, entry )
     {
         UINT parent, attr_type, value_size;
-        BYTE value[MAX_NAME + sizeof(UINT) * 2 + 6];
+        BYTE value[MAX_NAME * 2 + sizeof(UINT) * 2 + 6];
 
         if (attr->type != ATTR_COMPOSABLE) continue;
 
