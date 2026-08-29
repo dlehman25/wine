@@ -436,25 +436,20 @@ static void test_module_information(void)
     ok(!!params[1].Base && params[1].Base != DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
     hr = symbols->lpVtbl->GetModuleParameters(symbols, 2, NULL, 1, params2);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     ok(params2[0].Base == params[1].Base, "Unexpected module base.\n");
     memset(&params2, 0, sizeof(params2));
     hr = symbols->lpVtbl->GetModuleParameters(symbols, 3, NULL, loaded - 1, params2);
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
-todo_wine {
     ok(!!params2[0].Base && params2[0].Base != DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
     ok(params2[1].Base == DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
     ok(params2[2].Base == DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
-}
 
     memset(&params2, 0, sizeof(params2));
     hr = symbols->lpVtbl->GetModuleParameters(symbols, 3, NULL, loaded, params2);
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
-todo_wine {
     ok(params2[0].Base == DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
     ok(params2[1].Base == DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
     ok(params2[2].Base == DEBUG_INVALID_OFFSET, "Unexpected module base.\n");
-}
 
     memset(&params, 0, sizeof(params));
     hr = symbols->lpVtbl->GetModuleParameters(symbols, 0, NULL, 1, params);

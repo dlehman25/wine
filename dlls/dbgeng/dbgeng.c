@@ -1568,6 +1568,7 @@ static HRESULT STDMETHODCALLTYPE debugsymbols_GetModuleParameters(IDebugSymbols3
     struct debug_client *debug_client = impl_from_IDebugSymbols3(iface);
     const struct module_info *info;
     struct target_process *target;
+    HRESULT hr = S_OK;
     unsigned int i;
 
     TRACE("%p, %lu, %p, %lu, %p.\n", iface, count, bases, start, params);
@@ -1592,15 +1593,22 @@ static HRESULT STDMETHODCALLTYPE debugsymbols_GetModuleParameters(IDebugSymbols3
     }
     else
     {
-        for (i = start; i < start + count; ++i)
+        for (i = 0; i < count; ++i)
         {
-            if (!(info = debug_target_get_module_info(target, i)))
-                return E_INVALIDARG;
-            params[i] = info->params;
+            if ((info = debug_target_get_module_info(target, i + start)))
+            {
+                params[i] = info->params;
+            }
+            else
+            {
+                memset(&params[i], 0, sizeof(*params));
+                params[i].Base = DEBUG_INVALID_OFFSET;
+                hr = E_INVALIDARG;
+            }
         }
     }
 
-    return S_OK;
+    return hr;
 }
 
 static HRESULT STDMETHODCALLTYPE debugsymbols_GetSymbolModule(IDebugSymbols3 *iface, const char *symbol, ULONG64 *base)
