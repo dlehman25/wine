@@ -3942,7 +3942,7 @@ static enum fill_status fill_cache_memory( struct table *table, const struct exp
         rec->level = i + 2;
         rec->max_cache_size = rec->installed_size;
         rec->number_of_blocks = rec->installed_size;
-        swprintf( str, sizeof(str), L"Cache Memory %u", idx );
+        swprintf( str, ARRAY_SIZE(str), L"Cache Memory %u", idx );
         rec->device_id = wcsdup( str );
         rec->status = L"OK";
         if (!match_row( table, idx, cond, &status ))
@@ -3985,7 +3985,7 @@ static enum fill_status fill_processor( struct table *table, const struct expr *
     }
 
     RtlGetNativeSystemInformation( SystemCpuInformation, &info, sizeof(info), NULL );
-    swprintf( version, sizeof(version), L"Model %u, Stepping %u",
+    swprintf( version, ARRAY_SIZE(version), L"Model %u, Stepping %u",
               HIBYTE(info.ProcessorRevision), LOBYTE(info.ProcessorRevision) );
 
     for (i = 0; i < num_packages; i++)
