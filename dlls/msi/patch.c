@@ -264,11 +264,13 @@ static UINT apply_substorage_transform( MSIPACKAGE *package, MSIDATABASE *patch_
 
     TRACE("%p %s\n", package, debugstr_w(name));
 
-    if (*name++ != ':')
+    if (*name != ':')
     {
         ERR("expected a colon in %s\n", debugstr_w(name));
         return ERROR_FUNCTION_FAILED;
     }
+
+    name++;
     r = IStorage_OpenStorage( patch_db->storage, name, NULL, STGM_SHARE_EXCLUSIVE, NULL, 0, &stg );
     if (SUCCEEDED(r))
     {
