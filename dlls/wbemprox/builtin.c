@@ -2738,7 +2738,7 @@ static struct association *get_diskdrivetodiskpartition_pairs( UINT *count )
                            &query->view, &query->mem )) != S_OK) goto done;
     if ((hr = execute_view( query->view )) != S_OK) goto done;
 
-    if (!(query2 = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return FALSE;
+    if (!(query2 = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return NULL;
     if ((hr = parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskPartition",
                            &query2->view, &query2->mem )) != S_OK) goto done;
     if ((hr = execute_view( query2->view )) != S_OK) goto done;
@@ -3053,7 +3053,7 @@ static struct association *get_logicaldisktopartition_pairs( UINT *count )
                            &query->view, &query->mem )) != S_OK) goto done;
     if ((hr = execute_view( query->view )) != S_OK) goto done;
 
-    if (!(query2 = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return FALSE;
+    if (!(query2 = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return NULL;
     if ((hr = parse_query( WBEMPROX_NAMESPACE_CIMV2,
                            L"SELECT * FROM Win32_LogicalDisk WHERE DriveType=2 OR DriveType=3", &query2->view,
                            &query2->mem )) != S_OK) goto done;
