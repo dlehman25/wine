@@ -180,7 +180,7 @@ static HRESULT WINAPI enum_class_object_Skip(
 
     if (nCount > view->result_count - ec->index)
     {
-        ec->index = view->result_count - 1;
+        ec->index = view->result_count;
         return WBEM_S_FALSE;
     }
     ec->index += nCount;
