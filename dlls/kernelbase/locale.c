@@ -6301,7 +6301,7 @@ INT WINAPI DECLSPEC_HOTPATCH GetSystemDefaultLocaleName( LPWSTR name, INT count 
 LANGID WINAPI DECLSPEC_HOTPATCH GetSystemDefaultUILanguage(void)
 {
     LANGID lang;
-    NtQueryInstallUILanguage( &lang );
+    RtlpQueryDefaultUILanguage( &lang, TRUE );
     return lang;
 }
 
@@ -6490,7 +6490,9 @@ INT WINAPI DECLSPEC_HOTPATCH GetUserDefaultLocaleName( LPWSTR name, INT len )
  */
 LANGID WINAPI DECLSPEC_HOTPATCH GetUserDefaultUILanguage(void)
 {
-    return LANGIDFROMLCID( GetUserDefaultLCID() );
+    LANGID lang;
+    RtlpQueryDefaultUILanguage( &lang, FALSE );
+    return lang;
 }
 
 
