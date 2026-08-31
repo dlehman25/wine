@@ -304,6 +304,7 @@ static CPTABLEINFO oem_cpinfo;
 static UINT unix_cp = CP_UTF8;
 static LCID system_lcid;
 static LCID user_lcid;
+static LCID user_ui_lcid;
 static HKEY intl_key;
 static HKEY nls_key;
 static HKEY tz_key;
@@ -313,6 +314,7 @@ static const NLS_LOCALE_HEADER *locale_table;
 static const WCHAR *locale_strings;
 static const NLS_LOCALE_DATA *system_locale;
 static const NLS_LOCALE_DATA *user_locale;
+static const NLS_LOCALE_DATA *user_ui_locale;
 
 static CPTABLEINFO codepages[128];
 static unsigned int nb_codepages;
@@ -685,7 +687,9 @@ static BOOL get_sort_locale_name( LCID lcid, const WCHAR **name )
     case LOCALE_SYSTEM_DEFAULT:
     case LOCALE_CUSTOM_DEFAULT:
     case LOCALE_CUSTOM_UNSPECIFIED:
+        break;
     case LOCALE_CUSTOM_UI_DEFAULT:
+        *name = locale_strings + user_ui_locale->sname + 1;
         break;
     default:
         if (lcid == user_lcid || lcid == system_lcid) break;
@@ -778,9 +782,11 @@ const NLS_LOCALE_DATA * WINAPI NlsValidateLocale( LCID *lcid, ULONG flags )
     case LOCALE_USER_DEFAULT:
     case LOCALE_CUSTOM_DEFAULT:
     case LOCALE_CUSTOM_UNSPECIFIED:
-    case LOCALE_CUSTOM_UI_DEFAULT:
         *lcid = user_lcid;
         return user_locale;
+    case LOCALE_CUSTOM_UI_DEFAULT:
+        *lcid = user_ui_lcid;
+        return user_ui_locale;
     default:
         if (!(entry = find_lcid_entry( *lcid ))) return NULL;
         locale = get_locale_data( entry->idx );
@@ -1979,6 +1985,7 @@ void init_locale( HMODULE module )
     USHORT utf8[2] = { 0, CP_UTF8 };
     USHORT *ansi_ptr, *oem_ptr;
     WCHAR bufferW[LOCALE_NAME_MAX_LENGTH];
+    UNICODE_STRING strW;
     DYNAMIC_TIME_ZONE_INFORMATION timezone;
     const WCHAR *user_locale_name;
     DWORD count;
@@ -2001,6 +2008,13 @@ void init_locale( HMODULE module )
     }
     user_lcid = user_locale->ilanguage;
     if (user_lcid == LOCALE_CUSTOM_UNSPECIFIED) user_lcid = LOCALE_CUSTOM_DEFAULT;
+
+    if (!RtlLcidToLocaleName( LOCALE_CUSTOM_UI_DEFAULT, &strW, 2, TRUE ))
+    {
+        user_ui_locale = get_locale_by_name( strW.Buffer, &user_ui_lcid );
+        if (user_ui_lcid == LOCALE_CUSTOM_UNSPECIFIED) user_ui_lcid = LOCALE_CUSTOM_UI_DEFAULT;
+        RtlFreeUnicodeString( &strW );
+    }
 
     if (GetEnvironmentVariableW( L"WINEUNIXCP", bufferW, ARRAY_SIZE(bufferW) ))
         unix_cp = wcstoul( bufferW, NULL, 10 );
