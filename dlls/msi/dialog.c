@@ -3351,7 +3351,7 @@ static UINT dialog_hyperlink( msi_dialog *dialog, MSIRECORD *rec )
     struct control *control;
     DWORD style = WS_CHILD | WS_TABSTOP | WS_GROUP;
     const WCHAR *text = MSI_RecordGetString( rec, 10 );
-    int len = lstrlenW( text );
+    int len = text ? wcslen( text ) : 0;
     LITEM item;
 
     if (!(control = dialog_add_control( dialog, rec, WC_LINK, style ))) return ERROR_FUNCTION_FAILED;
@@ -3363,7 +3363,7 @@ static UINT dialog_hyperlink( msi_dialog *dialog, MSIRECORD *rec )
     item.iLink     = 0;
     item.state     = LIS_ENABLED;
     item.stateMask = LIS_ENABLED;
-    if (len < L_MAX_URL_LENGTH) lstrcpyW( item.szUrl, text );
+    if (text && len < L_MAX_URL_LENGTH) wcscpy( item.szUrl, text );
     else item.szUrl[0] = 0;
 
     SendMessageW( control->hwnd, LM_SETITEM, 0, (LPARAM)&item );
