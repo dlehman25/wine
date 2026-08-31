@@ -214,7 +214,13 @@ static void read_properties_from_data( PROPVARIANT *prop, LPBYTE data, DWORD sz 
         property.vt = propdata->type;
         if( propdata->type == VT_LPSTR )
         {
-            char *str = malloc( propdata->u.str.len );
+            char *str;
+            if (!propdata->u.str.len)
+            {
+                WARN("zero length string\n");
+                break;
+            }
+            str = malloc( propdata->u.str.len );
             memcpy( str, propdata->u.str.str, propdata->u.str.len );
             str[ propdata->u.str.len - 1 ] = 0;
             property.pszVal = str;
