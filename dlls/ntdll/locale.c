@@ -1123,7 +1123,7 @@ NTSTATUS WINAPI RtlLcidToLocaleName( LCID lcid, UNICODE_STRING *str, ULONG flags
 {
     const NLS_LOCALE_LCID_INDEX *entry;
     const WCHAR *name;
-    ULONG len;
+    ULONG len, idx;
 
     if (!str) return STATUS_INVALID_PARAMETER_2;
 
@@ -1137,17 +1137,22 @@ NTSTATUS WINAPI RtlLcidToLocaleName( LCID lcid, UNICODE_STRING *str, ULONG flags
         lcid = system_lcid;
         break;
     case LOCALE_CUSTOM_UI_DEFAULT:
-        return STATUS_UNSUCCESSFUL;
+        idx = user_ui_languages_default[0];
+        name = locale_strings + get_locale_data( locale_table, idx )->sname;
+        goto found;
     case LOCALE_CUSTOM_UNSPECIFIED:
         return STATUS_INVALID_PARAMETER_1;
     }
 
     if (!(entry = find_lcid_entry( locale_table, lcid ))) return STATUS_INVALID_PARAMETER_1;
+    idx = entry->idx;
+    name = locale_strings + entry->name;
+
+ found:
     /* reject neutral locale unless flag 2 is set */
-    if (!(flags & 2) && !get_locale_data( locale_table, entry->idx )->inotneutral)
+    if (!(flags & 2) && !get_locale_data( locale_table, idx )->inotneutral)
         return STATUS_INVALID_PARAMETER_1;
 
-    name = locale_strings + entry->name;
     len = *name++;
 
     if (alloc)
