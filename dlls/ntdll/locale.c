@@ -545,6 +545,20 @@ NTSTATUS WINAPI RtlSetThreadPreferredUILanguages( DWORD flags, PCZZWSTR buffer, 
 }
 
 
+/**************************************************************************
+ *      RtlpQueryDefaultUILanguage   (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlpQueryDefaultUILanguage( LANGID *lang, BOOLEAN system )
+{
+    USHORT idx = system ? system_ui_languages_default[0] : user_ui_languages_default[0];
+
+    *lang = get_locale_data( locale_table, idx )->ilanguage;
+    if (*lang == LOCALE_CUSTOM_UNSPECIFIED && idx == user_ui_languages_default[0])
+        *lang = LOCALE_CUSTOM_UI_DEFAULT;
+    return STATUS_SUCCESS;
+}
+
+
 /******************************************************************
  *      RtlInitCodePageTable   (NTDLL.@)
  */
