@@ -330,7 +330,8 @@ NTSTATUS WINAPI LsaGetLogonSessionData(PLUID LogonId,
 
     authpkg_len = wcslen(default_authentication_package) * sizeof(WCHAR);
 
-    data = calloc(1, sizeof(*data) + authpkg_len + sizeof(WCHAR));
+    data = VirtualAlloc(NULL, sizeof(*data) + authpkg_len + sizeof(WCHAR),
+            MEM_COMMIT, PAGE_READWRITE);
     if (!data) return STATUS_NO_MEMORY;
 
     data->Size = sizeof(*data);
