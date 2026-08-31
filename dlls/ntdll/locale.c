@@ -1129,13 +1129,14 @@ NTSTATUS WINAPI RtlLcidToLocaleName( LCID lcid, UNICODE_STRING *str, ULONG flags
 
     switch (lcid)
     {
-    case LOCALE_USER_DEFAULT:
-        NtQueryDefaultLocale( TRUE, &lcid );
-        break;
     case LOCALE_SYSTEM_DEFAULT:
-    case LOCALE_CUSTOM_DEFAULT:
         lcid = system_lcid;
         break;
+    case LOCALE_USER_DEFAULT:
+    case LOCALE_CUSTOM_DEFAULT:
+        idx = system_ui_languages_default[0];
+        name = locale_strings + get_locale_data( locale_table, idx )->sname;
+        goto found;
     case LOCALE_CUSTOM_UI_DEFAULT:
         idx = user_ui_languages_default[0];
         name = locale_strings + get_locale_data( locale_table, idx )->sname;
