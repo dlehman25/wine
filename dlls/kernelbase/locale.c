@@ -1999,16 +1999,12 @@ void init_locale( HMODULE module )
     if (system_lcid == LOCALE_CUSTOM_UNSPECIFIED) system_lcid = MAKELANGID( LANG_ENGLISH, SUBLANG_DEFAULT );
     system_locale = NlsValidateLocale( &system_lcid, 0 );
 
-    NtQueryDefaultLocale( TRUE, &user_lcid );
-    if (!(user_locale = NlsValidateLocale( &user_lcid, 0 )))
+    if (!RtlLcidToLocaleName( LOCALE_CUSTOM_DEFAULT, &strW, 2, TRUE ))
     {
-        if (GetEnvironmentVariableW( L"WINEUSERLOCALE", bufferW, ARRAY_SIZE(bufferW) ))
-            user_locale = get_locale_by_name( bufferW, &user_lcid );
-        if (!user_locale) user_locale = system_locale;
+        user_locale = get_locale_by_name( strW.Buffer, &user_lcid );
+        if (user_lcid == LOCALE_CUSTOM_UNSPECIFIED) user_lcid = LOCALE_CUSTOM_DEFAULT;
+        RtlFreeUnicodeString( &strW );
     }
-    user_lcid = user_locale->ilanguage;
-    if (user_lcid == LOCALE_CUSTOM_UNSPECIFIED) user_lcid = LOCALE_CUSTOM_DEFAULT;
-
     if (!RtlLcidToLocaleName( LOCALE_CUSTOM_UI_DEFAULT, &strW, 2, TRUE ))
     {
         user_ui_locale = get_locale_by_name( strW.Buffer, &user_ui_lcid );
