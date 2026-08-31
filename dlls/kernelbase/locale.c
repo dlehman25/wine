@@ -673,6 +673,35 @@ static const NLS_LOCALE_DATA *find_locale_from_geoid( GEOID id )
 }
 
 
+static BOOL get_sort_locale_name( LCID lcid, const WCHAR **name )
+{
+    const NLS_LOCALE_LCID_INDEX *entry;
+
+    *name = LOCALE_NAME_USER_DEFAULT;
+    switch (lcid)
+    {
+    case LOCALE_NEUTRAL:
+    case LOCALE_USER_DEFAULT:
+    case LOCALE_SYSTEM_DEFAULT:
+    case LOCALE_CUSTOM_DEFAULT:
+    case LOCALE_CUSTOM_UNSPECIFIED:
+    case LOCALE_CUSTOM_UI_DEFAULT:
+        break;
+    default:
+        if (lcid == user_lcid || lcid == system_lcid) break;
+        if (!(entry = find_lcid_entry( lcid )))
+        {
+            WARN( "unknown locale %04lx\n", lcid );
+            SetLastError( ERROR_INVALID_PARAMETER );
+            return FALSE;
+        }
+        *name = locale_strings + entry->name + 1;
+        break;
+    }
+    return TRUE;
+}
+
+
 static const struct sortguid *get_language_sort( const WCHAR *name )
 {
     const NLS_LOCALE_LCNAME_INDEX *entry;
@@ -4889,30 +4918,9 @@ INT WINAPI DECLSPEC_HOTPATCH CompareStringA( LCID lcid, DWORD flags, const char 
 INT WINAPI DECLSPEC_HOTPATCH CompareStringW( LCID lcid, DWORD flags, const WCHAR *str1, int len1,
                                              const WCHAR *str2, int len2 )
 {
-    const WCHAR *locale = LOCALE_NAME_USER_DEFAULT;
-    const NLS_LOCALE_LCID_INDEX *entry;
+    const WCHAR *locale;
 
-    switch (lcid)
-    {
-    case LOCALE_NEUTRAL:
-    case LOCALE_USER_DEFAULT:
-    case LOCALE_SYSTEM_DEFAULT:
-    case LOCALE_CUSTOM_DEFAULT:
-    case LOCALE_CUSTOM_UNSPECIFIED:
-    case LOCALE_CUSTOM_UI_DEFAULT:
-        break;
-    default:
-        if (lcid == user_lcid || lcid == system_lcid) break;
-        if (!(entry = find_lcid_entry( lcid )))
-        {
-            WARN( "unknown locale %04lx\n", lcid );
-            SetLastError( ERROR_INVALID_PARAMETER );
-            return 0;
-        }
-        locale = locale_strings + entry->name + 1;
-        break;
-    }
-
+    if (!get_sort_locale_name( lcid, &locale )) return 0;
     return CompareStringEx( locale, flags, str1, len1, str2, len2, NULL, NULL, 0 );
 }
 
@@ -5226,30 +5234,9 @@ BOOL WINAPI DECLSPEC_HOTPATCH EnumTimeFormatsEx( TIMEFMT_ENUMPROCEX proc, const 
 INT WINAPI DECLSPEC_HOTPATCH FindNLSString( LCID lcid, DWORD flags, const WCHAR *src,
                                             int srclen, const WCHAR *value, int valuelen, int *found )
 {
-    const WCHAR *locale = LOCALE_NAME_USER_DEFAULT;
-    const NLS_LOCALE_LCID_INDEX *entry;
+    const WCHAR *locale;
 
-    switch (lcid)
-    {
-    case LOCALE_NEUTRAL:
-    case LOCALE_USER_DEFAULT:
-    case LOCALE_SYSTEM_DEFAULT:
-    case LOCALE_CUSTOM_DEFAULT:
-    case LOCALE_CUSTOM_UNSPECIFIED:
-    case LOCALE_CUSTOM_UI_DEFAULT:
-        break;
-    default:
-        if (lcid == user_lcid || lcid == system_lcid) break;
-        if (!(entry = find_lcid_entry( lcid )))
-        {
-            WARN( "unknown locale %04lx\n", lcid );
-            SetLastError( ERROR_INVALID_PARAMETER );
-            return 0;
-        }
-        locale = locale_strings + entry->name + 1;
-        break;
-    }
-
+    if (!get_sort_locale_name( lcid, &locale )) return 0;
     return FindNLSStringEx( locale, flags, src, srclen, value, valuelen, found, NULL, NULL, 0 );
 }
 
@@ -7041,30 +7028,9 @@ done:
 INT WINAPI DECLSPEC_HOTPATCH LCMapStringW( LCID lcid, DWORD flags, const WCHAR *src, int srclen,
                                            WCHAR *dst, int dstlen )
 {
-    const WCHAR *locale = LOCALE_NAME_USER_DEFAULT;
-    const NLS_LOCALE_LCID_INDEX *entry;
+    const WCHAR *locale;
 
-    switch (lcid)
-    {
-    case LOCALE_NEUTRAL:
-    case LOCALE_USER_DEFAULT:
-    case LOCALE_SYSTEM_DEFAULT:
-    case LOCALE_CUSTOM_DEFAULT:
-    case LOCALE_CUSTOM_UNSPECIFIED:
-    case LOCALE_CUSTOM_UI_DEFAULT:
-        break;
-    default:
-        if (lcid == user_lcid || lcid == system_lcid) break;
-        if (!(entry = find_lcid_entry( lcid )))
-        {
-            WARN( "unknown locale %04lx\n", lcid );
-            SetLastError( ERROR_INVALID_PARAMETER );
-            return 0;
-        }
-        locale = locale_strings + entry->name + 1;
-        break;
-    }
-
+    if (!get_sort_locale_name( lcid, &locale )) return 0;
     return LCMapStringEx( locale, flags, src, srclen, dst, dstlen, NULL, NULL, 0 );
 }
 
