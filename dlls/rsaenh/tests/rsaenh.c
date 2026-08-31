@@ -4328,13 +4328,13 @@ static void test_pubexp(void)
     p += sizeof(prime1);
     ok(!memcmp(p, prime2, sizeof(prime2)), "prime2 = %s\n", debugstr_an(p, sizeof(prime2)));
     p += sizeof(prime2);
-    todo_wine ok(!memcmp(p, exp1, sizeof(exp1)), "exp1 = %s\n", debugstr_an(p, sizeof(exp1)));
+    ok(!memcmp(p, exp1, sizeof(exp1)), "exp1 = %s\n", debugstr_an(p, sizeof(exp1)));
     p += sizeof(exp1);
-    todo_wine ok(!memcmp(p, exp2, sizeof(exp2)), "exp2 = %s\n", debugstr_an(p, sizeof(exp2)));
+    ok(!memcmp(p, exp2, sizeof(exp2)), "exp2 = %s\n", debugstr_an(p, sizeof(exp2)));
     p += sizeof(exp2);
     ok(!memcmp(p, coeff, sizeof(coeff)), "coeff = %s\n", debugstr_an(p, sizeof(coeff)));
     p += sizeof(coeff);
-    todo_wine ok(!memcmp(p, priv_exp, sizeof(priv_exp)), "priv_exp = %s\n", debugstr_an(p, sizeof(priv_exp)));
+    ok(!memcmp(p, priv_exp, sizeof(priv_exp)), "priv_exp = %s\n", debugstr_an(p, sizeof(priv_exp)));
     p += sizeof(priv_exp);
 
     CryptDestroyKey(hkey);
