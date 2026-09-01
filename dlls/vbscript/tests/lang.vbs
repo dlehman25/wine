@@ -3979,6 +3979,22 @@ with x
 end with
 ok x.prop = 1, "x.prop = " & x.prop
 
+with x
+     if true then.prop = 2
+     ok .prop = 2, "then.prop = " & .prop
+     if false then .prop = 3 else.prop = 4
+     ok .prop = 4, "else.prop = " & .prop
+end with
+
+on error resume next
+err.clear
+if true then.prop = 5
+Call ok(err.number = 505, "then.prop outside with err.number = " & err.number)
+err.clear
+if true then y = .prop
+Call ok(err.number = 505, ".prop outside with err.number = " & err.number)
+on error goto 0
+
 with new TestPropSyntax
      .prop = 1
      ok .prop = 1, ".prop = "&.prop
