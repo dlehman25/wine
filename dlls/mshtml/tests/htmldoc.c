@@ -2819,12 +2819,14 @@ static HRESULT WINAPI DocHostUIHandler_GetDropTarget(IDocHostUIHandler2 *iface,
     return E_NOTIMPL;
 }
 
+static HRESULT GetExternal_hres = S_FALSE;
+
 static HRESULT WINAPI DocHostUIHandler_GetExternal(IDocHostUIHandler2 *iface, IDispatch **ppDispatch)
 {
     CHECK_EXPECT(GetExternal);
     ok(iface == expect_uihandler_iface, "called on unexpected iface\n");
     *ppDispatch = &External;
-    return S_FALSE;
+    return GetExternal_hres;
 }
 
 static HRESULT WINAPI DocHostUIHandler_TranslateUrl(IDocHostUIHandler2 *iface, DWORD dwTranslate,
@@ -7981,6 +7983,40 @@ static void test_external(IHTMLDocument2 *doc, BOOL initialized)
     IHTMLWindow2_Release(htmlwin);
 }
 
+static void test_external_hres(IHTMLDocument2 *doc)
+{
+    static HRESULT fail_codes[] = { E_FAIL, E_OUTOFMEMORY, E_NOTIMPL };
+    HRESULT old_hres = GetExternal_hres;
+    IHTMLWindow2 *htmlwin;
+    IDispatch *external;
+    HRESULT hres;
+    unsigned i;
+
+    hres = IHTMLDocument2_get_parentWindow(doc, &htmlwin);
+    ok(hres == S_OK, "get_parentWindow failed: %08lx\n", hres);
+
+    GetExternal_hres = E_NOINTERFACE;
+    SET_EXPECT(GetExternal);
+    external = (void*)0xdeadbeef;
+    hres = IHTMLWindow2_get_external(htmlwin, &external);
+    ok(hres == S_OK, "get_external failed: %08lx\n", hres);
+    ok(external == NULL, "external = %p\n", external);
+    CHECK_CALLED(GetExternal);
+
+    for(i = 0; i < ARRAY_SIZE(fail_codes); i++) {
+        GetExternal_hres = fail_codes[i];
+        SET_EXPECT(GetExternal);
+        external = (void*)0xdeadbeef;
+        hres = IHTMLWindow2_get_external(htmlwin, &external);
+        ok(hres == fail_codes[i], "[%u] get_external returned: %08lx\n", i, hres);
+        ok(external == NULL, "external = %p\n", external);
+        CHECK_CALLED(GetExternal);
+    }
+
+    IHTMLWindow2_Release(htmlwin);
+    GetExternal_hres = old_hres;
+}
+
 static void test_enum_objects(IOleContainer *container)
 {
     IEnumUnknown *enum_unknown;
@@ -8468,6 +8504,7 @@ static void test_HTMLDocument(BOOL do_load, BOOL mime)
     test_Window(doc, TRUE);
 
     test_external(doc, TRUE);
+    test_external_hres(doc);
     set_custom_uihandler(doc, NULL);
     test_external(doc, FALSE);
 
