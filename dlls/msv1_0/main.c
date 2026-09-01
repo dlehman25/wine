@@ -719,7 +719,7 @@ static NTSTATUS NTAPI ntlm_SpAcquireCredentialsHandle( UNICODE_STRING *principal
         cred->mode = cred_use == SECPKG_CRED_OUTBOUND ? MODE_CLIENT : MODE_BOTH;
         cred->no_cached_credentials = (cred_use & WINE_NO_CACHED_CREDENTIALS);
 
-        if (id)
+        if (id && (id->DomainLength || id->UserLength || id->PasswordLength))
         {
             int domain_len = 0, user_len = 0, password_len = 0;
             if (id->Flags & SEC_WINNT_AUTH_IDENTITY_ANSI)
