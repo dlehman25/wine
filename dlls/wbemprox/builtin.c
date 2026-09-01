@@ -5078,6 +5078,7 @@ builtin_namespaces[WBEMPROX_NAMESPACE_LAST] =
 {
     {L"cimv2", cimv2_builtin_classes, ARRAY_SIZE(cimv2_builtin_classes)},
     {L"Microsoft\\Windows\\Storage", win_storage_builtin_classes, ARRAY_SIZE(win_storage_builtin_classes)},
+    {L"SecurityCenter2", NULL, 0},
     {L"StandardCimv2", NULL, 0},
     {L"wmi", wmi_builtin_classes, ARRAY_SIZE(wmi_builtin_classes)},
 };
