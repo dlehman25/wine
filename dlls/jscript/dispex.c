@@ -618,6 +618,8 @@ static HRESULT prop_put(jsdisp_t *This, dispex_prop_t *prop, jsval_t val)
             TRACE("getter with no setter\n");
             return S_OK;
         }
+        if(!(prop->flags & PROPF_WRITABLE))
+            return S_OK;
         return prop->u.p->setter(This->ctx, This, val);
     case PROP_PROTREF:
     case PROP_DELETED:
