@@ -602,10 +602,12 @@ static DWORD custom_start_server(MSIPACKAGE *package, DWORD arch)
 
     swprintf(buffer, ARRAY_SIZE(buffer), L"\\\\.\\pipe\\msica_%x_%d",
              GetCurrentProcessId(), arch == SCS_32BIT_BINARY ? 32 : 64);
-    pipe = CreateNamedPipeW(buffer, PIPE_ACCESS_DUPLEX, 0, 1, sizeof(DWORD64),
-        sizeof(GUID), 0, NULL);
+    pipe = CreateNamedPipeW(buffer, PIPE_ACCESS_DUPLEX, 0, 1, sizeof(DWORD64), sizeof(GUID), 0, NULL);
     if (pipe == INVALID_HANDLE_VALUE)
+    {
         ERR("failed to create custom action client pipe: %lu\n", GetLastError());
+        return GetLastError();
+    }
 
     if ((sizeof(void *) == 8 || is_wow64) && arch == SCS_32BIT_BINARY)
         GetSystemWow64DirectoryW(path, MAX_PATH - ARRAY_SIZE(L"\\msiexec.exe"));
