@@ -1750,9 +1750,11 @@ static NTSTATUS NTAPI ntlm_SpAcceptLsaModeContext( LSA_SEC_HANDLE cred_handle, L
                     hmac_md5_init( &ctx->mic, ctx->session_key, sizeof(ctx->session_key) );
                     hmac_md5_update( &ctx->mic, (const char *)negotiate, input->pBuffers[0].cbBuffer );
                     hmac_md5_update( &ctx->mic, bin, bin_len );
+                    break;
                 }
+                goto done;
             }
-        } while(0);
+        } while(1);
 
         if (!output || output->cBuffers < 1)
         {
