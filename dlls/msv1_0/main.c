@@ -2024,7 +2024,6 @@ static NTSTATUS NTAPI ntlm_SpQueryContextAttributes( LSA_SEC_HANDLE handle, ULON
     X(SECPKG_ATTR_LIFESPAN);
     X(SECPKG_ATTR_NAMES);
     X(SECPKG_ATTR_NATIVE_NAMES);
-    X(SECPKG_ATTR_PACKAGE_INFO);
     X(SECPKG_ATTR_PASSWORD_EXPIRY);
     X(SECPKG_ATTR_STREAM_SIZES);
     X(SECPKG_ATTR_TARGET_INFORMATION);
@@ -2047,6 +2046,30 @@ static NTSTATUS NTAPI ntlm_SpQueryContextAttributes( LSA_SEC_HANDLE handle, ULON
         sizes.cbBlockSize       = 0;
         sizes.cbSecurityTrailer = 16;
         return lsa_secpkg_table->CopyToClientBuffer( NULL, sizeof(sizes), buf, &sizes );
+    }
+    case SECPKG_ATTR_PACKAGE_INFO:
+    {
+        SecPkgContext_PackageInfoW info;
+        SECPKG_CALL_INFO call_info;
+        NTSTATUS status;
+
+        lsa_secpkg_table->GetCallInfo( &call_info );
+        status = build_package_info( &ntlm_package_info, &info.PackageInfo, &call_info );
+        if (status) return status;
+
+        if (call_info.Attributes & SECPKG_CALL_WOWCLIENT)
+        {
+            struct
+            {
+                ULONG PackageInfo;
+            } info32 =
+            {
+                (ULONG_PTR)info.PackageInfo,
+            };
+
+            return lsa_secpkg_table->CopyToClientBuffer( NULL, sizeof(info32), buf, &info32 );
+        }
+        return lsa_secpkg_table->CopyToClientBuffer( NULL, sizeof(info), buf, &info );
     }
     case SECPKG_ATTR_NEGOTIATION_INFO:
     {

@@ -678,6 +678,7 @@ static void testAuth(ULONG data_rep, BOOL fake)
     SecPkgContext_NegotiationInfoA info;
     SecPkgContext_KeyInfoA key;
     SecPkgContext_SessionKey session_key;
+    SecPkgContext_PackageInfoA package_info;
     SecPkgInfoA *pi;
 
     if(QuerySecurityPackageInfoA( sec_pkg_name, &pkg_info)!= SEC_E_OK)
@@ -831,6 +832,12 @@ static void testAuth(ULONG data_rep, BOOL fake)
         sec_status = FreeContextBuffer(pi);
         ok(sec_status == SEC_E_OK, "FreeContextBuffer error %#lx\n", sec_status);
     }
+
+    memset(&package_info, 0, sizeof(package_info));
+    sec_status = QueryContextAttributesA(&client.ctxt, SECPKG_ATTR_PACKAGE_INFO, &package_info);
+    ok(sec_status == SEC_E_OK, "QueryContextAttributesA returned %08lx\n", sec_status);
+    ok(package_info.PackageInfo != NULL, "PackageInfo = NULL\n");
+    ok(!strcmp(package_info.PackageInfo->Name, "NTLM"), "PackageInfo->Name = %s\n", package_info.PackageInfo->Name);
 
 tAuthend:
     cleanupBuffers(&client);
