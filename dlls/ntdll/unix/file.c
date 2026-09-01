@@ -4678,6 +4678,9 @@ NTSTATUS WINAPI NtCreateFile( HANDLE *handle, ACCESS_MASK access, OBJECT_ATTRIBU
     *handle = 0;
     if (!attr || !attr->ObjectName) return STATUS_INVALID_PARAMETER;
 
+    if ((options & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT)) && !(access & SYNCHRONIZE))
+        return STATUS_INVALID_PARAMETER;
+
     if (alloc_size) FIXME( "alloc_size not supported\n" );
 
     new_attr = *attr;

@@ -251,7 +251,6 @@ static void create_file_test(void)
     dir = NULL;
     status = pNtCreateFile( &dir, FILE_APPEND_DATA, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
                             FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
-    todo_wine
     ok( status == STATUS_INVALID_PARAMETER,
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
 
@@ -266,7 +265,6 @@ static void create_file_test(void)
     dir = NULL;
     status = pNtCreateFile( &dir, FILE_READ_DATA, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
                             FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
-    todo_wine
     ok( status == STATUS_INVALID_PARAMETER,
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
     if (!status) CloseHandle( dir );
@@ -291,7 +289,6 @@ static void create_file_test(void)
     dir = NULL;
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
                             FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
-    todo_wine
     ok( status == STATUS_INVALID_PARAMETER,
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
     if (!status) CloseHandle( dir );
@@ -305,7 +302,6 @@ static void create_file_test(void)
     dir = NULL;
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
                             FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_ALERT, NULL, 0 );
-    todo_wine
     ok( status == STATUS_INVALID_PARAMETER,
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
     if (!status) CloseHandle( dir );
@@ -313,7 +309,6 @@ static void create_file_test(void)
     dir = NULL;
     status = pNtCreateFile( &dir, MAXIMUM_ALLOWED, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
                             FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
-    todo_wine
     ok( status == STATUS_INVALID_PARAMETER,
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
     if (!status) CloseHandle( dir );
