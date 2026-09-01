@@ -546,7 +546,7 @@ static void set_target_path( MSIPACKAGE *package, MSIFOLDER *folder, const WCHAR
     WCHAR *target_path;
 
     if (!(target_path = msi_normalize_path( path ))) return;
-    if (wcscmp( target_path, folder->ResolvedTarget ))
+    if (!folder->ResolvedTarget || wcscmp( target_path, folder->ResolvedTarget ))
     {
         free( folder->ResolvedTarget );
         folder->ResolvedTarget = target_path;
