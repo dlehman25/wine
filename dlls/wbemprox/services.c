@@ -843,6 +843,7 @@ static HRESULT WINAPI wbem_services_ExecNotificationQueryAsync(
         goto done;
     }
     if (!(query = calloc( 1, sizeof(*query) ))) goto done;
+    query->ns = services->ns;
     async = (struct async_header *)query;
 
     if (!(init_async( async, sink, async_exec_query )))
