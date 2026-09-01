@@ -783,6 +783,17 @@ static SECURITY_STATUS WINAPI lsa_QueryContextAttributesA(CtxtHandle *context, U
     case SECPKG_ATTR_SESSION_KEY:
         return lsa_QueryContextAttributesW( context, attribute, buffer );
 
+    case SECPKG_ATTR_PACKAGE_INFO:
+    {
+        SecPkgContext_PackageInfoW infoW;
+        SecPkgContext_PackageInfoA *infoA = buffer;
+        SECURITY_STATUS status = lsa_QueryContextAttributesW( context, SECPKG_ATTR_PACKAGE_INFO, &infoW );
+
+        if (status != SEC_E_OK) return status;
+        infoA->PackageInfo = package_infoWtoA( infoW.PackageInfo );
+        FreeContextBuffer( infoW.PackageInfo );
+        return infoA->PackageInfo ? SEC_E_OK : SEC_E_INSUFFICIENT_MEMORY;
+    }
     case SECPKG_ATTR_NEGOTIATION_INFO:
     {
         SecPkgContext_NegotiationInfoW infoW;
@@ -815,7 +826,6 @@ static SECURITY_STATUS WINAPI lsa_QueryContextAttributesA(CtxtHandle *context, U
     X(SECPKG_ATTR_LIFESPAN);
     X(SECPKG_ATTR_NAMES);
     X(SECPKG_ATTR_NATIVE_NAMES);
-    X(SECPKG_ATTR_PACKAGE_INFO);
     X(SECPKG_ATTR_PASSWORD_EXPIRY);
     X(SECPKG_ATTR_STREAM_SIZES);
     X(SECPKG_ATTR_TARGET_INFORMATION);
