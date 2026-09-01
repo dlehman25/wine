@@ -363,7 +363,7 @@ static WCHAR *read_text_archive(const WCHAR *path, DWORD *len)
 
     if (!ReadFile( file, data, size, &read, NULL ) || read != size) goto done;
 
-    while (!data[size - 1]) size--;
+    while (size && !data[size - 1]) size--;
     *len = MultiByteToWideChar( CP_ACP, 0, data, size, NULL, 0 );
     if ((wdata = malloc( (*len + 1) * sizeof(WCHAR) )))
     {
