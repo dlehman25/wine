@@ -202,6 +202,11 @@ static void read_properties_from_data( PROPVARIANT *prop, LPBYTE data, DWORD sz 
         propdata = (struct property_data *)&data[ idofs[i].dwOffset ];
 
         /* check we don't run off the end of the data */
+        if (idofs[i].dwOffset + sizeof(DWORD) > sz)
+        {
+            ERR("not enough data\n");
+            break;
+        }
         size = sz - idofs[i].dwOffset - sizeof(DWORD);
         if( sizeof(DWORD) > size ||
             ( propdata->type == VT_FILETIME && sizeof(FILETIME) > size ) ||
