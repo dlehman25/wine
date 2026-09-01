@@ -3434,6 +3434,21 @@ HRESULT jsdisp_define_data_property(jsdisp_t *obj, const WCHAR *name, unsigned f
     return jsdisp_define_property(obj, name, &prop_desc);
 }
 
+HRESULT jsdisp_replace_builtin_property(jsdisp_t *obj, const WCHAR *name, jsval_t value)
+{
+    dispex_prop_t *prop;
+    HRESULT hres;
+
+    hres = find_prop_name(obj, string_hash(name), name, FALSE, NULL, &prop);
+    if(FAILED(hres) || !prop || prop->type != PROP_BUILTIN)
+        return hres;
+
+    hres = jsval_copy(value, &prop->u.val);
+    if(SUCCEEDED(hres))
+        prop->type = PROP_JSVAL;
+    return hres;
+}
+
 HRESULT jsdisp_change_prototype(jsdisp_t *obj, jsdisp_t *proto)
 {
     jsdisp_t *iter;

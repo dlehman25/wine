@@ -1017,6 +1017,14 @@ sync_test("defineProperty", function() {
         Object.defineProperty(o, "f", { get: function() { return 0; } });
         o.f();
     }, JS_E_FUNCTION_EXPECTED);
+
+    function proto_test() {}
+    desc = { writable: false };
+    Object.defineProperty(proto_test, "prototype", desc);
+
+    test_own_data_prop_desc(proto_test, "prototype", false, false, false);
+    ok(typeof(proto_test.prototype) === "object", "proto_test.prototype is " + typeof(proto_test.prototype));
+    test_own_data_prop_desc(proto_test, "prototype", false, false, false);
 });
 
 sync_test("defineProperties", function() {

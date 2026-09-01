@@ -843,7 +843,7 @@ static HRESULT InterpretedFunction_get_prototype(script_ctx_t *ctx, jsdisp_t *js
     if(FAILED(hres))
         return hres;
 
-    hres = jsdisp_define_data_property(jsthis, L"prototype", PROPF_WRITABLE, jsval_obj(prototype));
+    hres = jsdisp_replace_builtin_property(jsthis, L"prototype", jsval_obj(prototype));
     if(SUCCEEDED(hres))
         hres = set_constructor_prop(ctx, jsthis, prototype);
     if(FAILED(hres)) {
@@ -857,7 +857,7 @@ static HRESULT InterpretedFunction_get_prototype(script_ctx_t *ctx, jsdisp_t *js
 
 static HRESULT InterpretedFunction_set_prototype(script_ctx_t *ctx, jsdisp_t *jsthis, jsval_t value)
 {
-    return jsdisp_define_data_property(jsthis, L"prototype", PROPF_WRITABLE, value);
+    return jsdisp_replace_builtin_property(jsthis, L"prototype", value);
 }
 
 static const builtin_prop_t InterpretedFunction_props[] = {

@@ -274,6 +274,7 @@ HRESULT jsdisp_delete_idx(jsdisp_t*,DWORD);
 HRESULT jsdisp_get_own_property(jsdisp_t*,const WCHAR*,BOOL,property_desc_t*);
 HRESULT jsdisp_define_property(jsdisp_t*,const WCHAR*,property_desc_t*);
 HRESULT jsdisp_define_data_property(jsdisp_t*,const WCHAR*,unsigned,jsval_t);
+HRESULT jsdisp_replace_builtin_property(jsdisp_t*,const WCHAR*,jsval_t);
 HRESULT jsdisp_next_prop(jsdisp_t*,DISPID,enum jsdisp_enum_type,DISPID*);
 HRESULT jsdisp_get_prop_name(jsdisp_t*,DISPID,jsstr_t**);
 HRESULT jsdisp_change_prototype(jsdisp_t*,jsdisp_t*);
