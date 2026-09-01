@@ -773,7 +773,7 @@ UINT WINAPI MsiSetMode(MSIHANDLE hInstall, MSIRUNMODE iRunMode, BOOL fState)
         MSIHANDLE remote;
 
         if (!(remote = msi_get_remote(hInstall)))
-            return FALSE;
+            return ERROR_INVALID_HANDLE;
 
         __TRY
         {
