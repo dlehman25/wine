@@ -1558,6 +1558,11 @@ static LONG_PTR set_window_long_internal( HWND hwnd, INT offset, UINT size,
     }
     if (win == WND_OTHER_PROCESS)
     {
+        if (offset == GWLP_WNDPROC)
+        {
+            RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
+            return 0;
+        }
         if (offset > 32767 || offset < -32767)
         {
             RtlSetLastWin32Error( ERROR_INVALID_INDEX );
