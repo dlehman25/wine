@@ -2724,7 +2724,6 @@ static UINT TransformView_delete_row( MSIVIEW *view, UINT row )
         query = malloc( len * sizeof(WCHAR) );
         if (!query)
         {
-            free( tv );
             free( key );
             return ERROR_OUTOFMEMORY;
         }
