@@ -36,8 +36,6 @@ UINT NlsAnsiCodePage = 0;
 BYTE NlsMbCodePageTag = 0;
 BYTE NlsMbOemCodePageTag = 0;
 
-static LCID user_resource_lcid;
-static LCID user_resource_neutral_lcid;
 static LCID system_lcid;
 static NLSTABLEINFO nls_info = { { CP_UTF8 }, { CP_UTF8 } };
 static struct norm_table *norm_tables[16];
@@ -125,6 +123,21 @@ static void append_ui_lang_lcname( USHORT *langs, ULONG *len, const WCHAR *name 
     if (entry) append_ui_language( langs, len, entry->idx );
 }
 
+static void append_ui_lang_with_neutral( USHORT *dst, ULONG *len, USHORT idx )
+{
+    const WCHAR *parent;
+    const NLS_LOCALE_LCNAME_INDEX *entry;
+
+    append_ui_language( dst, len, idx );
+    parent = locale_strings + get_locale_data( locale_table, idx )->sparent;
+    while (*parent)
+    {
+        if (!(entry = find_lcname_entry( locale_table, parent + 1 ))) break;
+        append_ui_language( dst, len, entry->idx );
+        parent = locale_strings + get_locale_data( locale_table, entry->idx )->sparent;
+    }
+}
+
 static void append_ui_languages( USHORT *dst, ULONG *len, const USHORT *src )
 {
     if (!src) return;
@@ -133,22 +146,8 @@ static void append_ui_languages( USHORT *dst, ULONG *len, const USHORT *src )
 
 static void append_ui_languages_with_neutral( USHORT *dst, ULONG *len, const USHORT *src )
 {
-    const WCHAR *parent;
-    const NLS_LOCALE_LCNAME_INDEX *entry;
-
     if (!src) return;
-    while (*src != UI_LANG_END)
-    {
-        append_ui_language( dst, len, *src );
-        parent = locale_strings + get_locale_data( locale_table, *src )->sparent;
-        while (*parent)
-        {
-            if (!(entry = find_lcname_entry( locale_table, parent + 1 ))) break;
-            append_ui_language( dst, len, entry->idx );
-            parent = locale_strings + get_locale_data( locale_table, entry->idx )->sparent;
-        }
-        src++;
-    }
+    while (*src != UI_LANG_END) append_ui_lang_with_neutral( dst, len, *src++ );
 }
 
 static USHORT *dup_ui_languages( const USHORT *langs, ULONG len )
@@ -342,26 +341,6 @@ void locale_init(void)
     system_ui_languages_default = dup_ui_languages( langs, len );
     if (user_key) NtClose( user_key );
 
-    NtQueryDefaultLocale( TRUE, &user_resource_lcid );
-    user_resource_neutral_lcid = PRIMARYLANGID( user_resource_lcid );
-    if (user_resource_lcid == LOCALE_CUSTOM_UNSPECIFIED)
-    {
-        const NLS_LOCALE_LCNAME_INDEX *entry;
-        const WCHAR *parent;
-        WCHAR bufferW[LOCALE_NAME_MAX_LENGTH];
-        SIZE_T len;
-
-        if (!RtlQueryEnvironmentVariable( NULL, L"WINEUSERLOCALE", 14, bufferW, ARRAY_SIZE(bufferW), &len )
-            && (entry = find_lcname_entry( locale_table, bufferW )))
-        {
-            user_resource_lcid = get_locale_data( locale_table, entry->idx )->unique_lcid;
-            parent = locale_strings + get_locale_data( locale_table, entry->idx )->sparent;
-            if (*parent && (entry = find_lcname_entry( locale_table, parent + 1 )))
-                user_resource_neutral_lcid = get_locale_data( locale_table, entry->idx )->unique_lcid;
-        }
-    }
-    TRACE( "resources: %04lx/%04lx/%04lx\n", user_resource_lcid, user_resource_neutral_lcid, system_lcid );
-
     if (!RtlQueryActivationContextApplicationSettings( 0, NULL, L"http://schemas.microsoft.com/SMI/2019/WindowsSettings",
                                                        L"activeCodePage", locale, ARRAY_SIZE(locale), NULL ))
     {
@@ -406,11 +385,36 @@ void locale_init(void)
 
 
 /* return LCIDs to use for resource lookup */
-void get_resource_lcids( LANGID *user, LANGID *user_neutral, LANGID *system )
+ULONG get_resource_lcids( LANGID *langs, ULONG size, LCID lcid )
 {
-    *user = LANGIDFROMLCID( user_resource_lcid );
-    *user_neutral = LANGIDFROMLCID( user_resource_neutral_lcid );
-    *system = LANGIDFROMLCID( system_lcid );
+    USHORT *thread_ui_languages = NtCurrentTeb()->PreferredLanguages;
+    USHORT merged[MAX_UI_LANGS_MERGED];
+    ULONG i, len = 0;
+
+    if (PRIMARYLANGID(lcid) != LANG_NEUTRAL)  /* explicit language */
+    {
+        const NLS_LOCALE_LCID_INDEX *entry = find_lcid_entry( locale_table, lcid );
+        if (entry) append_ui_lang_with_neutral( merged, &len, entry->idx );
+        merged[len++] = 0;  /* neutral */
+    }
+    else
+    {
+        merged[len++] = 0;  /* neutral */
+        RtlAcquireSRWLockShared( &locale_srwlock );
+        append_ui_languages_with_neutral( merged, &len, thread_ui_languages );
+        append_ui_languages_with_neutral( merged, &len, process_ui_languages );
+        if (SUBLANGID(lcid) != SUBLANG_SYS_DEFAULT)
+            append_ui_languages_with_neutral( merged, &len, user_ui_languages_default );
+        append_ui_languages_with_neutral( merged, &len, system_ui_languages );
+        RtlReleaseSRWLockShared( &locale_srwlock );
+    }
+
+    for (i = 0; i < min( len, size ); i++)
+    {
+        if (!merged[i]) langs[i] = MAKELANGID( LANG_NEUTRAL, SUBLANG_NEUTRAL );
+        else langs[i] = get_locale_data( locale_table, merged[i] )->unique_lcid;
+    }
+    return i;
 }
 
 
