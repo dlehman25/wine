@@ -143,6 +143,7 @@ static void create_file_test(void)
     static const WCHAR pathInvalidNtW[] = {'\\','\\','?','\\',0};
     static const WCHAR pathInvalidNt2W[] = {'\\','?','?','\\',0};
     static const WCHAR pathInvalidDosW[] = {'\\','D','o','s','D','e','v','i','c','e','s','\\',0};
+    static const WCHAR nodirW[] = {'n','o','s','u','c','h','d','i','r','\\','f','i','l','e',0};
     static const char testdata[] = "Hello World";
     FILE_NETWORK_OPEN_INFORMATION info;
     NTSTATUS status;
@@ -253,6 +254,72 @@ static void create_file_test(void)
     todo_wine
     ok( status == STATUS_INVALID_PARAMETER,
         "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+
+    /* FILE_SYNCHRONOUS_IO_* requires SYNCHRONIZE in the access mask. Windows
+     * checks for the literal bit, before expanding generic rights and before
+     * resolving the name. */
+    GetTempPathW( MAX_PATH, path );
+    lstrcatW( path, nodirW );
+    pRtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL );
+    InitializeObjectAttributes( &attr, &nameW, OBJ_CASE_INSENSITIVE, 0, NULL );
+
+    dir = NULL;
+    status = pNtCreateFile( &dir, FILE_READ_DATA, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
+                            FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
+    todo_wine
+    ok( status == STATUS_INVALID_PARAMETER,
+        "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+    if (!status) CloseHandle( dir );
+
+    dir = NULL;
+    status = pNtCreateFile( &dir, SYNCHRONIZE, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
+                            FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
+    ok( status == STATUS_OBJECT_PATH_NOT_FOUND,
+        "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+    if (!status) CloseHandle( dir );
+
+    pRtlFreeUnicodeString( &nameW );
+
+    GetTempPathW( MAX_PATH, path );
+    lstrcatW( path, fooW );
+    file = CreateFileW( path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, 0 );
+    ok( file != INVALID_HANDLE_VALUE, "CreateFile error %ld\n", GetLastError() );
+    CloseHandle( file );
+    pRtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL );
+    InitializeObjectAttributes( &attr, &nameW, OBJ_CASE_INSENSITIVE, 0, NULL );
+
+    dir = NULL;
+    status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
+                            FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
+    todo_wine
+    ok( status == STATUS_INVALID_PARAMETER,
+        "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+    if (!status) CloseHandle( dir );
+
+    dir = NULL;
+    status = pNtCreateFile( &dir, FILE_GENERIC_READ, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
+                            FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
+    ok( !status, "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+    if (!status) CloseHandle( dir );
+
+    dir = NULL;
+    status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
+                            FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_ALERT, NULL, 0 );
+    todo_wine
+    ok( status == STATUS_INVALID_PARAMETER,
+        "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+    if (!status) CloseHandle( dir );
+
+    dir = NULL;
+    status = pNtCreateFile( &dir, MAXIMUM_ALLOWED, &attr, &io, NULL, FILE_ATTRIBUTE_NORMAL, 0,
+                            FILE_OPEN_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0 );
+    todo_wine
+    ok( status == STATUS_INVALID_PARAMETER,
+        "open %s failed %lx\n", wine_dbgstr_w(nameW.Buffer), status );
+    if (!status) CloseHandle( dir );
+
+    pRtlFreeUnicodeString( &nameW );
+    DeleteFileW( path );
 
     /* Invalid chars in file/dirnames */
     pRtlDosPathNameToNtPathName_U(questionmarkInvalidNameW, &nameW, NULL, NULL);
