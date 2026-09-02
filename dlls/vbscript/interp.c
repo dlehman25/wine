@@ -1914,11 +1914,17 @@ static HRESULT interp_newenum(exec_ctx_t *ctx)
     switch(V_VT(v.v)) {
     case VT_DISPATCH|VT_BYREF:
     case VT_DISPATCH: {
+        IDispatch *disp = V_ISBYREF(v.v) ? *V_DISPATCHREF(v.v) : V_DISPATCH(v.v);
         IEnumVARIANT *iter;
         DISPPARAMS dp = {0};
         VARIANT iterv;
 
-        hres = disp_call(ctx->script, V_ISBYREF(v.v) ? *V_DISPATCHREF(v.v) : V_DISPATCH(v.v), DISPID_NEWENUM, TRUE, &dp, &iterv);
+        if(!disp) {
+            release_val(&v);
+            return MAKE_VBSERROR(VBSE_NOT_ENUM);
+        }
+
+        hres = disp_call(ctx->script, disp, DISPID_NEWENUM, TRUE, &dp, &iterv);
         release_val(&v);
         if(FAILED(hres))
             return hres;

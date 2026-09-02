@@ -322,7 +322,7 @@ call ok(x = "ok", "testOnErrorClear failed")
 sub testForEachError()
     on error resume next
 
-    dim x, y, z
+    dim x, y, z, o
     y = false
     z = false
     for each x in empty
@@ -331,6 +331,18 @@ sub testForEachError()
     z = true
     call ok(y, "for each not executed")
     call ok(z, "line after next not executed")
+    call ok(Err.Number = VB_E_OBJNOTCOLLECTION, "Err.Number = " & Err.Number)
+
+    Err.Clear
+    y = false
+    z = false
+    set o = nothing
+    for each x in o
+        y = true
+    next
+    z = true
+    call ok(y, "for each on nothing not executed")
+    call ok(z, "line after next not executed for nothing")
     call ok(Err.Number = VB_E_OBJNOTCOLLECTION, "Err.Number = " & Err.Number)
 end sub
 
