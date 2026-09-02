@@ -3627,7 +3627,7 @@ static struct record_pnpentity *get_pnp_entities( UINT *count )
                                 if ((tmp = realloc( ret, nb_allocated * sizeof(*ret) ))) ret = tmp;
                                 else
                                 {
-                                    while (--i)
+                                    while (i--)
                                     {
                                         free( (void *)ret[i].caption );
                                         free( (void *)ret[i].class_guid );
@@ -4736,7 +4736,7 @@ static struct display_adapter *get_display_adapters( UINT *count )
             if ((tmp = realloc( ret, nb_allocated * sizeof(*ret) ))) ret = tmp;
             else
             {
-                while (--i)
+                while (i--)
                 {
                     free( ret[i].driver_date );
                     free( ret[i].driver_desc );
