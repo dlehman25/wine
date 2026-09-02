@@ -356,6 +356,7 @@ static HRESULT check_gamepad_interface( IRawGameController *device, IGameControl
     IGamepadStatics2 *statics;
     IGamepad *gamepad = NULL;
     HSTRING str;
+    HRESULT hr;
 
     WindowsCreateString( class_name, wcslen( class_name ), &str );
     RoGetActivationFactory( str, &IID_IGamepadStatics2, (void **)&statics );
@@ -371,9 +372,9 @@ static HRESULT check_gamepad_interface( IRawGameController *device, IGameControl
     IGamepadStatics2_Release( statics );
     if (!gamepad) return E_NOINTERFACE;
 
-    IGamepad_QueryInterface( gamepad, &IID_IGameController, (void **)iface );
+    hr = IGamepad_QueryInterface( gamepad, &IID_IGameController, (void **)iface );
     IGamepad_Release( gamepad );
-    return S_OK;
+    return hr;
 }
 
 static HRESULT check_racing_wheel_interface( IRawGameController *device, IGameController **iface )
@@ -383,6 +384,7 @@ static HRESULT check_racing_wheel_interface( IRawGameController *device, IGameCo
     IGameController *controller;
     IRacingWheel *wheel = NULL;
     HSTRING str;
+    HRESULT hr;
 
     WindowsCreateString( class_name, wcslen( class_name ), &str );
     RoGetActivationFactory( str, &IID_IRacingWheelStatics2, (void **)&statics );
@@ -398,9 +400,9 @@ static HRESULT check_racing_wheel_interface( IRawGameController *device, IGameCo
     IRacingWheelStatics2_Release( statics );
     if (!wheel) return E_NOINTERFACE;
 
-    IRacingWheel_QueryInterface( wheel, &IID_IGameController, (void **)iface );
+    hr = IRacingWheel_QueryInterface( wheel, &IID_IGameController, (void **)iface );
     IRacingWheel_Release( wheel );
-    return S_OK;
+    return hr;
 }
 
 static void update_wgi_interface( HWND hwnd, IRawGameController *device )
