@@ -2725,41 +2725,48 @@ static void free_associations( struct association *assoc, UINT count )
     free( assoc );
 }
 
+static WCHAR *get_ref( const struct view *view, UINT idx )
+{
+    WCHAR *ret;
+    VARIANT val;
+
+    if (get_propval( view, idx, L"__PATH", &val, NULL, NULL ) != S_OK) return NULL;
+    ret = wcsdup( V_BSTR(&val) );
+    VariantClear( &val );
+    return ret;
+}
+
 static struct association *get_diskdrivetodiskpartition_pairs( UINT *count )
 {
     struct association *ret = NULL;
     struct query *query, *query2 = NULL;
-    VARIANT val;
-    HRESULT hr;
     UINT i;
 
     if (!(query = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return NULL;
-    if ((hr = parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskDrive",
-                           &query->view, &query->mem )) != S_OK) goto done;
-    if ((hr = execute_view( query->view )) != S_OK) goto done;
+    if (parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskDrive",
+                     &query->view, &query->mem ) != S_OK) goto done;
+    if (execute_view( query->view ) != S_OK) goto done;
 
     if (!(query2 = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return NULL;
-    if ((hr = parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskPartition",
-                           &query2->view, &query2->mem )) != S_OK) goto done;
-    if ((hr = execute_view( query2->view )) != S_OK) goto done;
+    if (parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskPartition",
+                     &query2->view, &query2->mem ) != S_OK) goto done;
+    if (execute_view( query2->view ) != S_OK) goto done;
 
     if (!(ret = calloc( query->view->result_count, sizeof(*ret) ))) goto done;
 
     for (i = 0; i < query->view->result_count; i++)
     {
-        if ((hr = get_propval( query->view, i, L"__PATH", &val, NULL, NULL )) != S_OK) goto done;
-        if (!(ret[i].ref = wcsdup( V_BSTR(&val) ))) goto done;
-        VariantClear( &val );
-
-        if ((hr = get_propval( query2->view, i, L"__PATH", &val, NULL, NULL )) != S_OK) goto done;
-        if (!(ret[i].ref2 = wcsdup( V_BSTR(&val) ))) goto done;
-        VariantClear( &val );
+        if (!(ret[i].ref = get_ref( query->view, i )) || !(ret[i].ref2 = get_ref( query2->view, i )))
+        {
+            free_associations( ret, i );
+            ret = NULL;
+            goto done;
+        }
     }
 
     *count = query->view->result_count;
 
 done:
-    if (!ret) free_associations( ret, query->view->result_count );
     free_query( query );
     free_query( query2 );
     return ret;
@@ -3044,39 +3051,35 @@ static struct association *get_logicaldisktopartition_pairs( UINT *count )
 {
     struct association *ret = NULL;
     struct query *query, *query2 = NULL;
-    VARIANT val;
-    HRESULT hr;
     UINT i;
 
     if (!(query = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return NULL;
-    if ((hr = parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskPartition",
-                           &query->view, &query->mem )) != S_OK) goto done;
-    if ((hr = execute_view( query->view )) != S_OK) goto done;
+    if (parse_query( WBEMPROX_NAMESPACE_CIMV2, L"SELECT * FROM Win32_DiskPartition",
+                     &query->view, &query->mem ) != S_OK) goto done;
+    if (execute_view( query->view ) != S_OK) goto done;
 
     if (!(query2 = create_query( WBEMPROX_NAMESPACE_CIMV2 ))) return NULL;
-    if ((hr = parse_query( WBEMPROX_NAMESPACE_CIMV2,
-                           L"SELECT * FROM Win32_LogicalDisk WHERE DriveType=2 OR DriveType=3", &query2->view,
-                           &query2->mem )) != S_OK) goto done;
-    if ((hr = execute_view( query2->view )) != S_OK) goto done;
+    if (parse_query( WBEMPROX_NAMESPACE_CIMV2,
+                     L"SELECT * FROM Win32_LogicalDisk WHERE DriveType=2 OR DriveType=3", &query2->view,
+                     &query2->mem ) != S_OK) goto done;
+    if (execute_view( query2->view ) != S_OK) goto done;
 
     if (!(ret = calloc( query->view->result_count, sizeof(*ret) ))) goto done;
 
     /* assume fixed and removable disks are enumerated in the same order as partitions */
     for (i = 0; i < query->view->result_count; i++)
     {
-        if ((hr = get_propval( query->view, i, L"__PATH", &val, NULL, NULL )) != S_OK) goto done;
-        if (!(ret[i].ref = wcsdup( V_BSTR(&val) ))) goto done;
-        VariantClear( &val );
-
-        if ((hr = get_propval( query2->view, i, L"__PATH", &val, NULL, NULL )) != S_OK) goto done;
-        if (!(ret[i].ref2 = wcsdup( V_BSTR(&val) ))) goto done;
-        VariantClear( &val );
+        if (!(ret[i].ref = get_ref( query->view, i )) || !(ret[i].ref2 = get_ref( query2->view, i )))
+        {
+            free_associations( ret, i );
+            ret = NULL;
+            goto done;
+        }
     }
 
     *count = query->view->result_count;
 
 done:
-    if (!ret) free_associations( ret, query->view->result_count );
     free_query( query );
     free_query( query2 );
     return ret;
