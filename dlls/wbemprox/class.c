@@ -784,7 +784,7 @@ static HRESULT create_signature_columns_and_data( IEnumWbemClassObject *iter, UI
 {
     struct column *columns;
     BYTE *row;
-    IWbemClassObject *param;
+    IWbemClassObject *param = NULL;
     VARIANT val;
     HRESULT hr = E_OUTOFMEMORY;
     UINT offset = 0;
@@ -823,6 +823,7 @@ static HRESULT create_signature_columns_and_data( IEnumWbemClassObject *iter, UI
     return S_OK;
 
 error:
+    if (param) IWbemClassObject_Release( param );
     for (; i >= 0; i--) free( (WCHAR *)columns[i].name );
     free( columns );
     free( row );
