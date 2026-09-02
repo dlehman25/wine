@@ -3170,6 +3170,8 @@ HRESULT exec_script(script_ctx_t *ctx, BOOL extern_caller, function_t *func, vbd
     HRESULT hres = S_OK;
 
     exec.code = func->code_ctx;
+    exec.script = ctx;
+    exec.func = func;
     exec.caller = ctx->caller_exec;
     ctx->caller_exec = NULL;
 
@@ -3247,8 +3249,6 @@ HRESULT exec_script(script_ctx_t *ctx, BOOL extern_caller, function_t *func, vbd
     }
 
     exec.instr = exec.code->instrs + func->code_off;
-    exec.script = ctx;
-    exec.func = func;
 
     prev_named_item = ctx->current_named_item;
     ctx->current_named_item = exec.code->named_item;
