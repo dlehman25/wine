@@ -718,6 +718,7 @@ static HRESULT WINAPI class_object_SpawnInstance(
         return hr;
     }
     hr = create_class_object( co->ns, co->name, iter, 0, record, ppNewInstance );
+    if (FAILED(hr)) destroy_record( record );
     IEnumWbemClassObject_Release( iter );
     return hr;
 }
