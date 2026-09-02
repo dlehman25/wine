@@ -91,7 +91,6 @@ static struct list ifaces = LIST_INIT( ifaces );
 static IGameController *iface_selected;
 
 static HWND dialog_hwnd;
-static HANDLE state_event;
 
 static void set_device_state( struct device_state *state )
 {
@@ -663,7 +662,6 @@ extern INT_PTR CALLBACK test_wgi_dialog_proc( HWND hwnd, UINT msg, WPARAM wparam
             RoInitialize( RO_INIT_MULTITHREADED );
 
             dialog_hwnd = hwnd;
-            state_event = CreateEventW( NULL, FALSE, FALSE, NULL );
             thread_stop = CreateEventW( NULL, FALSE, FALSE, NULL );
 
             update_wgi_devices( hwnd );
@@ -674,7 +672,6 @@ extern INT_PTR CALLBACK test_wgi_dialog_proc( HWND hwnd, UINT msg, WPARAM wparam
             SendDlgItemMessageW( hwnd, IDC_WGI_INTERFACE, CB_SETCURSEL, 0, 0 );
             handle_wgi_interface_change( hwnd );
 
-            thread_stop = CreateEventW( NULL, FALSE, FALSE, NULL );
             thread = CreateThread( NULL, 0, input_thread_proc, (void *)thread_stop, 0, NULL );
             break;
 
@@ -683,7 +680,6 @@ extern INT_PTR CALLBACK test_wgi_dialog_proc( HWND hwnd, UINT msg, WPARAM wparam
             if (!thread) break;
             SetEvent( thread_stop );
             MsgWaitForMultipleObjects( 1, &thread, FALSE, INFINITE, 0 );
-            CloseHandle( state_event );
             CloseHandle( thread_stop );
             CloseHandle( thread );
             thread = NULL;
