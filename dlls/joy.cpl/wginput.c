@@ -478,6 +478,7 @@ static void update_wgi_devices( HWND hwnd )
     UINT size;
 
     clear_devices();
+    clear_interfaces();
 
     WindowsCreateString( class_name, wcslen( class_name ), &str );
     RoGetActivationFactory( str, &IID_IRawGameControllerStatics, (void **)&statics );
@@ -684,6 +685,7 @@ extern INT_PTR CALLBACK test_wgi_dialog_proc( HWND hwnd, UINT msg, WPARAM wparam
             CloseHandle( thread );
             thread = NULL;
 
+            clear_interfaces();
             clear_devices();
 
             RoUninitialize();
