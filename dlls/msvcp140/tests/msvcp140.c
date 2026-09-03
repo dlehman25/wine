@@ -2603,7 +2603,6 @@ static void test_time_put(void)
         char format;
         char mod;
         struct tm tm;
-        BOOL todo;
     } tests[] = {
         {" 1", ' ', 'e', 0,   {56, 34, 23, 1, 1, 100, 2, 31, 0}},
         {"23", ' ', 'H', 0,   {56, 34, 23, 1, 1, 100, 2, 31, 0}},
@@ -2618,18 +2617,18 @@ static void test_time_put(void)
         {"05", ' ', 'W', 0,   {56, 34, 23, 1, 1, 100, 2, 31, 0}},
         {"00", ' ', 'y', 0,   {56, 34, 23, 1, 1, 100, 2, 31, 0}},
 
-        {" 1", ' ', 'e', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"23", ' ', 'H', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"11", ' ', 'I', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"02", ' ', 'm', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"34", ' ', 'M', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"56", ' ', 'S', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"2",  ' ', 'u', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"05", ' ', 'U', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"05", ' ', 'V', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"2",  ' ', 'w', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"05", ' ', 'W', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
-        {"00", ' ', 'y', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}, TRUE},
+        {" 1", ' ', 'e', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"23", ' ', 'H', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"11", ' ', 'I', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"02", ' ', 'm', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"34", ' ', 'M', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"56", ' ', 'S', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"2",  ' ', 'u', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"05", ' ', 'U', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"05", ' ', 'V', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"2",  ' ', 'w', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"05", ' ', 'W', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
+        {"00", ' ', 'y', 'O', {56, 34, 23, 1, 1, 100, 2, 31, 0}},
     };
     ostreambuf_iterator_char dest;
     basic_streambuf_char strbuf;
@@ -2651,7 +2650,6 @@ static void test_time_put(void)
         call_func8_ptr_itr(p_time_put_char_put, &time_put, &dest, dest, (struct ios_base *)0xdeadbeef,
             tests[i].fill, &tests[i].tm, tests[i].format, tests[i].mod);
 
-        todo_wine_if(tests[i].todo)
         ok(!strcmp(buf, tests[i].expect), "%c %c: expected %s, got %s\n",
             tests[i].format, tests[i].mod ? tests[i].mod : '0',tests[i].expect, buf);
 
@@ -2693,7 +2691,7 @@ START_TEST(msvcp140)
     test_thread_library_reference();
     test_exception_pointer();
     test_time_put();
-    todo_wine
+
     ok(!invalid_parameter, "invalid_parameter_handler was invoked too many times\n");
     FreeLibrary(msvcr);
     FreeLibrary(msvcp);
