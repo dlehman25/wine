@@ -14650,7 +14650,6 @@ static void test_transformNodeToObject(void)
     hr = IStream_Read(istream, bufferA, sizeof(bufferA), &nread);
     ok(hr == S_OK, "Failed to read, hr %#lx.\n", hr);
     bufferA[nread] = 0;
-    todo_wine
     ok(!strcmp(bufferA, transform_utf8_omit_ret), "got output %s\n", wine_dbgstr_a(bufferA));
     IStream_Release(istream);
 
@@ -14675,7 +14674,6 @@ static void test_transformNodeToObject(void)
     hr = IStream_Read(istream, bufferA, sizeof(bufferA), &nread);
     ok(hr == S_OK, "Failed to read, hr %#lx.\n", hr);
     bufferA[nread] = 0;
-    todo_wine
     ok(!strcmp(bufferA, transform_utf8_ret), "got output %s\n", wine_dbgstr_a(bufferA));
     IStream_Release(istream);
 
@@ -14704,7 +14702,6 @@ static void test_transformNodeToObject(void)
     buffer[nread / 2] = 0;
     ok(buffer[0] == 0xfeff, "got %x\n", buffer[0]);
     bstr = SysAllocString(transform_utf16_ret);
-    todo_wine
     ok(compareIgnoreReturns(&buffer[1], bstr), "got output %s\n", wine_dbgstr_w(buffer));
     SysFreeString(bstr);
     IStream_Release(istream);
