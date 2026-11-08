@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+    <assemblyIdentity
+        type="win32"
+        name="Wine.shell32.Test"
+        version="1.0.0.0"
+        processorArchitecture="*"
+    />
+    <description>Wine shell32 test suite</description>
+    <application xmlns="urn:schemas-microsoft-com:asm.v3">
+        <windowsSettings xmlns:ws2="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+            <ws2:longPathAware>true</ws2:longPathAware>
+        </windowsSettings>
+    </application>
+</assembly>
