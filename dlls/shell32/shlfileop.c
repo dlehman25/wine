@@ -357,7 +357,9 @@ static DWORD SHELL_DeleteDirectoryW(HWND hwnd, LPCWSTR pszDir, BOOL bShowUI)
     WIN32_FIND_DATAW wfd;
     WCHAR   szTemp[MAX_PATH];
 
-    PathCombineW(szTemp, pszDir, L"*");
+    if (!PathCombineW(szTemp, pszDir, L"*"))
+        return DE_PATHTOODEEP;
+
     hFind = FindFirstFileW(szTemp, &wfd);
 
     if (hFind != INVALID_HANDLE_VALUE) {
@@ -365,8 +367,9 @@ static DWORD SHELL_DeleteDirectoryW(HWND hwnd, LPCWSTR pszDir, BOOL bShowUI)
             do {
                 if (IsDotDir(wfd.cFileName))
                     continue;
-                PathCombineW(szTemp, pszDir, wfd.cFileName);
-                if (FILE_ATTRIBUTE_DIRECTORY & wfd.dwFileAttributes)
+                if (!PathCombineW(szTemp, pszDir, wfd.cFileName))
+                    ret = DE_PATHTOODEEP;
+                else if (FILE_ATTRIBUTE_DIRECTORY & wfd.dwFileAttributes)
                     ret = SHELL_DeleteDirectoryW(hwnd, szTemp, FALSE);
                 else
                     ret = SHNotifyDeleteFileW(szTemp);
