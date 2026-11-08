@@ -3368,7 +3368,7 @@ static void test_long_paths(void)
             memcpy(to, L"test6.txt\0", sizeof(L"test6.txt\0"));
             createTestFileW(from);
             check_file_operationW(FO_COPY, FOF_NO_UI, from, to,
-                    DE_INVALIDFILES, FALSE, TRUE, FALSE, DE_INVALIDFILES);
+                    DE_INVALIDFILES, FALSE, FALSE, FALSE, DE_INVALIDFILES);
             ok(file_existsW(from), "This file should not have been removed\n");
             ok(!file_existsW(to), "This file should not have been copied\n");
             DeleteFileW(from);
