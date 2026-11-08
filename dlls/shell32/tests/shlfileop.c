@@ -38,6 +38,7 @@
 #define DE_DIFFDIR       0x73
 #define DE_OPCANCELLED   0x75
 #define DE_DESTSUBTREE   0x76
+#define DE_PATHTOODEEP   0x79
 #define DE_INVALIDFILES  0x7C
 #define DE_DESTSAMETREE  0x7D
 #define DE_FLDDESTISFILE 0x7E
@@ -51,12 +52,84 @@ static BOOL old_shell32 = FALSE;
 
 static CHAR CURR_DIR[MAX_PATH];
 static WCHAR LONG_DIR[PATHCCH_MAX_CCH];
+static WCHAR LONG_DIR_ROOT[PATHCCH_MAX_CCH];
 static const WCHAR SUBDIR[] = L"long_sub_dir";
 static const WCHAR UNICODE_PATH[] = L"c:\\\x00ae\0";
     /* "c:\®" can be used in all codepages */
     /* Double-null termination needed for pFrom field of SHFILEOPSTRUCT */
 
 HRESULT (WINAPI *pPathCchAppendEx)(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
+HRESULT (WINAPI *pPathCchCombineEx)(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags);
+
+static HRESULT path_append_long(WCHAR *path, SIZE_T size, const WCHAR *subdir)
+{
+    HRESULT hr;
+
+    /* PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH not available at 1507 */
+    hr = pPathCchAppendEx(path, size, subdir, PATHCCH_ALLOW_LONG_PATHS);
+    if (FAILED(hr)) return hr;
+
+    if (wcsncmp(path, L"\\\\?\\", 4))
+    {
+        if (wcslen(path) + 5 >= size)
+            return E_INVALIDARG;
+        memmove(path + 4, path, (wcslen(path) + 1) * sizeof(WCHAR));
+        memcpy(path, L"\\\\?\\", 4 * sizeof(WCHAR));
+    }
+    return S_OK;
+}
+
+#define IsDotDir(x)     ((x[0] == '.') && ((x[1] == 0) || ((x[1] == '.') && (x[2] == 0))))
+static BOOL remove_directory_fallback(const WCHAR *path)
+{
+    WCHAR *tmp;
+    WIN32_FIND_DATAW wfd;
+    HANDLE hfind;
+    HRESULT hr;
+    BOOL ret;
+    size_t maxlen;
+
+    maxlen = wcslen(path) + 1 + ARRAY_SIZE(wfd.cFileName) + 1;
+    if (maxlen >= PATHCCH_MAX_CCH)
+        return FALSE;
+
+    tmp = malloc(maxlen * sizeof(WCHAR));
+    if (!tmp)
+        return FALSE;
+
+    hr = pPathCchCombineEx(tmp, maxlen, path, L"*", PATHCCH_ALLOW_LONG_PATHS);
+    if (FAILED(hr))
+    {
+        free(tmp);
+        return FALSE;
+    }
+
+    ret = TRUE;
+    hfind = FindFirstFileW(tmp, &wfd);
+    if (hfind != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            if (IsDotDir(wfd.cFileName))
+                continue;
+
+            hr = pPathCchCombineEx(tmp, maxlen, path, wfd.cFileName, PATHCCH_ALLOW_LONG_PATHS);
+            if (FAILED(hr))
+                ret = FALSE;
+            else if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                ret = remove_directory_fallback(tmp);
+            else
+                ret = DeleteFileW(tmp);
+        } while (ret && FindNextFileW(hfind, &wfd));
+        FindClose(hfind);
+    }
+
+    if (ret)
+        ret = RemoveDirectoryW(path);
+
+    free(tmp);
+    return ret;
+}
 
 static BOOL createLongDir(void)
 {
@@ -65,9 +138,15 @@ static BOOL createLongDir(void)
     BOOL ret;
 
     GetCurrentDirectoryW(ARRAY_SIZE(tmp), tmp);
+
+    wcscpy(LONG_DIR_ROOT, tmp);
+    PathAppendW(LONG_DIR_ROOT, SUBDIR);
+    if (GetFileAttributesW(LONG_DIR_ROOT) != INVALID_FILE_ATTRIBUTES)
+        remove_directory_fallback(LONG_DIR_ROOT);
+
     while (wcslen(tmp) + ARRAY_SIZE(SUBDIR) < MAX_PATH * 2)
     {
-        hr = pPathCchAppendEx(tmp, ARRAY_SIZE(LONG_DIR), SUBDIR, PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH);
+        hr = path_append_long(tmp, ARRAY_SIZE(tmp), SUBDIR);
         ok(SUCCEEDED(hr), "Failed to append (error %lx)\n", hr);
         if (FAILED(hr)) return FALSE;
 
@@ -3093,19 +3172,6 @@ static void test_file_operation(void)
     ok(!refcount, "got %ld.\n", refcount);
 }
 
-static BOOL supports_extended_length_option(void)
-{
-    WCHAR tmp[PATHCCH_MAX_CCH] = {L"C:\\"};
-    HRESULT hr = S_OK;
-
-    /* win1507 doesn't support PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH
-       returns ERROR_FILENAME_EXCED_RANGE here and fails SHFileOperationW later */
-    while (hr == S_OK && (wcslen(tmp) < MAX_PATH * 2))
-        hr = pPathCchAppendEx(tmp, ARRAY_SIZE(LONG_DIR), SUBDIR, PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH);
-    return hr == S_OK;
-}
-
-
 static void test_long_paths_helper(DWORD flags)
 {
     WCHAR from[MAX_PATH];
@@ -3113,8 +3179,7 @@ static void test_long_paths_helper(DWORD flags)
     DWORD ret;
 
     /* delete */
-    GetCurrentDirectoryW(MAX_PATH, from);
-    PathAppendW(from, SUBDIR);
+    wcscpy(from, LONG_DIR_ROOT);
     from[wcslen(from) + 1] = 0;
 
     memset(&op, 0, sizeof(op));
@@ -3123,12 +3188,18 @@ static void test_long_paths_helper(DWORD flags)
     op.pFrom = from;
     op.fAnyOperationsAborted = 0xdeadbeef;
     ret = SHFileOperationW(&op);
-    ok(ret == ERROR_SUCCESS,
+    ok(ret == ERROR_SUCCESS || broken(ret == DE_PATHTOODEEP), /* win10 1507 and earlier */
         "SHFileOperationW returned %ld, expected %d.\n", ret, ERROR_SUCCESS);
     ok(op.fAnyOperationsAborted == FALSE,
         "Unexpected fAnyOperationsAborted %d, expected %d.\n",
          op.fAnyOperationsAborted, FALSE);
-    ok(!file_existsW(LONG_DIR), "This directory should have been removed\n");
+    if (ret == S_OK)
+    {
+        ok(!file_existsW(LONG_DIR), "This directory should have been removed\n");
+        ok(!file_existsW(LONG_DIR_ROOT), "This directory should have been removed\n");
+    }
+    if (file_existsW(LONG_DIR_ROOT))
+        remove_directory_fallback(LONG_DIR_ROOT);
 }
 
 static void test_long_paths(void)
@@ -3143,16 +3214,10 @@ static void test_long_paths(void)
 
     /* tests fail to run on win8 if linked against kernelbase.dll */
     if (!(hmod = LoadLibraryA("kernelbase.dll")) ||
-        !(pPathCchAppendEx = (void *)GetProcAddress(hmod, "PathCchAppendEx")))
+        !(pPathCchAppendEx = (void *)GetProcAddress(hmod, "PathCchAppendEx")) ||
+        !(pPathCchCombineEx = (void *)GetProcAddress(hmod, "PathCchCombineEx")))
     {
         win_skip("Skipping tests where PathCch*Ex functions aren't available");
-        return;
-    }
-
-    /* some earlier windows (1507) can create the long path but not delete it with shell32 calls */
-    if (!supports_extended_length_option())
-    {
-        win_skip("Skipping tests where long path support is incomplete\n");
         return;
     }
 
