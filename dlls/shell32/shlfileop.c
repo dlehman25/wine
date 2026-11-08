@@ -42,6 +42,7 @@
 #include "shell32_main.h"
 #include "shfldr.h"
 #include "sherrors.h"
+#include "pathcch.h"
 #include "wine/debug.h"
 #include "wine/list.h"
 
@@ -355,24 +356,33 @@ static DWORD SHELL_DeleteDirectoryW(HWND hwnd, LPCWSTR pszDir, BOOL bShowUI)
     DWORD    ret = 0;
     HANDLE  hFind;
     WIN32_FIND_DATAW wfd;
-    WCHAR   szTemp[MAX_PATH];
+    WCHAR   *tmp;
+    HRESULT  hr;
 
-    if (!PathCombineW(szTemp, pszDir, L"*"))
+    hr = PathAllocCombine(pszDir, L"*", PATHCCH_ALLOW_LONG_PATHS, &tmp);
+    if (FAILED(hr))
         return DE_PATHTOODEEP;
 
-    hFind = FindFirstFileW(szTemp, &wfd);
+    hFind = FindFirstFileW(tmp, &wfd);
+    LocalFree(tmp);
 
     if (hFind != INVALID_HANDLE_VALUE) {
         if (!bShowUI || SHELL_ConfirmDialogW(hwnd, ASK_DELETE_FOLDER, pszDir, NULL)) {
             do {
                 if (IsDotDir(wfd.cFileName))
                     continue;
-                if (!PathCombineW(szTemp, pszDir, wfd.cFileName))
+
+                hr = PathAllocCombine(pszDir, wfd.cFileName, PATHCCH_ALLOW_LONG_PATHS, &tmp);
+                if (FAILED(hr))
+                {
                     ret = DE_PATHTOODEEP;
-                else if (FILE_ATTRIBUTE_DIRECTORY & wfd.dwFileAttributes)
-                    ret = SHELL_DeleteDirectoryW(hwnd, szTemp, FALSE);
+                    break;
+                }
+                if (FILE_ATTRIBUTE_DIRECTORY & wfd.dwFileAttributes)
+                    ret = SHELL_DeleteDirectoryW(hwnd, tmp, FALSE);
                 else
-                    ret = SHNotifyDeleteFileW(szTemp);
+                    ret = SHNotifyDeleteFileW(tmp);
+                LocalFree(tmp);
             } while (!ret && FindNextFileW(hFind, &wfd));
         }
         FindClose(hFind);
